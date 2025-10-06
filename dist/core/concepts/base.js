@@ -83,14 +83,16 @@ class BaseConceptLoader {
     async validate(concept) {
         const errors = [];
         // Validate metadata
-        const metadataErrors = await this.validateMetadata(concept.metadata);
+        const metadata = concept.metadata || concept;
+        const metadataErrors = await this.validateMetadata(metadata);
         errors.push(...metadataErrors);
         // Validate concept-specific rules
         const specificErrors = await this.validateSpecific(concept);
         errors.push(...specificErrors);
         return {
             valid: errors.length === 0,
-            errors
+            errors,
+            warnings: []
         };
     }
     /**

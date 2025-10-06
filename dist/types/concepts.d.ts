@@ -15,7 +15,8 @@ export interface Concept {
     type: ConceptType;
     description?: string;
 }
-export interface Role {
+export interface Role extends Concept {
+    type: ConceptType.ROLE;
     metadata: RoleMetadata;
     path: string;
     prompt: string;
@@ -28,7 +29,7 @@ export interface Team extends Concept {
     type: ConceptType.TEAM;
     members: TeamMember[];
     coordination?: CoordinationType;
-    workflows?: Workflow[];
+    workflows?: string[];
     leader?: string;
 }
 export interface TeamMember {

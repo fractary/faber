@@ -8,7 +8,6 @@ import * as yaml from 'js-yaml';
 import {
   Context,
   ContextCategory,
-  ContextMetadata,
   Role,
   Config
 } from '../../types';
@@ -29,7 +28,7 @@ export class ContextLoader {
       category,
       name,
       content: body,
-      metadata: metadata as ContextMetadata,
+      metadata: metadata as any,
       path: filePath
     };
   }
@@ -106,7 +105,7 @@ export class ContextLoader {
    * Parse frontmatter from markdown content
    */
   private parseFrontmatter(content: string): {
-    metadata?: ContextMetadata;
+    metadata?: any;
     body: string;
   } {
     const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
@@ -114,7 +113,7 @@ export class ContextLoader {
 
     if (match) {
       try {
-        const metadata = yaml.load(match[1]) as ContextMetadata;
+        const metadata = yaml.load(match[1]) as any;
         return { metadata, body: match[2] };
       } catch {
         return { body: content };

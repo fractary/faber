@@ -68,6 +68,12 @@ const EvalMetadataSchema = zod_1.z.object({
     platforms: zod_1.z.array(zod_1.z.string()).optional()
 });
 class EvalLoader extends base_1.BaseConceptLoader {
+    constructor() {
+        super(types_1.ConceptType.EVAL);
+    }
+    getMetadataSchema() {
+        return EvalMetadataSchema;
+    }
     async loadConceptContent(conceptPath, metadata) {
         const evalMetadata = EvalMetadataSchema.parse(metadata);
         return {
@@ -75,11 +81,14 @@ class EvalLoader extends base_1.BaseConceptLoader {
             type: types_1.ConceptType.EVAL,
             description: evalMetadata.description,
             targets: evalMetadata.targets,
-            scenarios: evalMetadata.scenarios,
-            metrics: evalMetadata.metrics || [],
+            scenarios: (evalMetadata.scenarios || []),
+            metrics: (evalMetadata.metrics || []),
             success_threshold: evalMetadata.success_threshold || 80,
             platforms: evalMetadata.platforms || []
         };
+    }
+    async validateSpecific(concept) {
+        return [];
     }
     async loadMetadata(conceptPath) {
         const metadataPath = path_1.default.join(conceptPath, 'eval.yml');

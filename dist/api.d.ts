@@ -3,7 +3,8 @@
  */
 import { EventEmitter } from 'events';
 import { Config, ConceptType, ValidationResult, Concept } from './types';
-import { ConceptInfo, DeploymentArtifact, Overlays } from './types';
+import { Overlays } from './core/overlays/resolver';
+import { ConceptInfo, DeploymentArtifact } from './types';
 export interface FaberOptions {
     projectPath?: string;
     configPath?: string;

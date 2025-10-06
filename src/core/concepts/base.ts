@@ -66,7 +66,8 @@ export abstract class BaseConceptLoader<T extends Concept> {
     const errors: ValidationError[] = [];
 
     // Validate metadata
-    const metadataErrors = await this.validateMetadata(concept.metadata);
+    const metadata = (concept as any).metadata || concept;
+    const metadataErrors = await this.validateMetadata(metadata);
     errors.push(...metadataErrors);
 
     // Validate concept-specific rules
@@ -75,7 +76,8 @@ export abstract class BaseConceptLoader<T extends Concept> {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
+      warnings: []
     };
   }
 

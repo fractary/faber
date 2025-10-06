@@ -71,6 +71,8 @@ class RoleLoader extends base_1.BaseConceptLoader {
         // Load custom bindings
         const bindings = await this.loadBindings(path.join(conceptPath, 'bindings'));
         return {
+            name: metadata.name,
+            type: types_1.ConceptType.ROLE,
             metadata,
             path: conceptPath,
             prompt,

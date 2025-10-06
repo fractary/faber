@@ -5,7 +5,10 @@ import { z } from 'zod';
 import { BaseConceptLoader } from './base';
 import { Team, CoordinationType } from '../../types';
 export declare class TeamLoader extends BaseConceptLoader<Team> {
+    constructor();
+    protected getMetadataSchema(): z.ZodSchema;
     protected loadConceptContent(conceptPath: string, metadata: any): Promise<Team>;
+    protected validateSpecific(concept: Team): Promise<any[]>;
     protected loadMetadata(conceptPath: string): Promise<any>;
     protected validateConcept(team: Team): Promise<void>;
     getSchema(): z.ZodObject<{

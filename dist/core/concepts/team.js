@@ -60,17 +60,26 @@ const TeamMetadataSchema = zod_1.z.object({
     workflows: zod_1.z.array(zod_1.z.string()).optional()
 });
 class TeamLoader extends base_1.BaseConceptLoader {
+    constructor() {
+        super(types_1.ConceptType.TEAM);
+    }
+    getMetadataSchema() {
+        return TeamMetadataSchema;
+    }
     async loadConceptContent(conceptPath, metadata) {
         const teamMetadata = TeamMetadataSchema.parse(metadata);
         return {
             name: teamMetadata.name,
             type: types_1.ConceptType.TEAM,
             description: teamMetadata.description,
-            members: teamMetadata.members,
+            members: (teamMetadata.members || []),
             coordination: teamMetadata.coordination,
             leader: teamMetadata.leader,
             workflows: teamMetadata.workflows || []
         };
+    }
+    async validateSpecific(concept) {
+        return [];
     }
     async loadMetadata(conceptPath) {
         const metadataPath = path_1.default.join(conceptPath, 'team.yml');

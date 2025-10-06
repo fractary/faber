@@ -5,7 +5,10 @@ import { z } from 'zod';
 import { BaseConceptLoader } from './base';
 import { Workflow } from '../../types';
 export declare class WorkflowLoader extends BaseConceptLoader<Workflow> {
+    constructor();
+    protected getMetadataSchema(): z.ZodSchema;
     protected loadConceptContent(conceptPath: string, metadata: any): Promise<Workflow>;
+    protected validateSpecific(concept: Workflow): Promise<any[]>;
     protected loadMetadata(conceptPath: string): Promise<any>;
     protected validateConcept(workflow: Workflow): Promise<void>;
     getSchema(): z.ZodObject<{

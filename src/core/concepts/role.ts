@@ -55,6 +55,8 @@ export class RoleLoader extends BaseConceptLoader<Role> {
     const bindings = await this.loadBindings(path.join(conceptPath, 'bindings'));
 
     return {
+      name: metadata.name,
+      type: ConceptType.ROLE,
       metadata,
       path: conceptPath,
       prompt,

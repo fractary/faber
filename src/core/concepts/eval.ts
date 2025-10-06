@@ -34,6 +34,14 @@ const EvalMetadataSchema = z.object({
 });
 
 export class EvalLoader extends BaseConceptLoader<Eval> {
+  constructor() {
+    super(ConceptType.EVAL);
+  }
+
+  protected getMetadataSchema(): z.ZodSchema {
+    return EvalMetadataSchema;
+  }
+
   protected async loadConceptContent(conceptPath: string, metadata: any): Promise<Eval> {
     const evalMetadata = EvalMetadataSchema.parse(metadata);
 
@@ -42,11 +50,15 @@ export class EvalLoader extends BaseConceptLoader<Eval> {
       type: ConceptType.EVAL,
       description: evalMetadata.description,
       targets: evalMetadata.targets,
-      scenarios: evalMetadata.scenarios,
-      metrics: evalMetadata.metrics || [],
+      scenarios: (evalMetadata.scenarios || []) as Scenario[],
+      metrics: (evalMetadata.metrics || []) as Metric[],
       success_threshold: evalMetadata.success_threshold || 80,
       platforms: evalMetadata.platforms || []
     };
+  }
+
+  protected async validateSpecific(concept: Eval): Promise<any[]> {
+    return [];
   }
 
   protected async loadMetadata(conceptPath: string): Promise<any> {

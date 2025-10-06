@@ -25,6 +25,14 @@ const TeamMetadataSchema = z.object({
 });
 
 export class TeamLoader extends BaseConceptLoader<Team> {
+  constructor() {
+    super(ConceptType.TEAM);
+  }
+
+  protected getMetadataSchema(): z.ZodSchema {
+    return TeamMetadataSchema;
+  }
+
   protected async loadConceptContent(conceptPath: string, metadata: any): Promise<Team> {
     const teamMetadata = TeamMetadataSchema.parse(metadata);
 
@@ -32,11 +40,15 @@ export class TeamLoader extends BaseConceptLoader<Team> {
       name: teamMetadata.name,
       type: ConceptType.TEAM,
       description: teamMetadata.description,
-      members: teamMetadata.members,
+      members: (teamMetadata.members || []) as TeamMember[],
       coordination: teamMetadata.coordination,
       leader: teamMetadata.leader,
       workflows: teamMetadata.workflows || []
     };
+  }
+
+  protected async validateSpecific(concept: Team): Promise<any[]> {
+    return [];
   }
 
   protected async loadMetadata(conceptPath: string): Promise<any> {

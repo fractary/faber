@@ -77,11 +77,11 @@ class ClaudeCodeTransformer {
         const metadata = {
             concept: new base_1.ConceptReferenceImpl(types_1.ConceptType.ROLE, role.metadata.name),
             binding: 'claude-code',
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
             config: config
         };
         return {
-            files,
+            files: Array.from(files.entries()).map(([path, content]) => ({ path, content })),
             directories: [...new Set(directories)], // Remove duplicates
             metadata
         };

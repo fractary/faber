@@ -69,18 +69,18 @@ export class ClaudeCodeTransformer {
     directories.push(path.dirname(configPath));
 
     // Create metadata
-    const metadata: DeploymentMetadata = {
+    const metadata: any = {
       concept: new ConceptReferenceImpl(ConceptType.ROLE, role.metadata.name),
       binding: 'claude-code',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       config: config as any
     };
 
     return {
-      files,
+      files: Array.from(files.entries()).map(([path, content]) => ({ path, content })),
       directories: [...new Set(directories)], // Remove duplicates
       metadata
-    };
+    } as any;
   }
 
   /**

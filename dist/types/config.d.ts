@@ -23,6 +23,20 @@ export interface BindingConfig {
     context_loading?: 'lazy' | 'eager';
     python_version?: string;
     async_mode?: boolean;
+    output_structure?: {
+        role_path?: string;
+        config_path?: string;
+        docs_path?: string;
+    };
+    path_resolution?: {
+        context_prefix?: string;
+        task_prefix?: string;
+        flow_prefix?: string;
+    };
+    templates?: {
+        role_frontmatter?: string;
+        role_body?: string;
+    };
     [key: string]: unknown;
 }
 //# sourceMappingURL=config.d.ts.map

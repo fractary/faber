@@ -67,17 +67,26 @@ const WorkflowMetadataSchema = zod_1.z.object({
     conditions: zod_1.z.record(zod_1.z.unknown()).optional()
 });
 class WorkflowLoader extends base_1.BaseConceptLoader {
+    constructor() {
+        super(types_1.ConceptType.WORKFLOW);
+    }
+    getMetadataSchema() {
+        return WorkflowMetadataSchema;
+    }
     async loadConceptContent(conceptPath, metadata) {
         const workflowMetadata = WorkflowMetadataSchema.parse(metadata);
         return {
             name: workflowMetadata.name,
             type: types_1.ConceptType.WORKFLOW,
             description: workflowMetadata.description,
-            stages: workflowMetadata.stages,
+            stages: (workflowMetadata.stages || []),
             teams: workflowMetadata.teams,
-            triggers: workflowMetadata.triggers || [],
+            triggers: (workflowMetadata.triggers || []),
             conditions: workflowMetadata.conditions || {}
         };
+    }
+    async validateSpecific(concept) {
+        return [];
     }
     async loadMetadata(conceptPath) {
         const metadataPath = path_1.default.join(conceptPath, 'workflow.yml');

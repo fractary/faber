@@ -11,10 +11,10 @@ import { TeamLoader } from './core/concepts/team';
 import { WorkflowLoader } from './core/concepts/workflow';
 import { ToolLoader } from './core/concepts/tool';
 import { EvalLoader } from './core/concepts/eval';
-import { OverlayResolver } from './core/overlays/resolver';
+import { OverlayResolver, Overlays } from './core/overlays/resolver';
 import { ClaudeCodeTransformer } from './bindings/claude-code/transformer';
 import { ensureDirectoryExists, writeFile } from './utils/file-system';
-import { ConceptInfo, DeploymentArtifact, Overlays } from './types';
+import { ConceptInfo, DeploymentArtifact } from './types';
 
 export interface FaberOptions {
   projectPath?: string;
@@ -188,19 +188,19 @@ export class FaberAPI extends EventEmitter {
     let loader;
     switch (type) {
       case ConceptType.ROLE:
-        loader = new RoleLoader(this.projectPath);
+        loader = new RoleLoader();
         break;
       case ConceptType.TEAM:
-        loader = new TeamLoader(this.projectPath);
+        loader = new TeamLoader();
         break;
       case ConceptType.WORKFLOW:
-        loader = new WorkflowLoader(this.projectPath);
+        loader = new WorkflowLoader();
         break;
       case ConceptType.TOOL:
-        loader = new ToolLoader(this.projectPath);
+        loader = new ToolLoader();
         break;
       case ConceptType.EVAL:
-        loader = new EvalLoader(this.projectPath);
+        loader = new EvalLoader();
         break;
       default:
         throw new Error(`Unknown concept type: ${type}`);
@@ -235,19 +235,19 @@ export class FaberAPI extends EventEmitter {
     let loader;
     switch (type) {
       case ConceptType.ROLE:
-        loader = new RoleLoader(this.projectPath);
+        loader = new RoleLoader();
         break;
       case ConceptType.TEAM:
-        loader = new TeamLoader(this.projectPath);
+        loader = new TeamLoader();
         break;
       case ConceptType.WORKFLOW:
-        loader = new WorkflowLoader(this.projectPath);
+        loader = new WorkflowLoader();
         break;
       case ConceptType.TOOL:
-        loader = new ToolLoader(this.projectPath);
+        loader = new ToolLoader();
         break;
       case ConceptType.EVAL:
-        loader = new EvalLoader(this.projectPath);
+        loader = new EvalLoader();
         break;
       default:
         throw new Error(`Unknown concept type: ${type}`);

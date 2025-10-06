@@ -33,6 +33,14 @@ const WorkflowMetadataSchema = z.object({
 });
 
 export class WorkflowLoader extends BaseConceptLoader<Workflow> {
+  constructor() {
+    super(ConceptType.WORKFLOW);
+  }
+
+  protected getMetadataSchema(): z.ZodSchema {
+    return WorkflowMetadataSchema;
+  }
+
   protected async loadConceptContent(conceptPath: string, metadata: any): Promise<Workflow> {
     const workflowMetadata = WorkflowMetadataSchema.parse(metadata);
 
@@ -40,11 +48,15 @@ export class WorkflowLoader extends BaseConceptLoader<Workflow> {
       name: workflowMetadata.name,
       type: ConceptType.WORKFLOW,
       description: workflowMetadata.description,
-      stages: workflowMetadata.stages,
+      stages: (workflowMetadata.stages || []) as Stage[],
       teams: workflowMetadata.teams,
-      triggers: workflowMetadata.triggers || [],
+      triggers: (workflowMetadata.triggers || []) as Trigger[],
       conditions: workflowMetadata.conditions || {}
     };
+  }
+
+  protected async validateSpecific(concept: Workflow): Promise<any[]> {
+    return [];
   }
 
   protected async loadMetadata(conceptPath: string): Promise<any> {

@@ -5,7 +5,10 @@ import { z } from 'zod';
 import { BaseConceptLoader } from './base';
 import { Tool, ToolType } from '../../types';
 export declare class ToolLoader extends BaseConceptLoader<Tool> {
+    constructor();
+    protected getMetadataSchema(): z.ZodSchema;
     protected loadConceptContent(conceptPath: string, metadata: any): Promise<Tool>;
+    protected validateSpecific(concept: Tool): Promise<any[]>;
     protected loadMetadata(conceptPath: string): Promise<any>;
     protected validateConcept(tool: Tool): Promise<void>;
     getSchema(): z.ZodObject<{

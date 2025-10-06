@@ -5,7 +5,10 @@ import { z } from 'zod';
 import { BaseConceptLoader } from './base';
 import { Eval } from '../../types';
 export declare class EvalLoader extends BaseConceptLoader<Eval> {
+    constructor();
+    protected getMetadataSchema(): z.ZodSchema;
     protected loadConceptContent(conceptPath: string, metadata: any): Promise<Eval>;
+    protected validateSpecific(concept: Eval): Promise<any[]>;
     protected loadMetadata(conceptPath: string): Promise<any>;
     protected validateConcept(evalConcept: Eval): Promise<void>;
     getSchema(): z.ZodObject<{

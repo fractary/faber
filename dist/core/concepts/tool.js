@@ -57,6 +57,12 @@ const ToolMetadataSchema = zod_1.z.object({
     env: zod_1.z.record(zod_1.z.string()).optional()
 });
 class ToolLoader extends base_1.BaseConceptLoader {
+    constructor() {
+        super(types_1.ConceptType.TOOL);
+    }
+    getMetadataSchema() {
+        return ToolMetadataSchema;
+    }
     async loadConceptContent(conceptPath, metadata) {
         const toolMetadata = ToolMetadataSchema.parse(metadata);
         return {
@@ -70,6 +76,9 @@ class ToolLoader extends base_1.BaseConceptLoader {
             args: toolMetadata.args,
             env: toolMetadata.env
         };
+    }
+    async validateSpecific(concept) {
+        return [];
     }
     async loadMetadata(conceptPath) {
         const metadataPath = path_1.default.join(conceptPath, 'tool.yml');

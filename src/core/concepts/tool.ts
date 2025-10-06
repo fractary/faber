@@ -21,6 +21,14 @@ const ToolMetadataSchema = z.object({
 });
 
 export class ToolLoader extends BaseConceptLoader<Tool> {
+  constructor() {
+    super(ConceptType.TOOL);
+  }
+
+  protected getMetadataSchema(): z.ZodSchema {
+    return ToolMetadataSchema;
+  }
+
   protected async loadConceptContent(conceptPath: string, metadata: any): Promise<Tool> {
     const toolMetadata = ToolMetadataSchema.parse(metadata);
 
@@ -35,6 +43,10 @@ export class ToolLoader extends BaseConceptLoader<Tool> {
       args: toolMetadata.args,
       env: toolMetadata.env
     };
+  }
+
+  protected async validateSpecific(concept: Tool): Promise<any[]> {
+    return [];
   }
 
   protected async loadMetadata(conceptPath: string): Promise<any> {

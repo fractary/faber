@@ -133,19 +133,19 @@ class FaberAPI extends events_1.EventEmitter {
         let loader;
         switch (type) {
             case types_1.ConceptType.ROLE:
-                loader = new role_1.RoleLoader(this.projectPath);
+                loader = new role_1.RoleLoader();
                 break;
             case types_1.ConceptType.TEAM:
-                loader = new team_1.TeamLoader(this.projectPath);
+                loader = new team_1.TeamLoader();
                 break;
             case types_1.ConceptType.WORKFLOW:
-                loader = new workflow_1.WorkflowLoader(this.projectPath);
+                loader = new workflow_1.WorkflowLoader();
                 break;
             case types_1.ConceptType.TOOL:
-                loader = new tool_1.ToolLoader(this.projectPath);
+                loader = new tool_1.ToolLoader();
                 break;
             case types_1.ConceptType.EVAL:
-                loader = new eval_1.EvalLoader(this.projectPath);
+                loader = new eval_1.EvalLoader();
                 break;
             default:
                 throw new Error(`Unknown concept type: ${type}`);
@@ -174,19 +174,19 @@ class FaberAPI extends events_1.EventEmitter {
         let loader;
         switch (type) {
             case types_1.ConceptType.ROLE:
-                loader = new role_1.RoleLoader(this.projectPath);
+                loader = new role_1.RoleLoader();
                 break;
             case types_1.ConceptType.TEAM:
-                loader = new team_1.TeamLoader(this.projectPath);
+                loader = new team_1.TeamLoader();
                 break;
             case types_1.ConceptType.WORKFLOW:
-                loader = new workflow_1.WorkflowLoader(this.projectPath);
+                loader = new workflow_1.WorkflowLoader();
                 break;
             case types_1.ConceptType.TOOL:
-                loader = new tool_1.ToolLoader(this.projectPath);
+                loader = new tool_1.ToolLoader();
                 break;
             case types_1.ConceptType.EVAL:
-                loader = new eval_1.EvalLoader(this.projectPath);
+                loader = new eval_1.EvalLoader();
                 break;
             default:
                 throw new Error(`Unknown concept type: ${type}`);
