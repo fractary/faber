@@ -1,0 +1,36 @@
+{{{prompt}}}
+
+## Available Contexts
+
+Base contexts available at:
+{{#each contextCategories}}
+- `{{../paths.contextPrefix}}{{this}}/`
+{{/each}}
+
+{{#if overlayContexts}}
+Overlay contexts available at:
+{{#each overlayContexts}}
+- `{{this.path}}`
+{{/each}}
+{{/if}}
+
+## Available Tasks
+
+{{#each tasks}}
+- [`{{this.name}}`]({{../paths.taskPrefix}}{{this.name}}.md)
+{{/each}}
+
+## Available Flows
+
+{{#each flows}}
+- [`{{this.name}}`]({{../paths.flowPrefix}}{{this.name}}.md)
+{{/each}}
+
+{{#if mcpServers}}
+## MCP Servers
+
+The following MCP servers are configured for use:
+{{#each mcpServers}}
+- **{{@key}}**: {{this.command}}{{#if this.url}}{{this.url}}{{/if}}
+{{/each}}
+{{/if}}
