@@ -1,699 +1,398 @@
 ---
 title: Core Concepts
-description: Deep dive into Faber's architecture and key concepts
+description: Understanding Faber's architecture and key concepts
 visibility: public
 ---
 
 # Core Concepts
 
-This guide explains the fundamental concepts that make up the Faber framework.
+This guide explains the fundamental concepts of the Faber SDK.
 
-## Architecture Overview
+## The FABER Methodology
 
-Faber follows a **separation of concerns** architecture:
+FABER is a structured workflow for AI-assisted software development:
 
 ```
-┌─────────────────────────────────────────────────┐
-│           Concept Definitions                    │
-│  (Roles, Teams, Tools, Workflows, Evals)        │
-└─────────────┬───────────────────────────────────┘
-              │
-┌─────────────┴───────────────────────────────────┐
-│           Context System                         │
-│  (Domain, Platform, Org, Project, etc.)         │
-└─────────────┬───────────────────────────────────┘
-              │
-┌─────────────┴───────────────────────────────────┐
-│           Overlay System                         │
-│  (Org, Platform, Role customization)            │
-└─────────────┬───────────────────────────────────┘
-              │
-┌─────────────┴───────────────────────────────────┐
-│           Binding Layer                          │
-│  (Claude Code, LangGraph, CrewAI, etc.)         │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    FABER Workflow                            │
+├─────────┬───────────┬─────────┬────────────┬───────────────┤
+│  Frame  │ Architect │  Build  │  Evaluate  │    Release    │
+├─────────┼───────────┼─────────┼────────────┼───────────────┤
+│ Gather  │  Create   │ Branch  │  Validate  │  Create PR    │
+│ require-│  spec &   │ & impl- │  against   │  & request    │
+│ ments   │  refine   │ ement   │  spec      │  review       │
+└─────────┴───────────┴─────────┴────────────┴───────────────┘
 ```
 
-## The Concept System
+### Phase Details
 
-Concepts are the building blocks of Faber. There are five core concept types:
-
-### 1. Roles (Agents)
-
-A **Role** defines a single AI agent with specific responsibilities.
-
-**Structure:**
-```
-roles/issue-manager/
-├── agent.yml          # Metadata and configuration
-├── prompt.md          # Base prompt template
-├── contexts/          # Role-specific contexts
-│   ├── domain/
-│   └── platform/
-├── tasks/             # Reusable task definitions
-│   ├── triage.md
-│   └── assign.md
-├── flows/             # Task flow definitions
-│   └── issue-lifecycle.md
-└── bindings/          # Framework-specific configs
-    └── claude-code.yml
-```
-
-**agent.yml example:**
-```yaml
-org: acme
-system: support
-name: issue-manager
-type: role
-description: Manages and triages GitHub issues
-platforms:
-  - github-issues
-  - linear
-default_platform: github-issues
-platform_config_key: github_config
-color: "#2ea44f"
-agent_type: autonomous
-```
-
-**Key properties:**
-- `platforms` - Supported platforms (e.g., github-issues, slack)
-- `default_platform` - Default if not specified
-- `agent_type` - autonomous, interactive, or batch
-- `color` - UI color hint
-
-### 2. Teams
-
-A **Team** coordinates multiple roles working together.
-
-**team.yml example:**
-```yaml
-org: acme
-system: support
-name: support-team
-type: team
-description: Handles customer support across all channels
-members:
-  - role: issue-manager
-    name: github-bot
-    config:
-      max_issues: 50
-  - role: slack-responder
-    name: support-bot
-  - role: email-handler
-    name: email-bot
-coordination: parallel  # or: sequential, dynamic
-leader: github-bot
-workflows:
-  - incident-response
-  - feature-request-handling
-```
-
-**Coordination types:**
-- `parallel` - All members work simultaneously
-- `sequential` - Members work in order
-- `dynamic` - Runtime coordination based on context
-
-### 3. Tools
-
-A **Tool** defines capabilities that agents can use.
-
-**tool.yml example:**
-```yaml
-org: acme
-system: support
-name: github-api
-type: tool
-description: GitHub REST API integration
-tool_type: api
-mcp_server: true
-protocols:
-  - mcp
-  - rest
-command: node
-args:
-  - ./servers/github-mcp.js
-env:
-  GITHUB_TOKEN: ${GITHUB_TOKEN}
-```
-
-**Tool types:**
-- `api` - REST/GraphQL APIs
-- `mcp_server` - Model Context Protocol server
-- `cli` - Command-line tool
-- `sdk` - Language SDK
-- `custom` - Custom integration
-
-### 4. Workflows
-
-A **Workflow** defines multi-stage processes that span teams.
-
-**workflow.yml example:**
-```yaml
-org: acme
-system: support
-name: incident-response
-type: workflow
-description: Full incident response workflow from detection to resolution
-stages:
-  - name: detection
-    team: monitoring-team
-    entry_criteria:
-      - "Alert severity >= high"
-    tasks:
-      - verify-alert
-      - assess-impact
-    exit_criteria:
-      - "Impact assessed"
-    on_failure:
-      - escalate-to-oncall
-
-  - name: triage
-    team: support-team
-    tasks:
-      - classify-incident
-      - determine-priority
-      - notify-stakeholders
-
-  - name: resolution
-    team: engineering-team
-    tasks:
-      - investigate-root-cause
-      - implement-fix
-      - deploy-fix
-      - verify-resolution
-
-  - name: postmortem
-    team: support-team
-    tasks:
-      - document-incident
-      - update-runbook
-      - share-learnings
-
-teams:
-  - monitoring-team
-  - support-team
-  - engineering-team
-
-triggers:
-  - type: event
-    config:
-      event: alert.critical
-  - type: manual
-    config:
-      command: /incident
-
-conditions:
-  auto_escalate: true
-  notification_channels:
-    - slack://incidents
-    - pagerduty://oncall
-```
-
-### 5. Evals
-
-An **Eval** defines test scenarios to validate agent behavior.
-
-**eval.yml example:**
-```yaml
-org: acme
-system: support
-name: issue-manager-evals
-type: eval
-description: Comprehensive tests for issue manager agent
-targets:
-  - issue-manager
-scenarios:
-  - name: triage-critical-bug
-    description: Correctly identifies and prioritizes critical bugs
-    inputs:
-      issue_title: "Production database outage"
-      issue_body: "Users cannot access the application. Database connection failing."
-      issue_labels: []
-    expected_outputs:
-      labels:
-        - bug
-        - priority: critical
-      assignee: oncall-engineer
-      milestone: hotfix
-    assertions:
-      - "Issue labeled as 'bug' and 'priority: critical'"
-      - "Assigned to on-call engineer"
-      - "Added to hotfix milestone"
-      - "Notification sent to #incidents channel"
-
-  - name: handle-incomplete-issue
-    description: Requests clarification for incomplete issues
-    inputs:
-      issue_title: "Feature not working"
-      issue_body: "Please fix it"
-    assertions:
-      - "Asks for more details"
-      - "Provides template or guidance"
-      - "Does not close the issue"
-
-  - name: identify-duplicate
-    description: Detects and links duplicate issues
-    inputs:
-      issue_title: "Login button doesn't work"
-      issue_body: "When I click login, nothing happens"
-      existing_issues:
-        - title: "Login form not responding"
-          number: 42
-          labels: ["bug", "frontend"]
-    expected_outputs:
-      comment: "Duplicate of #42"
-      state: closed
-      labels:
-        - duplicate
-    assertions:
-      - "Links to original issue #42"
-      - "Closes as duplicate"
-      - "Adds 'duplicate' label"
-
-metrics:
-  - name: accuracy
-    type: accuracy
-    threshold: 0.95
-  - name: response_time
-    type: performance
-    threshold: 5000  # ms
-
-success_threshold: 90
-platforms:
-  - github-issues
-```
-
-## The Context System
-
-Contexts are dynamic knowledge that gets loaded based on the situation. There are 7 context categories:
-
-### Context Categories
-
-#### 1. Domain Context
-Industry or domain-specific knowledge.
-
-```markdown
----
-category: domain
-name: software-engineering
-description: Software development best practices
----
-
-# Software Engineering Domain
-
-## Development Practices
-- Follow semantic versioning
-- Write meaningful commit messages
-- Review code before merging
-- Maintain test coverage > 80%
-```
-
-**File location:** `contexts/domain/software-engineering.md`
-
-#### 2. Platform Context
-Platform-specific capabilities and conventions.
-
-```markdown
----
-category: platform
-platform: github-issues
-description: GitHub Issues API and conventions
----
-
-# GitHub Issues Platform
-
-## API Capabilities
-- List, create, update issues
-- Manage labels, milestones, assignees
-- Add comments and reactions
-- Close/reopen issues
-
-## Rate Limits
-- 5000 requests/hour for authenticated users
-- Use conditional requests to save quota
-```
-
-**File location:** `contexts/platform/github-issues.md`
-
-#### 3. Org Context
-Organization-specific information and policies.
-
-```markdown
----
-category: org
-name: acme-policies
-description: ACME Corp policies and guidelines
----
-
-# ACME Corp Guidelines
-
-## Issue Triage Policy
-- P0 (Critical): Response within 1 hour
-- P1 (High): Response within 4 hours
-- P2 (Medium): Response within 1 business day
-- P3 (Low): Response within 1 week
-
-## Escalation Path
-1. Team lead
-2. Engineering manager
-3. VP Engineering
-```
-
-**File location:** `contexts/org/acme-policies.md`
-
-#### 4. Project Context
-Project-level information.
-
-```markdown
----
-category: project
-name: web-app
-description: Web application project context
----
-
-# Web App Project
+| Phase | Purpose | Key Activities |
+|-------|---------|----------------|
+| **Frame** | Understand what needs to be done | Fetch issue, classify work type, gather context |
+| **Architect** | Plan the solution | Create/update spec, validate completeness, refine |
+| **Build** | Implement the solution | Create branch, write code, make commits |
+| **Evaluate** | Verify the solution | Run tests, validate against spec, review |
+| **Release** | Deliver the solution | Push changes, create PR, request reviews |
 
 ## Architecture
-- React frontend
-- Node.js backend
-- PostgreSQL database
-- Deployed on AWS
-
-## Team
-- Frontend: @alice, @bob
-- Backend: @charlie, @david
-- DevOps: @eve
-```
-
-**File location:** `contexts/project/web-app.md`
-
-#### 5. Specialist Context
-Deep expertise in specific areas.
-
-```markdown
----
-category: specialist
-name: kubernetes-expert
-description: Kubernetes deployment and troubleshooting
----
-
-# Kubernetes Specialist
-
-## Common Issues
-- Pod CrashLoopBackOff: Check container logs
-- ImagePullBackOff: Verify image exists and credentials
-- OOMKilled: Increase memory limits
-
-## Best Practices
-- Use resource limits
-- Implement health checks
-- Use namespaces for isolation
-```
-
-**File location:** `contexts/specialist/kubernetes-expert.md`
-
-#### 6. Task Context
-Task-specific instructions.
-
-```markdown
----
-category: task
-name: code-review
-description: Code review guidelines
----
-
-# Code Review Task
-
-## Review Checklist
-- [ ] Code follows style guide
-- [ ] Tests are included
-- [ ] Documentation is updated
-- [ ] No security vulnerabilities
-- [ ] Performance impact considered
-```
-
-**File location:** `contexts/task/code-review.md`
-
-#### 7. Integration Context
-Integration guides and examples.
-
-```markdown
----
-category: integration
-name: github-slack
-description: GitHub and Slack integration patterns
----
-
-# GitHub + Slack Integration
-
-## Event Handling
-When an issue is created:
-1. Post summary to #engineering channel
-2. Include link and priority label
-3. Mention relevant team if P0/P1
-
-## Message Format
-```
-🐛 New issue: <title>
-Priority: High
-Link: <url>
-CC: @team-leads
-```
-```
-
-**File location:** `contexts/integration/github-slack.md`
-
-### Context Loading
-
-Contexts are loaded dynamically based on:
-- **Role requirements** - Specified in agent.yml
-- **Platform** - Automatically loads platform contexts
-- **Organization** - Loads org-level contexts
-- **Runtime context** - Project, task contexts as needed
-
-## The Overlay System
-
-Overlays allow customization without forking the base definitions.
-
-### Overlay Types
-
-#### Organization Overlays
-Organization-wide customizations.
 
 ```
-.faber/overlays/org/
-└── contexts/
-    ├── domain/
-    └── org/
-        └── company-policies.md
+┌─────────────────────────────────────────────────────────────┐
+│                    FaberWorkflow                             │
+│                (Orchestration Layer)                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │   Work   │  │   Repo   │  │   Spec   │  │   Logs   │    │
+│  │ Manager  │  │ Manager  │  │ Manager  │  │ Manager  │    │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘    │
+│       │             │             │             │           │
+│  ┌────┴─────┐  ┌────┴─────┐      │             │           │
+│  │Providers │  │Providers │      │             │           │
+│  │ GitHub   │  │ GitHub   │      │             │           │
+│  │ Jira*    │  │ GitLab*  │      │             │           │
+│  │ Linear*  │  │Bitbucket*│      │             │           │
+│  └──────────┘  └──────────┘      │             │           │
+│                                   │             │           │
+├─────────────────────────────────────────────────────────────┤
+│                    StateManager                              │
+│              (Persistence & Recovery)                        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-#### Platform Overlays
-Platform-specific adaptations.
+## Modules
 
-```
-.faber/overlays/platforms/github/
-├── contexts/
-│   └── platform/
-│       └── github-enterprise.md
-└── config/
-    └── rate-limits.yml
-```
+### WorkManager
 
-#### Role Overlays
-Role-specific overrides.
-
-```
-.faber/overlays/roles/issue-manager/
-├── contexts/
-│   └── specialist/
-│       └── security-focus.md
-└── prompt-additions.md
-```
-
-### Overlay Resolution
-
-Overlays are applied in this order (later overrides earlier):
-
-1. Base definition
-2. Organization overlay
-3. Platform overlay
-4. Role overlay
-5. Runtime parameters
-
-### Example: Multi-Org Setup
-
-Base role in `roles/issue-manager/`:
-```yaml
-# agent.yml
-name: issue-manager
-type: role
-description: Generic issue manager
-```
-
-ACME overlay in `.faber/overlays/org/acme/`:
-```yaml
-# config.yml
-priority_levels:
-  - p0: critical
-  - p1: high
-  - p2: medium
-  - p3: low
-response_times:
-  p0: 1h
-  p1: 4h
-  p2: 1d
-  p3: 1w
-```
-
-TechCorp overlay in `.faber/overlays/org/techcorp/`:
-```yaml
-# config.yml
-priority_levels:
-  - critical
-  - important
-  - normal
-response_times:
-  critical: 30m
-  important: 2h
-  normal: 2d
-```
-
-## The Binding System
-
-Bindings transform Faber concepts to framework-specific formats.
-
-### Built-in Bindings
-
-#### Claude Code Binding
-Transforms to Claude Code agent format.
-
-**Output structure:**
-```
-deployments/claude/
-├── agents/
-│   └── issue-manager/
-│       ├── agent.md          # Compiled prompt
-│       └── config.json       # Agent configuration
-└── contexts/
-    └── ...                   # Flattened contexts
-```
-
-**CLI:**
-```bash
-faber build claude-code role issue-manager \
-  --platform github \
-  --output ./deployments
-```
-
-**API:**
-```typescript
-const artifact = await faber.build(
-  'claude-code',
-  ConceptType.ROLE,
-  'issue-manager',
-  { platform: 'github' }
-);
-```
-
-### Custom Bindings
-
-You can create custom bindings for other frameworks:
+Unified interface for work tracking across platforms.
 
 ```typescript
-import { BindingTransformer, Concept, Config, Overlays } from '@fractary/faber/bindings';
+import { WorkManager } from '@fractary/faber/work';
 
-export class MyCustomBinding implements BindingTransformer {
-  async transform(
-    concept: Concept,
-    config: Config,
-    overlays?: Overlays
-  ): Promise<DeploymentArtifact> {
-    // Transform concept to your framework format
-    const files = [];
+const work = new WorkManager();
 
-    // Generate framework-specific files
-    files.push({
-      path: 'agent.py',
-      content: this.generatePythonAgent(concept)
-    });
+// Platform-agnostic operations
+const issue = await work.fetchIssue(123);
+await work.addLabels(123, ['bug', 'priority:high']);
+const workType = await work.classifyWorkType(issue);
+```
 
-    return {
-      framework: 'my-framework',
-      concept: concept.name,
-      conceptType: concept.type,
-      files,
-      metadata: {
-        version: '1.0',
-        timestamp: new Date().toISOString(),
-        config
-      }
-    };
-  }
+**Supported Platforms:**
+- GitHub Issues (fully implemented)
+- Jira (stub - interface only)
+- Linear (stub - interface only)
 
-  async validate(concept: Concept): Promise<ValidationResult> {
-    // Validate concept for your framework
-    return {
-      valid: true,
-      errors: [],
-      warnings: []
-    };
-  }
+### RepoManager
 
-  getRequirements(): BindingRequirements {
-    return {
-      supportedConcepts: [ConceptType.ROLE, ConceptType.TEAM]
-    };
+Git and repository operations with platform abstraction.
+
+```typescript
+import { RepoManager } from '@fractary/faber/repo';
+
+const repo = new RepoManager();
+
+// Branch operations
+await repo.createBranch('feature/add-auth');
+const branches = await repo.listBranches({ merged: true });
+
+// PR operations
+const pr = await repo.createPR({
+  title: 'Add authentication',
+  head: 'feature/add-auth',
+});
+
+// Git operations
+repo.commit({ message: 'Add login form', type: 'feat' });
+repo.push({ setUpstream: true });
+```
+
+**Capabilities:**
+- Branch management (create, delete, list)
+- Pull request lifecycle
+- Git operations (commit, push, pull)
+- Worktree management
+
+### SpecManager
+
+Specification creation, validation, and refinement.
+
+```typescript
+import { SpecManager } from '@fractary/faber/spec';
+
+const spec = new SpecManager();
+
+// Create from template
+const newSpec = spec.createSpec('Add OAuth support', {
+  template: 'feature',
+  workId: '123',
+});
+
+// Validate
+const validation = spec.validateSpec(newSpec.id);
+
+// Refine
+const questions = spec.generateRefinementQuestions(newSpec.id);
+spec.applyRefinements(newSpec.id, {
+  'auth-method': 'OAuth 2.0 with PKCE',
+});
+```
+
+**Templates:**
+- `basic` - Minimal spec structure
+- `feature` - New feature implementation
+- `bug` - Bug fix with reproduction steps
+- `infrastructure` - Infrastructure changes
+- `api` - API design and changes
+
+### LogManager
+
+Session capture with sensitive data redaction.
+
+```typescript
+import { LogManager } from '@fractary/faber/logs';
+
+const logs = new LogManager();
+
+// Capture a session
+logs.startCapture({ issueNumber: 123 });
+// ... work happens ...
+const session = logs.stopCapture();
+
+// Export for sharing
+logs.exportLog(session.session_id, './report.md', 'markdown');
+```
+
+**Features:**
+- Automatic sensitive data redaction
+- Multiple export formats
+- Session metadata tracking
+
+### StateManager
+
+Workflow state persistence and recovery.
+
+```typescript
+import { StateManager } from '@fractary/faber/state';
+
+const state = new StateManager();
+
+// Create workflow state
+const workflow = state.createWorkflow('123');
+
+// Track phases
+state.startPhase(workflow.workflow_id, 'frame');
+state.completePhase(workflow.workflow_id, 'frame', { workType: 'feature' });
+
+// Checkpoints for recovery
+state.createCheckpoint(workflow.workflow_id, 'before-build');
+// ... if something fails ...
+state.restoreFromCheckpoint(workflow.workflow_id, 'before-build');
+```
+
+**Capabilities:**
+- Workflow state tracking
+- Phase management
+- Checkpoint/recovery
+- Run manifests
+
+### FaberWorkflow
+
+Orchestrates the complete FABER workflow.
+
+```typescript
+import { FaberWorkflow } from '@fractary/faber/workflow';
+
+const faber = new FaberWorkflow({
+  config: {
+    autonomy: 'assisted',
+    phases: {
+      frame: { enabled: true },
+      architect: { enabled: true, refineSpec: true },
+      build: { enabled: true },
+      evaluate: { enabled: true, maxRetries: 3 },
+      release: { enabled: true, requestReviews: true },
+    },
+  },
+});
+
+const result = await faber.run({ workId: '123' });
+```
+
+## Configuration
+
+### File Locations
+
+```
+.fractary/
+└── plugins/
+    ├── work/
+    │   └── config.json      # Work tracking config
+    ├── repo/
+    │   └── config.json      # Repository config
+    ├── spec/
+    │   └── config.json      # Specification config
+    ├── logs/
+    │   └── config.json      # Logging config
+    └── state/
+        └── config.json      # State management config
+```
+
+### Work Configuration
+
+```json
+{
+  "platform": "github",
+  "owner": "your-org",
+  "repo": "your-repo"
+}
+```
+
+For Jira:
+```json
+{
+  "platform": "jira",
+  "project": "PROJ",
+  "baseUrl": "https://your-org.atlassian.net"
+}
+```
+
+### Repo Configuration
+
+```json
+{
+  "platform": "github",
+  "owner": "your-org",
+  "repo": "your-repo",
+  "defaultBranch": "main",
+  "protectedBranches": ["main", "develop"],
+  "branchPrefixes": {
+    "feature": "feature/",
+    "fix": "fix/",
+    "chore": "chore/",
+    "hotfix": "hotfix/"
   }
 }
 ```
 
-Register your binding:
+## Autonomy Levels
+
+Control the balance between automation and human oversight:
+
+### dry-run
+No changes made. Shows what would happen.
 
 ```typescript
-import { FaberAPI } from '@fractary/faber';
-import { MyCustomBinding } from './my-binding';
-
-const faber = new FaberAPI();
-faber.registerBinding('my-framework', new MyCustomBinding());
-
-// Use it
-await faber.build('my-framework', ConceptType.ROLE, 'my-agent');
+const result = await faber.run({
+  workId: '123',
+  autonomy: 'dry-run',
+});
+// result.phases will show { dryRun: true, message: "Would create branch..." }
 ```
 
-## Best Practices
+### assisted
+Pauses at each significant step for user confirmation.
 
-### Organizing Concepts
+```typescript
+faber.setUserInputCallback(async (request) => {
+  console.log(request.message);
+  return await askUser('Proceed? (yes/no)') === 'yes';
+});
+```
 
-1. **Keep roles focused** - One clear responsibility per role
-2. **Share contexts** - Use shared contexts for common knowledge
-3. **Use overlays** - Don't fork, use overlays for customization
-4. **Version contexts** - Track context changes for consistency
+### guarded
+Automatic for safe operations, confirms for:
+- Branch deletion
+- Force push
+- PR creation
+- Closing issues
 
-### Naming Conventions
+### autonomous
+Runs to completion without user interaction.
 
-- **Roles**: `noun-action` (e.g., `issue-manager`, `code-reviewer`)
-- **Teams**: `function-team` (e.g., `support-team`, `devops-team`)
-- **Tools**: `service-type` (e.g., `github-api`, `slack-notifier`)
-- **Workflows**: `process-name` (e.g., `incident-response`, `release-deployment`)
-- **Contexts**: `descriptive-name` (e.g., `github-issues`, `kubernetes-expert`)
+## Event System
 
-### Context Organization
+Subscribe to workflow events:
 
-- Keep contexts **small and focused**
-- Use **meaningful frontmatter**
-- Group related contexts
-- Document context dependencies
+```typescript
+faber.addEventListener((event, data) => {
+  switch (event) {
+    case 'workflow:start':
+      console.log('Starting:', data.workflowId);
+      break;
+    case 'phase:start':
+      console.log('Phase:', data.phase);
+      break;
+    case 'phase:complete':
+      console.log('Completed:', data.phase, data.outputs);
+      break;
+    case 'artifact:create':
+      console.log('Created:', data.type, data.path);
+      break;
+    case 'workflow:complete':
+      console.log('Done:', data.status);
+      break;
+  }
+});
+```
 
-### Testing Strategy
+**Available Events:**
+- `workflow:start` - Workflow begins
+- `workflow:complete` - Workflow finishes successfully
+- `workflow:fail` - Workflow fails
+- `workflow:pause` - Workflow paused for input
+- `phase:start` - Phase begins
+- `phase:complete` - Phase completes
+- `phase:fail` - Phase fails
+- `phase:skip` - Phase skipped
+- `artifact:create` - Artifact created (spec, branch, PR)
 
-1. **Unit evals** - Test individual role capabilities
-2. **Integration evals** - Test role interactions
-3. **Workflow evals** - Test end-to-end workflows
-4. **Platform evals** - Test platform-specific behavior
+## Error Handling
+
+The SDK provides typed errors:
+
+```typescript
+import {
+  FaberError,           // Base class
+  ConfigurationError,   // Invalid config
+  ProviderError,        // Platform API errors
+  WorkflowError,        // Workflow execution errors
+  SpecError,            // Spec management errors
+  IssueNotFoundError,   // Issue not found
+  BranchExistsError,    // Branch already exists
+  MergeConflictError,   // PR merge failed
+} from '@fractary/faber';
+
+try {
+  await work.fetchIssue(999999);
+} catch (error) {
+  if (error instanceof IssueNotFoundError) {
+    console.log('Issue does not exist');
+  }
+}
+```
+
+## Work Types
+
+The SDK recognizes these work types:
+
+| Type | Description |
+|------|-------------|
+| `feature` | New functionality |
+| `bug` | Bug fix |
+| `chore` | Maintenance task |
+| `patch` | Small fix or hotfix |
+| `infrastructure` | Infrastructure changes |
+| `api` | API changes |
+
+Classification is automatic based on labels and content:
+
+```typescript
+const workType = await work.classifyWorkType(issue);
+// Returns: 'feature' | 'bug' | 'chore' | etc.
+```
 
 ## Next Steps
 
-- [CLI Reference](./cli.md) - Learn all CLI commands
-- [API Reference](./api.md) - Explore the programmatic API
-- [Getting Started](./getting-started.md) - Build your first agent
+- [Getting Started](./getting-started.md) - Installation and first steps
+- [CLI Reference](./cli.md) - Command-line interface
+- [API Reference](./api.md) - Full API documentation

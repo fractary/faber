@@ -1,457 +1,344 @@
 ---
 title: Getting Started with Faber
-description: Step-by-step guide to installing and creating your first AI agent with Faber
+description: Installation and first steps with the FABER SDK
 visibility: public
 ---
 
 # Getting Started
 
-This guide will walk you through installing Faber and creating your first AI agent.
+This guide walks you through installing the Faber SDK and using it for AI-assisted development.
 
 ## Prerequisites
 
 - **Node.js** >= 18.0.0
 - **npm** or **yarn**
-- Basic understanding of TypeScript (for SDK usage)
-- A code editor (VS Code recommended)
+- **Git** installed and configured
+- **GitHub CLI** (`gh`) for GitHub operations
 
 ## Installation
 
-### Option 1: CLI Tool (Recommended for Quick Start)
+### SDK Installation
 
 ```bash
-# Install globally
-npm install -g @fractary/faber-cli
+npm install @fractary/faber
+```
+
+### Global CLI (Optional)
+
+```bash
+npm install -g @fractary/faber
 
 # Verify installation
-faber --version
+fractary --version
 ```
 
-### Option 2: SDK Library (For Programmatic Usage)
+## Configuration
+
+Create configuration files in your project at `.fractary/plugins/{module}/config.json`.
+
+### Work Configuration
 
 ```bash
-# Install in your project
-npm install @fractary/faber
-
-# For TypeScript projects
-npm install --save-dev @types/node typescript
+mkdir -p .fractary/plugins/work
 ```
 
-### Option 3: Both
+```json
+// .fractary/plugins/work/config.json
+{
+  "platform": "github",
+  "owner": "your-org",
+  "repo": "your-repo"
+}
+```
+
+### Repository Configuration
 
 ```bash
-# Global CLI for commands
-npm install -g @fractary/faber-cli
-
-# Local SDK for custom code
-npm install @fractary/faber
+mkdir -p .fractary/plugins/repo
 ```
 
-## Creating Your First Project
-
-### Initialize a New Project
-
-```bash
-# Create a new directory
-mkdir my-agents
-cd my-agents
-
-# Initialize Faber project
-faber init
-
-# Or with options
-faber init \
-  --org acme \
-  --system support \
-  --platforms github-issues,slack
+```json
+// .fractary/plugins/repo/config.json
+{
+  "platform": "github",
+  "owner": "your-org",
+  "repo": "your-repo",
+  "defaultBranch": "main",
+  "branchPrefixes": {
+    "feature": "feature/",
+    "fix": "fix/",
+    "chore": "chore/"
+  }
+}
 ```
 
-This creates the following structure:
+## Basic Usage
 
-```
-my-agents/
-├── .faber/
-│   ├── config.yml           # Project configuration
-│   └── overlays/            # Customization overlays
-├── roles/                   # Your agent roles
-├── teams/                   # Team definitions
-├── tools/                   # Tool definitions
-├── workflows/               # Workflow definitions
-├── evals/                   # Evaluation scenarios
-└── contexts/                # Shared contexts
-    ├── domain/
-    ├── platform/
-    ├── org/
-    ├── project/
-    ├── specialist/
-    ├── task/
-    └── integration/
-```
-
-### Configuration File
-
-The `.faber/config.yml` file contains your project settings:
-
-```yaml
-org: acme
-system: support
-platforms:
-  github-issues: github
-  slack: slack
-overlays:
-  enabled: true
-  paths:
-    - .faber/overlays
-```
-
-## Creating Your First Agent
-
-Let's create a simple GitHub issue manager agent.
-
-### Step 1: Create a Role
-
-```bash
-faber create role issue-manager \
-  --description "Manages and triages GitHub issues" \
-  --platforms github-issues
-```
-
-This creates:
-
-```
-roles/issue-manager/
-├── agent.yml          # Role metadata
-├── prompt.md          # Base prompt
-├── contexts/          # Role-specific contexts
-├── tasks/             # Reusable tasks
-└── flows/             # Task flows
-```
-
-### Step 2: Edit the Agent Metadata
-
-Open `roles/issue-manager/agent.yml`:
-
-```yaml
-org: acme
-system: support
-name: issue-manager
-type: role
-description: Manages and triages GitHub issues
-platforms:
-  - github-issues
-default_platform: github-issues
-color: "#2ea44f"
-agent_type: autonomous
-```
-
-### Step 3: Write the Base Prompt
-
-Edit `roles/issue-manager/prompt.md`:
-
-```markdown
----
-name: Issue Manager
-description: Triages and manages GitHub issues efficiently
----
-
-You are an intelligent issue manager for GitHub repositories. Your primary responsibilities are:
-
-## Core Responsibilities
-
-1. **Triage new issues** - Classify, label, and prioritize incoming issues
-2. **Assign issues** - Route issues to appropriate team members
-3. **Manage lifecycle** - Track progress and update issue status
-4. **Ensure quality** - Verify issues have sufficient detail before assignment
-
-## Guidelines
-
-- Always be helpful and professional
-- Ask clarifying questions when issues lack detail
-- Use labels consistently across the repository
-- Escalate critical issues immediately
-- Keep issue discussions focused and organized
-
-## Available Actions
-
-You can:
-- Read issue details and comments
-- Add labels and milestones
-- Assign issues to team members
-- Comment on issues
-- Close or reopen issues
-- Link related issues
-```
-
-### Step 4: Add Platform Context
-
-Create `contexts/platform/github-issues.md`:
-
-```markdown
----
-category: platform
-platform: github-issues
-description: GitHub Issues platform capabilities and conventions
----
-
-## GitHub Issues Platform
-
-### Available Operations
-
-#### Reading Issues
-- List repository issues with filters
-- Get issue details, comments, and history
-- Search issues by label, assignee, or text
-
-#### Managing Issues
-- Create new issues
-- Update issue title, body, or state
-- Add/remove labels
-- Set assignees and milestones
-- Close or reopen issues
-
-### Labels Convention
-
-Use these standard labels:
-- `bug` - Something isn't working
-- `enhancement` - New feature request
-- `documentation` - Documentation improvements
-- `question` - Questions or help needed
-- `duplicate` - Duplicate of existing issue
-- `wontfix` - Will not be addressed
-
-Priority labels:
-- `priority: critical` - Immediate attention required
-- `priority: high` - Important, address soon
-- `priority: medium` - Normal priority
-- `priority: low` - Nice to have
-
-### Issue Templates
-
-Reference these templates when creating issues:
-- Bug reports require reproduction steps
-- Feature requests require use case description
-- Questions should check existing documentation first
-```
-
-### Step 5: Create a Task
-
-Create `roles/issue-manager/tasks/triage-issue.md`:
-
-```markdown
----
-name: Triage Issue
-description: Classify and label a new issue
----
-
-# Triage Issue Task
-
-When triaging a new issue:
-
-1. **Read and understand** the issue description
-2. **Classify the type**:
-   - Bug report → add `bug` label
-   - Feature request → add `enhancement` label
-   - Question → add `question` label
-   - Documentation → add `documentation` label
-
-3. **Assess priority** based on:
-   - Impact on users
-   - Severity of problem
-   - Urgency of request
-   - Business priority
-
-4. **Add appropriate labels**:
-   - Type label (bug, enhancement, etc.)
-   - Priority label (critical, high, medium, low)
-   - Area labels (frontend, backend, api, etc.)
-
-5. **Check for duplicates**:
-   - Search for similar existing issues
-   - If duplicate, link to original and close
-
-6. **Validate completeness**:
-   - Does it have enough detail?
-   - Are reproduction steps clear (for bugs)?
-   - Is the use case explained (for features)?
-   - If not, ask for clarification
-
-7. **Route appropriately**:
-   - Assign to team member if obvious owner
-   - Add to appropriate milestone
-   - Leave in backlog if needs discussion
-```
-
-### Step 6: Build for Claude Code
-
-```bash
-faber build claude-code role issue-manager \
-  --platform github-issues \
-  --output ./deployments/claude
-```
-
-This generates a Claude Code agent in `./deployments/claude/` with:
-- Agent configuration file
-- Complete prompt with contexts
-- Platform-specific adaptations
-
-### Step 7: Deploy the Agent
-
-Copy the generated files to your Claude Code configuration:
-
-```bash
-# For Claude Code CLI
-cp -r ./deployments/claude/* ~/.claude/agents/
-
-# Or for Claude Desktop
-cp -r ./deployments/claude/* ~/Library/Application\ Support/Claude/agents/
-```
-
-## Testing Your Agent
-
-### Create an Eval
-
-```bash
-faber create eval issue-manager-basic \
-  --description "Basic issue triage tests"
-```
-
-Edit `evals/issue-manager-basic/eval.yml`:
-
-```yaml
-name: issue-manager-basic
-type: eval
-description: Basic issue triage functionality tests
-targets:
-  - issue-manager
-scenarios:
-  - name: triage-bug-report
-    description: Correctly identifies and labels a bug report
-    inputs:
-      issue_title: "App crashes on startup"
-      issue_body: "Steps to reproduce:\n1. Open app\n2. Click settings\n3. App crashes"
-    expected_outputs:
-      labels:
-        - bug
-        - priority: high
-    assertions:
-      - "Issue is labeled as 'bug'"
-      - "Priority is set to high or critical"
-      - "No clarification questions needed"
-
-  - name: triage-incomplete-issue
-    description: Asks for more information on incomplete issue
-    inputs:
-      issue_title: "Something is broken"
-      issue_body: "It doesn't work"
-    assertions:
-      - "Asks for clarification"
-      - "Requests reproduction steps or details"
-```
-
-### Run Validation
-
-```bash
-# Validate the role structure
-faber validate role issue-manager
-
-# Run evals (when supported by binding)
-faber eval issue-manager-basic
-```
-
-## Using the Programmatic API
-
-For more control, use the SDK directly:
+### Work Tracking
 
 ```typescript
-import { FaberAPI, ConceptType } from '@fractary/faber';
+import { WorkManager } from '@fractary/faber/work';
 
-async function buildAgent() {
-  // Initialize API
-  const faber = new FaberAPI({
-    projectPath: './my-agents',
-    verbose: true
-  });
+const work = new WorkManager();
 
-  // Load configuration
-  const config = await faber.loadConfig();
-  console.log('Loaded config:', config);
+// Fetch an issue
+const issue = await work.fetchIssue(123);
+console.log(issue.title, issue.state);
 
-  // List available roles
-  const roles = await faber.list(ConceptType.ROLE);
-  console.log('Available roles:', roles);
+// Create an issue
+const newIssue = await work.createIssue({
+  title: 'Add CSV export feature',
+  body: 'Users need to export data as CSV',
+  labels: ['enhancement'],
+});
 
-  // Validate a role
-  const validation = await faber.validate(
-    ConceptType.ROLE,
-    'issue-manager'
-  );
+// Add a comment
+await work.createComment(123, 'Starting implementation');
 
-  if (!validation.valid) {
-    console.error('Validation errors:', validation.errors);
-    return;
-  }
+// Close when done
+await work.closeIssue(123);
+```
 
-  // Build for Claude Code
-  const artifact = await faber.build(
-    'claude-code',
-    ConceptType.ROLE,
-    'issue-manager',
-    {
-      output: './deployments/claude',
-      platform: 'github-issues',
-      verbose: true
-    }
-  );
+### Repository Operations
 
-  console.log('Built agent:', {
-    files: artifact.files.length,
-    metadata: artifact.metadata
-  });
+```typescript
+import { RepoManager } from '@fractary/faber/repo';
+
+const repo = new RepoManager();
+
+// Create a feature branch
+await repo.createBranch('feature/add-export', { base: 'main' });
+
+// Make commits
+repo.commit({
+  message: 'Add CSV export functionality',
+  type: 'feat',
+});
+
+// Push to remote
+repo.push({ branch: 'feature/add-export', setUpstream: true });
+
+// Create a pull request
+const pr = await repo.createPR({
+  title: 'Add CSV export feature',
+  body: 'Implements CSV export for user data',
+  head: 'feature/add-export',
+  base: 'main',
+});
+```
+
+### Specifications
+
+```typescript
+import { SpecManager } from '@fractary/faber/spec';
+
+const spec = new SpecManager();
+
+// Create a spec from template
+const newSpec = spec.createSpec('Add user authentication', {
+  template: 'feature',
+  workId: '123',
+});
+
+// Validate completeness
+const validation = spec.validateSpec(newSpec.id);
+if (validation.status !== 'pass') {
+  console.log('Issues:', validation.suggestions);
 }
 
-buildAgent().catch(console.error);
+// Get refinement questions
+const questions = spec.generateRefinementQuestions(newSpec.id);
+```
+
+### Full FABER Workflow
+
+```typescript
+import { FaberWorkflow } from '@fractary/faber/workflow';
+
+const faber = new FaberWorkflow({
+  config: {
+    autonomy: 'assisted',
+  },
+});
+
+// Listen to events
+faber.addEventListener((event, data) => {
+  console.log(`${event}:`, data);
+});
+
+// Run the workflow
+const result = await faber.run({
+  workId: '123',
+  autonomy: 'assisted',
+});
+
+console.log('Status:', result.status);
+console.log('Phases:', result.phases.map(p => `${p.phase}: ${p.status}`));
+```
+
+## CLI Usage
+
+### Work Commands
+
+```bash
+# Fetch issue details
+fractary work fetch 123
+
+# Create a new issue
+fractary work create --title "Add feature" --body "Description" --type feature
+
+# Search issues
+fractary work search "authentication" --state open
+
+# Add a comment
+fractary work comment 123 --body "Progress update"
+
+# Close an issue
+fractary work close 123
+
+# Classify work type
+fractary work classify 123
+```
+
+### Repository Commands
+
+```bash
+# Create a branch
+fractary repo branch create feature/new-feature
+
+# List branches
+fractary repo branch list --merged
+
+# Create a PR
+fractary repo pr create --title "Add feature" --head feature/new-feature
+
+# Commit changes
+fractary repo commit --message "Add feature" --type feat
+```
+
+### Specification Commands
+
+```bash
+# Create a spec
+fractary spec create "Add authentication" --template feature
+
+# List specs
+fractary spec list --status draft
+
+# Validate a spec
+fractary spec validate SPEC-001
+
+# Refine a spec
+fractary spec refine SPEC-001
+```
+
+### Workflow Commands
+
+```bash
+# Run FABER workflow
+fractary workflow run 123 --autonomy assisted
+
+# Check status
+fractary workflow status <workflow-id>
+
+# Resume paused workflow
+fractary workflow resume <workflow-id>
+```
+
+## Autonomy Levels
+
+Control how much human oversight you want:
+
+### dry-run
+Preview what would happen without making changes:
+
+```typescript
+const result = await faber.run({
+  workId: '123',
+  autonomy: 'dry-run',
+});
+// Shows what would be created/modified
+```
+
+### assisted
+Pause at each step for confirmation:
+
+```typescript
+faber.setUserInputCallback(async (request) => {
+  const answer = await promptUser(request.message);
+  return answer === 'yes';
+});
+
+await faber.run({ workId: '123', autonomy: 'assisted' });
+```
+
+### guarded
+Only confirm destructive operations:
+
+```typescript
+await faber.run({ workId: '123', autonomy: 'guarded' });
+// Auto-proceeds except for deletions, force pushes, etc.
+```
+
+### autonomous
+Full automation without confirmation:
+
+```typescript
+await faber.run({ workId: '123', autonomy: 'autonomous' });
+// Runs to completion automatically
+```
+
+## Project Structure
+
+Recommended project structure:
+
+```
+your-project/
+├── .fractary/
+│   └── plugins/
+│       ├── work/
+│       │   └── config.json
+│       ├── repo/
+│       │   └── config.json
+│       ├── spec/
+│       │   └── config.json
+│       ├── logs/
+│       │   └── config.json
+│       └── state/
+│           └── config.json
+├── specs/                  # Specification files
+│   └── SPEC-001.md
+├── .faber-state/           # Workflow state (auto-generated)
+└── .faber-logs/            # Session logs (auto-generated)
 ```
 
 ## Next Steps
 
-Now that you have your first agent running:
-
-1. **Add more contexts** - Enrich your agent with domain knowledge
-2. **Create overlays** - Customize for different organizations or platforms
-3. **Build a team** - Coordinate multiple agents
-4. **Define workflows** - Create multi-stage processes
-5. **Write evals** - Test and validate agent behavior
-
-### Learn More
-
-- [Core Concepts](./concepts.md) - Understanding Faber's architecture
+- [Concepts](./concepts.md) - Understand the architecture
 - [CLI Reference](./cli.md) - Complete command documentation
 - [API Reference](./api.md) - Programmatic API details
-- [Context System](./concepts.md#context-system) - Dynamic knowledge loading
-- [Overlay System](./concepts.md#overlay-system) - Customization patterns
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Issue**: `faber: command not found`
-- Solution: Ensure global npm bin directory is in your PATH
-- Run: `npm config get prefix` and add `<prefix>/bin` to PATH
+**"Configuration not found"**
+- Create the config file at `.fractary/plugins/{module}/config.json`
+- Ensure you're running from the project root
 
-**Issue**: `Cannot find module '@fractary/faber'`
-- Solution: Install the SDK in your project
-- Run: `npm install @fractary/faber`
+**"gh: command not found"**
+- Install GitHub CLI: `brew install gh` or [github.com/cli/cli](https://github.com/cli/cli)
+- Authenticate: `gh auth login`
 
-**Issue**: Validation errors on build
-- Solution: Check agent.yml format matches schema
-- Run: `faber validate role <name>` for details
+**"Permission denied"**
+- Check your GitHub token has required scopes
+- Re-authenticate: `gh auth refresh`
 
-**Issue**: Contexts not loading
-- Solution: Verify context files have proper frontmatter
-- Check: Category and platform fields match configuration
+**"Branch already exists"**
+- Use a different branch name
+- Delete the existing branch first: `fractary repo branch delete <name>`
 
 ### Getting Help
 
 - [GitHub Issues](https://github.com/fractary/faber/issues)
 - [Documentation](https://developers.fractary.com)
-- [Examples Repository](https://github.com/fractary/faber-examples)

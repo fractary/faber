@@ -1,804 +1,598 @@
 ---
 title: CLI Reference
-description: Complete reference for all Faber CLI commands
+description: Complete command-line interface documentation for the Faber SDK
 visibility: public
 ---
 
 # CLI Reference
 
-Complete documentation for the Faber command-line interface.
+The Faber SDK includes a command-line interface for quick access to all functionality.
 
 ## Installation
 
 ```bash
 # Install globally
-npm install -g @fractary/faber-cli
+npm install -g @fractary/faber
 
-# Verify installation
-faber --version
+# Verify
+fractary --version
 ```
 
 ## Global Options
 
-These options work with all commands:
-
 ```bash
---help, -h          Show help
---version, -v       Show version number
---verbose           Show detailed output
---quiet, -q         Suppress non-error output
---config PATH       Path to config file (default: .faber/config.yml)
+fractary [command] [options]
+
+Options:
+  -V, --version  Output version number
+  -h, --help     Display help for command
 ```
 
-## Commands
+## Commands Overview
 
-### `faber init`
+| Command | Description |
+|---------|-------------|
+| `work` | Work tracking operations |
+| `repo` | Repository operations |
+| `spec` | Specification management |
+| `logs` | Log management |
+| `workflow` | FABER workflow orchestration |
 
-Initialize a new Faber project.
+---
 
-**Usage:**
+## Work Commands
+
+Work tracking for GitHub Issues, Jira, and Linear.
+
+### work fetch
+
+Fetch issue details.
+
 ```bash
-faber init [directory] [options]
+fractary work fetch <issue>
 ```
 
 **Arguments:**
-- `directory` - Project directory (default: current directory)
+- `<issue>` - Issue number or ID
 
-**Options:**
+**Example:**
 ```bash
---org ORG              Organization identifier (e.g., acme)
---system SYSTEM        System identifier (e.g., support, engineering)
---platforms PLATFORMS  Comma-separated platform list (e.g., github,slack)
---description DESC     Project description
---force, -f           Overwrite existing project
+fractary work fetch 123
 ```
 
-**Examples:**
+### work create
+
+Create a new issue.
+
 ```bash
-# Initialize in current directory
-faber init
+fractary work create [options]
+```
 
-# Initialize with options
-faber init my-agents \
-  --org acme \
-  --system support \
-  --platforms github-issues,slack \
-  --description "Support automation agents"
+**Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-t, --title <title>` | Issue title (required) | - |
+| `-b, --body <body>` | Issue body | - |
+| `--type <type>` | Work type (feature, bug, chore, patch) | feature |
+| `-l, --labels <labels>` | Comma-separated labels | - |
+| `-a, --assignee <assignee>` | Assignee username | - |
 
-# Force reinitialize existing project
-faber init --force
+**Example:**
+```bash
+fractary work create \
+  --title "Add CSV export" \
+  --body "Users need to export data" \
+  --type feature \
+  --labels "enhancement,priority:medium"
+```
+
+### work search
+
+Search issues.
+
+```bash
+fractary work search [query] [options]
+```
+
+**Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-s, --state <state>` | Issue state (open, closed, all) | open |
+| `-l, --limit <limit>` | Maximum results | 10 |
+
+**Example:**
+```bash
+fractary work search "authentication" --state open --limit 20
+```
+
+### work close
+
+Close an issue.
+
+```bash
+fractary work close <issue>
+```
+
+### work comment
+
+Add a comment to an issue.
+
+```bash
+fractary work comment <issue> [options]
+```
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `-b, --body <body>` | Comment body (required) |
+
+**Example:**
+```bash
+fractary work comment 123 --body "Implementation complete"
+```
+
+### work classify
+
+Classify issue work type.
+
+```bash
+fractary work classify <issue>
 ```
 
 **Output:**
 ```
-✓ Created project structure
-✓ Generated config file
-✓ Created context directories
-✓ Project initialized successfully!
+Work type: feature
 ```
 
 ---
 
-### `faber create`
+## Repo Commands
 
-Create a new concept (role, team, tool, workflow, or eval).
+Repository and Git operations.
 
-**Usage:**
-```bash
-faber create <type> <name> [options]
-```
+### repo branch create
 
-**Arguments:**
-- `type` - Concept type: `role`, `team`, `tool`, `workflow`, or `eval`
-- `name` - Concept name (kebab-case)
-
-**Common Options:**
-```bash
---description DESC     Concept description
---org ORG             Organization (default: from config)
---system SYSTEM       System (default: from config)
-```
-
-#### Create Role
+Create a new branch.
 
 ```bash
-faber create role <name> [options]
+fractary repo branch create <name> [options]
 ```
 
 **Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--base <branch>` | Base branch | Default branch |
+
+**Example:**
 ```bash
---description DESC         Role description
---platforms PLATFORMS      Comma-separated platform list
---default-platform PLATFORM Default platform
---agent-type TYPE          Agent type: autonomous, interactive, batch
---color COLOR              UI color (hex format)
+fractary repo branch create feature/add-auth --base main
 ```
 
-**Examples:**
-```bash
-# Basic role
-faber create role issue-manager \
-  --description "Manages GitHub issues"
+### repo branch list
 
-# Role with platforms
-faber create role support-bot \
-  --description "Multi-platform support agent" \
-  --platforms github,slack,zendesk \
-  --default-platform slack \
-  --agent-type interactive
-
-# Role with color
-faber create role deploy-manager \
-  --description "Manages deployments" \
-  --color "#ff5733"
-```
-
-#### Create Team
+List branches.
 
 ```bash
-faber create team <name> [options]
+fractary repo branch list [options]
 ```
 
 **Options:**
-```bash
---description DESC        Team description
---members MEMBERS         Comma-separated role names
---coordination TYPE       Coordination type: parallel, sequential, dynamic
---leader ROLE            Leader role name
-```
+| Option | Description |
+|--------|-------------|
+| `--merged` | Show only merged branches |
+| `--stale` | Show stale branches |
 
-**Examples:**
-```bash
-# Basic team
-faber create team support-team \
-  --description "Customer support team"
+### repo branch delete
 
-# Team with members
-faber create team devops-team \
-  --description "DevOps automation team" \
-  --members deploy-manager,monitor-agent,incident-responder \
-  --coordination sequential \
-  --leader deploy-manager
-```
-
-#### Create Tool
+Delete a branch.
 
 ```bash
-faber create tool <name> [options]
+fractary repo branch delete <name> [options]
 ```
 
 **Options:**
-```bash
---description DESC       Tool description
---type TYPE             Tool type: api, mcp_server, cli, sdk, custom
---mcp                   Tool is an MCP server
---command CMD           Command to run
---protocols PROTOCOLS   Comma-separated protocols (mcp, rest, grpc)
-```
+| Option | Description |
+|--------|-------------|
+| `--force` | Force delete |
+| `--remote` | Delete from remote |
 
-**Examples:**
-```bash
-# API tool
-faber create tool github-api \
-  --description "GitHub REST API" \
-  --type api
+### repo pr create
 
-# MCP server
-faber create tool slack-mcp \
-  --description "Slack MCP server" \
-  --type mcp_server \
-  --mcp \
-  --command "node ./servers/slack.js" \
-  --protocols mcp
-```
-
-#### Create Workflow
+Create a pull request.
 
 ```bash
-faber create workflow <name> [options]
+fractary repo pr create [options]
 ```
 
 **Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--title <title>` | PR title (required) | - |
+| `--body <body>` | PR body | - |
+| `--head <branch>` | Source branch | Current branch |
+| `--base <branch>` | Target branch | Default branch |
+| `--draft` | Create as draft | false |
+
+**Example:**
 ```bash
---description DESC      Workflow description
---teams TEAMS          Comma-separated team names
---triggers TRIGGERS    Comma-separated trigger types
+fractary repo pr create \
+  --title "Add CSV export feature" \
+  --head feature/add-export \
+  --base main
 ```
 
-**Examples:**
-```bash
-# Basic workflow
-faber create workflow incident-response \
-  --description "Incident response workflow"
+### repo pr list
 
-# Workflow with teams and triggers
-faber create workflow release-process \
-  --description "Software release workflow" \
-  --teams devops-team,qa-team \
-  --triggers manual,scheduled
-```
-
-#### Create Eval
+List pull requests.
 
 ```bash
-faber create eval <name> [options]
+fractary repo pr list [options]
 ```
 
 **Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--state <state>` | PR state (open, closed, all) | open |
+| `--limit <limit>` | Maximum results | 10 |
+
+### repo pr merge
+
+Merge a pull request.
+
 ```bash
---description DESC        Eval description
---targets TARGETS        Comma-separated role/team names to test
---platforms PLATFORMS    Comma-separated platforms
+fractary repo pr merge <number> [options]
 ```
 
-**Examples:**
-```bash
-# Basic eval
-faber create eval issue-manager-tests \
-  --description "Issue manager functionality tests"
+**Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--strategy <strategy>` | Merge strategy (merge, squash, rebase) | merge |
+| `--delete-branch` | Delete branch after merge | false |
 
-# Eval with targets
-faber create eval support-team-evals \
-  --description "Support team integration tests" \
-  --targets issue-manager,slack-responder \
-  --platforms github,slack
+### repo commit
+
+Create a commit.
+
+```bash
+fractary repo commit [options]
 ```
+
+**Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-m, --message <message>` | Commit message (required) | - |
+| `--type <type>` | Commit type (feat, fix, chore, etc.) | feat |
+| `--scope <scope>` | Commit scope | - |
+| `--breaking` | Mark as breaking change | false |
+
+**Example:**
+```bash
+fractary repo commit \
+  --message "Add export button" \
+  --type feat \
+  --scope ui
+```
+
+### repo push
+
+Push to remote.
+
+```bash
+fractary repo push [options]
+```
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--branch <branch>` | Branch to push |
+| `--set-upstream` | Set upstream tracking |
+| `--force` | Force push (use carefully) |
+
+### repo pull
+
+Pull from remote.
+
+```bash
+fractary repo pull [options]
+```
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--rebase` | Rebase instead of merge |
 
 ---
 
-### `faber list`
+## Spec Commands
 
-List available concepts.
+Specification management.
 
-**Usage:**
+### spec create
+
+Create a new specification.
+
 ```bash
-faber list [type] [options]
+fractary spec create <title> [options]
 ```
-
-**Arguments:**
-- `type` - Filter by type: `role`, `team`, `tool`, `workflow`, `eval` (optional)
 
 **Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--template <template>` | Template (basic, feature, bug, api, infrastructure) | basic |
+| `--work-id <id>` | Associated work item ID | - |
+
+**Example:**
 ```bash
---org ORG              Filter by organization
---system SYSTEM        Filter by system
---platform PLATFORM    Filter by platform
---json                 Output as JSON
---verbose              Show detailed information
+fractary spec create "Add user authentication" \
+  --template feature \
+  --work-id 123
 ```
 
-**Examples:**
+### spec list
+
+List specifications.
+
 ```bash
-# List all concepts
-faber list
+fractary spec list [options]
+```
 
-# List only roles
-faber list role
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--status <status>` | Filter by status (draft, review, approved) |
+| `--work-id <id>` | Filter by work item |
 
-# List with filters
-faber list role --platform github
+### spec validate
 
-# JSON output
-faber list --json
+Validate a specification.
 
-# Verbose output
-faber list role --verbose
+```bash
+fractary spec validate <spec-id>
 ```
 
 **Output:**
 ```
-Roles:
-  issue-manager     Manages and triages GitHub issues
-  code-reviewer     Reviews pull requests
-  deploy-manager    Manages deployments
+Validation Status: warn
+Completeness: 75%
+Suggestions:
+  - Add acceptance criteria
+  - Define error handling approach
+```
 
-Teams:
-  support-team      Customer support team
-  devops-team       DevOps automation team
+### spec refine
 
-Tools:
-  github-api        GitHub REST API
-  slack-api         Slack API integration
+Interactive spec refinement.
 
-Total: 6 concepts
+```bash
+fractary spec refine <spec-id>
+```
+
+### spec export
+
+Export a specification.
+
+```bash
+fractary spec export <spec-id> [options]
+```
+
+**Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | Output format (markdown, json) | markdown |
+| `--output <path>` | Output file path | stdout |
+
+---
+
+## Logs Commands
+
+Session logging and management.
+
+### logs list
+
+List log entries.
+
+```bash
+fractary logs list [options]
+```
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--type <type>` | Filter by type (session, error, audit) |
+| `--limit <limit>` | Maximum entries |
+
+### logs show
+
+Show log details.
+
+```bash
+fractary logs show <log-id>
+```
+
+### logs export
+
+Export a log.
+
+```bash
+fractary logs export <log-id> [options]
+```
+
+**Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | Output format (markdown, json) | markdown |
+| `--output <path>` | Output file path | stdout |
+
+### logs delete
+
+Delete a log.
+
+```bash
+fractary logs delete <log-id>
 ```
 
 ---
 
-### `faber validate`
+## Workflow Commands
 
-Validate a concept's structure and configuration.
+FABER workflow orchestration.
 
-**Usage:**
+### workflow run
+
+Run the FABER workflow.
+
 ```bash
-faber validate <type> <name> [options]
+fractary workflow run <work-id> [options]
 ```
-
-**Arguments:**
-- `type` - Concept type: `role`, `team`, `tool`, `workflow`, `eval`
-- `name` - Concept name
 
 **Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--autonomy <level>` | Autonomy level (dry-run, assisted, guarded, autonomous) | assisted |
+
+**Example:**
 ```bash
---strict              Enable strict validation
---platform PLATFORM   Validate for specific platform
-```
-
-**Examples:**
-```bash
-# Validate a role
-faber validate role issue-manager
-
-# Strict validation
-faber validate role issue-manager --strict
-
-# Platform-specific validation
-faber validate role issue-manager --platform github
-```
-
-**Output (Success):**
-```
-✓ Validating role: issue-manager
-✓ Metadata structure valid
-✓ Prompt file exists
-✓ Contexts valid
-✓ Tasks valid
-✓ No issues found
-
-Validation passed!
-```
-
-**Output (Errors):**
-```
-✗ Validating role: issue-manager
-✓ Metadata structure valid
-✗ Prompt file missing
-✗ Context errors:
-  - contexts/platform/github.md: Missing 'category' in frontmatter
-✗ Task errors:
-  - tasks/triage.md: Invalid task format
-
-Validation failed with 3 errors
-```
-
----
-
-### `faber build`
-
-Build/transform a concept for a specific framework.
-
-**Usage:**
-```bash
-faber build <binding> <type> <name> [options]
-```
-
-**Arguments:**
-- `binding` - Target binding: `claude-code`, `langgraph`, `crewai`, etc.
-- `type` - Concept type: `role`, `team`, `workflow`
-- `name` - Concept name
-
-**Options:**
-```bash
---output DIR, -o DIR    Output directory (default: ./deployments)
---platform PLATFORM     Target platform
---no-overlays          Skip overlay application
---dry-run              Show what would be built without writing files
---verbose              Show detailed build process
-```
-
-**Examples:**
-```bash
-# Build for Claude Code
-faber build claude-code role issue-manager
-
-# Build with platform and output
-faber build claude-code role issue-manager \
-  --platform github \
-  --output ./deployments/prod
-
-# Build without overlays
-faber build claude-code role issue-manager \
-  --no-overlays
-
-# Dry run
-faber build claude-code role issue-manager \
-  --dry-run \
-  --verbose
-
-# Build a team
-faber build claude-code team support-team \
-  --platform slack
+fractary workflow run 123 --autonomy assisted
 ```
 
 **Output:**
 ```
-Building issue-manager for claude-code...
-✓ Loaded concept
-✓ Resolved contexts (12 files)
-✓ Applied overlays (org, platform)
-✓ Transformed for claude-code
-✓ Generated 8 files
+Starting FABER workflow for work item #123
 
-Output: ./deployments/claude-code/issue-manager/
+Phase: Frame
+  - Fetching issue... done
+  - Classifying work type... feature
 
-Files generated:
-  - agent.md (12 KB)
-  - config.json (1 KB)
-  - contexts/ (6 files)
+Phase: Architect
+  - Creating specification... done
+  - Spec ID: SPEC-001
 
-Build complete!
+Phase: Build
+  - Creating branch: feature/123-add-csv-export... done
+  - Starting session capture... done
+
+Phase: Evaluate
+  - Validating specification... pass
+
+Phase: Release
+  - Pushing changes... done
+  - Creating PR... done
+  - PR #45: https://github.com/org/repo/pull/45
+
+Workflow completed successfully!
 ```
 
----
+### workflow status
 
-### `faber deploy`
+Check workflow status.
 
-Deploy a built concept to a target environment.
-
-**Usage:**
 ```bash
-faber deploy <binding> <type> <name> [options]
-```
-
-**Arguments:**
-- `binding` - Target binding
-- `type` - Concept type
-- `name` - Concept name
-
-**Options:**
-```bash
---target TARGET        Deployment target (local, remote, etc.)
---platform PLATFORM    Target platform
---env ENV             Environment (dev, staging, prod)
---config FILE         Deployment config file
-```
-
-**Examples:**
-```bash
-# Deploy to local Claude Code
-faber deploy claude-code role issue-manager --target local
-
-# Deploy to production
-faber deploy claude-code role issue-manager \
-  --target remote \
-  --env prod \
-  --config deploy.yml
-```
-
----
-
-### `faber eval`
-
-Run evaluation scenarios.
-
-**Usage:**
-```bash
-faber eval <name> [options]
-```
-
-**Arguments:**
-- `name` - Eval name
-
-**Options:**
-```bash
---binding BINDING      Run on specific binding (default: claude-code)
---platform PLATFORM    Run on specific platform
---scenarios SCENARIOS  Comma-separated scenario names to run
---verbose             Show detailed test output
-```
-
-**Examples:**
-```bash
-# Run all scenarios
-faber eval issue-manager-tests
-
-# Run specific scenarios
-faber eval issue-manager-tests \
-  --scenarios triage-bug,handle-incomplete
-
-# Run with specific binding
-faber eval support-team-evals \
-  --binding claude-code \
-  --platform github \
-  --verbose
+fractary workflow status <workflow-id>
 ```
 
 **Output:**
 ```
-Running eval: issue-manager-tests
-Target: issue-manager
+Workflow: wf_abc123
+Work Item: #123
+Status: in_progress
+Current Phase: build
+Progress: 60%
 
-Scenario 1/3: triage-critical-bug
-  ✓ Issue labeled as 'bug'
-  ✓ Priority set to critical
-  ✓ Assigned to on-call
-  ✓ Passed (3/3 assertions)
-
-Scenario 2/3: handle-incomplete-issue
-  ✓ Asks for clarification
-  ✓ Provides guidance
-  ✓ Passed (2/2 assertions)
-
-Scenario 3/3: identify-duplicate
-  ✓ Links to original issue
-  ✓ Closes as duplicate
-  ✓ Passed (2/2 assertions)
-
-Results: 3/3 passed (100%)
+Phases:
+  [x] frame - completed
+  [x] architect - completed
+  [ ] build - in_progress
+  [ ] evaluate - pending
+  [ ] release - pending
 ```
 
----
+### workflow resume
 
-### `faber config`
+Resume a paused workflow.
 
-Manage project configuration.
-
-**Usage:**
 ```bash
-faber config <action> [key] [value] [options]
+fractary workflow resume <workflow-id>
 ```
 
-**Actions:**
-- `get` - Get configuration value
-- `set` - Set configuration value
-- `list` - List all configuration
+### workflow pause
 
-**Examples:**
+Pause a running workflow.
+
 ```bash
-# List all config
-faber config list
-
-# Get a value
-faber config get org
-
-# Set a value
-faber config set org acme
-
-# Set nested value
-faber config set platforms.github github-issues
-
-# Enable overlays
-faber config set overlays.enabled true
+fractary workflow pause <workflow-id>
 ```
 
----
+### workflow list
 
-### `faber context`
+List workflows.
 
-Manage contexts.
-
-**Usage:**
 ```bash
-faber context <action> [options]
-```
-
-**Actions:**
-- `list` - List all contexts
-- `show` - Show context content
-- `validate` - Validate context files
-
-**Examples:**
-```bash
-# List all contexts
-faber context list
-
-# List by category
-faber context list --category platform
-
-# Show context
-faber context show platform/github-issues
-
-# Validate all contexts
-faber context validate
-
-# Validate by category
-faber context validate --category domain
-```
-
----
-
-### `faber overlay`
-
-Manage overlays.
-
-**Usage:**
-```bash
-faber overlay <action> [options]
-```
-
-**Actions:**
-- `list` - List available overlays
-- `create` - Create new overlay
-- `apply` - Preview overlay application
-- `validate` - Validate overlay structure
-
-**Examples:**
-```bash
-# List overlays
-faber overlay list
-
-# Create org overlay
-faber overlay create org acme
-
-# Create platform overlay
-faber overlay create platform github-enterprise
-
-# Preview overlay application
-faber overlay apply role issue-manager \
-  --overlay org/acme
-
-# Validate overlays
-faber overlay validate
-```
-
----
-
-### `faber doctor`
-
-Check project health and diagnose issues.
-
-**Usage:**
-```bash
-faber doctor [options]
+fractary workflow list [options]
 ```
 
 **Options:**
+| Option | Description |
+|--------|-------------|
+| `--status <status>` | Filter by status (active, completed, failed, paused) |
+| `--limit <limit>` | Maximum results |
+
+---
+
+## Configuration
+
+The CLI reads configuration from `.fractary/plugins/{module}/config.json`.
+
+### Initialize Configuration
+
+Create configuration files manually:
+
 ```bash
---fix                Attempt to fix issues automatically
---verbose           Show detailed diagnostic information
+mkdir -p .fractary/plugins/work
+cat > .fractary/plugins/work/config.json << EOF
+{
+  "platform": "github",
+  "owner": "your-org",
+  "repo": "your-repo"
+}
+EOF
 ```
 
-**Examples:**
-```bash
-# Run diagnostics
-faber doctor
+### Configuration Locations
 
-# Run with auto-fix
-faber doctor --fix
+| Module | Path |
+|--------|------|
+| Work | `.fractary/plugins/work/config.json` |
+| Repo | `.fractary/plugins/repo/config.json` |
+| Spec | `.fractary/plugins/spec/config.json` |
+| Logs | `.fractary/plugins/logs/config.json` |
+| State | `.fractary/plugins/state/config.json` |
 
-# Verbose output
-faber doctor --verbose
-```
+---
 
-**Output:**
-```
-Checking Faber project health...
+## Exit Codes
 
-✓ Configuration file valid
-✓ Directory structure correct
-✓ All concepts valid
-✗ Warning: 3 contexts missing frontmatter
-✗ Error: role 'issue-manager' references missing platform 'jira'
-
-Issues found: 1 error, 1 warning
-
-Run 'faber doctor --fix' to auto-fix warnings
-```
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Configuration error |
+| 3 | Provider error |
+| 4 | Workflow error |
 
 ---
 
 ## Environment Variables
 
-Faber respects these environment variables:
+| Variable | Description |
+|----------|-------------|
+| `GITHUB_TOKEN` | GitHub API token (if not using `gh` CLI) |
+| `FABER_CONFIG_PATH` | Custom config directory path |
+| `FABER_LOG_LEVEL` | Log verbosity (debug, info, warn, error) |
 
-```bash
-FABER_PROJECT_PATH    Project directory (overrides --project)
-FABER_CONFIG_PATH     Config file path (overrides --config)
-FABER_LOG_LEVEL       Log level: debug, info, warn, error
-FABER_NO_COLOR        Disable colored output
-```
+---
 
-**Usage:**
-```bash
-export FABER_PROJECT_PATH=/path/to/project
-export FABER_LOG_LEVEL=debug
-faber list
-```
+## See Also
 
-## Configuration File
-
-The `.faber/config.yml` file:
-
-```yaml
-# Organization and system identifiers
-org: acme
-system: support
-
-# Platform mappings
-platforms:
-  github-issues: github
-  slack: slack
-  zendesk: zendesk
-
-# MCP server configurations (optional)
-mcp_servers:
-  github:
-    command: node
-    args:
-      - ./servers/github-mcp.js
-    env:
-      GITHUB_TOKEN: ${GITHUB_TOKEN}
-
-# Overlay configuration
-overlays:
-  enabled: true
-  paths:
-    - .faber/overlays
-    - ../shared-overlays
-
-# Binding configurations
-bindings:
-  claude-code:
-    auto_activate: true
-    context_loading: eager
-```
-
-## Exit Codes
-
-Faber uses standard exit codes:
-
-- `0` - Success
-- `1` - General error
-- `2` - Command usage error
-- `3` - Validation error
-- `4` - Build/deploy error
-- `5` - Configuration error
-
-## Tips and Tricks
-
-### Aliases
-
-Add these to your shell profile for faster workflows:
-
-```bash
-alias fi='faber init'
-alias fc='faber create'
-alias fl='faber list'
-alias fv='faber validate'
-alias fb='faber build'
-alias fd='faber deploy'
-```
-
-### Scripting
-
-Use JSON output for scripting:
-
-```bash
-# Get all roles as JSON
-roles=$(faber list role --json)
-
-# Build multiple agents
-for role in $(echo $roles | jq -r '.[].name'); do
-  faber build claude-code role $role
-done
-```
-
-### Watch Mode
-
-Use with `watch` for development:
-
-```bash
-# Rebuild on file changes
-watch -n 2 faber build claude-code role issue-manager
-```
-
-### Shell Completion
-
-Enable shell completion:
-
-```bash
-# Bash
-faber completion bash >> ~/.bashrc
-
-# Zsh
-faber completion zsh >> ~/.zshrc
-
-# Fish
-faber completion fish > ~/.config/fish/completions/faber.fish
-```
-
-## Next Steps
-
-- [API Reference](./api.md) - Use Faber programmatically
-- [Core Concepts](./concepts.md) - Understand Faber architecture
-- [Getting Started](./getting-started.md) - Build your first agent
+- [Getting Started](./getting-started.md) - Installation and setup
+- [Concepts](./concepts.md) - Core concepts
+- [API Reference](./api.md) - Programmatic API

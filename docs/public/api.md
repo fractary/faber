@@ -1,12 +1,12 @@
 ---
 title: API Reference
-description: Complete reference for the Faber programmatic API
+description: Complete programmatic API documentation for the Faber SDK
 visibility: public
 ---
 
 # API Reference
 
-Complete documentation for using Faber programmatically in your Node.js/TypeScript applications.
+Comprehensive API documentation for the `@fractary/faber` SDK.
 
 ## Installation
 
@@ -14,930 +14,805 @@ Complete documentation for using Faber programmatically in your Node.js/TypeScri
 npm install @fractary/faber
 ```
 
-## Quick Start
+## Module Imports
 
 ```typescript
-import { FaberAPI, ConceptType } from '@fractary/faber';
+// Import from root
+import { WorkManager, RepoManager, FaberWorkflow } from '@fractary/faber';
 
-// Initialize
-const faber = new FaberAPI({
-  projectPath: './my-agents'
-});
-
-// Build an agent
-const artifact = await faber.build(
-  'claude-code',
-  ConceptType.ROLE,
-  'issue-manager',
-  { platform: 'github' }
-);
-
-console.log('Built agent:', artifact.metadata);
-```
-
-## Core API
-
-### FaberAPI
-
-Main entry point for the Faber SDK.
-
-#### Constructor
-
-```typescript
-new FaberAPI(options?: FaberOptions)
-```
-
-**Options:**
-```typescript
-interface FaberOptions {
-  projectPath?: string;    // Path to Faber project (default: cwd)
-  configPath?: string;     // Path to config.yml (default: .faber/config.yml)
-  verbose?: boolean;       // Enable verbose logging (default: false)
-  quiet?: boolean;         // Suppress non-error output (default: false)
-}
-```
-
-**Example:**
-```typescript
-const faber = new FaberAPI({
-  projectPath: '/path/to/agents',
-  verbose: true
-});
+// Or import from specific modules (tree-shakable)
+import { WorkManager } from '@fractary/faber/work';
+import { RepoManager } from '@fractary/faber/repo';
+import { SpecManager } from '@fractary/faber/spec';
+import { LogManager } from '@fractary/faber/logs';
+import { StateManager } from '@fractary/faber/state';
+import { FaberWorkflow } from '@fractary/faber/workflow';
+import { StorageManager } from '@fractary/faber/storage';
 ```
 
 ---
 
-#### `init(options)`
+## WorkManager
 
-Initialize a new Faber project.
+Multi-platform work tracking.
 
-```typescript
-async init(options?: InitOptions): Promise<void>
-```
-
-**Options:**
-```typescript
-interface InitOptions {
-  org?: string;              // Organization identifier
-  system?: string;           // System identifier
-  platforms?: string[];      // Platform list
-  description?: string;      // Project description
-}
-```
-
-**Example:**
-```typescript
-await faber.init({
-  org: 'acme',
-  system: 'support',
-  platforms: ['github', 'slack'],
-  description: 'Support automation agents'
-});
-```
-
----
-
-#### `create(type, name, options)`
-
-Create a new concept.
+### Constructor
 
 ```typescript
-async create(
-  type: ConceptType,
-  name: string,
-  options?: CreateOptions
-): Promise<void>
+new WorkManager(config?: WorkConfig)
 ```
 
 **Parameters:**
-- `type` - Concept type enum value
-- `name` - Concept name (kebab-case)
-- `options` - Creation options
+- `config` (optional): Work configuration. If omitted, loads from `.fractary/plugins/work/config.json`
 
-**Options:**
+### Methods
+
+#### createIssue
+
 ```typescript
-interface CreateOptions {
-  org?: string;
-  system?: string;
-  description?: string;
-  platforms?: string[];
-  members?: string[];        // For teams
-  type?: string;            // For tools
-  target?: string;          // For evals
-}
+createIssue(options: IssueCreateOptions): Promise<Issue>
 ```
 
-**Example:**
+Create a new issue.
+
 ```typescript
-import { ConceptType } from '@fractary/faber';
-
-// Create a role
-await faber.create(ConceptType.ROLE, 'issue-manager', {
-  description: 'Manages GitHub issues',
-  platforms: ['github']
+const issue = await work.createIssue({
+  title: 'Add CSV export',
+  body: 'Users need to export data as CSV',
+  labels: ['enhancement'],
+  assignees: ['alice'],
 });
+```
 
-// Create a team
-await faber.create(ConceptType.TEAM, 'support-team', {
-  description: 'Support team',
-  members: ['issue-manager', 'slack-responder']
-});
+#### fetchIssue
 
-// Create a tool
-await faber.create(ConceptType.TOOL, 'github-api', {
-  description: 'GitHub API',
-  type: 'api'
+```typescript
+fetchIssue(issueId: string | number): Promise<Issue>
+```
+
+Fetch issue by ID.
+
+#### updateIssue
+
+```typescript
+updateIssue(issueId: string | number, options: IssueUpdateOptions): Promise<Issue>
+```
+
+Update an existing issue.
+
+#### closeIssue / reopenIssue
+
+```typescript
+closeIssue(issueId: string | number): Promise<Issue>
+reopenIssue(issueId: string | number): Promise<Issue>
+```
+
+#### searchIssues
+
+```typescript
+searchIssues(query: string, filters?: IssueFilters): Promise<Issue[]>
+```
+
+Search for issues.
+
+```typescript
+const issues = await work.searchIssues('authentication', {
+  state: 'open',
+  labels: ['bug'],
 });
+```
+
+#### assignIssue / unassignIssue
+
+```typescript
+assignIssue(issueId: string | number, assignee: string): Promise<Issue>
+unassignIssue(issueId: string | number): Promise<Issue>
+```
+
+#### createComment
+
+```typescript
+createComment(
+  issueId: string | number,
+  body: string,
+  faberContext?: FaberContext
+): Promise<Comment>
+```
+
+Add a comment to an issue.
+
+#### listComments
+
+```typescript
+listComments(
+  issueId: string | number,
+  options?: { limit?: number; since?: string }
+): Promise<Comment[]>
+```
+
+#### addLabels / removeLabels / setLabels
+
+```typescript
+addLabels(issueId: string | number, labels: string[]): Promise<Label[]>
+removeLabels(issueId: string | number, labels: string[]): Promise<void>
+setLabels(issueId: string | number, labels: string[]): Promise<Label[]>
+```
+
+#### classifyWorkType
+
+```typescript
+classifyWorkType(issue: Issue): Promise<WorkType>
+```
+
+Classify the type of work based on issue content.
+
+```typescript
+const workType = await work.classifyWorkType(issue);
+// Returns: 'feature' | 'bug' | 'chore' | 'patch' | 'infrastructure' | 'api'
 ```
 
 ---
 
-#### `list(type?, filter?)`
+## RepoManager
 
-List concepts.
+Git and repository operations.
+
+### Constructor
 
 ```typescript
-async list(
-  type?: ConceptType,
-  filter?: ListFilter
-): Promise<ConceptInfo[]>
+new RepoManager(config?: RepoConfig)
 ```
 
-**Parameters:**
-- `type` - Optional concept type filter
-- `filter` - Additional filters
+### Branch Methods
 
-**Filter:**
+#### createBranch
+
 ```typescript
-interface ListFilter {
-  org?: string;
-  system?: string;
-  platform?: string;
-}
+createBranch(name: string, options?: BranchCreateOptions): Promise<Branch>
 ```
 
-**Return:**
 ```typescript
-interface ConceptInfo {
-  type: ConceptType;
-  name: string;
-  description?: string;
-  path: string;
-}
-```
-
-**Example:**
-```typescript
-// List all concepts
-const all = await faber.list();
-
-// List only roles
-const roles = await faber.list(ConceptType.ROLE);
-
-// List with filter
-const githubRoles = await faber.list(ConceptType.ROLE, {
-  platform: 'github'
+await repo.createBranch('feature/add-auth', {
+  base: 'main',
+  fromProtected: true,
 });
+```
 
-console.log('Roles:', roles.map(r => r.name));
+#### deleteBranch
+
+```typescript
+deleteBranch(name: string, options?: BranchDeleteOptions): Promise<void>
+```
+
+#### listBranches
+
+```typescript
+listBranches(options?: BranchListOptions): Promise<Branch[]>
+```
+
+```typescript
+const branches = await repo.listBranches({
+  merged: true,
+  limit: 50,
+});
+```
+
+#### getBranch
+
+```typescript
+getBranch(name: string): Promise<Branch | null>
+```
+
+#### generateBranchName
+
+```typescript
+generateBranchName(options: BranchNameOptions): string
+```
+
+Generate a semantic branch name.
+
+```typescript
+const name = repo.generateBranchName({
+  type: 'feature',
+  description: 'Add CSV export',
+  workId: '123',
+});
+// Returns: 'feature/123-add-csv-export'
+```
+
+### Pull Request Methods
+
+#### createPR
+
+```typescript
+createPR(options: PRCreateOptions): Promise<PullRequest>
+```
+
+```typescript
+const pr = await repo.createPR({
+  title: 'Add CSV export feature',
+  body: 'Implements CSV export for user data',
+  head: 'feature/add-export',
+  base: 'main',
+  draft: false,
+});
+```
+
+#### getPR
+
+```typescript
+getPR(number: number): Promise<PullRequest>
+```
+
+#### updatePR
+
+```typescript
+updatePR(number: number, options: PRUpdateOptions): Promise<PullRequest>
+```
+
+#### listPRs
+
+```typescript
+listPRs(options?: PRListOptions): Promise<PullRequest[]>
+```
+
+#### mergePR
+
+```typescript
+mergePR(number: number, options?: PRMergeOptions): Promise<PullRequest>
+```
+
+```typescript
+await repo.mergePR(45, {
+  strategy: 'squash',
+  commitTitle: 'feat: Add CSV export',
+  deleteBranch: true,
+});
+```
+
+#### addPRComment
+
+```typescript
+addPRComment(number: number, body: string): Promise<void>
+```
+
+#### requestReview
+
+```typescript
+requestReview(number: number, reviewers: string[]): Promise<void>
+```
+
+#### approvePR
+
+```typescript
+approvePR(number: number, comment?: string): Promise<void>
+```
+
+### Git Methods
+
+#### commit
+
+```typescript
+commit(options: CommitOptions): string
+```
+
+Create a commit and return the SHA.
+
+```typescript
+const sha = repo.commit({
+  message: 'Add export button',
+  type: 'feat',
+  scope: 'ui',
+});
+```
+
+#### push
+
+```typescript
+push(options?: PushOptions): void
+```
+
+```typescript
+repo.push({
+  branch: 'feature/add-export',
+  setUpstream: true,
+});
+```
+
+#### pull
+
+```typescript
+pull(options?: PullOptions): void
+```
+
+#### getCurrentBranch / getDefaultBranch
+
+```typescript
+getCurrentBranch(): string
+getDefaultBranch(): string
+```
+
+#### isClean / hasUnpushedCommits
+
+```typescript
+isClean(): boolean
+hasUnpushedCommits(): boolean
 ```
 
 ---
 
-#### `loadConcept(type, name)`
+## SpecManager
 
-Load a concept.
+Specification management.
+
+### Constructor
 
 ```typescript
-async loadConcept<T extends Concept>(
-  type: ConceptType,
-  name: string
-): Promise<T>
+new SpecManager(config?: SpecConfig)
 ```
 
-**Parameters:**
-- `type` - Concept type
-- `name` - Concept name
+### Methods
 
-**Return:**
-Type-specific concept object (Role, Team, Tool, Workflow, Eval)
+#### createSpec
 
-**Example:**
 ```typescript
-import { Role, ConceptType } from '@fractary/faber';
+createSpec(title: string, options?: CreateSpecOptions): Specification
+```
 
-const role = await faber.loadConcept<Role>(
-  ConceptType.ROLE,
-  'issue-manager'
-);
+```typescript
+const spec = spec.createSpec('Add authentication', {
+  template: 'feature',
+  workId: '123',
+  context: 'Additional context from issue body',
+});
+```
 
-console.log('Loaded role:', role.metadata.name);
-console.log('Platforms:', role.metadata.platforms);
-console.log('Tasks:', role.tasks.size);
+#### getSpec
+
+```typescript
+getSpec(idOrPath: string): Specification | null
+```
+
+#### updateSpec
+
+```typescript
+updateSpec(idOrPath: string, updates: SpecUpdates): Specification
+```
+
+#### deleteSpec
+
+```typescript
+deleteSpec(idOrPath: string): boolean
+```
+
+#### listSpecs
+
+```typescript
+listSpecs(filters?: SpecFilters): Specification[]
+```
+
+```typescript
+const specs = spec.listSpecs({
+  status: 'draft',
+  workId: '123',
+});
+```
+
+#### searchSpecs
+
+```typescript
+searchSpecs(query: string): Specification[]
+```
+
+#### validateSpec
+
+```typescript
+validateSpec(idOrPath: string): ValidationResult
+```
+
+```typescript
+const validation = spec.validateSpec('SPEC-001');
+// {
+//   status: 'warn',
+//   completeness: 0.75,
+//   suggestions: ['Add acceptance criteria'],
+// }
+```
+
+#### generateRefinementQuestions
+
+```typescript
+generateRefinementQuestions(idOrPath: string): RefinementQuestion[]
+```
+
+```typescript
+const questions = spec.generateRefinementQuestions('SPEC-001');
+// [
+//   { id: 'q1', question: 'What auth method?', priority: 'high' },
+//   { id: 'q2', question: 'Token expiry time?', priority: 'medium' },
+// ]
+```
+
+#### applyRefinements
+
+```typescript
+applyRefinements(
+  idOrPath: string,
+  answers: Record<string, string>
+): RefinementResult
+```
+
+#### getTemplates
+
+```typescript
+getTemplates(): SpecTemplate[]
 ```
 
 ---
 
-#### `validate(type, name)`
+## LogManager
 
-Validate a concept.
+Session capture and log management.
+
+### Constructor
 
 ```typescript
-async validate(
-  type: ConceptType,
-  name: string
-): Promise<ValidationResult>
+new LogManager(config?: LogConfig)
 ```
 
-**Return:**
+### Methods
+
+#### startCapture
+
+```typescript
+startCapture(options?: CaptureOptions): void
+```
+
+```typescript
+logs.startCapture({
+  issueNumber: 123,
+});
+```
+
+#### stopCapture
+
+```typescript
+stopCapture(): SessionLog
+```
+
+#### isCapturing
+
+```typescript
+isCapturing(): boolean
+```
+
+#### getLog
+
+```typescript
+getLog(logId: string): SessionLog | null
+```
+
+#### listLogs
+
+```typescript
+listLogs(filters?: LogFilters): LogSummary[]
+```
+
+#### deleteLog
+
+```typescript
+deleteLog(logId: string): boolean
+```
+
+#### exportLog
+
+```typescript
+exportLog(logId: string, path: string, format: 'markdown' | 'json'): void
+```
+
+---
+
+## StateManager
+
+Workflow state persistence.
+
+### Constructor
+
+```typescript
+new StateManager(config?: StateConfig)
+```
+
+### Workflow Methods
+
+#### createWorkflow
+
+```typescript
+createWorkflow(workId: string): WorkflowState
+```
+
+#### getWorkflow
+
+```typescript
+getWorkflow(workflowId: string): WorkflowState | null
+```
+
+#### getActiveWorkflow
+
+```typescript
+getActiveWorkflow(workId: string): WorkflowState | null
+```
+
+#### listWorkflows
+
+```typescript
+listWorkflows(filters?: WorkflowFilters): WorkflowState[]
+```
+
+### Phase Methods
+
+#### startPhase / completePhase / failPhase / skipPhase
+
+```typescript
+startPhase(workflowId: string, phase: FaberPhase): void
+completePhase(workflowId: string, phase: FaberPhase, outputs?: Record<string, unknown>): void
+failPhase(workflowId: string, phase: FaberPhase, error: string): void
+skipPhase(workflowId: string, phase: FaberPhase, reason?: string): void
+```
+
+### Checkpoint Methods
+
+#### createCheckpoint
+
+```typescript
+createCheckpoint(workflowId: string, name: string): Checkpoint
+```
+
+#### restoreFromCheckpoint
+
+```typescript
+restoreFromCheckpoint(workflowId: string, name: string): void
+```
+
+---
+
+## FaberWorkflow
+
+FABER workflow orchestration.
+
+### Constructor
+
+```typescript
+new FaberWorkflow(options?: {
+  config?: Partial<WorkflowConfig>
+})
+```
+
+```typescript
+const faber = new FaberWorkflow({
+  config: {
+    autonomy: 'assisted',
+    phases: {
+      frame: { enabled: true },
+      architect: { enabled: true, refineSpec: true },
+      build: { enabled: true },
+      evaluate: { enabled: true, maxRetries: 3 },
+      release: { enabled: true, requestReviews: true, reviewers: ['@team'] },
+    },
+    hooks: {
+      pre_build: 'npm run lint',
+      post_build: 'npm test',
+    },
+  },
+});
+```
+
+### Methods
+
+#### setUserInputCallback
+
+```typescript
+setUserInputCallback(callback: UserInputCallback): void
+```
+
+Set callback for user confirmation prompts.
+
+```typescript
+faber.setUserInputCallback(async (request) => {
+  const answer = await promptUser(request.message);
+  return answer === 'yes';
+});
+```
+
+#### addEventListener / removeEventListener
+
+```typescript
+addEventListener(listener: EventListener): void
+removeEventListener(listener: EventListener): void
+```
+
+```typescript
+faber.addEventListener((event, data) => {
+  console.log(`${event}:`, data);
+});
+```
+
+#### run
+
+```typescript
+run(options: WorkflowOptions): Promise<WorkflowResult>
+```
+
+Execute the FABER workflow.
+
+```typescript
+const result = await faber.run({
+  workId: '123',
+  autonomy: 'assisted',
+});
+```
+
+#### resume
+
+```typescript
+resume(workflowId: string): Promise<WorkflowResult>
+```
+
+Resume a paused workflow.
+
+#### pause
+
+```typescript
+pause(workflowId: string): void
+```
+
+#### getStatus
+
+```typescript
+getStatus(workflowId: string): {
+  state: Record<string, unknown> | null;
+  currentPhase: string;
+  progress: number;
+}
+```
+
+---
+
+## Types
+
+### WorkType
+
+```typescript
+type WorkType = 'feature' | 'bug' | 'chore' | 'patch' | 'infrastructure' | 'api';
+```
+
+### FaberPhase
+
+```typescript
+type FaberPhase = 'frame' | 'architect' | 'build' | 'evaluate' | 'release';
+```
+
+### AutonomyLevel
+
+```typescript
+type AutonomyLevel = 'dry-run' | 'assisted' | 'guarded' | 'autonomous';
+```
+
+### WorkflowEvent
+
+```typescript
+type WorkflowEvent =
+  | 'workflow:start'
+  | 'workflow:complete'
+  | 'workflow:fail'
+  | 'workflow:pause'
+  | 'phase:start'
+  | 'phase:complete'
+  | 'phase:fail'
+  | 'phase:skip'
+  | 'artifact:create';
+```
+
+### Issue
+
+```typescript
+interface Issue {
+  number: number;
+  title: string;
+  body: string;
+  state: 'open' | 'closed';
+  labels: Label[];
+  assignees: string[];
+  milestone?: Milestone;
+  author: string;
+  created_at: string;
+  updated_at: string;
+  url: string;
+}
+```
+
+### PullRequest
+
+```typescript
+interface PullRequest {
+  number: number;
+  title: string;
+  body: string;
+  state: 'open' | 'closed' | 'merged';
+  head: string;
+  base: string;
+  author: string;
+  url: string;
+  isDraft: boolean;
+  mergeable: boolean;
+  reviewDecision?: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED';
+}
+```
+
+### ValidationResult
+
 ```typescript
 interface ValidationResult {
-  valid: boolean;
-  errors: ValidationError[];
-  warnings: ValidationWarning[];
-  info?: ValidationInfo[];
-}
-
-interface ValidationError {
-  path: string;
-  message: string;
-  code?: string;
-  type?: 'error' | 'warning';
+  status: 'pass' | 'warn' | 'fail';
+  completeness: number;
+  suggestions?: string[];
 }
 ```
 
-**Example:**
-```typescript
-const result = await faber.validate(
-  ConceptType.ROLE,
-  'issue-manager'
-);
+### WorkflowResult
 
-if (!result.valid) {
-  console.error('Validation errors:');
-  result.errors.forEach(err => {
-    console.error(`  ${err.path}: ${err.message}`);
-  });
-} else {
-  console.log('Validation passed!');
+```typescript
+interface WorkflowResult {
+  workflow_id: string;
+  work_id: string;
+  status: 'completed' | 'failed' | 'paused';
+  phases: PhaseResult[];
+  duration_ms: number;
+  artifacts: ArtifactManifest[];
 }
 ```
 
 ---
 
-#### `build(binding, type, name, options)`
-
-Build/transform a concept for a framework.
-
-```typescript
-async build(
-  binding: string,
-  type: ConceptType,
-  name: string,
-  options?: BuildOptions
-): Promise<DeploymentArtifact>
-```
-
-**Options:**
-```typescript
-interface BuildOptions {
-  output?: string;           // Output directory
-  noOverlays?: boolean;     // Skip overlays
-  platform?: string;        // Target platform
-  dryRun?: boolean;         // Don't write files
-  verbose?: boolean;        // Verbose output
-}
-```
-
-**Return:**
-```typescript
-interface DeploymentArtifact {
-  framework: string;
-  concept: string;
-  conceptType: ConceptType;
-  files: FileArtifact[];
-  metadata: DeploymentMetadata;
-}
-
-interface FileArtifact {
-  path: string;
-  content: string;
-  encoding?: string;
-  permissions?: string;
-}
-
-interface DeploymentMetadata {
-  version: string;
-  timestamp: string;
-  config: Config;
-  overlays?: Overlays;
-  platform?: string;
-}
-```
-
-**Example:**
-```typescript
-const artifact = await faber.build(
-  'claude-code',
-  ConceptType.ROLE,
-  'issue-manager',
-  {
-    output: './deployments/prod',
-    platform: 'github',
-    verbose: true
-  }
-);
-
-console.log(`Generated ${artifact.files.length} files`);
-artifact.files.forEach(file => {
-  console.log(`  ${file.path} (${file.content.length} bytes)`);
-});
-```
-
----
-
-#### `loadConfig()`
-
-Load project configuration.
-
-```typescript
-async loadConfig(): Promise<Config>
-```
-
-**Return:**
-```typescript
-interface Config {
-  platforms?: Record<string, string>;
-  mcp_servers?: Record<string, MCPServerConfig>;
-  overlays?: {
-    enabled: boolean;
-    paths?: string[];
-  };
-  bindings?: Record<string, BindingConfig>;
-}
-```
-
-**Example:**
-```typescript
-const config = await faber.loadConfig();
-
-console.log('Platforms:', Object.keys(config.platforms));
-console.log('Overlays enabled:', config.overlays?.enabled);
-```
-
----
-
-#### `resolveOverlays(type, name, platform?)`
-
-Resolve overlays for a concept.
-
-```typescript
-async resolveOverlays(
-  type: string,
-  name: string,
-  platform?: string
-): Promise<Overlays>
-```
-
-**Return:**
-```typescript
-interface Overlays {
-  organization: OverlayContent;
-  platforms: Record<string, OverlayContent>;
-  roles: Record<string, OverlayContent>;
-  teams: Record<string, OverlayContent>;
-  workflows: Record<string, OverlayContent>;
-}
-
-interface OverlayContent {
-  contexts: Context[];
-  config?: Record<string, unknown>;
-}
-```
-
-**Example:**
-```typescript
-const overlays = await faber.resolveOverlays(
-  'role',
-  'issue-manager',
-  'github'
-);
-
-console.log('Org contexts:', overlays.organization.contexts.length);
-console.log('Platform contexts:', overlays.platforms['github']?.contexts.length);
-```
-
----
-
-#### `applyOverlays(concept, overlays)`
-
-Apply overlays to a concept.
-
-```typescript
-async applyOverlays(
-  concept: Concept,
-  overlays: Overlays
-): Promise<Concept>
-```
-
-**Example:**
-```typescript
-const role = await faber.loadConcept(ConceptType.ROLE, 'issue-manager');
-const overlays = await faber.resolveOverlays('role', 'issue-manager', 'github');
-const enhanced = await faber.applyOverlays(role, overlays);
-
-console.log('Original contexts:', role.contexts.size);
-console.log('With overlays:', enhanced.contexts.size);
-```
-
----
-
-### Event System
-
-FaberAPI extends EventEmitter and emits events during operations.
-
-#### Events
-
-```typescript
-// Concept loaded
-faber.on('concept:loaded', ({ type, name, concept }) => {
-  console.log(`Loaded ${type}: ${name}`);
-});
-
-// Concept validated
-faber.on('concept:validated', ({ type, name, result }) => {
-  console.log(`Validated ${name}: ${result.valid ? 'OK' : 'FAILED'}`);
-});
-
-// Build started
-faber.on('build:start', ({ binding, type, name }) => {
-  console.log(`Building ${name} for ${binding}...`);
-});
-
-// Build complete
-faber.on('build:complete', ({ artifact }) => {
-  console.log(`Build complete: ${artifact.files.length} files`);
-});
-
-// Deploy complete
-faber.on('deploy:complete', ({ artifact, target }) => {
-  console.log(`Deployed to ${target}`);
-});
-```
-
-**Example:**
-```typescript
-const faber = new FaberAPI({ verbose: true });
-
-faber.on('concept:loaded', ({ name }) => {
-  console.log(`✓ Loaded ${name}`);
-});
-
-faber.on('build:start', ({ name }) => {
-  console.log(`⚙️  Building ${name}...`);
-});
-
-faber.on('build:complete', ({ artifact }) => {
-  console.log(`✓ Generated ${artifact.files.length} files`);
-});
-
-await faber.build('claude-code', ConceptType.ROLE, 'issue-manager');
-```
-
----
-
-## Concept Loaders
-
-Direct access to concept loaders for fine-grained control.
-
-### RoleLoader
-
-```typescript
-import { RoleLoader } from '@fractary/faber/loaders';
-
-const loader = new RoleLoader();
-
-// Load a role
-const role = await loader.load('./roles/issue-manager');
-
-// Validate
-const result = await loader.validate(role);
-```
-
-### TeamLoader
-
-```typescript
-import { TeamLoader } from '@fractary/faber/loaders';
-
-const loader = new TeamLoader();
-const team = await loader.load('./teams/support-team');
-```
-
-### ToolLoader
-
-```typescript
-import { ToolLoader } from '@fractary/faber/loaders';
-
-const loader = new ToolLoader();
-const tool = await loader.load('./tools/github-api');
-```
-
-### WorkflowLoader
-
-```typescript
-import { WorkflowLoader } from '@fractary/faber/loaders';
-
-const loader = new WorkflowLoader();
-const workflow = await loader.load('./workflows/incident-response');
-```
-
-### EvalLoader
-
-```typescript
-import { EvalLoader } from '@fractary/faber/loaders';
-
-const loader = new EvalLoader();
-const eval = await loader.load('./evals/issue-manager-tests');
-```
-
----
-
-## Bindings API
-
-Create custom framework bindings.
-
-### BindingTransformer Interface
+## Errors
 
 ```typescript
 import {
-  BindingTransformer,
-  Concept,
-  Config,
-  Overlays,
-  DeploymentArtifact,
-  ValidationResult,
-  BindingRequirements
-} from '@fractary/faber/bindings';
-
-export class MyCustomBinding implements BindingTransformer {
-  async transform(
-    concept: Concept,
-    config: Config,
-    overlays?: Overlays
-  ): Promise<DeploymentArtifact> {
-    // Transform concept to your framework format
-    const files: FileArtifact[] = [];
-
-    // Generate your framework's files
-    files.push({
-      path: 'agent.py',
-      content: this.generateAgent(concept)
-    });
-
-    files.push({
-      path: 'config.yaml',
-      content: this.generateConfig(concept, config)
-    });
-
-    return {
-      framework: 'my-framework',
-      concept: concept.name,
-      conceptType: concept.type,
-      files,
-      metadata: {
-        version: '1.0.0',
-        timestamp: new Date().toISOString(),
-        config
-      }
-    };
-  }
-
-  async validate(concept: Concept): Promise<ValidationResult> {
-    const errors: ValidationError[] = [];
-
-    // Your validation logic
-    if (!concept.description) {
-      errors.push({
-        path: 'description',
-        message: 'Description is required'
-      });
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-      warnings: []
-    };
-  }
-
-  getRequirements(): BindingRequirements {
-    return {
-      minVersion: '0.1.0',
-      supportedConcepts: [ConceptType.ROLE, ConceptType.TEAM],
-      requiredFeatures: ['contexts', 'overlays']
-    };
-  }
-
-  private generateAgent(concept: Concept): string {
-    // Your generation logic
-    return `# Agent: ${concept.name}\n...`;
-  }
-
-  private generateConfig(concept: Concept, config: Config): string {
-    // Your config generation logic
-    return `name: ${concept.name}\n...`;
-  }
-}
-```
-
-### Register Custom Binding
-
-```typescript
-import { FaberAPI } from '@fractary/faber';
-import { MyCustomBinding } from './my-binding';
-
-const faber = new FaberAPI();
-
-// Register your binding
-faber.registerBinding('my-framework', new MyCustomBinding());
-
-// Use it
-const artifact = await faber.build(
-  'my-framework',
-  ConceptType.ROLE,
-  'issue-manager'
-);
+  FaberError,           // Base error class
+  ConfigurationError,   // Invalid or missing configuration
+  ProviderError,        // Platform API errors
+  WorkflowError,        // Workflow execution errors
+  SpecError,            // Specification errors
+  LogError,             // Logging errors
+  StateError,           // State management errors
+  IssueNotFoundError,   // Issue not found
+  PRNotFoundError,      // PR not found
+  BranchExistsError,    // Branch already exists
+  MergeConflictError,   // PR merge conflict
+} from '@fractary/faber';
 ```
 
 ---
 
-## Type Definitions
-
-### Core Types
+## Configuration Helpers
 
 ```typescript
-enum ConceptType {
-  ROLE = 'role',
-  TOOL = 'tool',
-  EVAL = 'eval',
-  TEAM = 'team',
-  WORKFLOW = 'workflow'
-}
+import {
+  loadWorkConfig,
+  loadRepoConfig,
+  loadSpecConfig,
+  loadLogConfig,
+  loadStateConfig,
+  findProjectRoot,
+} from '@fractary/faber';
 
-interface Concept {
-  name: string;
-  type: ConceptType;
-  description?: string;
-}
-```
-
-### Role
-
-```typescript
-interface Role extends Concept {
-  type: ConceptType.ROLE;
-  metadata: RoleMetadata;
-  path: string;
-  prompt: string;
-  tasks: Map<string, Task>;
-  flows: Map<string, Flow>;
-  contexts: Map<string, Context>;
-  bindings?: Map<string, BindingConfig>;
-}
-
-interface RoleMetadata extends ConceptMetadata {
-  type: ConceptType.ROLE;
-  platforms?: string[];
-  default_platform?: string;
-  platform_config_key?: string;
-  color?: string;
-  agent_type?: 'autonomous' | 'interactive' | 'batch';
-}
-```
-
-### Team
-
-```typescript
-interface Team extends Concept {
-  type: ConceptType.TEAM;
-  members: TeamMember[];
-  coordination?: CoordinationType;
-  workflows?: string[];
-  leader?: string;
-}
-
-interface TeamMember {
-  role: string;
-  name?: string;
-  config?: Record<string, unknown>;
-}
-
-enum CoordinationType {
-  PARALLEL = 'parallel',
-  SEQUENTIAL = 'sequential',
-  DYNAMIC = 'dynamic'
-}
-```
-
-### Tool
-
-```typescript
-interface Tool extends Concept {
-  type: ConceptType.TOOL;
-  tool_type: ToolType;
-  mcp_server?: boolean;
-  protocols?: string[];
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-}
-
-enum ToolType {
-  API = 'api',
-  MCP_SERVER = 'mcp_server',
-  CLI = 'cli',
-  SDK = 'sdk',
-  CUSTOM = 'custom'
-}
-```
-
-### Workflow
-
-```typescript
-interface Workflow extends Concept {
-  type: ConceptType.WORKFLOW;
-  stages: Stage[];
-  teams: string[];
-  triggers?: Trigger[];
-  conditions?: Record<string, unknown>;
-}
-
-interface Stage {
-  name: string;
-  team: string;
-  entry_criteria?: string[];
-  tasks: string[];
-  exit_criteria?: string[];
-  on_failure?: string[];
-}
-
-interface Trigger {
-  type: 'manual' | 'scheduled' | 'event';
-  config?: Record<string, unknown>;
-}
-```
-
-### Eval
-
-```typescript
-interface Eval extends Concept {
-  type: ConceptType.EVAL;
-  targets: string[];
-  scenarios: Scenario[];
-  metrics?: Metric[];
-  success_threshold?: number;
-  platforms?: string[];
-}
-
-interface Scenario {
-  name: string;
-  description?: string;
-  inputs: Record<string, unknown>;
-  expected_outputs?: Record<string, unknown>;
-  assertions?: string[];
-}
-
-interface Metric {
-  name: string;
-  type: 'accuracy' | 'coverage' | 'performance' | 'quality';
-  threshold?: number;
-}
-```
-
-### Context
-
-```typescript
-interface Context {
-  category: ContextCategory;
-  name: string;
-  content: string;
-  frontmatter?: ContextFrontmatter;
-  metadata?: ContextFrontmatter;
-  filePath?: string;
-  path?: string;
-}
-
-enum ContextCategory {
-  DOMAIN = 'domain',
-  PLATFORM = 'platform',
-  ORG = 'org',
-  PROJECT = 'project',
-  SPECIALIST = 'specialist',
-  TASK = 'task',
-  INTEGRATION = 'integration'
-}
+const root = findProjectRoot();
+const workConfig = loadWorkConfig(root);
 ```
 
 ---
 
-## Advanced Usage
+## See Also
 
-### Custom Context Loading
-
-```typescript
-import { ContextLoader } from '@fractary/faber';
-
-const contextLoader = new ContextLoader();
-
-// Load a single context
-const context = await contextLoader.loadContext(
-  './contexts/platform/github.md',
-  ContextCategory.PLATFORM,
-  'github'
-);
-
-// Load all contexts in a category
-const platformContexts = await contextLoader.loadCategoryContexts(
-  './contexts/platform',
-  ContextCategory.PLATFORM
-);
-
-// Load contexts for a role
-const roleContexts = await contextLoader.loadRoleContexts(role, config);
-```
-
-### Overlay Resolution
-
-```typescript
-import { OverlayResolver } from '@fractary/faber';
-
-const resolver = new OverlayResolver('.faber/overlays');
-
-// Resolve overlays for a concept
-const overlays = await resolver.resolveOverlays(
-  'role',
-  'issue-manager',
-  'github'
-);
-
-// Access specific overlays
-console.log('Org contexts:', overlays.organization.contexts);
-console.log('Platform config:', overlays.platforms['github']?.config);
-```
-
-### Configuration Management
-
-```typescript
-import { ConfigLoader } from '@fractary/faber';
-
-const configLoader = new ConfigLoader('./my-agents');
-
-// Load config
-const config = await configLoader.load();
-
-// Validate config
-const isValid = await configLoader.validate(config);
-
-// Get platform binding
-const platform = config.platforms?.['github-issues'];
-```
-
----
-
-## Error Handling
-
-All async methods can throw errors. Always use try-catch:
-
-```typescript
-try {
-  const artifact = await faber.build(
-    'claude-code',
-    ConceptType.ROLE,
-    'issue-manager'
-  );
-} catch (error) {
-  if (error.code === 'CONCEPT_NOT_FOUND') {
-    console.error('Concept not found:', error.message);
-  } else if (error.code === 'VALIDATION_ERROR') {
-    console.error('Validation failed:', error.details);
-  } else {
-    console.error('Build failed:', error.message);
-  }
-}
-```
-
-Common error codes:
-- `CONCEPT_NOT_FOUND` - Concept doesn't exist
-- `VALIDATION_ERROR` - Validation failed
-- `BUILD_ERROR` - Build/transform failed
-- `CONFIG_ERROR` - Configuration error
-- `IO_ERROR` - File system error
-
----
-
-## Next Steps
-
-- [Getting Started](./getting-started.md) - Build your first agent
-- [Core Concepts](./concepts.md) - Understand the architecture
+- [Getting Started](./getting-started.md) - Installation guide
+- [Concepts](./concepts.md) - Architecture overview
 - [CLI Reference](./cli.md) - Command-line interface
-- [GitHub](https://github.com/fractary/faber) - Source code and examples
