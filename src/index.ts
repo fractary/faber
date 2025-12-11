@@ -1,35 +1,28 @@
 /**
- * Faber-CLI Public API
- * Exports for programmatic usage
+ * @fractary/faber - FABER SDK
+ *
+ * Development toolkit for AI-assisted workflows.
+ *
+ * Modules:
+ * - work: Work tracking (GitHub Issues, Jira, Linear)
+ * - repo: Repository operations (Git, GitHub, GitLab, Bitbucket)
+ * - spec: Specification management
+ * - logs: Log management and session capture
+ * - state: Workflow state persistence
+ * - workflow: FABER workflow orchestration
+ * - storage: Artifact storage (local and Codex integration)
  */
 
-// Core types
+// Core exports
 export * from './types';
+export * from './errors';
+export * from './config';
 
-// Concept loaders
-export { BaseConceptLoader } from './core/concepts/base';
-export { RoleLoader } from './core/concepts/role';
-export { TeamLoader } from './core/concepts/team';
-export { WorkflowLoader } from './core/concepts/workflow';
-export { ToolLoader } from './core/concepts/tool';
-export { EvalLoader } from './core/concepts/eval';
-
-// Context system
-export { ContextLoader } from './core/contexts/loader';
-
-// Overlay system
-export { OverlayResolver } from './core/overlays/resolver';
-
-// Configuration
-export { ConfigLoader } from './core/config/loader';
-
-// Bindings
-export { ClaudeCodeTransformer } from './bindings/claude-code/transformer';
-
-// Utilities
-export * from './utils/file-system';
-export * from './utils/validation';
-export * from './utils/template';
-
-// Main API class
-export { FaberAPI } from './api';
+// Module exports
+export * from './work';
+export * from './repo';
+export * from './spec';
+export * from './logs';
+export * from './state';
+export * from './workflow';
+export * from './storage';

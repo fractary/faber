@@ -1,25 +1,44 @@
 {
   "name": "@fractary/faber",
-  "version": "0.1.1",
-  "description": "Universal AI agent orchestration framework - core SDK",
+  "version": "1.0.0",
+  "description": "FABER SDK - Development toolkit for AI-assisted workflows",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "fractary": "dist/cli/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./loaders": {
-      "types": "./dist/core/concepts/index.d.ts",
-      "default": "./dist/core/concepts/index.js"
+    "./work": {
+      "types": "./dist/work/index.d.ts",
+      "default": "./dist/work/index.js"
     },
-    "./bindings": {
-      "types": "./dist/bindings/index.d.ts",
-      "default": "./dist/bindings/index.js"
+    "./repo": {
+      "types": "./dist/repo/index.d.ts",
+      "default": "./dist/repo/index.js"
     },
-    "./types": {
-      "types": "./dist/types/index.d.ts",
-      "default": "./dist/types/index.js"
+    "./spec": {
+      "types": "./dist/spec/index.d.ts",
+      "default": "./dist/spec/index.js"
+    },
+    "./logs": {
+      "types": "./dist/logs/index.d.ts",
+      "default": "./dist/logs/index.js"
+    },
+    "./state": {
+      "types": "./dist/state/index.d.ts",
+      "default": "./dist/state/index.js"
+    },
+    "./workflow": {
+      "types": "./dist/workflow/index.d.ts",
+      "default": "./dist/workflow/index.js"
+    },
+    "./storage": {
+      "types": "./dist/storage/index.d.ts",
+      "default": "./dist/storage/index.js"
     }
   },
   "files": [
@@ -31,36 +50,31 @@
     "dev": "tsc --watch",
     "build": "tsc",
     "test": "jest",
+    "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "ai",
-    "agents",
-    "orchestration",
-    "framework",
+    "faber",
+    "workflow",
     "sdk",
-    "mcp",
-    "claude",
-    "langgraph",
-    "crewai"
+    "ai",
+    "development",
+    "automation",
+    "github",
+    "jira",
+    "linear",
+    "git"
   ],
   "author": "Fractary Team",
   "license": "MIT",
   "dependencies": {
-    "ajv": "^8.12.0",
-    "cosmiconfig": "^9.0.0",
-    "glob": "^10.3.10",
-    "handlebars": "^4.7.8",
-    "js-yaml": "^4.1.0",
+    "commander": "^12.0.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/glob": "^8.1.0",
-    "@types/handlebars": "^4.0.40",
-    "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.11.0",
+    "@types/node": "^20.19.26",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "eslint": "^8.56.0",
