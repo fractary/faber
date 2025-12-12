@@ -16,6 +16,9 @@ const config_1 = require("../config");
  */
 class CodexAdapter {
     codex = null;
+    cacheManager = null;
+    storageManager = null;
+    config = null;
     constructor() {
         this.codex = this.tryLoadCodex();
     }
@@ -27,11 +30,38 @@ class CodexAdapter {
             // Dynamic require - no compile-time dependency
             // eslint-disable-next-line @typescript-eslint/no-require-imports
             const codexModule = require('@fractary/codex');
-            return new codexModule.Codex();
+            return codexModule;
         }
         catch {
             // Codex not installed - this is fine
             return null;
+        }
+    }
+    /**
+     * Initialize codex managers (lazy initialization)
+     */
+    async ensureInitialized() {
+        if (!this.codex) {
+            throw new errors_1.FaberError('Codex not available', 'CODEX_NOT_AVAILABLE', {});
+        }
+        if (!this.cacheManager) {
+            this.storageManager = this.codex.createStorageManager({
+                github: { token: process.env.GITHUB_TOKEN },
+            });
+            this.cacheManager = this.codex.createCacheManager({
+                cacheDir: '.fractary/plugins/faber/cache',
+                defaultTtl: 3600,
+                enablePersistence: true,
+            });
+            this.cacheManager.setStorageManager(this.storageManager);
+        }
+        if (!this.config) {
+            try {
+                this.config = await this.codex.loadConfig();
+            }
+            catch {
+                this.config = {};
+            }
         }
     }
     /**
@@ -41,63 +71,123 @@ class CodexAdapter {
         return this.codex !== null;
     }
     /**
+     * Get loaded config
+     */
+    async getConfig() {
+        await this.ensureInitialized();
+        return this.config || {};
+    }
+    /**
      * Check if Codex is enabled for a specific artifact type
      */
     isEnabledFor(artifactType) {
         if (!this.codex)
             return false;
+        // Check if codex has directories configured for this type
+        const typeDirectoryMap = {
+            specs: 'specs',
+            logs: 'logs',
+            state: 'state',
+        };
+        return typeDirectoryMap[artifactType] !== undefined;
+    }
+    /**
+     * Build a codex URI for an artifact
+     */
+    buildUri(type, id) {
+        if (!this.codex) {
+            throw new errors_1.FaberError('Codex not available', 'CODEX_NOT_AVAILABLE', {});
+        }
+        // Get org from config or use 'local'
+        const org = this.config?.organization || 'local';
+        const project = this.detectProject();
+        const path = `${type}/${id}`;
+        return this.codex.buildUri(org, project, path);
+    }
+    /**
+     * Detect current project name
+     */
+    detectProject() {
         try {
-            const config = this.codex.getConfig();
-            return config.types?.[artifactType]?.enabled === true;
+            const root = (0, config_1.findProjectRoot)();
+            const parts = root.split('/');
+            return parts[parts.length - 1] || 'unknown';
         }
         catch {
-            return false;
+            return 'unknown';
         }
     }
     /**
      * Store content via Codex
      */
     async store(type, id, content) {
-        if (!this.codex) {
-            throw new errors_1.FaberError('Codex not available', 'CODEX_NOT_AVAILABLE', {});
+        await this.ensureInitialized();
+        if (!this.cacheManager || !this.codex) {
+            throw new errors_1.FaberError('Codex not initialized', 'CODEX_NOT_AVAILABLE', {});
         }
-        return this.codex.store(type, id, content);
+        const uri = this.buildUri(type, id);
+        // Create a FetchResult-like object for caching
+        const result = {
+            content: Buffer.from(content, 'utf-8'),
+            contentType: 'text/plain',
+            size: Buffer.byteLength(content, 'utf-8'),
+            source: 'faber',
+        };
+        await this.cacheManager.set(uri, result);
+        return uri;
     }
     /**
      * Retrieve content via Codex
      */
     async retrieve(type, id) {
-        if (!this.codex) {
-            throw new errors_1.FaberError('Codex not available', 'CODEX_NOT_AVAILABLE', {});
+        await this.ensureInitialized();
+        if (!this.cacheManager || !this.codex) {
+            throw new errors_1.FaberError('Codex not initialized', 'CODEX_NOT_AVAILABLE', {});
         }
-        return this.codex.get(type, id);
+        const uri = this.buildUri(type, id);
+        const reference = this.codex.resolveReference(uri);
+        if (!reference) {
+            return null;
+        }
+        try {
+            const result = await this.cacheManager.get(reference);
+            return result.content.toString('utf-8');
+        }
+        catch {
+            return null;
+        }
     }
     /**
      * Check if content exists via Codex
      */
     async exists(type, id) {
-        if (!this.codex) {
-            throw new errors_1.FaberError('Codex not available', 'CODEX_NOT_AVAILABLE', {});
+        await this.ensureInitialized();
+        if (!this.cacheManager || !this.codex) {
+            throw new errors_1.FaberError('Codex not initialized', 'CODEX_NOT_AVAILABLE', {});
         }
-        return this.codex.exists(type, id);
+        const uri = this.buildUri(type, id);
+        return this.cacheManager.has(uri);
     }
     /**
      * List content via Codex
+     * Note: Codex doesn't have a native list operation, so this returns empty
+     * In practice, listing should use local storage
      */
-    async list(type) {
-        if (!this.codex) {
-            throw new errors_1.FaberError('Codex not available', 'CODEX_NOT_AVAILABLE', {});
-        }
-        return this.codex.list(type);
+    async list(_type) {
+        // Codex cache doesn't support listing by type
+        // This would require filesystem operations on the cache directory
+        return [];
     }
     /**
      * Delete content via Codex
      */
     async delete(type, id) {
-        if (!this.codex) {
-            throw new errors_1.FaberError('Codex not available', 'CODEX_NOT_AVAILABLE', {});
+        await this.ensureInitialized();
+        if (!this.cacheManager || !this.codex) {
+            throw new errors_1.FaberError('Codex not initialized', 'CODEX_NOT_AVAILABLE', {});
         }
-        return this.codex.delete(type, id);
+        const uri = this.buildUri(type, id);
+        await this.cacheManager.invalidate(uri);
     }
     /**
      * Get a Codex reference URI
