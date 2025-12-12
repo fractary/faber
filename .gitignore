@@ -39,3 +39,6 @@ temp/
 # Test artifacts
 .faber/
 *.tgz
+
+# Session state
+.fractary/plugins/status/
