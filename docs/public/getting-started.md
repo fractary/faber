@@ -6,7 +6,9 @@ visibility: public
 
 # Getting Started
 
-This guide walks you through installing the Faber SDK and using it for AI-assisted development.
+This guide walks you through installing the Faber SDK and running your first AI-powered development workflow.
+
+FABER enables AI agents to do meaningful work autonomously while knowing exactly when to involve humans. By the end of this guide, you'll have FABER configured and ready to automate development tasks.
 
 ## Prerequisites
 
@@ -314,7 +316,8 @@ your-project/
 
 ## Next Steps
 
-- [Concepts](./concepts.md) - Understand the architecture
+- [Core Concepts](./concepts.md) - Philosophy, architecture, and key concepts
+- [Intelligent Guardrails](./guardrails.md) - Deep dive into the autonomy and safety system
 - [CLI Reference](./cli.md) - Complete command documentation
 - [API Reference](./api.md) - Programmatic API details
 

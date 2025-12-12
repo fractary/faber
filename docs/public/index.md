@@ -1,59 +1,80 @@
 ---
 title: Faber SDK Documentation
-description: FABER workflow toolkit for AI-assisted software development
+description: AI-native workflow automation that runs in production
 visibility: public
 ---
 
 # Faber SDK
 
-> FABER Workflow Toolkit for AI-Assisted Development
+> AI-native workflow automation that runs in production
 
-Faber is a TypeScript SDK that powers the **FABER workflow methodology**: **Frame → Architect → Build → Evaluate → Release**. It provides unified APIs for work tracking, repository operations, specifications, session logging, state management, and workflow orchestration.
+Faber enables AI agents to do meaningful work autonomously while knowing exactly when to involve humans. Unlike simple automation tools that chain API calls, FABER orchestrates AI agents that actually reason about your work. Unlike raw AI frameworks, FABER provides the guardrails enterprises need to deploy with confidence.
 
-## What is FABER?
+## The Problem
 
-FABER is a structured approach to AI-assisted software development:
+| Approach | What Happens |
+|----------|--------------|
+| **Deterministic Automation** (Zapier, Make) | Works for simple tasks, breaks when reasoning is required |
+| **Raw AI Agents** (LangGraph, AutoGen) | Powerful but unpredictable—enterprises won't adopt |
+| **AI + Approve Everything** | Human becomes the bottleneck, defeats the purpose |
+
+## The FABER Solution
+
+FABER takes a different approach: **AI operates autonomously within defined boundaries, escalates intelligently when boundaries are approached.**
+
+```
+From issue to PR, autonomously.
+```
+
+The result: 90% autonomous operation, 10% human involvement—focused on decisions that actually matter.
+
+## Who is FABER For?
+
+### Development Teams
+Automate complex development tasks—from understanding an issue to shipping a PR. Focus on interesting problems while AI handles the routine work.
+
+### Technical Operations
+Automated incident response, deployment pipelines, and infrastructure changes with human oversight on critical decisions.
+
+### Platform Engineers
+Build AI-powered workflows that your entire organization can use, with the safety and observability enterprises require.
+
+## Key Concepts
+
+### The FABER Methodology
+
+Every workflow follows five structured phases:
 
 | Phase | Purpose |
 |-------|---------|
-| **Frame** | Gather requirements from issues and conversations |
-| **Architect** | Create and refine specifications |
-| **Build** | Implement the solution with proper branching |
-| **Evaluate** | Validate against requirements |
-| **Release** | Create PRs and request reviews |
+| **Frame** | Understand the problem before acting |
+| **Architect** | Plan the approach before building |
+| **Build** | Implement to specification |
+| **Evaluate** | Validate before shipping |
+| **Release** | Controlled delivery |
 
-The SDK provides the tools to automate and orchestrate each phase.
+### Three Layers of Protection
 
-## Key Features
+- **Structural Guardrails**: The FABER methodology itself prevents chaos through process
+- **Boundary Guardrails**: Hard limits the AI cannot cross (production deploys, cost thresholds)
+- **Intelligent Guardrails**: AI reasons about its own confidence and risk, deciding when to proceed vs. escalate
 
-### Multi-Platform Support
-- **Work Tracking**: GitHub Issues, Jira*, Linear*
-- **Repository Operations**: GitHub, GitLab*, Bitbucket*
-- **Git Operations**: Branching, commits, worktrees
+### Earned Autonomy
 
-*\*Stub implementations - interface defined, full implementation planned*
+Trust is earned, not assumed:
+
+1. **Day 1**: Conservative—more human checkpoints, AI learns patterns
+2. **Week 4**: Established patterns—less intervention for known situations
+3. **Month 6**: Mature—90% autonomous, 10% escalation on genuinely novel situations
 
 ### Autonomy Levels
-Control how much automation you want:
 
 | Level | Behavior |
 |-------|----------|
 | `dry-run` | Preview changes without executing |
 | `assisted` | Pause for confirmation at each step |
 | `guarded` | Confirm destructive operations only |
-| `autonomous` | Execute without confirmation |
-
-### Workflow Orchestration
-- Full FABER phase execution
-- Event-driven architecture
-- State persistence and recovery
-- Checkpoint/rollback support
-
-### Developer Experience
-- Full TypeScript support
-- Comprehensive type exports
-- Zod schema validation
-- CLI included for quick usage
+| `autonomous` | Execute within established boundaries |
 
 ## Installation
 
@@ -64,78 +85,55 @@ npm install @fractary/faber
 ## Quick Start
 
 ```typescript
-import { WorkManager, RepoManager, FaberWorkflow } from '@fractary/faber';
+import { FaberWorkflow } from '@fractary/faber';
 
-// Fetch an issue
-const work = new WorkManager();
-const issue = await work.fetchIssue(123);
-
-// Create a branch
-const repo = new RepoManager();
-await repo.createBranch('feature/add-export');
-
-// Run full FABER workflow
-const faber = new FaberWorkflow();
-const result = await faber.run({
+// Run a complete FABER workflow
+const workflow = new FaberWorkflow();
+const result = await workflow.run({
   workId: '123',
-  autonomy: 'assisted',
+  autonomy: 'assisted'
 });
 ```
 
-## Modules
-
-| Module | Description |
-|--------|-------------|
-| [`work`](./modules/work.md) | Multi-platform work tracking |
-| [`repo`](./modules/repo.md) | Git and repository operations |
-| [`spec`](./modules/spec.md) | Specification management |
-| [`logs`](./modules/logs.md) | Session capture and logging |
-| [`state`](./modules/state.md) | Workflow state persistence |
-| [`workflow`](./modules/workflow.md) | FABER orchestration |
-| [`storage`](./modules/storage.md) | Artifact storage |
-
-## CLI Usage
-
-The SDK includes a CLI for quick access:
+Or use the CLI:
 
 ```bash
-# Work tracking
-fractary work fetch 123
-fractary work create --title "New feature"
-fractary work classify 123
+# Run workflow for issue #123
+faber run 123 --autonomy assisted
 
-# Repository operations
-fractary repo branch create feature/new-feature
-fractary repo pr create --title "Add feature"
-
-# Specifications
-fractary spec create "Add authentication" --template feature
-fractary spec validate SPEC-001
-
-# FABER workflow
-fractary workflow run 123 --autonomy assisted
+# Check status
+faber status <workflow-id>
 ```
+
+## SDK Modules
+
+| Module | Purpose |
+|--------|---------|
+| [`work`](./api.md#work-module) | Multi-platform work tracking (GitHub, Jira, Linear) |
+| [`repo`](./api.md#repo-module) | Git and repository operations (GitHub, GitLab, Bitbucket) |
+| [`spec`](./api.md#spec-module) | Specification management |
+| [`logs`](./api.md#logs-module) | Session capture and logging |
+| [`state`](./api.md#state-module) | Workflow state persistence |
+| [`workflow`](./api.md#workflow-module) | FABER orchestration |
+| [`storage`](./api.md#storage-module) | Artifact storage |
+
+## Platform Support
+
+| Platform | Work Tracking | Repository |
+|----------|--------------|------------|
+| GitHub | Full | Full |
+| Jira | Planned | - |
+| Linear | Planned | - |
+| GitLab | - | Planned |
+| Bitbucket | - | Planned |
 
 ## Documentation
 
 - [Getting Started](./getting-started.md) - Installation and first steps
-- [Concepts](./concepts.md) - Core concepts and architecture
+- [Core Concepts](./concepts.md) - Architecture and key concepts
+- [Intelligent Guardrails](./guardrails.md) - Autonomy and safety model
 - [CLI Reference](./cli.md) - Command-line interface
 - [API Reference](./api.md) - Programmatic API
-
-## Configuration
-
-Configuration files are stored at `.fractary/plugins/{module}/config.json`:
-
-```json
-{
-  "platform": "github",
-  "owner": "your-org",
-  "repo": "your-repo"
-}
-```
-
-See [Configuration Guide](./concepts.md#configuration) for details.
 
 ## Community & Support
 
