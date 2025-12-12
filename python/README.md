@@ -195,6 +195,117 @@ faber workflow view <workflow_id>
 faber version
 ```
 
+## API Reference
+
+### Workflow Functions
+
+```python
+from faber import create_faber_workflow, run_faber_workflow
+
+# Create workflow instance
+workflow = create_faber_workflow(config=None)
+
+# Run workflow (async)
+result = await run_faber_workflow(
+    work_id="123",
+    config=None,           # Optional: WorkflowConfig
+    workflow_id=None,      # Optional: Resume specific workflow
+)
+
+# Run workflow (sync)
+from faber.workflows.graph import run_faber_workflow_sync
+result = run_faber_workflow_sync(work_id="123", config=None)
+```
+
+### Primitives (Layer 1)
+
+```python
+from faber.primitives.work import WorkManager
+from faber.primitives.repo import RepoManager
+from faber.primitives.spec import SpecManager
+from faber.primitives.logs import LogManager
+
+# Work tracking
+work = WorkManager()
+issue = work.fetch_issue("123")
+work_type = work.classify_work_type(issue)
+
+# Repository operations
+repo = RepoManager()
+branch = repo.create_branch("feat/new-feature")
+repo.commit("feat: add feature", files=["src/feature.py"])
+
+# Specification management
+spec = SpecManager()
+spec_content = spec.create_specification(issue, work_type)
+validation = spec.validate_specification(spec_content)
+
+# Logging
+logs = LogManager()
+logs.log_phase_start("frame", workflow_id)
+logs.log_phase_end("frame", workflow_id, result)
+```
+
+### Cost Tracking
+
+```python
+from faber.cost import CostTracker, CostConfig
+
+config = CostConfig(
+    budget_limit_usd=10.0,
+    warning_threshold=0.8,
+    require_approval_at=0.9,
+)
+
+tracker = CostTracker("workflow-123", config)
+tracker.add_usage(
+    model="claude-sonnet-4-20250514",
+    input_tokens=10000,
+    output_tokens=5000,
+    phase="architect",
+)
+
+summary = tracker.get_summary()
+print(f"Total cost: ${summary.total_cost_usd:.2f}")
+```
+
+### Approval Queue
+
+```python
+from faber.approval import ApprovalQueue, ApprovalType
+
+queue = ApprovalQueue("workflow-123")
+
+# Add approval request
+request_id = queue.add_request(
+    approval_type=ApprovalType.SPECIFICATION,
+    title="Approve Specification",
+    description="Please review the specification.",
+    context={"spec_path": "/path/to/spec.md"},
+)
+
+# Wait for response
+response = await queue.wait_for_approval(request_id, timeout=3600.0)
+if response and response.approved:
+    print("Approved!")
+```
+
+## Integration with TypeScript CLI
+
+The Python SDK integrates with the TypeScript Claude Code plugin via subprocess:
+
+```typescript
+// From TypeScript plugin
+import { spawn } from 'child_process';
+
+const result = await new Promise((resolve, reject) => {
+  const proc = spawn('faber', ['run', '123', '--autonomy', 'assisted']);
+  // ... handle stdout/stderr
+});
+```
+
+For detailed integration patterns, see: [Python SDK Integration Guide](../docs/python-sdk-integration.md)
+
 ## Development
 
 ```bash
@@ -210,6 +321,13 @@ mypy faber
 # Linting
 ruff check faber
 ```
+
+## Related Documentation
+
+- [Integration Guide](../docs/python-sdk-integration.md) - TypeScript CLI integration
+- [TypeScript SDK](../docs/integration-guide.md) - @fractary/faber TypeScript package
+- [API Reference](../docs/api-reference.md) - Full API documentation
+- [SPEC-00025](../specs/SPEC-00025-langgraph-integration.md) - Architecture specification
 
 ## License
 
