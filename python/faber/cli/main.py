@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -39,6 +40,14 @@ class Autonomy(str, Enum):
 @app.command()
 def run(
     work_id: str = typer.Argument(..., help="Work item ID to process (e.g., 123, PROJ-456)"),
+    workflow: Optional[Path] = typer.Option(
+        None,
+        "--workflow", "-w",
+        help="Path to custom workflow YAML file",
+        exists=True,
+        dir_okay=False,
+        resolve_path=True,
+    ),
     autonomy: Autonomy = typer.Option(
         Autonomy.ASSISTED,
         "--autonomy", "-a",
@@ -74,14 +83,19 @@ def run(
     4. Evaluate - Validate against spec (may retry Build)
     5. Release - Create PR and deliver
 
+    Use --workflow to run a custom YAML workflow definition:
+        faber run 123 --workflow .faber/workflows/custom.yaml
+
     Example:
         faber run 123 --autonomy assisted
         faber run PROJ-456 --max-retries 5 --no-trace
+        faber run 123 --workflow my-workflow.yaml
     """
     from faber.workflows.config import WorkflowConfig, load_workflow_config
     from faber.workflows.graph import run_faber_workflow_sync
+    from faber.workflows.state import create_initial_state
 
-    # Load and modify config
+    # Load config
     config = load_workflow_config()
     config.autonomy = autonomy.value
     config.max_retries = max_retries
@@ -89,19 +103,19 @@ def run(
     if budget is not None:
         config.cost.budget_limit_usd = budget
 
-    # Skip phases if specified
-    if skip_phase:
-        for phase in skip_phase:
-            if phase in config.phases:
-                config.phases[phase].enabled = False
-
     # Setup tracing
     if trace:
         _setup_tracing(config.langsmith_project)
 
+    # Determine workflow source
+    workflow_source = "default"
+    if workflow:
+        workflow_source = str(workflow)
+
     # Show startup info
     console.print(Panel(
         f"[bold]Work ID:[/bold] {work_id}\n"
+        f"[bold]Workflow:[/bold] {workflow_source}\n"
         f"[bold]Autonomy:[/bold] {autonomy.value}\n"
         f"[bold]Max Retries:[/bold] {max_retries}\n"
         f"[bold]Budget:[/bold] ${config.cost.budget_limit_usd:.2f}\n"
@@ -119,7 +133,18 @@ def run(
         task = progress.add_task("Running FABER workflow...", total=None)
 
         try:
-            result = run_faber_workflow_sync(work_id, config)
+            if workflow:
+                # Use custom YAML workflow
+                result = _run_custom_workflow(work_id, workflow, config)
+            else:
+                # Use default workflow
+                # Skip phases if specified
+                if skip_phase:
+                    for phase in skip_phase:
+                        if phase in config.phases:
+                            config.phases[phase].enabled = False
+
+                result = run_faber_workflow_sync(work_id, config)
 
             progress.update(task, description="Workflow complete!")
 
@@ -132,6 +157,60 @@ def run(
         except Exception as e:
             console.print(f"\n[red]Error: {e}[/red]")
             raise typer.Exit(1)
+
+
+def _run_custom_workflow(
+    work_id: str,
+    workflow_path: Path,
+    config: "WorkflowConfig",
+) -> dict:
+    """Run a custom YAML workflow.
+
+    Args:
+        work_id: Work item ID
+        workflow_path: Path to workflow YAML file
+        config: Workflow configuration
+
+    Returns:
+        Final workflow state
+    """
+    import asyncio
+    import uuid
+
+    from faber.accessibility.compiler import WorkflowCompiler
+    from faber.accessibility.loader import WorkflowValidationError
+    from faber.workflows.state import create_initial_state
+
+    try:
+        # Compile the workflow
+        console.print(f"[dim]Loading workflow from {workflow_path}...[/dim]")
+        compiler = WorkflowCompiler(workflow_path)
+        graph = compiler.compile()
+
+        console.print(f"[dim]Workflow '{compiler.schema.name}' loaded with "
+                     f"{len(compiler.schema.phases)} phases[/dim]")
+
+        # Create initial state
+        workflow_id = f"WF-{work_id}-{uuid.uuid4().hex[:8]}"
+        initial_state = create_initial_state(
+            workflow_id=workflow_id,
+            work_id=work_id,
+            budget_limit_usd=config.cost.budget_limit_usd,
+        )
+
+        # Run with thread_id for checkpointing
+        run_config = {"configurable": {"thread_id": workflow_id}}
+
+        # Execute
+        result = asyncio.run(graph.ainvoke(initial_state, run_config))
+        return result
+
+    except WorkflowValidationError as e:
+        console.print(f"[red]Workflow validation failed:[/red]\n{e}")
+        raise typer.Exit(1)
+    except FileNotFoundError as e:
+        console.print(f"[red]Workflow file not found: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @app.command()
