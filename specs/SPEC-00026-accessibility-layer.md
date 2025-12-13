@@ -1,7 +1,7 @@
 # SPEC-00026: FABER Accessibility Layer
 
 ## Status: Draft
-## Version: 1.0.0
+## Version: 1.1.0
 ## Last Updated: 2025-12-12
 
 ---
@@ -320,6 +320,194 @@ tools:
       command: pytest {{test_path}} -v --tb=short
 ```
 
+### 3.4 Tool Security Model
+
+Custom tools with bash implementations execute in a **sandboxed environment** to prevent injection attacks and unintended system access.
+
+**Security Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Tool Execution Request                        │
+│                  (template variables filled)                     │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Input Validation Layer                        │
+│  • Escape shell metacharacters                                  │
+│  • Validate parameter types match schema                        │
+│  • Reject null bytes, control characters                        │
+│  • Length limits on all string inputs                           │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Sandbox Environment                           │
+│  • Isolated subprocess with restricted capabilities             │
+│  • Allowlisted commands only (configurable per-project)         │
+│  • Read-only filesystem except designated output paths          │
+│  • Network access disabled by default                           │
+│  • Resource limits (CPU, memory, execution time)                │
+│  • No access to environment variables (except allowlisted)      │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Output Sanitization                           │
+│  • Truncate excessive output                                    │
+│  • Strip ANSI escape codes                                      │
+│  • Validate output against expected format                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Default Allowlisted Commands:**
+
+```yaml
+# .faber/config.yaml - security section
+security:
+  tool_sandbox:
+    enabled: true
+    allowlisted_commands:
+      - pytest
+      - python
+      - pip
+      - git
+      - grep
+      - find
+      - cat
+      - head
+      - tail
+      - jq
+      - curl  # disabled by default, enable with network_access: true
+    network_access: false
+    max_execution_time: 300  # seconds
+    max_output_size: 1048576  # 1MB
+    writable_paths:
+      - .faber/output/
+      - /tmp/faber/
+```
+
+**Implementation:**
+
+```python
+# faber/tools/sandbox.py
+
+from dataclasses import dataclass
+from typing import List, Optional
+import subprocess
+import shlex
+import re
+
+@dataclass
+class SandboxConfig:
+    allowlisted_commands: List[str]
+    network_access: bool = False
+    max_execution_time: int = 300
+    max_output_size: int = 1048576
+    writable_paths: List[str] = None
+
+class ToolSandbox:
+    """Secure execution environment for custom bash tools."""
+
+    def __init__(self, config: SandboxConfig):
+        self.config = config
+
+    def validate_command(self, command: str) -> bool:
+        """Check if command uses only allowlisted executables."""
+        # Extract base command (first word)
+        base_cmd = shlex.split(command)[0].split('/')[-1]
+        return base_cmd in self.config.allowlisted_commands
+
+    def sanitize_input(self, value: str) -> str:
+        """Escape shell metacharacters in user input."""
+        # Reject dangerous characters
+        if re.search(r'[\x00-\x1f]', value):
+            raise ValueError("Control characters not allowed")
+        # Use shlex.quote for safe escaping
+        return shlex.quote(value)
+
+    def execute(self, command: str, parameters: dict) -> str:
+        """Execute command in sandboxed environment."""
+        if not self.validate_command(command):
+            raise SecurityError(f"Command not in allowlist: {command}")
+
+        # Sanitize and substitute parameters
+        safe_params = {k: self.sanitize_input(str(v)) for k, v in parameters.items()}
+        final_command = command.format(**safe_params)
+
+        # Execute with restrictions
+        result = subprocess.run(
+            final_command,
+            shell=True,
+            capture_output=True,
+            timeout=self.config.max_execution_time,
+            env=self._restricted_env(),
+            cwd=self._sandbox_workdir()
+        )
+
+        output = result.stdout.decode()[:self.config.max_output_size]
+        return self._sanitize_output(output)
+```
+
+### 3.5 Agent Inheritance Semantics
+
+When an agent uses `extends`, the following inheritance rules apply:
+
+| Property | Inheritance Behavior |
+|----------|---------------------|
+| `model` | Override (child replaces parent) |
+| `tools` | Merge (child tools added to parent tools) |
+| `system_prompt` | Append (child prompt appended to parent) |
+| `config` | Deep merge (child values override parent) |
+| `description` | Override |
+
+**Example:**
+
+```yaml
+# Parent: architect-agent (built-in)
+name: architect-agent
+model: anthropic:claude-sonnet-4-20250514
+tools:
+  - fetch_issue
+  - create_specification
+system_prompt: |
+  You are the Architect agent...
+config:
+  require_approval: true
+
+# Child: custom-architect.yaml
+name: custom-architect
+extends: architect-agent
+model: anthropic:claude-opus-4-20250514  # Overrides parent
+tools:
+  - search_codebase  # Added to parent tools
+system_prompt: |
+  ## Domain-Specific Guidelines
+  Consider PCI compliance...  # Appended to parent prompt
+config:
+  min_spec_sections: 5  # Merged with parent config
+```
+
+**Effective configuration:**
+
+```yaml
+name: custom-architect
+model: anthropic:claude-opus-4-20250514
+tools:
+  - fetch_issue
+  - create_specification
+  - search_codebase  # Merged
+system_prompt: |
+  You are the Architect agent...
+
+  ## Domain-Specific Guidelines
+  Consider PCI compliance...
+config:
+  require_approval: true  # From parent
+  min_spec_sections: 5    # From child
+```
+
 ---
 
 ## 4. Enhanced CLI
@@ -548,7 +736,174 @@ Replaying from build phase with current state...
 
 ## 5. Workflow Loader & Compiler
 
-### 5.1 YAML to LangGraph Compilation
+### 5.1 Schema Validation with Pydantic
+
+Workflow YAML schemas are validated using **Pydantic models**, providing Python-native type checking, IDE support, and automatic JSON Schema generation for external tooling.
+
+```python
+# faber/accessibility/schemas.py
+
+from typing import List, Optional, Dict, Any, Literal
+from pydantic import BaseModel, Field, field_validator
+from enum import Enum
+
+class AutonomyLevel(str, Enum):
+    ASSISTED = "assisted"
+    GUARDED = "guarded"
+    AUTONOMOUS = "autonomous"
+
+class TriggerType(str, Enum):
+    MANUAL = "manual"
+    ISSUE_LABELED = "issue_labeled"
+    WEBHOOK = "webhook"
+    SCHEDULE = "schedule"
+
+class Trigger(BaseModel):
+    """Workflow trigger configuration."""
+    type: TriggerType
+    command: Optional[str] = None
+    labels: Optional[List[str]] = None
+    path: Optional[str] = None
+    cron: Optional[str] = None
+
+class ModelConfig(BaseModel):
+    """Model routing configuration."""
+    default: str = "anthropic:claude-sonnet-4-20250514"
+    classification: Optional[str] = None
+    reasoning: Optional[str] = None
+    review: Optional[str] = None
+
+    @field_validator('default', 'classification', 'reasoning', 'review', mode='before')
+    @classmethod
+    def validate_model_format(cls, v):
+        if v and ':' not in v:
+            raise ValueError(f"Model must be in format 'provider:model', got: {v}")
+        return v
+
+class PhaseFailureConfig(BaseModel):
+    """Configuration for phase failure handling."""
+    retry_phase: str
+    max_retries: int = Field(default=3, ge=1, le=10)
+
+class Phase(BaseModel):
+    """Workflow phase definition."""
+    name: str = Field(..., min_length=1, max_length=50)
+    description: str
+    agent: str
+    model: Optional[str] = None  # Can be $reference
+    tools: List[str] = []
+    inputs: List[str] = []  # Can be $phase.output references
+    outputs: List[str] = []
+    human_approval: bool = False
+    approval_prompt: Optional[str] = None
+    max_iterations: int = Field(default=50, ge=1, le=1000)
+    on_failure: Optional[PhaseFailureConfig] = None
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if not v.replace('-', '').replace('_', '').isalnum():
+            raise ValueError("Phase name must be alphanumeric with hyphens/underscores")
+        return v
+
+class HookAction(BaseModel):
+    """Post-workflow hook action."""
+    action: str
+    channel: Optional[str] = None
+    message: Optional[str] = None
+    body: Optional[str] = None
+
+class WorkflowHooks(BaseModel):
+    """Workflow lifecycle hooks."""
+    on_complete: List[HookAction] = []
+    on_failure: List[HookAction] = []
+
+class WorkflowConfig(BaseModel):
+    """Global workflow configuration."""
+    work_platform: Literal["github", "jira", "linear"] = "github"
+    repo_platform: Literal["github", "gitlab", "bitbucket"] = "github"
+    autonomy: AutonomyLevel = AutonomyLevel.ASSISTED
+    max_retries: int = Field(default=3, ge=1, le=10)
+
+class WorkflowSchema(BaseModel):
+    """Complete workflow definition schema."""
+    name: str = Field(..., min_length=1, max_length=100)
+    version: str = "1.0"
+    description: Optional[str] = None
+    triggers: List[Trigger] = []
+    config: WorkflowConfig = WorkflowConfig()
+    models: ModelConfig = ModelConfig()
+    phases: List[Phase] = Field(..., min_length=1)
+    hooks: WorkflowHooks = WorkflowHooks()
+
+    @field_validator('phases')
+    @classmethod
+    def validate_phase_dependencies(cls, phases):
+        """Ensure phase input references are valid."""
+        available_outputs = set()
+        for phase in phases:
+            for input_ref in phase.inputs:
+                if input_ref.startswith('$'):
+                    ref_phase = input_ref[1:].split('.')[0]
+                    if ref_phase not in available_outputs and ref_phase != 'config':
+                        # Will be validated at compile time
+                        pass
+            available_outputs.add(phase.name)
+        return phases
+
+    class Config:
+        json_schema_extra = {
+            "title": "FABER Workflow Schema",
+            "description": "Schema for declarative FABER workflow definitions"
+        }
+
+
+# Generate JSON Schema for external tools
+def export_json_schema(output_path: str = "workflow-schema.json"):
+    """Export Pydantic models as JSON Schema for external validation."""
+    import json
+    schema = WorkflowSchema.model_json_schema()
+    with open(output_path, 'w') as f:
+        json.dump(schema, f, indent=2)
+    return schema
+```
+
+**Validation at Load Time:**
+
+```python
+# faber/accessibility/loader.py
+
+import yaml
+from pathlib import Path
+from pydantic import ValidationError
+from .schemas import WorkflowSchema
+
+def load_workflow(path: Path) -> WorkflowSchema:
+    """Load and validate a workflow YAML file."""
+    with open(path) as f:
+        raw_config = yaml.safe_load(f)
+
+    try:
+        return WorkflowSchema(**raw_config)
+    except ValidationError as e:
+        # Convert Pydantic errors to user-friendly messages
+        errors = []
+        for error in e.errors():
+            loc = " → ".join(str(x) for x in error['loc'])
+            errors.append(f"  • {loc}: {error['msg']}")
+        raise WorkflowValidationError(
+            f"Invalid workflow at {path}:\n" + "\n".join(errors)
+        )
+```
+
+**Benefits of Pydantic Approach:**
+- **Type Safety**: Full IDE autocomplete and type checking
+- **Validation**: Automatic validation with detailed error messages
+- **JSON Schema Export**: Generate schemas for VS Code YAML extension, CI validation
+- **Documentation**: Self-documenting with field descriptions
+- **Serialization**: Easy conversion to/from JSON, dict, YAML
+
+### 5.2 YAML to LangGraph Compilation
 
 ```python
 # faber/accessibility/compiler.py
@@ -561,27 +916,16 @@ from langgraph.graph import StateGraph, END
 from ..workflows.state import FaberState
 from ..agents import create_agent_from_config
 from ..tools import load_tools
+from .schemas import WorkflowSchema
+from .loader import load_workflow
 
 class WorkflowCompiler:
     """Compile YAML workflow definitions to LangGraph."""
 
     def __init__(self, workflow_path: Path):
         self.workflow_path = workflow_path
-        self.config = self._load_yaml(workflow_path)
-
-    def _load_yaml(self, path: Path) -> dict:
-        """Load and validate YAML workflow definition."""
-        with open(path) as f:
-            config = yaml.safe_load(f)
-        self._validate_schema(config)
-        return config
-
-    def _validate_schema(self, config: dict):
-        """Validate workflow schema."""
-        required_fields = ["name", "phases"]
-        for field in required_fields:
-            if field not in config:
-                raise ValueError(f"Missing required field: {field}")
+        self.schema = load_workflow(workflow_path)  # Pydantic-validated
+        self.config = self.schema.model_dump()  # Convert to dict for compatibility
 
     def _resolve_references(self, value: Any, context: dict) -> Any:
         """Resolve $variable references in config."""
@@ -736,23 +1080,369 @@ def run(work_id: str, workflow: str, autonomy: str):
 
 ## 6. API Server
 
-### 6.1 REST API for Programmatic Access
+### 6.1 Authentication & Authorization
+
+The API Server supports **dual authentication** to accommodate both programmatic access (services) and interactive user sessions:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       API Request                                │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   Authentication Layer                           │
+│                                                                 │
+│  ┌─────────────────┐           ┌─────────────────┐             │
+│  │   API Key Auth  │           │   OAuth2/JWT    │             │
+│  │  (X-API-Key)    │    OR     │  (Bearer token) │             │
+│  └────────┬────────┘           └────────┬────────┘             │
+│           │                             │                       │
+│           ▼                             ▼                       │
+│  ┌─────────────────┐           ┌─────────────────┐             │
+│  │ Service Access  │           │  User Session   │             │
+│  │ (CI/CD, scripts)│           │  (Studio, CLI)  │             │
+│  └─────────────────┘           └─────────────────┘             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**API Key Authentication** (for services):
+
+```python
+# faber/api/auth/api_key.py
+
+from fastapi import Security, HTTPException, status
+from fastapi.security import APIKeyHeader
+from typing import Optional
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+async def verify_api_key(api_key: Optional[str] = Security(api_key_header)) -> dict:
+    """Verify API key and return associated permissions."""
+    if not api_key:
+        return None
+
+    # Lookup key in storage (hashed)
+    key_record = await storage.get_api_key(hash_key(api_key))
+    if not key_record:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key"
+        )
+
+    return {
+        "type": "api_key",
+        "key_id": key_record["id"],
+        "scopes": key_record["scopes"],  # e.g., ["workflows:read", "workflows:execute"]
+        "rate_limit": key_record.get("rate_limit", 1000)
+    }
+```
+
+**OAuth2/JWT Authentication** (for users):
+
+```python
+# faber/api/auth/oauth.py
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+
+async def verify_jwt_token(token: Optional[str] = Depends(oauth2_scheme)) -> dict:
+    """Verify JWT token and return user info."""
+    if not token:
+        return None
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {
+            "type": "oauth",
+            "user_id": payload["sub"],
+            "scopes": payload.get("scopes", []),
+            "exp": payload["exp"]
+        }
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+
+# Token generation
+def create_access_token(user_id: str, scopes: list, expires_delta: timedelta = None):
+    expire = datetime.utcnow() + (expires_delta or timedelta(hours=1))
+    return jwt.encode(
+        {"sub": user_id, "scopes": scopes, "exp": expire},
+        SECRET_KEY, algorithm=ALGORITHM
+    )
+```
+
+**Combined Authentication Dependency:**
+
+```python
+# faber/api/auth/__init__.py
+
+from fastapi import Depends, HTTPException, status
+
+async def get_current_auth(
+    api_key_auth: dict = Depends(verify_api_key),
+    jwt_auth: dict = Depends(verify_jwt_token)
+) -> dict:
+    """Accept either API key or JWT token."""
+    if api_key_auth:
+        return api_key_auth
+    if jwt_auth:
+        return jwt_auth
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required"
+    )
+
+# Usage in endpoints
+@app.post("/workflows/run")
+async def start_workflow(
+    request: WorkflowRunRequest,
+    auth: dict = Depends(get_current_auth)
+):
+    if "workflows:execute" not in auth["scopes"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    # ...
+```
+
+### 6.2 Pluggable Storage Backend
+
+Workflow state persistence uses a **pluggable adapter pattern** with SQLite as the default (zero-config), and optional PostgreSQL/Redis backends for production:
+
+```python
+# faber/api/storage/base.py
+
+from abc import ABC, abstractmethod
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+
+class StorageBackend(ABC):
+    """Abstract base class for workflow state storage."""
+
+    @abstractmethod
+    async def save_workflow(self, workflow_id: str, data: dict) -> None:
+        """Save or update workflow state."""
+        pass
+
+    @abstractmethod
+    async def get_workflow(self, workflow_id: str) -> Optional[dict]:
+        """Retrieve workflow state by ID."""
+        pass
+
+    @abstractmethod
+    async def list_workflows(
+        self,
+        status: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[dict]:
+        """List workflows with optional filtering."""
+        pass
+
+    @abstractmethod
+    async def delete_workflow(self, workflow_id: str) -> bool:
+        """Delete workflow state."""
+        pass
+
+    @abstractmethod
+    async def save_checkpoint(
+        self,
+        workflow_id: str,
+        phase: str,
+        state: dict
+    ) -> str:
+        """Save phase checkpoint for replay."""
+        pass
+
+    @abstractmethod
+    async def get_checkpoints(self, workflow_id: str) -> List[dict]:
+        """Get all checkpoints for a workflow."""
+        pass
+```
+
+**SQLite Backend (Default):**
+
+```python
+# faber/api/storage/sqlite.py
+
+import aiosqlite
+from pathlib import Path
+from .base import StorageBackend
+
+class SQLiteStorage(StorageBackend):
+    """SQLite storage backend - zero-config, file-based."""
+
+    def __init__(self, db_path: str = ".faber/workflows.db"):
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    async def _get_connection(self):
+        return await aiosqlite.connect(self.db_path)
+
+    async def initialize(self):
+        """Create tables if they don't exist."""
+        async with await self._get_connection() as db:
+            await db.executescript("""
+                CREATE TABLE IF NOT EXISTS workflows (
+                    workflow_id TEXT PRIMARY KEY,
+                    work_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_phase TEXT,
+                    completed_phases TEXT,  -- JSON array
+                    pr_url TEXT,
+                    error TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS checkpoints (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    workflow_id TEXT NOT NULL,
+                    phase TEXT NOT NULL,
+                    state TEXT NOT NULL,  -- JSON
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (workflow_id) REFERENCES workflows(workflow_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_workflows_status ON workflows(status);
+                CREATE INDEX IF NOT EXISTS idx_checkpoints_workflow ON checkpoints(workflow_id);
+            """)
+            await db.commit()
+
+    async def save_workflow(self, workflow_id: str, data: dict) -> None:
+        async with await self._get_connection() as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO workflows
+                (workflow_id, work_id, status, current_phase, completed_phases, pr_url, error, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (
+                workflow_id,
+                data["work_id"],
+                data["status"],
+                data.get("current_phase", ""),
+                json.dumps(data.get("completed_phases", [])),
+                data.get("pr_url"),
+                data.get("error")
+            ))
+            await db.commit()
+
+    async def get_workflow(self, workflow_id: str) -> Optional[dict]:
+        async with await self._get_connection() as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM workflows WHERE workflow_id = ?",
+                (workflow_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        **dict(row),
+                        "completed_phases": json.loads(row["completed_phases"])
+                    }
+        return None
+```
+
+**PostgreSQL Backend (Production):**
+
+```python
+# faber/api/storage/postgres.py
+
+import asyncpg
+from .base import StorageBackend
+
+class PostgresStorage(StorageBackend):
+    """PostgreSQL storage backend - production-grade with ACID guarantees."""
+
+    def __init__(self, connection_string: str):
+        self.connection_string = connection_string
+        self.pool = None
+
+    async def initialize(self):
+        self.pool = await asyncpg.create_pool(self.connection_string)
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS workflows (
+                    workflow_id TEXT PRIMARY KEY,
+                    work_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_phase TEXT,
+                    completed_phases JSONB DEFAULT '[]',
+                    pr_url TEXT,
+                    error TEXT,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                );
+                -- Additional indexes for query performance
+                CREATE INDEX IF NOT EXISTS idx_workflows_status_created
+                    ON workflows(status, created_at DESC);
+            """)
+```
+
+**Storage Factory:**
+
+```python
+# faber/api/storage/__init__.py
+
+from .base import StorageBackend
+from .sqlite import SQLiteStorage
+from .postgres import PostgresStorage
+
+def create_storage(config: dict) -> StorageBackend:
+    """Create storage backend from configuration."""
+    backend = config.get("storage_backend", "sqlite")
+
+    if backend == "sqlite":
+        return SQLiteStorage(config.get("sqlite_path", ".faber/workflows.db"))
+    elif backend == "postgres":
+        return PostgresStorage(config["postgres_url"])
+    elif backend == "redis":
+        from .redis import RedisStorage
+        return RedisStorage(config["redis_url"])
+    else:
+        raise ValueError(f"Unknown storage backend: {backend}")
+```
+
+**Configuration:**
+
+```yaml
+# .faber/config.yaml - storage section
+api:
+  storage_backend: sqlite  # sqlite | postgres | redis
+
+  # SQLite (default - zero config)
+  sqlite_path: .faber/workflows.db
+
+  # PostgreSQL (production)
+  # postgres_url: postgresql://user:pass@localhost/faber
+
+  # Redis (optional - for distributed deployments)
+  # redis_url: redis://localhost:6379/0
+```
+
+### 6.3 REST API for Programmatic Access
 
 ```python
 # faber/api/server.py
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 import uuid
 
 from ..accessibility.compiler import compile_workflow
 from ..workflows.graph import run_faber_workflow
+from .auth import get_current_auth
+from .storage import create_storage
 
 app = FastAPI(title="FABER API", version="1.0.0")
 
-# In-memory store (replace with proper storage)
-workflows_store = {}
+# Initialize storage from config
+storage = create_storage(load_config())
 
 class WorkflowRunRequest(BaseModel):
     work_id: str
@@ -838,7 +1528,7 @@ async def execute_workflow(workflow_id: str, work_id: str, workflow_path: str, c
         })
 ```
 
-### 6.2 WebSocket for Real-time Updates
+### 6.4 WebSocket for Real-time Updates
 
 ```python
 # faber/api/websocket.py
@@ -1105,3 +1795,45 @@ POST   /api/models/test                  # Test model connectivity
 - [GitHub Actions Workflow Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Click CLI Framework](https://click.palletsprojects.com/)
+
+---
+
+## Changelog
+
+### v1.1.0 (2025-12-12) - Refinement Round 1
+
+**Clarifications from Issue #3 Discussion:**
+
+1. **Authentication & Authorization (§6.1)**: Added dual authentication support
+   - API Keys for service/programmatic access (X-API-Key header)
+   - OAuth2/JWT for user sessions (Bearer tokens)
+   - Combined authentication dependency with scope-based authorization
+
+2. **Pluggable Storage Backend (§6.2)**: Replaced in-memory store with pluggable adapter pattern
+   - SQLite as default (zero-config, file-based)
+   - PostgreSQL for production deployments
+   - Redis support for distributed systems
+   - Abstract `StorageBackend` base class with checkpoint support
+
+3. **Schema Validation with Pydantic (§5.1)**: Added comprehensive schema validation
+   - Full Pydantic models for workflows, phases, triggers, hooks
+   - Field validators for model format, phase names, dependencies
+   - JSON Schema export capability for external tools (VS Code, CI)
+   - User-friendly validation error messages
+
+4. **Tool Security Model (§3.4)**: Added sandboxed execution for custom bash tools
+   - Input validation layer (escape metacharacters, reject control chars)
+   - Sandbox environment (allowlisted commands, resource limits)
+   - Network access disabled by default
+   - Configurable per-project via `.faber/config.yaml`
+
+5. **Agent Inheritance Semantics (§3.5)**: Clarified `extends` behavior
+   - Documented inheritance rules for model, tools, system_prompt, config
+   - Added examples showing effective configuration after inheritance
+
+**Best-Effort Decisions:**
+
+- Error recovery (Q4): Deferred to Phase 4 implementation - will add comprehensive error handling with retry strategies, exponential backoff, and circuit breakers
+- Config file schema (S1): Partially addressed via Pydantic models - full schema will be generated during implementation
+- Checkpoint format (S2): Will use JSON with versioning header for forward compatibility
+- Cost estimation (S3): Will calculate based on token counts × model pricing, exposed via `faber workflow estimate` command
