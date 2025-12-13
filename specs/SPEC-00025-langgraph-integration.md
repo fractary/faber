@@ -1,7 +1,7 @@
 # SPEC-00025: LangGraph Integration Architecture
 
 ## Status: Draft
-## Version: 1.0.0
+## Version: 1.1.0
 ## Last Updated: 2025-12-12
 
 ---
@@ -1606,7 +1606,311 @@ observability:
 
 ---
 
-## 12. References
+## 12. Refinement Decisions (v1.1.0)
+
+*Added after spec refinement session on 2025-12-12*
+
+### 12.1 Deep Agents Abstraction Layer
+
+**Decision**: Build our own middleware abstraction that wraps Deep Agents.
+
+**Rationale**: Deep Agents is experimental and may have API changes. An abstraction layer:
+- Isolates FABER from Deep Agents API changes
+- Allows fallback to custom implementation if Deep Agents is deprecated
+- Provides consistent interface regardless of underlying implementation
+
+**Implementation**:
+```python
+# faber/agents/middleware.py
+
+from abc import ABC, abstractmethod
+from typing import List, Any
+
+class FaberMiddleware(ABC):
+    """Abstract middleware interface - implementations can use Deep Agents or custom logic."""
+
+    @property
+    @abstractmethod
+    def tools(self) -> List[Any]:
+        """Tools available to this middleware."""
+        pass
+
+    @property
+    @abstractmethod
+    def system_prompt(self) -> str:
+        """System prompt for this middleware."""
+        pass
+
+class DeepAgentsMiddleware(FaberMiddleware):
+    """Implementation using Deep Agents library."""
+    pass
+
+class NativeMiddleware(FaberMiddleware):
+    """Fallback implementation using raw LangGraph."""
+    pass
+```
+
+### 12.2 Dual Language Implementation
+
+**Decision**: Implement in both Python and TypeScript simultaneously.
+
+**Rationale**:
+- Python: LangGraph/LangChain are Python-native with full feature support
+- TypeScript: Matches existing FABER codebase (Claude Code plugins)
+- Both: Maximizes adoption across different use cases
+
+**Package Structure**:
+```
+@fractary/faber/
+├── python/
+│   └── faber/           # Python implementation (LangGraph native)
+├── typescript/
+│   └── src/             # TypeScript implementation (LangGraph.js)
+└── shared/
+    └── schemas/         # Shared JSON schemas for interop
+```
+
+### 12.3 Unified Approval Queue (Human-in-the-Loop)
+
+**Decision**: Implement a unified approval queue with configurable multi-channel notification and response handling.
+
+**Rationale**: HITL must work across all interfaces:
+- Claude Code CLI (terminal prompt)
+- Fractary CLI (direct invocation)
+- Web/App interface (future)
+- GitHub Issues (@faber mention triggers)
+
+**Architecture**:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Unified Approval Queue                        │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Approval Request: { workflow_id, phase, question, ... } │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+         │                    │                    │
+         ▼                    ▼                    ▼
+   ┌──────────┐        ┌──────────┐        ┌──────────┐
+   │   CLI    │        │   Web    │        │  GitHub  │
+   │ Adapter  │        │ Adapter  │        │ Adapter  │
+   │ (poll)   │        │(WebSocket│        │(@faber   │
+   │          │        │  push)   │        │ mention) │
+   └──────────┘        └──────────┘        └──────────┘
+```
+
+**Configuration**:
+```yaml
+# .faber/config.yaml
+workflow:
+  approval:
+    # Channels to notify when approval is needed
+    notify_channels:
+      - cli          # Always notify in terminal if active
+      - github       # Post comment on linked issue
+      - slack        # Optional: Slack webhook
+
+    # Channels that can provide approval responses
+    response_channels:
+      - cli          # Accept response from terminal
+      - github       # Accept response via @faber mention
+      - api          # Accept response via HTTP API
+
+    # Timeout before best-effort decision (0 = wait forever)
+    timeout_minutes: 60
+```
+
+**GitHub Integration**:
+```python
+# When approval needed, post to issue:
+"""
+## 🔄 Approval Required: Architect Phase
+
+The specification has been created and requires your review before proceeding.
+
+**Spec**: [SPEC-00025.md](/specs/SPEC-00025.md)
+
+**Options**:
+- Reply with `@faber approve` to proceed
+- Reply with `@faber reject <reason>` to stop workflow
+- Reply with `@faber revise <instructions>` for changes
+
+**Timeout**: 60 minutes (will use best-effort decision)
+"""
+```
+
+### 12.4 Checkpoint Persistence Backends
+
+**Decision**: Support pluggable backends - SQLite (default), PostgreSQL, Redis.
+
+**Implementation**:
+```python
+# faber/workflows/checkpointing.py
+
+from abc import ABC, abstractmethod
+from langgraph.checkpoint.base import BaseCheckpointSaver
+
+class FaberCheckpointer(ABC):
+    """Abstract checkpointer with pluggable backends."""
+
+    @abstractmethod
+    def save(self, workflow_id: str, state: dict) -> None:
+        pass
+
+    @abstractmethod
+    def load(self, workflow_id: str) -> dict:
+        pass
+
+class SQLiteCheckpointer(FaberCheckpointer):
+    """Default: File-based, good for local/single-user."""
+    pass
+
+class PostgresCheckpointer(FaberCheckpointer):
+    """Enterprise: Concurrent workflows, team usage."""
+    pass
+
+class RedisCheckpointer(FaberCheckpointer):
+    """Fast: Short-lived workflows, CI/CD pipelines."""
+    pass
+```
+
+**Configuration**:
+```yaml
+workflow:
+  checkpointing:
+    backend: sqlite  # sqlite | postgres | redis
+
+    sqlite:
+      path: .faber/checkpoints.db
+
+    postgres:
+      connection_string: ${FABER_POSTGRES_URL}
+
+    redis:
+      url: ${FABER_REDIS_URL}
+      ttl_hours: 24
+```
+
+### 12.5 Error Recovery Strategy
+
+**Decision**: Checkpoint before each tool call + automatic retry from last checkpoint.
+
+**Implementation**:
+- Save state checkpoint before every tool invocation
+- On failure (network, API, LLM), restore from checkpoint and retry
+- Configurable retry limits and backoff
+- No model fallback chain in v1 (keep simple)
+
+```python
+# faber/workflows/recovery.py
+
+class RecoveryConfig:
+    max_retries: int = 3
+    backoff_base: float = 1.0  # seconds
+    backoff_multiplier: float = 2.0
+    checkpoint_before_tools: bool = True
+
+async def execute_with_recovery(tool_call, state, config: RecoveryConfig):
+    """Execute tool with checkpoint and retry logic."""
+    # Save checkpoint
+    checkpointer.save(state.workflow_id, state)
+
+    for attempt in range(config.max_retries):
+        try:
+            return await tool_call()
+        except RecoverableError as e:
+            delay = config.backoff_base * (config.backoff_multiplier ** attempt)
+            await asyncio.sleep(delay)
+            state = checkpointer.load(state.workflow_id)  # Restore
+
+    raise MaxRetriesExceeded()
+```
+
+### 12.6 Cost Control and Budget Limits
+
+**Decision**: Hard limits that pause workflow and require approval when approaching budget.
+
+**Implementation**:
+```python
+# faber/workflows/cost.py
+
+@dataclass
+class CostConfig:
+    budget_limit_usd: float = 10.0  # Per workflow
+    warning_threshold: float = 0.8   # 80% of budget
+    require_approval_at: float = 0.9 # 90% of budget
+
+@dataclass
+class CostTracker:
+    workflow_id: str
+    total_tokens: int = 0
+    total_cost_usd: float = 0.0
+
+    def add_usage(self, model: str, input_tokens: int, output_tokens: int):
+        cost = calculate_cost(model, input_tokens, output_tokens)
+        self.total_cost_usd += cost
+
+        if self.total_cost_usd >= self.config.budget_limit_usd:
+            raise BudgetExceeded()
+        elif self.total_cost_usd >= self.config.require_approval_at * self.config.budget_limit_usd:
+            raise BudgetApprovalRequired()
+```
+
+**State Addition**:
+```python
+class FaberState(TypedDict):
+    # ... existing fields ...
+
+    # Cost tracking
+    cost_tracker: CostTracker
+    budget_approved: bool  # Set to True after approval to continue
+```
+
+### 12.7 Codex Knowledge Integration
+
+**Decision**: Reactive integration via `codex://` MCP references - no pre-fetching by default.
+
+**Rationale**:
+- Models naturally encounter `codex://` references in specs/docs
+- MCP handler resolves references on-demand
+- Users can add explicit pre-fetch steps to workflows if needed
+
+**How It Works**:
+1. Agent reads a spec containing `codex://fractary/guides/faber-workflow.md`
+2. MCP intercepts the reference and fetches the document
+3. Document content is injected into agent context
+4. No FABER-specific code needed - relies on Codex MCP
+
+**Optional Pre-fetch Step**:
+```yaml
+# Custom workflow with pre-fetch
+phases:
+  frame:
+    steps:
+      - name: pre-fetch-context
+        command: /fractary-codex:fetch codex://fractary/guides/faber-workflow.md
+      - name: gather-requirements
+        agent: frame-agent
+```
+
+---
+
+## 13. Changelog
+
+### v1.1.0 (2025-12-12)
+- Added: Deep Agents abstraction layer decision (Section 12.1)
+- Added: Dual Python/TypeScript implementation decision (Section 12.2)
+- Added: Unified approval queue architecture for HITL (Section 12.3)
+- Added: Pluggable checkpoint backends - SQLite, PostgreSQL, Redis (Section 12.4)
+- Added: Error recovery strategy with checkpoint + retry (Section 12.5)
+- Added: Cost control with hard budget limits (Section 12.6)
+- Added: Codex integration via reactive MCP references (Section 12.7)
+
+### v1.0.0 (2025-12-12)
+- Initial specification
+
+---
+
+## 14. References
 
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
 - [Deep Agents GitHub](https://github.com/langchain-ai/deepagents)

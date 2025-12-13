@@ -1,0 +1,11 @@
+{
+  "handlers": {
+    "work-tracker": {
+      "active": "github",
+      "github": {
+        "owner": "fractary",
+        "repo": "faber"
+      }
+    }
+  }
+}
