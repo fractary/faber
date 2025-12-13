@@ -20,6 +20,8 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+from faber.cli.deprecation import show_deprecation_warning
+
 app = typer.Typer(
     name="faber",
     help="FABER - AI-assisted development workflows powered by LangGraph",
@@ -91,38 +93,44 @@ def run(
         faber run PROJ-456 --max-retries 5 --no-trace
         faber run 123 --workflow my-workflow.yaml
     """
-    from faber.workflows.config import WorkflowConfig, load_workflow_config
-    from faber.workflows.graph import run_faber_workflow_sync
-    from faber.workflows.state import create_initial_state
+    show_deprecation_warning()
 
-    # Load config
-    config = load_workflow_config()
-    config.autonomy = autonomy.value
-    config.max_retries = max_retries
+    from faber.api import (
+        WorkflowError,
+        WorkflowOptions,
+        run_workflow_sync,
+    )
+    from faber.api.types import AutonomyLevel as ApiAutonomyLevel
 
-    if budget is not None:
-        config.cost.budget_limit_usd = budget
+    # Convert CLI autonomy to API type
+    api_autonomy = ApiAutonomyLevel(autonomy.value)
 
-    # Setup tracing
-    if trace:
-        _setup_tracing(config.langsmith_project)
+    # Build options
+    options = WorkflowOptions(
+        workflow_path=str(workflow) if workflow else None,
+        autonomy=api_autonomy,
+        max_retries=max_retries,
+        skip_phases=skip_phase or [],
+        trace=trace,
+        budget_usd=budget,
+    )
 
-    # Determine workflow source
-    workflow_source = "default"
-    if workflow:
-        workflow_source = str(workflow)
+    # Determine workflow source for display
+    workflow_source = str(workflow) if workflow else "default"
 
     # Show startup info
-    console.print(Panel(
-        f"[bold]Work ID:[/bold] {work_id}\n"
-        f"[bold]Workflow:[/bold] {workflow_source}\n"
-        f"[bold]Autonomy:[/bold] {autonomy.value}\n"
-        f"[bold]Max Retries:[/bold] {max_retries}\n"
-        f"[bold]Budget:[/bold] ${config.cost.budget_limit_usd:.2f}\n"
-        f"[bold]Tracing:[/bold] {'Enabled' if trace else 'Disabled'}",
-        title="[bold green]🚀 FABER Workflow Starting[/bold green]",
-        border_style="green",
-    ))
+    console.print(
+        Panel(
+            f"[bold]Work ID:[/bold] {work_id}\n"
+            f"[bold]Workflow:[/bold] {workflow_source}\n"
+            f"[bold]Autonomy:[/bold] {autonomy.value}\n"
+            f"[bold]Max Retries:[/bold] {max_retries}\n"
+            f"[bold]Budget:[/bold] ${budget if budget else 10.0:.2f}\n"
+            f"[bold]Tracing:[/bold] {'Enabled' if trace else 'Disabled'}",
+            title="[bold green]🚀 FABER Workflow Starting[/bold green]",
+            border_style="green",
+        )
+    )
 
     # Run workflow with progress
     with Progress(
@@ -133,26 +141,18 @@ def run(
         task = progress.add_task("Running FABER workflow...", total=None)
 
         try:
-            if workflow:
-                # Use custom YAML workflow
-                result = _run_custom_workflow(work_id, workflow, config)
-            else:
-                # Use default workflow
-                # Skip phases if specified
-                if skip_phase:
-                    for phase in skip_phase:
-                        if phase in config.phases:
-                            config.phases[phase].enabled = False
-
-                result = run_faber_workflow_sync(work_id, config)
+            result = run_workflow_sync(work_id, options)
 
             progress.update(task, description="Workflow complete!")
 
             # Show results
-            _show_results(result)
+            _show_results_from_api(result)
 
         except KeyboardInterrupt:
             console.print("\n[yellow]Workflow cancelled by user[/yellow]")
+            raise typer.Exit(1)
+        except WorkflowError as e:
+            console.print(f"\n[red]Error: {e.message}[/red]")
             raise typer.Exit(1)
         except Exception as e:
             console.print(f"\n[red]Error: {e}[/red]")
@@ -225,79 +225,27 @@ def init(
 
     Creates .faber/config.yaml with default settings.
     """
-    from pathlib import Path
+    show_deprecation_warning()
 
-    import yaml
+    from faber.api import init_config
 
-    config_dir = Path.cwd() / ".faber"
-    config_file = config_dir / "config.yaml"
+    result = init_config(force=force)
 
-    if config_file.exists() and not force:
-        console.print(
-            f"[yellow]Configuration already exists at {config_file}[/yellow]\n"
-            "Use --force to overwrite."
-        )
+    if result.success:
+        console.print(f"[green]✓ {result.message}[/green]")
+        console.print("\nEdit this file to customize your FABER workflow settings.")
+    else:
+        console.print(f"[yellow]{result.error}[/yellow]")
+        if not force:
+            console.print("Use --force to overwrite.")
         raise typer.Exit(1)
-
-    config_dir.mkdir(parents=True, exist_ok=True)
-
-    default_config = {
-        "workflow": {
-            "autonomy": "assisted",
-            "max_retries": 3,
-            "models": {
-                "frame": "anthropic:claude-3-5-haiku-20241022",
-                "architect": "anthropic:claude-sonnet-4-20250514",
-                "build": "anthropic:claude-sonnet-4-20250514",
-                "evaluate": "anthropic:claude-sonnet-4-20250514",
-                "release": "anthropic:claude-3-5-haiku-20241022",
-            },
-            "human_approval": {
-                "architect": True,
-                "release": True,
-            },
-            "approval": {
-                "notify_channels": ["cli"],
-                "response_channels": ["cli"],
-                "timeout_minutes": 60,
-            },
-            "checkpointing": {
-                "backend": "sqlite",
-                "sqlite": {
-                    "path": ".faber/checkpoints.db",
-                },
-            },
-            "cost": {
-                "budget_limit_usd": 10.0,
-                "warning_threshold": 0.8,
-                "require_approval_at": 0.9,
-            },
-        },
-        "work": {
-            "platform": "github",
-        },
-        "repo": {
-            "platform": "github",
-            "default_branch": "main",
-        },
-        "observability": {
-            "langsmith": {
-                "enabled": True,
-                "project": "faber-workflows",
-            },
-        },
-    }
-
-    with open(config_file, "w") as f:
-        yaml.dump(default_config, f, default_flow_style=False, sort_keys=False)
-
-    console.print(f"[green]✓ Created configuration at {config_file}[/green]")
-    console.print("\nEdit this file to customize your FABER workflow settings.")
 
 
 @app.command()
 def version() -> None:
     """Show FABER version information."""
+    show_deprecation_warning()
+
     from faber import __version__
 
     console.print(f"FABER version {__version__}")
@@ -325,12 +273,13 @@ def workflow_list(
     ),
 ) -> None:
     """List workflow executions."""
-    from faber.primitives.logs.manager import LogManager
+    show_deprecation_warning()
 
-    log_manager = LogManager()
-    logs = log_manager.list_workflow_logs(status=status, limit=limit)
+    from faber.api import list_workflows
 
-    if not logs:
+    workflows = list_workflows(status=status, limit=limit)
+
+    if not workflows:
         console.print("[dim]No workflow logs found[/dim]")
         return
 
@@ -341,20 +290,20 @@ def workflow_list(
     table.add_column("Started")
     table.add_column("Entries")
 
-    for log in logs:
+    for wf in workflows:
         status_style = {
             "completed": "green",
             "failed": "red",
             "running": "yellow",
             "cancelled": "dim",
-        }.get(log.status, "white")
+        }.get(wf.status, "white")
 
         table.add_row(
-            log.workflow_id,
-            log.work_id or "-",
-            f"[{status_style}]{log.status}[/{status_style}]",
-            log.started_at[:19] if log.started_at else "-",
-            str(len(log.entries)),
+            wf.workflow_id,
+            wf.work_id or "-",
+            f"[{status_style}]{wf.status}[/{status_style}]",
+            wf.started_at[:19] if wf.started_at else "-",
+            str(wf.entry_count),
         )
 
     console.print(table)
@@ -365,47 +314,50 @@ def workflow_view(
     workflow_id: str = typer.Argument(..., help="Workflow ID to view"),
 ) -> None:
     """View details of a workflow execution."""
-    from faber.primitives.logs.manager import LogManager
+    show_deprecation_warning()
 
-    log_manager = LogManager()
-    log = log_manager.get_workflow_log(workflow_id)
+    from faber.api import view_workflow
 
-    if not log:
+    workflow = view_workflow(workflow_id)
+
+    if not workflow:
         console.print(f"[red]Workflow not found: {workflow_id}[/red]")
         raise typer.Exit(1)
 
     # Summary panel
-    console.print(Panel(
-        f"[bold]Workflow ID:[/bold] {log.workflow_id}\n"
-        f"[bold]Work ID:[/bold] {log.work_id or 'N/A'}\n"
-        f"[bold]Status:[/bold] {log.status}\n"
-        f"[bold]Started:[/bold] {log.started_at}\n"
-        f"[bold]Ended:[/bold] {log.ended_at or 'Running'}\n"
-        f"[bold]Phase:[/bold] {log.current_phase}",
-        title=f"[bold]Workflow: {workflow_id}[/bold]",
-    ))
+    console.print(
+        Panel(
+            f"[bold]Workflow ID:[/bold] {workflow['workflow_id']}\n"
+            f"[bold]Work ID:[/bold] {workflow.get('work_id', 'N/A')}\n"
+            f"[bold]Status:[/bold] {workflow['status']}\n"
+            f"[bold]Started:[/bold] {workflow['started_at']}\n"
+            f"[bold]Ended:[/bold] {workflow.get('ended_at', 'Running')}\n"
+            f"[bold]Phase:[/bold] {workflow['current_phase']}",
+            title=f"[bold]Workflow: {workflow_id}[/bold]",
+        )
+    )
 
     # Entries table
-    if log.entries:
+    if entries := workflow.get("entries"):
         table = Table(title="Log Entries")
         table.add_column("Time", style="dim")
         table.add_column("Level")
         table.add_column("Phase")
         table.add_column("Message")
 
-        for entry in log.entries[-20:]:  # Last 20 entries
+        for entry in entries[-20:]:  # Last 20 entries
             level_style = {
                 "error": "red",
                 "warning": "yellow",
                 "info": "green",
                 "debug": "dim",
-            }.get(entry.level, "white")
+            }.get(entry["level"], "white")
 
             table.add_row(
-                entry.timestamp[11:19],
-                f"[{level_style}]{entry.level}[/{level_style}]",
-                entry.phase,
-                entry.message[:60] + "..." if len(entry.message) > 60 else entry.message,
+                entry["timestamp"][11:19],
+                f"[{level_style}]{entry['level']}[/{level_style}]",
+                entry["phase"],
+                entry["message"][:60] + "..." if len(entry["message"]) > 60 else entry["message"],
             )
 
         console.print(table)
@@ -463,6 +415,45 @@ def _show_results(state: dict) -> None:
         title="[bold]FABER Workflow Results[/bold]",
         border_style="green" if not has_error else "red",
     ))
+
+
+def _show_results_from_api(result: "WorkflowResult") -> None:
+    """Show workflow results from API result object."""
+    has_error = result.error is not None
+    status_text = "[red]Failed[/red]" if has_error else "[green]Completed[/green]"
+
+    # Build summary
+    summary = f"""[bold]Status:[/bold] {status_text}
+[bold]Workflow ID:[/bold] {result.workflow_id}
+[bold]Work ID:[/bold] {result.work_id}
+[bold]Phases Completed:[/bold] {', '.join(result.completed_phases)}
+"""
+
+    if result.evaluation_result:
+        summary += f"[bold]Evaluation:[/bold] {result.evaluation_result}\n"
+
+    if result.retry_count > 0:
+        summary += f"[bold]Retries:[/bold] {result.retry_count}\n"
+
+    if result.pr_url:
+        summary += f"[bold]PR URL:[/bold] {result.pr_url}\n"
+
+    if result.spec_path:
+        summary += f"[bold]Spec:[/bold] {result.spec_path}\n"
+
+    if result.branch_name:
+        summary += f"[bold]Branch:[/bold] {result.branch_name}\n"
+
+    if has_error:
+        summary += f"\n[red]Error ({result.error_phase or 'unknown'}):[/red] {result.error}"
+
+    console.print(
+        Panel(
+            summary,
+            title="[bold]FABER Workflow Results[/bold]",
+            border_style="green" if not has_error else "red",
+        )
+    )
 
 
 if __name__ == "__main__":
