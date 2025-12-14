@@ -72,20 +72,68 @@ class PhaseFailureConfig(BaseModel):
         return v
 
 
+class Step(BaseModel):
+    """Individual step within a workflow phase."""
+
+    name: str = Field(..., min_length=1, max_length=50)
+    description: str = ""
+    type: Literal["agent", "tool"] = Field(
+        ..., description="Step type: agent or tool invocation"
+    )
+    agent: Optional[str] = Field(
+        default=None, description="Agent name (from .fractary/agents/)"
+    )
+    tool: Optional[str] = Field(
+        default=None, description="Tool name (from .fractary/tools/ or built-in)"
+    )
+    inputs: Dict[str, Any] = Field(
+        default_factory=dict, description="Input parameters for agent/tool"
+    )
+    outputs: List[str] = Field(
+        default_factory=list, description="Output keys this step produces"
+    )
+
+    @model_validator(mode="after")
+    def validate_step_type(self) -> "Step":
+        """Validate that agent/tool is set based on type."""
+        if self.type == "agent" and not self.agent:
+            raise ValueError("agent is required when type=agent")
+        if self.type == "tool" and not self.tool:
+            raise ValueError("tool is required when type=tool")
+        if self.agent and self.tool:
+            raise ValueError("Cannot specify both agent and tool")
+        return self
+
+
 class Phase(BaseModel):
     """Workflow phase definition."""
 
     name: str = Field(..., min_length=1, max_length=50)
     description: str = ""
-    agent: str
+    agent: Optional[str] = None  # Optional if using steps
     model: Optional[str] = None  # Can be $reference like $models.default
     tools: List[str] = Field(default_factory=list)
     inputs: List[str] = Field(default_factory=list)  # $phase.output references
     outputs: List[str] = Field(default_factory=list)
+    steps: Optional[List[Step]] = Field(
+        default=None, description="Sub-steps within this phase"
+    )
     human_approval: bool = False
     approval_prompt: Optional[str] = None
     max_iterations: int = Field(default=50, ge=1, le=1000)
     on_failure: Optional[PhaseFailureConfig] = None
+
+    @model_validator(mode="after")
+    def validate_phase_structure(self) -> "Phase":
+        """Validate phase has either agent or steps."""
+        if self.steps:
+            # Steps mode - agent is optional
+            return self
+        else:
+            # Legacy mode - agent is required
+            if not self.agent:
+                raise ValueError("Phase must have either 'agent' or 'steps'")
+        return self
 
     @field_validator("name")
     @classmethod

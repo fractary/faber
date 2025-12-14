@@ -13,6 +13,7 @@ Key components:
 from faber.accessibility.schemas import (
     WorkflowSchema,
     Phase,
+    Step,
     ModelConfig,
     WorkflowConfig,
     Trigger,
@@ -31,6 +32,7 @@ __all__ = [
     # Schemas
     "WorkflowSchema",
     "Phase",
+    "Step",
     "ModelConfig",
     "WorkflowConfig",
     "Trigger",

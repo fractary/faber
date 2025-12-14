@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-13T22:11:16Z",
-  "prompt": "{\"session_id\":\"f6797fa4-2a52-4b9c-8f9d-eb0aee5ef538\",\"transcript_path\":\"/home/jmcwilliam/.claude/projects/-mnt-c-GitHub-fractary-faber/f6797fa4-2a52-4b9c-8f9d-eb0aee5ef538.jsonl\",\"cwd\":\"/mnt/c/GitHub/fractary/faber\",\"permission_mode\":\"bypassPermissions\",\"hook_event_name\":\"UserPromptSubmit\",\"prompt\":\"/fractary-repo:commit-and-push \"} ",
-  "prompt_short": "{\"session_id\":\"f6797fa4-2a52-4b9c-8f9..."
+  "timestamp": "2025-12-14T16:05:51Z",
+  "prompt": "{\"session_id\":\"314a1487-ae9a-4be8-88db-e7a5697e86b4\",\"transcript_path\":\"/home/jmcwilliam/.claude/projects/-mnt-c-GitHub-fractary-faber/314a1487-ae9a-4be8-88db-e7a5697e86b4.jsonl\",\"cwd\":\"/mnt/c/GitHub/fractary/faber\",\"permission_mode\":\"bypassPermissions\",\"hook_event_name\":\"UserPromptSubmit\",\"prompt\":\"/fractary-repo:pr-create \"} ",
+  "prompt_short": "{\"session_id\":\"314a1487-ae9a-4be8-88d..."
 }

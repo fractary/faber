@@ -7,6 +7,7 @@ LangGraph StateGraph instances, ready for workflow execution.
 
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Union
@@ -16,12 +17,14 @@ from langchain_core.tools import BaseTool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
+logger = logging.getLogger(__name__)
+
 from faber.accessibility.loader import (
     WorkflowValidationError,
     load_workflow,
     resolve_references,
 )
-from faber.accessibility.schemas import Phase, WorkflowSchema
+from faber.accessibility.schemas import Phase, Step, WorkflowSchema
 from faber.agents.base import FaberAgentConfig, NativeMiddleware, _get_model
 from faber.workflows.state import FaberPhaseResult, FaberState
 
@@ -169,15 +172,19 @@ class WorkflowCompiler:
 
         return model_ref
 
-    def _create_agent_for_phase(self, phase: Phase) -> NativeMiddleware:
+    def _create_agent_for_phase(self, phase: Phase) -> Optional[NativeMiddleware]:
         """Create an agent for a workflow phase.
 
         Args:
             phase: Phase configuration
 
         Returns:
-            Configured NativeMiddleware agent
+            Configured NativeMiddleware agent, or None if phase uses steps
         """
+        # If phase has steps, don't create a single agent
+        if phase.steps:
+            return None
+
         # Resolve model
         model_str = self._resolve_model(phase.model)
         model = _get_model(model_str)
@@ -226,17 +233,118 @@ class WorkflowCompiler:
 
         return "\n".join(lines)
 
+    async def _execute_step(
+        self,
+        step: Step,
+        state: FaberState,
+        step_context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Execute a single step (agent or tool invocation).
+
+        Args:
+            step: Step configuration
+            state: Current workflow state
+            step_context: Context from previous steps
+
+        Returns:
+            Step execution result
+
+        Raises:
+            Exception: If step execution fails
+        """
+        if step.type == "agent":
+            # Load agent from definitions registry
+            from faber.definitions.api import AgentAPI
+
+            api = AgentAPI()
+
+            # Build task from step inputs and context
+            task_parts = [step.description] if step.description else []
+            if step.inputs:
+                for key, value in step.inputs.items():
+                    # Resolve references from context
+                    if isinstance(value, str) and value.startswith("$"):
+                        value = step_context.get(value[1:], value)
+                    task_parts.append(f"{key}: {value}")
+
+            task = "\n".join(task_parts)
+
+            # Invoke agent
+            result = await api.invoke_agent(step.agent, task, context=step_context)
+
+            return {
+                "type": "agent",
+                "output": result.get("output", ""),
+                "messages": result.get("messages", []),
+            }
+
+        else:  # type == "tool"
+            # Check if it's a built-in tool first
+            tool_name = step.tool
+
+            try:
+                built_in_tool = get_tool_by_name(tool_name)
+
+                # Prepare parameters from step inputs
+                params = {}
+                for key, value in step.inputs.items():
+                    # Resolve references from context
+                    if isinstance(value, str) and value.startswith("$"):
+                        params[key] = step_context.get(value[1:], value)
+                    else:
+                        params[key] = value
+
+                # Execute built-in tool
+                if hasattr(built_in_tool, "ainvoke"):
+                    result = await built_in_tool.ainvoke(params)
+                else:
+                    # Sync tool - run in executor
+                    import asyncio
+
+                    loop = asyncio.get_event_loop()
+                    result = await loop.run_in_executor(
+                        None, lambda: built_in_tool.invoke(params)
+                    )
+
+                return {
+                    "type": "tool",
+                    "output": str(result),
+                }
+
+            except WorkflowValidationError:
+                # Not a built-in tool, try custom tool from definitions
+                from faber.definitions.api import ToolAPI
+
+                api = ToolAPI()
+
+                # Prepare parameters from step inputs
+                params = {}
+                for key, value in step.inputs.items():
+                    # Resolve references from context
+                    if isinstance(value, str) and value.startswith("$"):
+                        params[key] = step_context.get(value[1:], value)
+                    else:
+                        params[key] = value
+
+                # Invoke custom tool
+                result = await api.invoke_tool(tool_name, **params)
+
+                return {
+                    "type": "tool",
+                    "output": str(result),
+                }
+
     def _create_node_function(
         self,
         phase_name: str,
-        agent: NativeMiddleware,
+        agent: Optional[NativeMiddleware],
         phase: Phase,
     ) -> Callable[[FaberState], Dict[str, Any]]:
         """Create a node function for a workflow phase.
 
         Args:
             phase_name: Name of the phase
-            agent: Agent to invoke
+            agent: Agent to invoke (None if using steps)
             phase: Phase configuration
 
         Returns:
@@ -248,37 +356,91 @@ class WorkflowCompiler:
             start_time = time.time()
 
             try:
-                # Build input context from state
-                input_context = self._build_input_context(phase, state)
+                if phase.steps:
+                    # Execute steps sequentially
+                    step_context = {}
+                    step_outputs = []
 
-                # Invoke agent
-                result = await agent.invoke(
-                    [HumanMessage(content=f"Execute {phase_name} phase for work item "
-                                 f"#{state['work_id']}. {input_context}")],
-                )
+                    for step in phase.steps:
+                        logger.info(f"Executing step: {step.name}")
 
-                # Extract output
-                messages = result.get("messages", [])
-                output = messages[-1].content if messages else ""
+                        # Execute step
+                        step_result = await self._execute_step(step, state, step_context)
 
-                duration_ms = int((time.time() - start_time) * 1000)
+                        # Update context with step outputs
+                        for output_key in step.outputs:
+                            step_context[output_key] = step_result.get("output", "")
 
-                return {
-                    "current_phase": phase_name,
-                    "completed_phases": state.get("completed_phases", []) + [phase_name],
-                    "phase_results": {
-                        **state.get("phase_results", {}),
-                        phase_name: FaberPhaseResult(
-                            phase=phase_name,
-                            status="completed",
-                            duration_ms=duration_ms,
-                            output={"summary": output[:500]},
-                        ),
-                    },
-                    "messages": result.get("messages", []),
-                }
+                        step_outputs.append(
+                            {
+                                "step": step.name,
+                                "type": step.type,
+                                "output": step_result.get("output", "")[:500],
+                            }
+                        )
+
+                    # Combine all step outputs
+                    output_summary = "\n".join(
+                        f"{s['step']}: {s['output']}" for s in step_outputs
+                    )
+
+                    duration_ms = int((time.time() - start_time) * 1000)
+
+                    return {
+                        "current_phase": phase_name,
+                        "completed_phases": state.get("completed_phases", []) + [phase_name],
+                        "phase_results": {
+                            **state.get("phase_results", {}),
+                            phase_name: FaberPhaseResult(
+                                phase=phase_name,
+                                status="completed",
+                                duration_ms=duration_ms,
+                                output={
+                                    "summary": output_summary[:500],
+                                    "steps": step_outputs,
+                                },
+                            ),
+                        },
+                        **step_context,  # Include step outputs in state
+                    }
+
+                else:
+                    # Legacy mode - invoke single agent
+                    if not agent:
+                        raise ValueError(f"Phase {phase_name} has no agent or steps")
+
+                    # Build input context from state
+                    input_context = self._build_input_context(phase, state)
+
+                    # Invoke agent
+                    result = await agent.invoke(
+                        [HumanMessage(content=f"Execute {phase_name} phase for work item "
+                                     f"#{state['work_id']}. {input_context}")],
+                    )
+
+                    # Extract output
+                    messages = result.get("messages", [])
+                    output = messages[-1].content if messages else ""
+
+                    duration_ms = int((time.time() - start_time) * 1000)
+
+                    return {
+                        "current_phase": phase_name,
+                        "completed_phases": state.get("completed_phases", []) + [phase_name],
+                        "phase_results": {
+                            **state.get("phase_results", {}),
+                            phase_name: FaberPhaseResult(
+                                phase=phase_name,
+                                status="completed",
+                                duration_ms=duration_ms,
+                                output={"summary": output[:500]},
+                            ),
+                        },
+                        "messages": result.get("messages", []),
+                    }
 
             except Exception as e:
+                logger.error(f"Phase {phase_name} failed: {e}")
                 return {
                     "current_phase": phase_name,
                     "error": str(e),
@@ -373,7 +535,7 @@ class WorkflowCompiler:
 
         # Create agents and nodes for each phase
         phases = self.schema.phases
-        agents: Dict[str, NativeMiddleware] = {}
+        agents: Dict[str, Optional[NativeMiddleware]] = {}
 
         for phase in phases:
             agent = self._create_agent_for_phase(phase)
