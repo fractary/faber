@@ -255,6 +255,7 @@ class WorkflowCompiler:
         if step.type == "agent":
             # Load agent from definitions registry
             from faber.definitions.api import AgentAPI
+            from faber.definitions.registry import DefinitionNotFoundError
 
             api = AgentAPI()
 
@@ -269,14 +270,26 @@ class WorkflowCompiler:
 
             task = "\n".join(task_parts)
 
-            # Invoke agent
-            result = await api.invoke_agent(step.agent, task, context=step_context)
+            # Invoke agent with error handling
+            try:
+                result = await api.invoke_agent(step.agent, task, context=step_context)
 
-            return {
-                "type": "agent",
-                "output": result.get("output", ""),
-                "messages": result.get("messages", []),
-            }
+                return {
+                    "type": "agent",
+                    "output": result.get("output", ""),
+                    "messages": result.get("messages", []),
+                }
+            except DefinitionNotFoundError as e:
+                logger.error(f"Agent not found for step {step.name}: {e}")
+                raise WorkflowValidationError(
+                    f"Agent '{step.agent}' not found in definitions registry. "
+                    f"Ensure the agent is defined in .fractary/agents/{step.agent}.yaml"
+                )
+            except Exception as e:
+                logger.error(f"Agent invocation failed for step {step.name}: {e}")
+                raise WorkflowValidationError(
+                    f"Failed to invoke agent '{step.agent}' in step '{step.name}': {str(e)}"
+                )
 
         else:  # type == "tool"
             # Check if it's a built-in tool first
@@ -314,6 +327,7 @@ class WorkflowCompiler:
             except WorkflowValidationError:
                 # Not a built-in tool, try custom tool from definitions
                 from faber.definitions.api import ToolAPI
+                from faber.definitions.registry import DefinitionNotFoundError
 
                 api = ToolAPI()
 
@@ -326,13 +340,25 @@ class WorkflowCompiler:
                     else:
                         params[key] = value
 
-                # Invoke custom tool
-                result = await api.invoke_tool(tool_name, **params)
+                # Invoke custom tool with error handling
+                try:
+                    result = await api.invoke_tool(tool_name, **params)
 
-                return {
-                    "type": "tool",
-                    "output": str(result),
-                }
+                    return {
+                        "type": "tool",
+                        "output": str(result),
+                    }
+                except DefinitionNotFoundError as e:
+                    logger.error(f"Tool not found for step {step.name}: {e}")
+                    raise WorkflowValidationError(
+                        f"Tool '{tool_name}' not found. Check built-in tools or ensure "
+                        f"custom tool is defined in .fractary/tools/{tool_name}.yaml"
+                    )
+                except Exception as e:
+                    logger.error(f"Tool invocation failed for step {step.name}: {e}")
+                    raise WorkflowValidationError(
+                        f"Failed to invoke tool '{tool_name}' in step '{step.name}': {str(e)}"
+                    )
 
     def _create_node_function(
         self,

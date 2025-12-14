@@ -799,11 +799,17 @@ Automatically fetches and caches content from Codex URIs. This is perfect for:
 - Cross-project documentation
 - Common patterns and templates
 
-**Benefits**:
+**Integration Status** (v1.0):
+- ✅ Schema and validation implemented
+- ✅ Agents load with codex sources without errors
+- ⚠️ Fetching requires fractary-codex plugin integration (tracked for follow-up)
+- Currently logs warning and skips codex sources gracefully
+
+**Benefits** (when integrated):
 - Content from `codex://` is automatically cached (no manual config needed)
 - Standards stay consistent across projects
 - Updates propagate when cache expires (5 minutes)
-- Requires `fractary-codex` plugin
+- Requires `fractary-codex` plugin integration
 
 **Cache Benefits**:
 - ~90% savings on input tokens for cache hits

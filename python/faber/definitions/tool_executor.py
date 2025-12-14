@@ -85,16 +85,22 @@ class ToolExecutor(ABC):
             parameters: Parameters to substitute
 
         Returns:
-            String with substituted values
+            String with substituted values (properly escaped for shell safety)
         """
+        import shlex
+
         result = template
 
         for key, value in parameters.items():
             # Convert value to string
             str_value = str(value) if value is not None else ""
 
-            # Replace ${key} with value
-            result = result.replace(f"${{{key}}}", str_value)
+            # Escape value to prevent command injection
+            # shlex.quote() ensures the value is treated as a single token
+            escaped_value = shlex.quote(str_value)
+
+            # Replace ${key} with escaped value
+            result = result.replace(f"${{{key}}}", escaped_value)
 
         return result
 

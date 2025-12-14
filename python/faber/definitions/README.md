@@ -224,7 +224,23 @@ caching:
 - `file` - Single file from project
 - `glob` - Multiple files matching pattern
 - `inline` - Inline content in YAML
-- `codex` - Content from Codex (requires fractary-codex plugin)
+- `codex` - Content from Codex (requires fractary-codex plugin integration)
+
+**Codex Integration Status**:
+
+The `codex://` cache source type is **designed and documented** but requires integration with the fractary-codex plugin to function. Currently:
+
+✅ Schema validation works - YAML files with `type: codex` are accepted
+✅ Agents load successfully - codex sources are processed without errors
+⚠️ Fetching is placeholder - logs warning and skips codex sources
+
+**To enable codex caching**:
+Integration with fractary-codex plugin is needed (tracked in follow-up issue). Options being considered:
+1. Pass a `codex_fetcher` callback to `CachedAgentContext`
+2. Import `fractary_codex` Python module if available
+3. Use codex MCP server if configured
+
+See `python/faber/agents/cached_context.py:109-150` for the placeholder implementation and TODO comments.
 ```
 
 ### Tool Sandboxing
