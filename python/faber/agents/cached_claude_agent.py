@@ -48,6 +48,7 @@ class CachedClaudeAgent:
         agent_prompt: str,
         tools: Sequence[BaseTool],
         context: CachedAgentContext,
+        validate_tools: bool = True,
     ):
         """Initialize cached Claude agent.
 
@@ -57,11 +58,23 @@ class CachedClaudeAgent:
             agent_prompt: Agent-specific system prompt
             tools: List of tools agent can use
             context: Cached context with standards, templates, etc.
+            validate_tools: If True, validate tools at initialization (default: True)
+
+        Raises:
+            ValueError: If tool validation fails
         """
         self.model = model
         self.agent_name = agent_name
-        self.tools = list(tools)
         self.context = context
+
+        # SECURITY: Validate tools before accepting them
+        if validate_tools:
+            self._validate_tools(tools)
+
+        self.tools = list(tools)
+
+        # Build tool name index for fast lookup during execution
+        self._tool_names: set = {t.name for t in self.tools}
 
         # Extract model name from "provider:model" format
         if ":" in model:
@@ -86,6 +99,58 @@ class CachedClaudeAgent:
             f"tools={len(tools)}, "
             f"cache_blocks={len(context.blocks)}"
         )
+
+    def _validate_tools(self, tools: Sequence[BaseTool]) -> None:
+        """Validate tools before accepting them.
+
+        SECURITY: This validates that all tools meet requirements:
+        1. Each tool has a valid name (non-empty string)
+        2. Each tool has a description
+        3. No duplicate tool names
+        4. Tool is actually a BaseTool instance
+
+        Args:
+            tools: Sequence of tools to validate
+
+        Raises:
+            ValueError: If any tool fails validation
+        """
+        seen_names: set = set()
+        errors: List[str] = []
+
+        for i, tool in enumerate(tools):
+            # Verify it's a BaseTool
+            if not isinstance(tool, BaseTool):
+                errors.append(
+                    f"Tool at index {i} is not a BaseTool instance: {type(tool)}"
+                )
+                continue
+
+            # Verify name exists and is non-empty
+            if not tool.name or not isinstance(tool.name, str):
+                errors.append(
+                    f"Tool at index {i} has invalid name: {tool.name!r}"
+                )
+                continue
+
+            # Check for duplicate names
+            if tool.name in seen_names:
+                errors.append(
+                    f"Duplicate tool name: '{tool.name}'"
+                )
+            seen_names.add(tool.name)
+
+            # Verify description exists
+            if not tool.description:
+                errors.append(
+                    f"Tool '{tool.name}' has no description"
+                )
+
+        if errors:
+            raise ValueError(
+                f"Tool validation failed with {len(errors)} error(s):\n"
+                + "\n".join(f"  - {e}" for e in errors)
+            )
 
     def _convert_tools_to_anthropic_format(self) -> List[Dict[str, Any]]:
         """Convert LangChain tools to Anthropic tool format.
@@ -197,12 +262,17 @@ class CachedClaudeAgent:
     async def _execute_tools(self, content: List[Any]) -> List[Dict[str, Any]]:
         """Execute tool calls from response.
 
+        SECURITY: This method validates tool existence before execution using
+        the pre-built tool name index for O(1) lookup.
+
         Args:
             content: Response content blocks
 
         Returns:
             Tool results in Anthropic format
         """
+        import asyncio
+
         results = []
 
         for block in content:
@@ -210,17 +280,38 @@ class CachedClaudeAgent:
                 tool_name = block.name
                 tool_input = block.input
 
-                # Find matching tool
-                tool = next((t for t in self.tools if t.name == tool_name), None)
-
-                if not tool:
-                    logger.error(f"Tool not found: {tool_name}")
+                # SECURITY: Fast O(1) check if tool exists using pre-built index
+                if tool_name not in self._tool_names:
+                    logger.warning(
+                        f"Attempted to execute unknown tool: {tool_name}. "
+                        f"Available tools: {list(self._tool_names)}"
+                    )
                     results.append(
                         {
                             "type": "tool_result",
                             "tool_use_id": block.id,
                             "is_error": True,
-                            "content": f"Tool not found: {tool_name}",
+                            "content": f"Tool not found: {tool_name}. "
+                            f"This tool is not registered with this agent.",
+                        }
+                    )
+                    continue
+
+                # Find the actual tool object
+                tool = next((t for t in self.tools if t.name == tool_name), None)
+
+                # This should never happen if _tool_names is in sync, but check anyway
+                if not tool:
+                    logger.error(
+                        f"Tool index inconsistency: {tool_name} in _tool_names "
+                        f"but not found in tools list"
+                    )
+                    results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "is_error": True,
+                            "content": f"Internal error: Tool index inconsistency for {tool_name}",
                         }
                     )
                     continue
@@ -234,8 +325,6 @@ class CachedClaudeAgent:
                         result = await tool.arun(tool_input)
                     else:
                         # Sync tool - call in executor
-                        import asyncio
-
                         loop = asyncio.get_event_loop()
                         result = await loop.run_in_executor(
                             None, lambda: tool.invoke(tool_input)
