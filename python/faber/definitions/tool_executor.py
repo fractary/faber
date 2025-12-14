@@ -154,24 +154,51 @@ class BashToolExecutor(ToolExecutor):
 
             # Wait for completion with timeout
             timeout = sandbox.get("max_execution_time", 300)
+            max_output = sandbox.get("max_output_size", 1048576)  # 1MB
+
             try:
+                # SECURITY: Read output with size limit to prevent memory exhaustion
+                # Use asyncio tasks to read both streams concurrently with limits
+                async def read_limited(stream, limit):
+                    """Read up to limit bytes from stream."""
+                    chunks = []
+                    total = 0
+                    while True:
+                        # Read in 4KB chunks
+                        chunk = await stream.read(4096)
+                        if not chunk:
+                            break
+                        chunks.append(chunk)
+                        total += len(chunk)
+                        if total >= limit:
+                            # Drain remaining output to prevent blocking
+                            await stream.read()
+                            break
+                    return b"".join(chunks)[:limit]
+
+                stdout_task = asyncio.create_task(read_limited(result.stdout, max_output))
+                stderr_task = asyncio.create_task(read_limited(result.stderr, max_output))
+
+                # Wait for both streams with timeout
                 stdout, stderr = await asyncio.wait_for(
-                    result.communicate(), timeout=timeout
+                    asyncio.gather(stdout_task, stderr_task),
+                    timeout=timeout
                 )
+
+                # Wait for process to complete
+                await result.wait()
+
             except asyncio.TimeoutError:
                 result.kill()
+                # SECURITY: Wait for process to fully terminate to avoid zombie processes
+                await result.wait()
                 raise ToolExecutionError(
                     f"Command timed out after {timeout} seconds"
                 )
 
-            # Decode output
+            # Decode output (already truncated during read)
             stdout_str = stdout.decode("utf-8", errors="replace")
             stderr_str = stderr.decode("utf-8", errors="replace")
-
-            # Truncate if needed
-            max_output = sandbox.get("max_output_size", 1048576)  # 1MB
-            stdout_str = stdout_str[:max_output]
-            stderr_str = stderr_str[:max_output]
 
             return {
                 "status": "success" if result.returncode == 0 else "failure",
@@ -196,6 +223,30 @@ class BashToolExecutor(ToolExecutor):
         Raises:
             ToolExecutionError: If command not allowed
         """
+        # SECURITY: Check for dangerous shell operators that could bypass sandbox
+        # These operators allow command substitution, chaining, or file access
+        # which could be used to execute arbitrary code or access sensitive data
+        dangerous_operators = [
+            "$(",  # Command substitution
+            "`",   # Command substitution (backticks)
+            "<(",  # Process substitution
+            ">(",  # Process substitution
+            "&&",  # Command chaining
+            "||",  # Command chaining
+            ";",   # Command separator
+            "|",   # Pipe (could chain to dangerous commands)
+            ">",   # Redirect (could overwrite files)
+            "<",   # Redirect (could read sensitive files)
+        ]
+
+        for operator in dangerous_operators:
+            if operator in command:
+                raise ToolExecutionError(
+                    f"Dangerous shell operator '{operator}' detected in command. "
+                    f"Shell operators are not allowed in sandboxed tools for security. "
+                    f"Use simple commands only or disable sandbox if you control the input."
+                )
+
         # Extract base command (first word after shell operators)
         try:
             # Simple extraction - get first executable name
@@ -268,6 +319,22 @@ class PythonToolExecutor(ToolExecutor):
         if not python_impl:
             raise ToolExecutionError("Python implementation not found")
 
+        # SECURITY: Validate module is from allowed namespaces
+        # Prevent importing dangerous built-in modules like os, sys, subprocess
+        allowed_module_prefixes = [
+            "custom_tools.",     # Project-specific custom tools
+            "faber.tools.",      # Faber built-in tools
+            "faber.primitives.", # Faber primitives
+        ]
+
+        if not any(python_impl.module.startswith(prefix) for prefix in allowed_module_prefixes):
+            raise ToolExecutionError(
+                f"Module '{python_impl.module}' is not in allowed namespaces. "
+                f"Only modules starting with {allowed_module_prefixes} are allowed "
+                f"for security. This prevents importing dangerous built-in modules "
+                f"like os, sys, or subprocess."
+            )
+
         try:
             # Import module
             module = importlib.import_module(python_impl.module)
@@ -280,6 +347,13 @@ class PythonToolExecutor(ToolExecutor):
                 )
 
             func = getattr(module, python_impl.function)
+
+            # SECURITY: Basic validation that it's actually a callable
+            if not callable(func):
+                raise ToolExecutionError(
+                    f"'{python_impl.function}' in module '{python_impl.module}' "
+                    f"is not callable"
+                )
 
             # Call function
             # Support both sync and async functions
@@ -336,6 +410,40 @@ class HTTPToolExecutor(ToolExecutor):
         # Substitute parameters in URL
         url = self._substitute_parameters(http_impl.url, parameters)
 
+        # SECURITY: Validate URL scheme to prevent SSRF attacks
+        from urllib.parse import urlparse
+        parsed_url = urlparse(url)
+
+        # Only allow http and https
+        if parsed_url.scheme not in ["http", "https"]:
+            raise ToolExecutionError(
+                f"Invalid URL scheme '{parsed_url.scheme}'. "
+                f"Only http and https are allowed for security."
+            )
+
+        # SECURITY: Block private IP ranges to prevent SSRF
+        import ipaddress
+
+        hostname = parsed_url.hostname
+        if hostname:
+            try:
+                # Check if hostname is an IP address
+                ip = ipaddress.ip_address(hostname)
+                if ip.is_private or ip.is_loopback or ip.is_link_local:
+                    raise ToolExecutionError(
+                        f"Access to private/internal IP address '{hostname}' is blocked "
+                        f"for security (SSRF protection). Only public hosts are allowed."
+                    )
+            except ValueError:
+                # Hostname is not an IP, it's a domain name
+                # Block localhost and common internal domains
+                blocked_hosts = ["localhost", "127.0.0.1", "::1", "0.0.0.0"]
+                if hostname.lower() in blocked_hosts or hostname.endswith(".local"):
+                    raise ToolExecutionError(
+                        f"Access to internal hostname '{hostname}' is blocked "
+                        f"for security (SSRF protection)."
+                    )
+
         # Substitute parameters in headers
         headers = {}
         if http_impl.headers:
@@ -353,6 +461,9 @@ class HTTPToolExecutor(ToolExecutor):
                 # Use as plain text
                 body = body_str
 
+        # SECURITY: Set response size limit to prevent memory exhaustion
+        max_response_size = 10 * 1024 * 1024  # 10MB default
+
         # Make request
         try:
             async with httpx.AsyncClient() as client:
@@ -365,11 +476,20 @@ class HTTPToolExecutor(ToolExecutor):
                     timeout=30.0,
                 )
 
-                # Parse response
+                # SECURITY: Check response size before reading
+                content_length = response.headers.get("content-length")
+                if content_length and int(content_length) > max_response_size:
+                    raise ToolExecutionError(
+                        f"Response size ({content_length} bytes) exceeds maximum "
+                        f"allowed size ({max_response_size} bytes)"
+                    )
+
+                # Parse response (with size limit enforced by httpx)
                 try:
                     response_body = response.json()
                 except json.JSONDecodeError:
-                    response_body = response.text
+                    # Read text with size limit
+                    response_body = response.text[:max_response_size]
 
                 return {
                     "status_code": response.status_code,
