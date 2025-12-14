@@ -4,7 +4,18 @@ AI-assisted development workflows powered by LangGraph.
 
 FABER (Frame, Architect, Build, Evaluate, Release) provides enterprise-grade workflow orchestration for AI-assisted software development.
 
+> **⚠️ v1.0.0 Breaking Change**: The standalone `faber` CLI has been removed. Use `@fractary/cli` for terminal access or the Python API for programmatic use. See [Migration Guide](../docs/MIGRATION.md).
+
 ## Installation
+
+### For CLI Users
+
+```bash
+# Install the unified Fractary CLI
+npm install -g @fractary/cli
+```
+
+### For Programmatic Use
 
 ```bash
 # Basic installation
@@ -20,40 +31,47 @@ pip install -e ".[redis]"     # Redis checkpointing
 
 ## Quick Start
 
-### Run a FABER Workflow
+### CLI Usage (via Fractary CLI)
 
 ```bash
 # Run workflow for issue #123
-faber run 123
+fractary faber run 123
 
 # Run with specific options
-faber run 123 --autonomy assisted --max-retries 5 --budget 10.0
+fractary faber run 123 --autonomy assisted --max-retries 5 --budget 10.0
 
-# Run without tracing
-faber run 123 --no-trace
+# Initialize configuration
+fractary faber init
+
+# List workflows
+fractary faber workflow list
 ```
 
-### Initialize Configuration
-
-```bash
-faber init
-```
-
-This creates `.faber/config.yaml` with default settings.
-
-### Programmatic Usage
+### Python API Usage (Recommended)
 
 ```python
-import asyncio
-from faber import create_faber_workflow, run_faber_workflow
+from faber.api import run_workflow_sync, WorkflowOptions, AutonomyLevel
 
-# Run a workflow
-async def main():
-    result = await run_faber_workflow(work_id="123")
-    print(f"Workflow completed: {result['workflow_id']}")
-    print(f"PR URL: {result.get('pr_url')}")
+# Run a workflow with options
+result = run_workflow_sync("123", WorkflowOptions(
+    autonomy=AutonomyLevel.ASSISTED,
+    max_retries=5,
+    budget_usd=10.0,
+    trace=True,
+))
 
-asyncio.run(main())
+print(f"Status: {result.status}")
+print(f"PR URL: {result.pr_url}")
+```
+
+### Initialize Configuration Programmatically
+
+```python
+from faber.api import init_config
+
+result = init_config()
+if result.success:
+    print(f"Created config at {result.path}")
 ```
 
 ## Architecture
@@ -173,9 +191,11 @@ export FABER_REDIS_URL=redis://...
 
 ## CLI Commands
 
+> **Note**: As of v1.0.0, use `fractary faber` instead of `faber` commands.
+
 ```bash
 # Run workflow
-faber run <work_id> [options]
+fractary faber run <work_id> [options]
   --autonomy, -a    Autonomy level (assisted, guarded, autonomous)
   --max-retries, -r Maximum retry attempts
   --skip-phase, -s  Phases to skip
@@ -183,21 +203,60 @@ faber run <work_id> [options]
   --trace/--no-trace Enable LangSmith tracing
 
 # Initialize configuration
-faber init [--force]
+fractary faber init [--force]
 
 # List workflows
-faber workflow list [--status <status>] [--limit <n>]
+fractary faber workflow list [--status <status>] [--limit <n>]
 
 # View workflow details
-faber workflow view <workflow_id>
+fractary faber workflow view <workflow_id>
 
 # Show version
-faber version
+fractary faber --version
 ```
 
 ## API Reference
 
-### Workflow Functions
+### High-Level API (Recommended)
+
+```python
+from faber.api import (
+    run_workflow_sync,
+    list_workflows,
+    view_workflow,
+    init_config,
+    WorkflowOptions,
+    AutonomyLevel,
+)
+
+# Run workflow (sync)
+result = run_workflow_sync("123", WorkflowOptions(
+    autonomy=AutonomyLevel.ASSISTED,
+    max_retries=3,
+    budget_usd=10.0,
+))
+
+# Run workflow (async)
+from faber.api import run_workflow
+result = await run_workflow("123", WorkflowOptions())
+
+# List workflows
+workflows = list_workflows(status="completed", limit=10)
+for wf in workflows:
+    print(f"{wf.workflow_id}: {wf.status}")
+
+# View workflow
+workflow = view_workflow("WF-123-abc")
+if workflow:
+    print(workflow["status"])
+
+# Initialize config
+result = init_config(force=False)
+if result.success:
+    print(f"Config created: {result.path}")
+```
+
+### Low-Level API (Advanced)
 
 ```python
 from faber import create_faber_workflow, run_faber_workflow
@@ -290,21 +349,36 @@ if response and response.approved:
     print("Approved!")
 ```
 
-## Integration with TypeScript CLI
+## Integration with @fractary/cli
 
-The Python SDK integrates with the TypeScript Claude Code plugin via subprocess:
+The Python SDK integrates with the unified Fractary CLI, which is implemented in TypeScript.
+
+### From TypeScript (via subprocess):
 
 ```typescript
-// From TypeScript plugin
 import { spawn } from 'child_process';
 
+// Execute Python workflow via subprocess
 const result = await new Promise((resolve, reject) => {
-  const proc = spawn('faber', ['run', '123', '--autonomy', 'assisted']);
+  const proc = spawn('python', ['-m', 'faber.api', 'run', '123']);
   // ... handle stdout/stderr
 });
 ```
 
-For detailed integration patterns, see: [Python SDK Integration Guide](../docs/python-sdk-integration.md)
+### From Python (direct API):
+
+```python
+from faber.api import run_workflow_sync, WorkflowOptions
+
+# Direct programmatic access - no subprocess needed
+result = run_workflow_sync("123", WorkflowOptions(
+    autonomy="assisted"
+))
+```
+
+For detailed integration patterns, see:
+- [Migration Guide](../docs/MIGRATION.md)
+- [SPEC-00027: CLI Integration](../specs/SPEC-00027-cli-integration.md)
 
 ## Development
 
