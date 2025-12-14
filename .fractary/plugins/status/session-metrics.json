@@ -1,12 +1,12 @@
 {
-  "session_id": "20251213",
-  "started_at": "2025-12-13T20:36:19Z",
-  "updated_at": "2025-12-13T22:11:16Z",
-  "input_tokens_est": 1367,
-  "output_tokens_est": 4101,
-  "total_tokens_est": 5468,
-  "context_free_percent": 97,
-  "estimated_cost": "0.07",
+  "session_id": "20251214",
+  "started_at": "2025-12-14T13:09:56Z",
+  "updated_at": "2025-12-14T17:00:15Z",
+  "input_tokens_est": 6214,
+  "output_tokens_est": 18642,
+  "total_tokens_est": 24856,
+  "context_free_percent": 87,
+  "estimated_cost": "0.30",
   "context_window": 200000,
   "note": "Estimates based on ~4 chars/token heuristic and 3x output ratio"
 }
