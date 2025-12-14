@@ -71,9 +71,11 @@
   "license": "MIT",
   "dependencies": {
     "commander": "^12.0.0",
+    "js-yaml": "^4.1.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.19.26",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",

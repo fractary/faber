@@ -19,6 +19,21 @@ import {
 import { ConfigValidationError } from './errors';
 
 // ============================================================================
+// Configuration Loading Options
+// ============================================================================
+
+/**
+ * Options for configuration loading functions
+ */
+export interface LoadConfigOptions {
+  /**
+   * If true, return null instead of throwing when config is missing
+   * @default false
+   */
+  allowMissing?: boolean;
+}
+
+// ============================================================================
 // Configuration Schemas
 // ============================================================================
 
@@ -176,14 +191,33 @@ export function loadJsonConfig<T>(filePath: string): T | null {
 
 /**
  * Load work plugin configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @param options - Loading options (allowMissing to return null instead of throwing)
+ * @returns WorkConfig or null
+ * @throws ConfigValidationError if missing and allowMissing is false
  */
-export function loadWorkConfig(projectRoot?: string): WorkConfig | null {
+export function loadWorkConfig(
+  projectRoot?: string,
+  options?: LoadConfigOptions
+): WorkConfig | null {
   const root = projectRoot || findProjectRoot();
   const configPath = path.join(root, WORK_CONFIG_PATH);
   const config = loadJsonConfig<Record<string, unknown>>(configPath);
 
   if (!config) {
-    return null;
+    if (options?.allowMissing) {
+      return null;
+    }
+
+    throw new ConfigValidationError([
+      'Work plugin configuration not found.',
+      '',
+      'Run the following command to create a default configuration:',
+      '  fractary init',
+      '',
+      `Expected config at: ${configPath}`,
+    ]);
   }
 
   // Handle handlers structure from plugins
@@ -211,19 +245,38 @@ export function loadWorkConfig(projectRoot?: string): WorkConfig | null {
     return result.data;
   }
 
-  return null;
+  throw new ConfigValidationError(['Invalid work configuration']);
 }
 
 /**
  * Load repo plugin configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @param options - Loading options (allowMissing to return null instead of throwing)
+ * @returns RepoConfig or null
+ * @throws ConfigValidationError if missing and allowMissing is false
  */
-export function loadRepoConfig(projectRoot?: string): RepoConfig | null {
+export function loadRepoConfig(
+  projectRoot?: string,
+  options?: LoadConfigOptions
+): RepoConfig | null {
   const root = projectRoot || findProjectRoot();
   const configPath = path.join(root, REPO_CONFIG_PATH);
   const config = loadJsonConfig<Record<string, unknown>>(configPath);
 
   if (!config) {
-    return null;
+    if (options?.allowMissing) {
+      return null;
+    }
+
+    throw new ConfigValidationError([
+      'Repo plugin configuration not found.',
+      '',
+      'Run the following command to create a default configuration:',
+      '  fractary init',
+      '',
+      `Expected config at: ${configPath}`,
+    ]);
   }
 
   // Handle handlers structure from plugins
@@ -251,21 +304,29 @@ export function loadRepoConfig(projectRoot?: string): RepoConfig | null {
     return result.data;
   }
 
-  return null;
+  throw new ConfigValidationError(['Invalid repo configuration']);
 }
 
 /**
  * Load the full FABER configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @param options - Loading options (allowMissing to return null instead of throwing)
+ * @returns FaberConfig or null (if allowMissing is true and config doesn't exist)
+ * @throws ConfigValidationError if config exists but is invalid, or if missing and allowMissing is false
  */
-export function loadFaberConfig(projectRoot?: string): FaberConfig | null {
+export function loadFaberConfig(
+  projectRoot?: string,
+  options?: LoadConfigOptions
+): FaberConfig | null {
   const root = projectRoot || findProjectRoot();
   const configPath = path.join(root, FABER_CONFIG_PATH);
   const config = loadJsonConfig<Record<string, unknown>>(configPath);
 
   if (!config) {
     // Try to construct from individual plugin configs
-    const workConfig = loadWorkConfig(root);
-    const repoConfig = loadRepoConfig(root);
+    const workConfig = loadWorkConfig(root, { allowMissing: true });
+    const repoConfig = loadRepoConfig(root, { allowMissing: true });
 
     if (workConfig && repoConfig) {
       return {
@@ -290,7 +351,19 @@ export function loadFaberConfig(projectRoot?: string): FaberConfig | null {
       };
     }
 
-    return null;
+    // Config not found - throw or return null based on options
+    if (options?.allowMissing) {
+      return null;
+    }
+
+    throw new ConfigValidationError([
+      'FABER configuration not found.',
+      '',
+      'Run the following command to create a default configuration:',
+      '  fractary init',
+      '',
+      `Expected config at: ${configPath}`,
+    ]);
   }
 
   const result = FaberConfigSchema.safeParse(config);
@@ -365,6 +438,8 @@ function ensureDir(dirPath: string): void {
 
 /**
  * Write configuration to file
+ *
+ * @deprecated Use ConfigInitializer.writeConfig() instead
  */
 export function writeConfig(
   configPath: string,
@@ -376,6 +451,15 @@ export function writeConfig(
 
 /**
  * Initialize FABER configuration in a project
+ *
+ * @deprecated Use ConfigInitializer.generateDefaultConfig() and ConfigInitializer.writeConfig() instead
+ * @example
+ * // Old way (deprecated):
+ * // initFaberConfig(projectRoot, partialConfig);
+ *
+ * // New way:
+ * // const config = ConfigInitializer.generateDefaultConfig();
+ * // ConfigInitializer.writeConfig(config);
  */
 export function initFaberConfig(
   projectRoot: string,
@@ -403,10 +487,18 @@ export function initFaberConfig(
 
 /**
  * Load spec configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @param options - Loading options (allowMissing to return default config instead of throwing)
+ * @returns SpecConfig (with defaults if allowMissing is true and config missing)
+ * @throws ConfigValidationError if missing and allowMissing is false
  */
-export function loadSpecConfig(projectRoot?: string): SpecConfig {
+export function loadSpecConfig(
+  projectRoot?: string,
+  options?: LoadConfigOptions
+): SpecConfig {
   const root = projectRoot || findProjectRoot();
-  const faberConfig = loadFaberConfig(root);
+  const faberConfig = loadFaberConfig(root, { allowMissing: true });
 
   if (faberConfig?.artifacts?.specs) {
     return {
@@ -414,7 +506,17 @@ export function loadSpecConfig(projectRoot?: string): SpecConfig {
     };
   }
 
-  // Default spec config
+  // No FABER config found - throw or return defaults based on options
+  if (!options?.allowMissing) {
+    throw new ConfigValidationError([
+      'Spec configuration not found.',
+      '',
+      'Run the following command to create a default configuration:',
+      '  fractary init',
+    ]);
+  }
+
+  // Return default spec config
   return {
     localPath: path.join(root, 'specs'),
   };
@@ -422,10 +524,13 @@ export function loadSpecConfig(projectRoot?: string): SpecConfig {
 
 /**
  * Load log configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @returns LogConfig (always returns defaults if config missing - logs are optional)
  */
 export function loadLogConfig(projectRoot?: string): LogConfig {
   const root = projectRoot || findProjectRoot();
-  const faberConfig = loadFaberConfig(root);
+  const faberConfig = loadFaberConfig(root, { allowMissing: true });
 
   if (faberConfig?.artifacts?.logs) {
     return {
@@ -433,7 +538,7 @@ export function loadLogConfig(projectRoot?: string): LogConfig {
     };
   }
 
-  // Default log config
+  // No FABER config found - return defaults (logs are optional)
   return {
     localPath: path.join(root, '.fractary', 'logs'),
   };
@@ -441,10 +546,13 @@ export function loadLogConfig(projectRoot?: string): LogConfig {
 
 /**
  * Load state configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @returns StateConfig (always returns defaults if config missing - state is optional)
  */
 export function loadStateConfig(projectRoot?: string): StateConfig {
   const root = projectRoot || findProjectRoot();
-  const faberConfig = loadFaberConfig(root);
+  const faberConfig = loadFaberConfig(root, { allowMissing: true });
 
   if (faberConfig?.artifacts?.state) {
     return {
@@ -452,7 +560,7 @@ export function loadStateConfig(projectRoot?: string): StateConfig {
     };
   }
 
-  // Default state config
+  // No FABER config found - return defaults (state is optional)
   return {
     localPath: path.join(root, '.faber', 'state'),
   };
@@ -461,6 +569,8 @@ export function loadStateConfig(projectRoot?: string): StateConfig {
 // ============================================================================
 // Exports
 // ============================================================================
+
+export { ConfigInitializer } from './config/initializer';
 
 export {
   FaberConfigSchema,
