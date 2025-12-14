@@ -16,10 +16,8 @@ from faber.api import (
     # Workflow functions
     run_workflow,
     run_workflow_sync,
-    run_workflow_streaming,
     list_workflows,
     view_workflow,
-    cancel_workflow,
     # Config functions
     init_config,
     load_config,
@@ -27,6 +25,7 @@ from faber.api import (
     # Types
     WorkflowOptions,
     WorkflowResult,
+    WorkflowStatus,
     AutonomyLevel,
     WorkflowSummary,
     ConfigResult,
@@ -42,15 +41,14 @@ __all__ = [
     # Public API (recommended)
     "run_workflow",
     "run_workflow_sync",
-    "run_workflow_streaming",
     "list_workflows",
     "view_workflow",
-    "cancel_workflow",
     "init_config",
     "load_config",
     "validate_config",
     "WorkflowOptions",
     "WorkflowResult",
+    "WorkflowStatus",
     "AutonomyLevel",
     "WorkflowSummary",
     "ConfigResult",

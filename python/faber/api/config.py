@@ -108,7 +108,7 @@ def load_config(path: Optional[Path] = None) -> dict:
         path: Path to config file or directory containing .faber/
 
     Returns:
-        Configuration dictionary
+        Configuration dictionary with all workflow settings
 
     Raises:
         ConfigError: If config not found or invalid
@@ -117,13 +117,40 @@ def load_config(path: Optional[Path] = None) -> dict:
 
     try:
         config = load_workflow_config(path)
-        # Convert to dict for API consumers
-        # This is simplified - full implementation would convert all dataclass fields
+
+        # Convert WorkflowConfig dataclass to complete dictionary
         return {
             "autonomy": config.autonomy,
             "max_retries": config.max_retries,
-            "budget_limit_usd": config.cost.budget_limit_usd,
-            # Add other fields as needed
+            "phases": {
+                name: {
+                    "enabled": phase.enabled,
+                    "model": phase.model,
+                    "human_approval": phase.human_approval,
+                    "max_iterations": phase.max_iterations,
+                    "timeout_seconds": phase.timeout_seconds,
+                }
+                for name, phase in config.phases.items()
+            },
+            "approval": {
+                "notify_channels": config.approval.notify_channels,
+                "response_channels": config.approval.response_channels,
+                "timeout_minutes": config.approval.timeout_minutes,
+            },
+            "checkpoint": {
+                "backend": config.checkpoint.backend,
+                "sqlite_path": config.checkpoint.sqlite_path,
+                "postgres_url": config.checkpoint.postgres_url,
+                "redis_url": config.checkpoint.redis_url,
+                "redis_ttl_hours": config.checkpoint.redis_ttl_hours,
+            },
+            "cost": {
+                "budget_limit_usd": config.cost.budget_limit_usd,
+                "warning_threshold": config.cost.warning_threshold,
+                "require_approval_at": config.cost.require_approval_at,
+            },
+            "langsmith_enabled": config.langsmith_enabled,
+            "langsmith_project": config.langsmith_project,
         }
     except FileNotFoundError as e:
         raise ConfigError(f"Configuration not found: {e}")

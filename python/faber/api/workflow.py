@@ -11,6 +11,7 @@ from faber.api.types import (
     AutonomyLevel,
     WorkflowOptions,
     WorkflowResult,
+    WorkflowStatus,
     WorkflowSummary,
 )
 
@@ -30,9 +31,20 @@ async def run_workflow(
 
     Raises:
         WorkflowError: If workflow execution fails
+        ValueError: If input parameters are invalid
     """
+    # Validate inputs
+    if not work_id or not work_id.strip():
+        raise ValueError("work_id cannot be empty")
+
     if options is None:
         options = WorkflowOptions()
+
+    if options.max_retries < 0:
+        raise ValueError(f"max_retries must be non-negative, got {options.max_retries}")
+
+    if options.budget_usd is not None and options.budget_usd <= 0:
+        raise ValueError(f"budget_usd must be positive, got {options.budget_usd}")
 
     from faber.workflows.config import WorkflowConfig, load_workflow_config
     from faber.workflows.state import create_initial_state
@@ -78,9 +90,22 @@ async def run_workflow(
         # Convert state dict to WorkflowResult
         return _state_to_result(result)
 
-    except Exception as e:
+    except WorkflowError:
+        # Re-raise WorkflowError from _run_custom_workflow
+        raise
+    except (ValueError, TypeError, RuntimeError) as e:
+        # Catch expected workflow execution errors
         raise WorkflowError(
             message=str(e),
+            workflow_id=None,
+            phase=None,
+        )
+    except Exception as e:
+        # Catch unexpected errors but let system exceptions propagate
+        # Note: KeyboardInterrupt and SystemExit inherit from BaseException,
+        # not Exception, so they will propagate automatically
+        raise WorkflowError(
+            message=f"Unexpected error during workflow execution: {e}",
             workflow_id=None,
             phase=None,
         )
@@ -135,7 +160,21 @@ def list_workflows(
 
     Returns:
         List of workflow summaries
+
+    Raises:
+        ValueError: If input parameters are invalid
     """
+    # Validate inputs
+    if limit <= 0:
+        raise ValueError(f"limit must be positive, got {limit}")
+
+    if status is not None:
+        valid_statuses = ["running", "completed", "failed"]
+        if status not in valid_statuses:
+            raise ValueError(
+                f"Invalid status '{status}'. Must be one of: {', '.join(valid_statuses)}"
+            )
+
     from faber.primitives.logs.manager import LogManager
 
     log_manager = LogManager()
@@ -145,7 +184,7 @@ def list_workflows(
         WorkflowSummary(
             workflow_id=log.workflow_id,
             work_id=log.work_id,
-            status=log.status,
+            status=WorkflowStatus(log.status),  # Convert string to enum
             started_at=log.started_at,
             ended_at=log.ended_at,
             current_phase=log.current_phase,
@@ -257,7 +296,7 @@ def _state_to_result(state: dict) -> WorkflowResult:
     return WorkflowResult(
         workflow_id=state.get("workflow_id", ""),
         work_id=state.get("work_id", ""),
-        status="failed" if has_error else "completed",
+        status=WorkflowStatus.FAILED if has_error else WorkflowStatus.COMPLETED,
         completed_phases=state.get("completed_phases", []),
         pr_url=state.get("pr_url"),
         spec_path=state.get("spec_path"),

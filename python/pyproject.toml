@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "faber"
-version = "1.0.0"
+version = "0.1.0"
 description = "FABER - AI-assisted development workflows powered by LangGraph"
 readme = "README.md"
 license = "MIT"

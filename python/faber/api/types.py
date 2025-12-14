@@ -13,6 +13,15 @@ class AutonomyLevel(str, Enum):
     AUTONOMOUS = "autonomous"
 
 
+class WorkflowStatus(str, Enum):
+    """Status of workflow execution."""
+
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 @dataclass
 class WorkflowOptions:
     """Options for workflow execution."""
@@ -31,7 +40,7 @@ class WorkflowResult:
 
     workflow_id: str
     work_id: str
-    status: str  # "completed", "failed", "cancelled"
+    status: WorkflowStatus
     completed_phases: list[str]
     pr_url: Optional[str] = None
     spec_path: Optional[str] = None
@@ -46,7 +55,7 @@ class WorkflowResult:
         return {
             "workflow_id": self.workflow_id,
             "work_id": self.work_id,
-            "status": self.status,
+            "status": self.status.value,  # Convert enum to string
             "completed_phases": self.completed_phases,
             "pr_url": self.pr_url,
             "spec_path": self.spec_path,
@@ -64,7 +73,7 @@ class WorkflowSummary:
 
     workflow_id: str
     work_id: Optional[str]
-    status: str
+    status: WorkflowStatus
     started_at: str
     ended_at: Optional[str]
     current_phase: str
