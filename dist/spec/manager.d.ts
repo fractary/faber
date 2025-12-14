@@ -10,7 +10,15 @@ import { SpecConfig, Specification, SpecMetadata, SpecCreateOptions, SpecListOpt
 export declare class SpecManager {
     private config;
     private specsDir;
-    constructor(config?: SpecConfig);
+    constructor(config?: Partial<SpecConfig>);
+    /**
+     * Get default spec configuration
+     */
+    private getDefaultSpecConfig;
+    /**
+     * Merge partial config with defaults
+     */
+    private mergeWithDefaults;
     /**
      * Ensure specs directory exists
      */

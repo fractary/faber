@@ -157,9 +157,31 @@ class SpecManager {
     config;
     specsDir;
     constructor(config) {
-        this.config = config || (0, config_1.loadSpecConfig)();
+        // Try to load config, but allow missing - use defaults if not found
+        const loadedConfig = config ? null : (0, config_1.loadSpecConfig)(undefined, { allowMissing: true });
+        // Merge provided config, loaded config, or use defaults
+        this.config = this.mergeWithDefaults(config, loadedConfig);
         const projectRoot = (0, config_1.findProjectRoot)();
         this.specsDir = this.config.localPath || path.join(projectRoot, 'specs');
+    }
+    /**
+     * Get default spec configuration
+     */
+    getDefaultSpecConfig() {
+        const projectRoot = (0, config_1.findProjectRoot)();
+        return {
+            localPath: path.join(projectRoot, 'specs'),
+        };
+    }
+    /**
+     * Merge partial config with defaults
+     */
+    mergeWithDefaults(partialConfig, loadedConfig) {
+        const defaults = this.getDefaultSpecConfig();
+        // Priority: provided config > loaded config > defaults
+        return {
+            localPath: partialConfig?.localPath || loadedConfig?.localPath || defaults.localPath,
+        };
     }
     /**
      * Ensure specs directory exists

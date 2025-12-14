@@ -5,6 +5,16 @@
  */
 import { z } from 'zod';
 import { FaberConfig, WorkConfig, RepoConfig, WorkflowConfig, SpecConfig, LogConfig, StateConfig } from './types';
+/**
+ * Options for configuration loading functions
+ */
+export interface LoadConfigOptions {
+    /**
+     * If true, return null instead of throwing when config is missing
+     * @default false
+     */
+    allowMissing?: boolean;
+}
 declare const WorkConfigSchema: z.ZodObject<{
     platform: z.ZodEnum<["github", "jira", "linear"]>;
     owner: z.ZodOptional<z.ZodString>;
@@ -768,16 +778,31 @@ export declare function findProjectRoot(startDir?: string): string;
 export declare function loadJsonConfig<T>(filePath: string): T | null;
 /**
  * Load work plugin configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @param options - Loading options (allowMissing to return null instead of throwing)
+ * @returns WorkConfig or null
+ * @throws ConfigValidationError if missing and allowMissing is false
  */
-export declare function loadWorkConfig(projectRoot?: string): WorkConfig | null;
+export declare function loadWorkConfig(projectRoot?: string, options?: LoadConfigOptions): WorkConfig | null;
 /**
  * Load repo plugin configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @param options - Loading options (allowMissing to return null instead of throwing)
+ * @returns RepoConfig or null
+ * @throws ConfigValidationError if missing and allowMissing is false
  */
-export declare function loadRepoConfig(projectRoot?: string): RepoConfig | null;
+export declare function loadRepoConfig(projectRoot?: string, options?: LoadConfigOptions): RepoConfig | null;
 /**
  * Load the full FABER configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @param options - Loading options (allowMissing to return null instead of throwing)
+ * @returns FaberConfig or null (if allowMissing is true and config doesn't exist)
+ * @throws ConfigValidationError if config exists but is invalid, or if missing and allowMissing is false
  */
-export declare function loadFaberConfig(projectRoot?: string): FaberConfig | null;
+export declare function loadFaberConfig(projectRoot?: string, options?: LoadConfigOptions): FaberConfig | null;
 /**
  * Validate a configuration object
  */
@@ -792,23 +817,46 @@ export declare function getDefaultWorkflowConfig(): WorkflowConfig;
 export declare function mergeWithDefaults(partial: Partial<WorkflowConfig>): WorkflowConfig;
 /**
  * Write configuration to file
+ *
+ * @deprecated Use ConfigInitializer.writeConfig() instead
  */
 export declare function writeConfig(configPath: string, config: Record<string, unknown>): void;
 /**
  * Initialize FABER configuration in a project
+ *
+ * @deprecated Use ConfigInitializer.generateDefaultConfig() and ConfigInitializer.writeConfig() instead
+ * @example
+ * // Old way (deprecated):
+ * // initFaberConfig(projectRoot, partialConfig);
+ *
+ * // New way:
+ * // const config = ConfigInitializer.generateDefaultConfig();
+ * // ConfigInitializer.writeConfig(config);
  */
 export declare function initFaberConfig(projectRoot: string, config: Partial<FaberConfig>): string;
 /**
  * Load spec configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @param options - Loading options (allowMissing to return default config instead of throwing)
+ * @returns SpecConfig (with defaults if allowMissing is true and config missing)
+ * @throws ConfigValidationError if missing and allowMissing is false
  */
-export declare function loadSpecConfig(projectRoot?: string): SpecConfig;
+export declare function loadSpecConfig(projectRoot?: string, options?: LoadConfigOptions): SpecConfig;
 /**
  * Load log configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @returns LogConfig (always returns defaults if config missing - logs are optional)
  */
 export declare function loadLogConfig(projectRoot?: string): LogConfig;
 /**
  * Load state configuration
+ *
+ * @param projectRoot - Optional project root directory
+ * @returns StateConfig (always returns defaults if config missing - state is optional)
  */
 export declare function loadStateConfig(projectRoot?: string): StateConfig;
+export { ConfigInitializer } from './config/initializer';
 export { FaberConfigSchema, WorkConfigSchema, RepoConfigSchema, WorkflowConfigSchema, };
 //# sourceMappingURL=config.d.ts.map
