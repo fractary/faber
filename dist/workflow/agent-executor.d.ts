@@ -18,7 +18,11 @@ export declare class AgentExecutor {
     private agentCache;
     constructor(config?: AgentExecutorConfig);
     /**
-     * Get agent name for a FABER phase
+     * Get agent name for a FABER phase or return custom agent name directly
+     *
+     * If phaseName is a known FABER phase (frame, architect, etc.), returns the mapped agent name.
+     * If phaseName looks like a custom agent name (contains '-agent' or '@'), returns it directly.
+     * Otherwise, generates a default agent name by appending '-agent'.
      */
     getAgentNameForPhase(phaseName: string): string;
     /**

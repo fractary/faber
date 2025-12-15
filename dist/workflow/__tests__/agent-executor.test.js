@@ -70,6 +70,18 @@ describe('AgentExecutor', () => {
             const executor = new agent_executor_1.AgentExecutor();
             expect(executor.getAgentNameForPhase('custom')).toBe('custom-agent');
         });
+        it('should return custom agent name directly when it contains -agent suffix', () => {
+            const executor = new agent_executor_1.AgentExecutor();
+            expect(executor.getAgentNameForPhase('my-custom-frame-agent')).toBe('my-custom-frame-agent');
+        });
+        it('should return custom agent name directly when it contains version specifier @', () => {
+            const executor = new agent_executor_1.AgentExecutor();
+            expect(executor.getAgentNameForPhase('custom-frame-agent@1.0.0')).toBe('custom-frame-agent@1.0.0');
+        });
+        it('should return custom agent name directly for versioned agents without -agent suffix', () => {
+            const executor = new agent_executor_1.AgentExecutor();
+            expect(executor.getAgentNameForPhase('my-custom@2.0.0')).toBe('my-custom@2.0.0');
+        });
     });
     describe('executePhaseAgent - Legacy Mode', () => {
         it('should return legacy result when in legacy mode', async () => {

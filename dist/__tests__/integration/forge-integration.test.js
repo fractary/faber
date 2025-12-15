@@ -195,6 +195,72 @@ describe('FABER + Forge Integration', () => {
             expect(workflow).toBeInstanceOf(faber_1.FaberWorkflow);
             // Configuration should be set correctly
         });
+        it('should resolve custom agent name when executing phase with override', async () => {
+            const { AgentAPI } = require('@fractary/forge');
+            const mockInvoke = jest.fn().mockResolvedValue({
+                output: 'Custom agent executed successfully',
+                messages: [],
+                structured_output: { customResult: true },
+            });
+            const mockResolveAgent = jest.fn().mockResolvedValue({
+                name: 'my-special-frame-agent',
+                version: '2.0.0',
+                invoke: mockInvoke,
+            });
+            AgentAPI.mockImplementation(() => ({
+                resolveAgent: mockResolveAgent,
+            }));
+            const executor = new agent_executor_1.AgentExecutor({
+                forge: { enabled: true, prefer_local: true },
+            });
+            const context = {
+                workflowId: 'wf-123',
+                workId: '456',
+                phase: 'frame',
+                autonomy: 'assisted',
+                issue: null,
+                spec: null,
+                branch: null,
+                previousOutputs: {},
+            };
+            // Execute with custom agent name (as would happen when config has agent override)
+            await executor.executePhaseAgent('my-special-frame-agent@2.0.0', 'Analyze task', context);
+            // Verify the custom agent name was resolved directly, not mapped to 'frame-agent'
+            expect(mockResolveAgent).toHaveBeenCalledWith('my-special-frame-agent@2.0.0');
+            expect(mockResolveAgent).not.toHaveBeenCalledWith('frame-agent');
+            expect(mockInvoke).toHaveBeenCalled();
+        });
+        it('should use default agent when no custom override is specified', async () => {
+            const { AgentAPI } = require('@fractary/forge');
+            const mockResolveAgent = jest.fn().mockResolvedValue({
+                name: 'frame-agent',
+                version: '2.0.0',
+                invoke: jest.fn().mockResolvedValue({
+                    output: 'Default agent result',
+                    messages: [],
+                }),
+            });
+            AgentAPI.mockImplementation(() => ({
+                resolveAgent: mockResolveAgent,
+            }));
+            const executor = new agent_executor_1.AgentExecutor({
+                forge: { enabled: true, prefer_local: true },
+            });
+            const context = {
+                workflowId: 'wf-123',
+                workId: '456',
+                phase: 'frame',
+                autonomy: 'assisted',
+                issue: null,
+                spec: null,
+                branch: null,
+                previousOutputs: {},
+            };
+            // Execute with phase name (no custom override)
+            await executor.executePhaseAgent('frame', 'Analyze task', context);
+            // Verify the default agent mapping was used
+            expect(mockResolveAgent).toHaveBeenCalledWith('frame-agent');
+        });
     });
     describe('Dual-Mode Support', () => {
         it('should support switching between Forge and legacy modes', async () => {

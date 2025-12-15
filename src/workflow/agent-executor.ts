@@ -42,10 +42,26 @@ export class AgentExecutor {
   }
 
   /**
-   * Get agent name for a FABER phase
+   * Get agent name for a FABER phase or return custom agent name directly
+   *
+   * If phaseName is a known FABER phase (frame, architect, etc.), returns the mapped agent name.
+   * If phaseName looks like a custom agent name (contains '-agent' or '@'), returns it directly.
+   * Otherwise, generates a default agent name by appending '-agent'.
    */
   getAgentNameForPhase(phaseName: string): string {
-    return PHASE_AGENT_MAP[phaseName] || `${phaseName}-agent`;
+    // If it's a known phase, use the mapping
+    if (PHASE_AGENT_MAP[phaseName]) {
+      return PHASE_AGENT_MAP[phaseName];
+    }
+
+    // If it looks like a custom agent name (contains '-agent' or version specifier '@'),
+    // return it directly without modification
+    if (phaseName.includes('-agent') || phaseName.includes('@')) {
+      return phaseName;
+    }
+
+    // Default fallback: append '-agent' suffix
+    return `${phaseName}-agent`;
   }
 
   /**
