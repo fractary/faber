@@ -421,7 +421,7 @@ export class FaberWorkflow {
    * Extract phase-specific outputs from agent result
    */
   private extractPhaseOutputs(
-    phase: FaberPhase,
+    _phase: FaberPhase,
     result: AgentResult
   ): Record<string, unknown> {
     // Parse structured output or extract from text

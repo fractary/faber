@@ -96,11 +96,11 @@ declare const WorkflowConfigSchema: z.ZodObject<{
         } & {
             refineSpec: z.ZodDefault<z.ZodBoolean>;
         }, "strip", z.ZodTypeAny, {
-            enabled: boolean;
             refineSpec: boolean;
+            enabled: boolean;
         }, {
-            enabled?: boolean | undefined;
             refineSpec?: boolean | undefined;
+            enabled?: boolean | undefined;
         }>>;
         build: z.ZodDefault<z.ZodObject<{
             enabled: z.ZodDefault<z.ZodBoolean>;
@@ -114,11 +114,11 @@ declare const WorkflowConfigSchema: z.ZodObject<{
         } & {
             maxRetries: z.ZodDefault<z.ZodNumber>;
         }, "strip", z.ZodTypeAny, {
-            enabled: boolean;
             maxRetries: number;
+            enabled: boolean;
         }, {
-            enabled?: boolean | undefined;
             maxRetries?: number | undefined;
+            enabled?: boolean | undefined;
         }>>;
         release: z.ZodDefault<z.ZodObject<{
             enabled: z.ZodDefault<z.ZodBoolean>;
@@ -126,53 +126,53 @@ declare const WorkflowConfigSchema: z.ZodObject<{
             requestReviews: z.ZodDefault<z.ZodBoolean>;
             reviewers: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
         }, "strip", z.ZodTypeAny, {
-            enabled: boolean;
             requestReviews: boolean;
             reviewers: string[];
+            enabled: boolean;
         }, {
-            enabled?: boolean | undefined;
             requestReviews?: boolean | undefined;
             reviewers?: string[] | undefined;
+            enabled?: boolean | undefined;
         }>>;
     }, "strip", z.ZodTypeAny, {
         frame: {
             enabled: boolean;
         };
         architect: {
-            enabled: boolean;
             refineSpec: boolean;
+            enabled: boolean;
         };
         build: {
             enabled: boolean;
         };
         evaluate: {
-            enabled: boolean;
             maxRetries: number;
+            enabled: boolean;
         };
         release: {
-            enabled: boolean;
             requestReviews: boolean;
             reviewers: string[];
+            enabled: boolean;
         };
     }, {
         frame?: {
             enabled?: boolean | undefined;
         } | undefined;
         architect?: {
-            enabled?: boolean | undefined;
             refineSpec?: boolean | undefined;
+            enabled?: boolean | undefined;
         } | undefined;
         build?: {
             enabled?: boolean | undefined;
         } | undefined;
         evaluate?: {
-            enabled?: boolean | undefined;
             maxRetries?: number | undefined;
+            enabled?: boolean | undefined;
         } | undefined;
         release?: {
-            enabled?: boolean | undefined;
             requestReviews?: boolean | undefined;
             reviewers?: string[] | undefined;
+            enabled?: boolean | undefined;
         } | undefined;
     }>;
     hooks: z.ZodOptional<z.ZodObject<{
@@ -216,20 +216,20 @@ declare const WorkflowConfigSchema: z.ZodObject<{
             enabled: boolean;
         };
         architect: {
-            enabled: boolean;
             refineSpec: boolean;
+            enabled: boolean;
         };
         build: {
             enabled: boolean;
         };
         evaluate: {
-            enabled: boolean;
             maxRetries: number;
+            enabled: boolean;
         };
         release: {
-            enabled: boolean;
             requestReviews: boolean;
             reviewers: string[];
+            enabled: boolean;
         };
     };
     hooks?: {
@@ -250,20 +250,20 @@ declare const WorkflowConfigSchema: z.ZodObject<{
             enabled?: boolean | undefined;
         } | undefined;
         architect?: {
-            enabled?: boolean | undefined;
             refineSpec?: boolean | undefined;
+            enabled?: boolean | undefined;
         } | undefined;
         build?: {
             enabled?: boolean | undefined;
         } | undefined;
         evaluate?: {
-            enabled?: boolean | undefined;
             maxRetries?: number | undefined;
+            enabled?: boolean | undefined;
         } | undefined;
         release?: {
-            enabled?: boolean | undefined;
             requestReviews?: boolean | undefined;
             reviewers?: string[] | undefined;
+            enabled?: boolean | undefined;
         } | undefined;
     };
     autonomy?: "dry-run" | "assisted" | "guarded" | "autonomous" | undefined;
@@ -421,11 +421,11 @@ declare const FaberConfigSchema: z.ZodObject<{
             } & {
                 refineSpec: z.ZodDefault<z.ZodBoolean>;
             }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
                 refineSpec: boolean;
+                enabled: boolean;
             }, {
-                enabled?: boolean | undefined;
                 refineSpec?: boolean | undefined;
+                enabled?: boolean | undefined;
             }>>;
             build: z.ZodDefault<z.ZodObject<{
                 enabled: z.ZodDefault<z.ZodBoolean>;
@@ -439,11 +439,11 @@ declare const FaberConfigSchema: z.ZodObject<{
             } & {
                 maxRetries: z.ZodDefault<z.ZodNumber>;
             }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
                 maxRetries: number;
+                enabled: boolean;
             }, {
-                enabled?: boolean | undefined;
                 maxRetries?: number | undefined;
+                enabled?: boolean | undefined;
             }>>;
             release: z.ZodDefault<z.ZodObject<{
                 enabled: z.ZodDefault<z.ZodBoolean>;
@@ -451,53 +451,53 @@ declare const FaberConfigSchema: z.ZodObject<{
                 requestReviews: z.ZodDefault<z.ZodBoolean>;
                 reviewers: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
             }, "strip", z.ZodTypeAny, {
-                enabled: boolean;
                 requestReviews: boolean;
                 reviewers: string[];
+                enabled: boolean;
             }, {
-                enabled?: boolean | undefined;
                 requestReviews?: boolean | undefined;
                 reviewers?: string[] | undefined;
+                enabled?: boolean | undefined;
             }>>;
         }, "strip", z.ZodTypeAny, {
             frame: {
                 enabled: boolean;
             };
             architect: {
-                enabled: boolean;
                 refineSpec: boolean;
+                enabled: boolean;
             };
             build: {
                 enabled: boolean;
             };
             evaluate: {
-                enabled: boolean;
                 maxRetries: number;
+                enabled: boolean;
             };
             release: {
-                enabled: boolean;
                 requestReviews: boolean;
                 reviewers: string[];
+                enabled: boolean;
             };
         }, {
             frame?: {
                 enabled?: boolean | undefined;
             } | undefined;
             architect?: {
-                enabled?: boolean | undefined;
                 refineSpec?: boolean | undefined;
+                enabled?: boolean | undefined;
             } | undefined;
             build?: {
                 enabled?: boolean | undefined;
             } | undefined;
             evaluate?: {
-                enabled?: boolean | undefined;
                 maxRetries?: number | undefined;
+                enabled?: boolean | undefined;
             } | undefined;
             release?: {
-                enabled?: boolean | undefined;
                 requestReviews?: boolean | undefined;
                 reviewers?: string[] | undefined;
+                enabled?: boolean | undefined;
             } | undefined;
         }>;
         hooks: z.ZodOptional<z.ZodObject<{
@@ -541,20 +541,20 @@ declare const FaberConfigSchema: z.ZodObject<{
                 enabled: boolean;
             };
             architect: {
-                enabled: boolean;
                 refineSpec: boolean;
+                enabled: boolean;
             };
             build: {
                 enabled: boolean;
             };
             evaluate: {
-                enabled: boolean;
                 maxRetries: number;
+                enabled: boolean;
             };
             release: {
-                enabled: boolean;
                 requestReviews: boolean;
                 reviewers: string[];
+                enabled: boolean;
             };
         };
         hooks?: {
@@ -575,20 +575,20 @@ declare const FaberConfigSchema: z.ZodObject<{
                 enabled?: boolean | undefined;
             } | undefined;
             architect?: {
-                enabled?: boolean | undefined;
                 refineSpec?: boolean | undefined;
+                enabled?: boolean | undefined;
             } | undefined;
             build?: {
                 enabled?: boolean | undefined;
             } | undefined;
             evaluate?: {
-                enabled?: boolean | undefined;
                 maxRetries?: number | undefined;
+                enabled?: boolean | undefined;
             } | undefined;
             release?: {
-                enabled?: boolean | undefined;
                 requestReviews?: boolean | undefined;
                 reviewers?: string[] | undefined;
+                enabled?: boolean | undefined;
             } | undefined;
         };
         autonomy?: "dry-run" | "assisted" | "guarded" | "autonomous" | undefined;
@@ -623,20 +623,20 @@ declare const FaberConfigSchema: z.ZodObject<{
                 enabled: boolean;
             };
             architect: {
-                enabled: boolean;
                 refineSpec: boolean;
+                enabled: boolean;
             };
             build: {
                 enabled: boolean;
             };
             evaluate: {
-                enabled: boolean;
                 maxRetries: number;
+                enabled: boolean;
             };
             release: {
-                enabled: boolean;
                 requestReviews: boolean;
                 reviewers: string[];
+                enabled: boolean;
             };
         };
         hooks?: {
@@ -732,20 +732,20 @@ declare const FaberConfigSchema: z.ZodObject<{
                 enabled?: boolean | undefined;
             } | undefined;
             architect?: {
-                enabled?: boolean | undefined;
                 refineSpec?: boolean | undefined;
+                enabled?: boolean | undefined;
             } | undefined;
             build?: {
                 enabled?: boolean | undefined;
             } | undefined;
             evaluate?: {
-                enabled?: boolean | undefined;
                 maxRetries?: number | undefined;
+                enabled?: boolean | undefined;
             } | undefined;
             release?: {
-                enabled?: boolean | undefined;
                 requestReviews?: boolean | undefined;
                 reviewers?: string[] | undefined;
+                enabled?: boolean | undefined;
             } | undefined;
         };
         autonomy?: "dry-run" | "assisted" | "guarded" | "autonomous" | undefined;

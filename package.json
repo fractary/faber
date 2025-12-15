@@ -70,6 +70,8 @@
   "author": "Fractary Team",
   "license": "MIT",
   "dependencies": {
+    "@fractary/faber": "^1.1.0",
+    "@fractary/forge": "^1.1.1",
     "commander": "^12.0.0",
     "js-yaml": "^4.1.1",
     "zod": "^3.22.4"

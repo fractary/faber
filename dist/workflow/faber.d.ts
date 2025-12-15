@@ -20,6 +20,7 @@ export declare class FaberWorkflow {
     private specManager;
     private logManager;
     private stateManager;
+    private agentExecutor;
     private config;
     private userInput;
     private listeners;
@@ -55,6 +56,18 @@ export declare class FaberWorkflow {
      * Run a specific phase
      */
     private runPhase;
+    /**
+     * Run phase using Forge agent
+     */
+    private runPhaseWithForge;
+    /**
+     * Build task description for phase agent
+     */
+    private buildPhaseTask;
+    /**
+     * Extract phase-specific outputs from agent result
+     */
+    private extractPhaseOutputs;
     /**
      * Frame Phase: Gather requirements from issue + conversation
      */

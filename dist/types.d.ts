@@ -508,30 +508,49 @@ export interface ArtifactManifest {
     created_at: string;
 }
 export type AutonomyLevel = 'dry-run' | 'assisted' | 'guarded' | 'autonomous';
+/**
+ * Forge configuration for workflow
+ */
+export interface ForgeWorkflowConfig {
+    /** Enable Forge agent resolution (default: true in v2.0) */
+    enabled: boolean;
+    /** Prefer project-local agents over global (default: true) */
+    prefer_local: boolean;
+}
+/**
+ * Phase configuration with optional agent override
+ */
+export interface PhaseConfig {
+    enabled: boolean;
+    /** Override default agent for this phase (e.g., "my-custom-frame-agent@1.0.0") */
+    agent?: string;
+}
 export interface WorkflowConfig {
     autonomy: AutonomyLevel;
     phases: {
-        frame: {
+        frame: PhaseConfig & {
             enabled: boolean;
         };
-        architect: {
+        architect: PhaseConfig & {
             enabled: boolean;
             refineSpec: boolean;
         };
-        build: {
+        build: PhaseConfig & {
             enabled: boolean;
         };
-        evaluate: {
+        evaluate: PhaseConfig & {
             enabled: boolean;
             maxRetries: number;
         };
-        release: {
+        release: PhaseConfig & {
             enabled: boolean;
             requestReviews: boolean;
             reviewers: string[];
         };
     };
     hooks?: WorkflowHooks;
+    /** Forge integration configuration */
+    forge?: ForgeWorkflowConfig;
 }
 export interface WorkflowHooks {
     pre_frame?: string;

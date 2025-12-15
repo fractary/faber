@@ -118,8 +118,8 @@ export class AgentExecutor {
    */
   private async executeLegacyPhase(
     phaseName: string,
-    task: string,
-    context: PhaseContext
+    _task: string,
+    _context: PhaseContext
   ): Promise<AgentResult> {
     // Return structured result matching Forge format
     // This preserves backward compatibility during migration
