@@ -19,8 +19,10 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FaberWorkflow = void 0;
+exports.AgentExecutor = exports.FaberWorkflow = void 0;
 var faber_1 = require("./faber");
 Object.defineProperty(exports, "FaberWorkflow", { enumerable: true, get: function () { return faber_1.FaberWorkflow; } });
+var agent_executor_1 = require("./agent-executor");
+Object.defineProperty(exports, "AgentExecutor", { enumerable: true, get: function () { return agent_executor_1.AgentExecutor; } });
 __exportStar(require("./types"), exports);
 //# sourceMappingURL=index.js.map
