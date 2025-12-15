@@ -1,9 +1,34 @@
 """
+FABER Agents - DEPRECATED
+
+⚠️  WARNING: These agents are deprecated and will be removed in FABER v2.0.
+
+Built-in agents are now first-party Forge packages.
+
+Migration:
+1. Run: forge install frame-agent architect-agent build-agent evaluate-agent release-agent
+2. Update workflow config to use forge.enabled: true
+3. Remove references to faber.agents
+
+For migration instructions, see:
+https://github.com/fractary/faber/blob/main/docs/MIGRATION-FABER-FORGE.md
+
 FABER Agents - Phase agents for the FABER workflow.
 
 Each phase of the FABER methodology (Frame, Architect, Build, Evaluate, Release)
 has a dedicated agent with specific tools and prompts.
 """
+
+import warnings
+
+warnings.warn(
+    "faber.agents is deprecated and will be removed in v2.0. "
+    "Built-in agents are now managed by @fractary/forge. "
+    "Run 'forge install frame-agent' to migrate. "
+    "See: https://github.com/fractary/faber/blob/main/docs/MIGRATION-FABER-FORGE.md",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 from faber.agents.base import (
     FaberAgentConfig,

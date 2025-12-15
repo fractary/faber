@@ -6,6 +6,18 @@
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](package.json)
 [![TypeScript](https://img.shields.io/badge/typescript-5.3.3-blue)](https://www.typescriptlang.org/)
 
+## ⚠️ Migration Notice
+
+**Python agent/tool definitions are being migrated to [@fractary/forge](https://github.com/fractary/forge).**
+
+Starting with FABER v1.x, agent and tool definitions will be managed by Forge:
+- **v1.x**: Dual-mode support (legacy Python + Forge TypeScript)
+- **v2.0**: Forge required, Python definitions removed
+
+For migration instructions, see [docs/MIGRATION-FABER-FORGE.md](docs/MIGRATION-FABER-FORGE.md).
+
+---
+
 ## What is FABER?
 
 **FABER enables AI agents to do meaningful work autonomously while knowing exactly when to involve humans.**

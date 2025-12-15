@@ -24,6 +24,8 @@ import { SpecManager } from '../spec';
 import { LogManager } from '../logs';
 import { StateManager } from '../state';
 import { WorkflowError } from '../errors';
+import { AgentExecutor } from './agent-executor';
+import type { AgentResult } from '@fractary/forge';
 
 /**
  * Default workflow configuration
@@ -36,6 +38,11 @@ const defaultConfig: WorkflowConfig = {
     build: { enabled: true },
     evaluate: { enabled: true, maxRetries: 3 },
     release: { enabled: true, requestReviews: true, reviewers: [] },
+  },
+  // NEW: Enable Forge by default (v1.x: false for backward compatibility, v2.0: true)
+  forge: {
+    enabled: false, // TODO: Change to true in v2.0
+    prefer_local: true,
   },
 };
 
@@ -55,6 +62,7 @@ export class FaberWorkflow {
   private specManager: SpecManager;
   private logManager: LogManager;
   private stateManager: StateManager;
+  private agentExecutor: AgentExecutor;
 
   private config: WorkflowConfig;
   private userInput: UserInputCallback | null = null;
@@ -72,6 +80,14 @@ export class FaberWorkflow {
     if (options?.config?.phases) {
       this.config.phases = { ...defaultConfig.phases, ...options.config.phases };
     }
+    if (options?.config?.forge) {
+      this.config.forge = { ...defaultConfig.forge, ...options.config.forge };
+    }
+
+    // Initialize AgentExecutor
+    this.agentExecutor = new AgentExecutor({
+      forge: this.config.forge,
+    });
   }
 
   /**
@@ -315,6 +331,12 @@ export class FaberWorkflow {
    * Run a specific phase
    */
   private async runPhase(phase: FaberPhase, context: PhaseContext): Promise<PhaseHandlerResult> {
+    // Check if Forge mode is enabled
+    if (this.agentExecutor.isForgeEnabled()) {
+      return this.runPhaseWithForge(phase, context);
+    }
+
+    // Legacy mode - use hardcoded logic
     switch (phase) {
       case 'frame':
         return this.runFramePhase(context);
@@ -329,6 +351,87 @@ export class FaberWorkflow {
       default:
         return { status: 'skipped' };
     }
+  }
+
+  /**
+   * Run phase using Forge agent
+   */
+  private async runPhaseWithForge(
+    phase: FaberPhase,
+    context: PhaseContext
+  ): Promise<PhaseHandlerResult> {
+    // Get custom agent name if specified in phase config
+    const phaseConfig = this.config.phases[phase];
+    const customAgent = phaseConfig?.agent;
+
+    // Build task description based on phase
+    const task = this.buildPhaseTask(phase, context);
+
+    try {
+      const result = await this.agentExecutor.executePhaseAgent(
+        customAgent || phase,  // Use custom agent or phase name
+        task,
+        context
+      );
+
+      // Convert Forge result to FABER result
+      return {
+        status: 'completed',
+        outputs: {
+          agentOutput: result.output,
+          structured: result.structured_output,
+          usage: result.usage,
+          ...this.extractPhaseOutputs(phase, result),
+        },
+      };
+    } catch (error) {
+      return {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Agent execution failed',
+      };
+    }
+  }
+
+  /**
+   * Build task description for phase agent
+   */
+  private buildPhaseTask(phase: FaberPhase, context: PhaseContext): string {
+    switch (phase) {
+      case 'frame':
+        return `Analyze and frame the requirements for work item ${context.workId}. ` +
+          `Issue: ${JSON.stringify(context.issue)}`;
+      case 'architect':
+        return `Create or refine the specification for work item ${context.workId}. ` +
+          `Previous frame output: ${JSON.stringify(context.previousOutputs.frame)}`;
+      case 'build':
+        return `Implement the solution for work item ${context.workId}. ` +
+          `Spec: ${JSON.stringify(context.previousOutputs.architect)}`;
+      case 'evaluate':
+        return `Validate the implementation against requirements for ${context.workId}. ` +
+          `Build output: ${JSON.stringify(context.previousOutputs.build)}`;
+      case 'release':
+        return `Prepare release artifacts for work item ${context.workId}. ` +
+          `Evaluation: ${JSON.stringify(context.previousOutputs.evaluate)}`;
+      default:
+        return `Execute ${phase} phase for work item ${context.workId}`;
+    }
+  }
+
+  /**
+   * Extract phase-specific outputs from agent result
+   */
+  private extractPhaseOutputs(
+    phase: FaberPhase,
+    result: AgentResult
+  ): Record<string, unknown> {
+    // Parse structured output or extract from text
+    if (result.structured_output) {
+      return result.structured_output;
+    }
+
+    // Default extraction based on phase
+    // For now, return empty object - agents will provide structured output
+    return {};
   }
 
   /**
