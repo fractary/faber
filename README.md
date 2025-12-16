@@ -18,6 +18,51 @@ For migration instructions, see [docs/MIGRATION-FABER-FORGE.md](docs/MIGRATION-F
 
 ---
 
+## Repository Structure
+
+This is a monorepo containing both JavaScript and Python SDKs:
+
+```
+faber/
+├── sdk/
+│   ├── js/                  # JavaScript/TypeScript SDK
+│   │   ├── src/            # TypeScript source
+│   │   ├── dist/           # Compiled output
+│   │   └── package.json    # @fractary/faber
+│   └── py/                 # Python SDK
+│       ├── faber/          # Python package
+│       ├── tests/          # Python tests
+│       └── pyproject.toml  # faber
+├── specs/                  # Design specifications
+├── docs/                   # Documentation
+└── package.json            # Monorepo root
+```
+
+### Development
+
+**JavaScript SDK:**
+```bash
+cd sdk/js
+npm install
+npm run build
+npm test
+```
+
+**Python SDK:**
+```bash
+cd sdk/py
+pip install -e ".[dev]"
+pytest
+```
+
+**Run all tests:**
+```bash
+# From root
+npm run test
+```
+
+---
+
 ## What is FABER?
 
 **FABER enables AI agents to do meaningful work autonomously while knowing exactly when to involve humans.**
