@@ -753,7 +753,7 @@ Each agent definition must:
 4. Work with FABER's AgentExecutor integration
 
 FABER provides integration tests in:
-- `src/__tests__/integration/forge-integration.test.ts`
+- `sdk/js/src/__tests__/integration/forge-integration.test.ts`
 
 ---
 

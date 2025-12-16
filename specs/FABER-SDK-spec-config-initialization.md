@@ -38,7 +38,7 @@ The `loadSpecConfig()` function and `SpecManager` constructor require complete, 
 Create `ConfigInitializer` class in SDK:
 
 ```typescript
-// In @fractary/faber/src/config/initializer.ts
+// In sdk/js/sdk/js/src/config/initializer.ts
 export class ConfigInitializer {
   /**
    * Generate default configuration
@@ -91,7 +91,7 @@ export class ConfigInitializer {
 Modify `loadSpecConfig()` to support optional/missing config:
 
 ```typescript
-// In @fractary/faber/src/config/loader.ts
+// In sdk/js/sdk/js/src/config/loader.ts
 export function loadSpecConfig(options?: {
   allowMissing?: boolean
 }): SpecConfig | null {
@@ -116,7 +116,7 @@ export function loadSpecConfig(options?: {
 Allow `SpecManager` to work with partial/missing config:
 
 ```typescript
-// In @fractary/faber/src/managers/SpecManager.ts
+// In @fractary/faber/sdk/js/src/managers/SpecManager.ts
 export class SpecManager {
   constructor(config?: Partial<SpecConfig>) {
     // Use provided config or sensible defaults
@@ -137,7 +137,7 @@ export class SpecManager {
 
 ```
 @fractary/faber/
-├── src/
+├── sdk/js/src/
 │   ├── config/
 │   │   ├── loader.ts         # Add allowMissing option
 │   │   ├── initializer.ts    # NEW: ConfigInitializer class
