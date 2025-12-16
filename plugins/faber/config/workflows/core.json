@@ -1,0 +1,126 @@
+{
+  "$schema": "../workflow.schema.json",
+  "id": "core",
+  "description": "Core FABER workflow primitives - issue management, branching, PR lifecycle. Meant to be extended by other workflows.",
+  "phases": {
+    "frame": {
+      "enabled": true,
+      "description": "Fetch work item and setup branch",
+      "pre_steps": [
+        {
+          "id": "core-fetch-or-create-issue",
+          "name": "Fetch or Create Issue",
+          "description": "Fetch existing issue or create new one. Reads referenced docs and existing commits.",
+          "command": "/fractary-work:issue-fetch",
+          "arguments": {
+            "issue_number": "{work_id}"
+          }
+        },
+        {
+          "id": "core-switch-or-create-branch",
+          "name": "Switch or Create Branch",
+          "description": "Checkout existing branch or create new one linked to issue",
+          "command": "/fractary-repo:branch-create",
+          "arguments": {
+            "work_id": "{work_id}"
+          }
+        }
+      ],
+      "steps": [],
+      "post_steps": []
+    },
+    "architect": {
+      "enabled": true,
+      "description": "Design and plan - extend this phase in child workflows",
+      "pre_steps": [],
+      "steps": [],
+      "post_steps": []
+    },
+    "build": {
+      "enabled": true,
+      "description": "Implementation - extend this phase in child workflows",
+      "pre_steps": [],
+      "steps": [],
+      "post_steps": [
+        {
+          "id": "core-commit-and-push-build",
+          "name": "Commit and Push Changes",
+          "description": "Ensure all build changes are committed and pushed",
+          "command": "/fractary-repo:commit-and-push",
+          "arguments": {
+            "work_id": "{work_id}"
+          }
+        }
+      ]
+    },
+    "evaluate": {
+      "enabled": true,
+      "description": "Review implementation and create PR",
+      "max_retries": 3,
+      "pre_steps": [
+        {
+          "id": "core-issue-review",
+          "name": "Review Issue Implementation",
+          "description": "Verify implementation completeness against issue requirements",
+          "command": "/fractary-faber:review",
+          "arguments": {
+            "work_id": "{work_id}"
+          }
+        }
+      ],
+      "steps": [],
+      "post_steps": [
+        {
+          "id": "core-commit-and-push-evaluate",
+          "name": "Commit and Push Fixes",
+          "description": "Ensure evaluation fixes are committed",
+          "command": "/fractary-repo:commit-and-push",
+          "arguments": {
+            "work_id": "{work_id}"
+          }
+        },
+        {
+          "id": "core-create-pr",
+          "name": "Create Pull Request",
+          "description": "Create PR for the implementation (skips if PR already exists). Links to issue for auto-close on merge.",
+          "command": "/fractary-repo:pr-create",
+          "arguments": {
+            "work_id": "{work_id}"
+          }
+        },
+        {
+          "id": "core-review-pr-checks",
+          "name": "Review PR CI Checks",
+          "description": "Wait for and review CI/CD pipeline results",
+          "command": "/fractary-repo:pr-review",
+          "arguments": {
+            "wait_for_ci": true
+          }
+        }
+      ]
+    },
+    "release": {
+      "enabled": true,
+      "description": "Merge PR and complete workflow",
+      "require_approval": true,
+      "pre_steps": [],
+      "steps": [],
+      "post_steps": [
+        {
+          "id": "core-merge-pr",
+          "name": "Merge Pull Request",
+          "description": "Merge the PR and delete branch",
+          "command": "/fractary-repo:pr-merge",
+          "arguments": {
+            "delete_branch": true
+          }
+        }
+      ]
+    }
+  },
+  "autonomy": {
+    "level": "guarded",
+    "description": "Pauses before release for approval - recommended for production",
+    "require_approval_for": ["release"]
+  }
+}

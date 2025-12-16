@@ -1,0 +1,20 @@
+{
+  "$schema": "../config.schema.json",
+  "schema_version": "2.0",
+  "_comment": "Minimal template with just the default workflow (for simple projects)",
+  "workflows": [
+    {
+      "id": "default",
+      "file": "./workflows/default.json",
+      "description": "Standard FABER workflow"
+    }
+  ],
+  "integrations": {
+    "work_plugin": "fractary-work",
+    "repo_plugin": "fractary-repo"
+  },
+  "logging": {
+    "use_logs_plugin": false,
+    "log_level": "info"
+  }
+}

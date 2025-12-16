@@ -1,0 +1,44 @@
+{
+  "$schema": "../config.schema.json",
+  "schema_version": "2.0",
+  "_comment": "Standard template with workflow references (recommended for most projects)",
+  "workflows": [
+    {
+      "id": "default",
+      "file": "./workflows/default.json",
+      "description": "Standard FABER workflow with plugin integrations"
+    },
+    {
+      "id": "hotfix",
+      "file": "./workflows/hotfix.json",
+      "description": "Expedited workflow for critical fixes"
+    }
+  ],
+  "integrations": {
+    "work_plugin": "fractary-work",
+    "repo_plugin": "fractary-repo",
+    "spec_plugin": "fractary-spec",
+    "logs_plugin": "fractary-logs"
+  },
+  "logging": {
+    "use_logs_plugin": true,
+    "log_type": "workflow",
+    "log_level": "info",
+    "log_phases": true,
+    "log_sub_steps": false,
+    "log_hooks": false
+  },
+  "safety": {
+    "protected_paths": [
+      "secrets/**",
+      "infra/prod/**",
+      ".env*",
+      "credentials/**"
+    ],
+    "require_confirm_for": [
+      "deploy",
+      "merge_to_main",
+      "tag_release"
+    ]
+  }
+}

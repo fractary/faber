@@ -1,0 +1,454 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/fractary/claude-plugins/main/plugins/faber/config/workflow.schema.json",
+  "title": "FABER Workflow Schema",
+  "description": "JSON Schema for FABER workflow files. Workflows can extend other workflows via the 'extends' field, creating an inheritance chain where parent pre_steps run before and post_steps run after child workflow steps.",
+  "type": "object",
+  "required": ["id", "phases", "autonomy"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri",
+      "description": "JSON Schema reference for IDE validation"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Workflow identifier (lowercase, hyphens allowed)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable workflow description"
+    },
+    "extends": {
+      "type": "string",
+      "description": "Parent workflow to extend. Use namespaced format: 'fractary-faber:default' for core workflows, or unnamespaced for project workflows. Parent pre_steps execute before child steps, parent post_steps execute after."
+    },
+    "skip_steps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "Step IDs from parent workflows to skip. Allows selective exclusion of inherited steps without abandoning the entire parent workflow."
+    },
+    "phases": {
+      "$ref": "#/definitions/phases"
+    },
+    "hooks": {
+      "$ref": "#/definitions/hooks",
+      "deprecated": true,
+      "description": "DEPRECATED: Use pre_steps and post_steps in phase definitions instead. Hooks will be removed in v3.0."
+    },
+    "autonomy": {
+      "$ref": "#/definitions/autonomy"
+    }
+  },
+  "definitions": {
+    "phases": {
+      "type": "object",
+      "required": ["frame", "architect", "build", "evaluate", "release"],
+      "additionalProperties": false,
+      "properties": {
+        "frame": {
+          "$ref": "#/definitions/phase"
+        },
+        "architect": {
+          "$ref": "#/definitions/phase"
+        },
+        "build": {
+          "$ref": "#/definitions/phase"
+        },
+        "evaluate": {
+          "$ref": "#/definitions/phase_with_retries"
+        },
+        "release": {
+          "$ref": "#/definitions/phase_with_approval"
+        }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "required": ["enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this phase is enabled"
+        },
+        "description": {
+          "type": "string",
+          "description": "Phase description"
+        },
+        "pre_steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps to execute BEFORE child workflow steps. In inheritance, parent pre_steps run before child pre_steps."
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Main phase steps. These are the core steps for this phase."
+        },
+        "post_steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps to execute AFTER child workflow steps. In inheritance, child post_steps run before parent post_steps."
+        },
+        "validation": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Validation checks for phase completion"
+        }
+      }
+    },
+    "phase_with_retries": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/phase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "max_retries": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10,
+              "description": "Maximum retry attempts for this phase"
+            }
+          }
+        }
+      ]
+    },
+    "phase_with_approval": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/phase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "require_approval": {
+              "type": "boolean",
+              "description": "Whether this phase requires explicit approval"
+            }
+          }
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique step identifier (lowercase, hyphens allowed). MUST be unique across the entire merged workflow (including inherited steps). Required for step targeting, logging, state tracking, and skip_steps."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable display name for the step."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable step documentation (what this step does)"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Execution instruction for Claude when no skill/command is present, or to customize skill behavior. Takes precedence over description for execution."
+        },
+        "command": {
+          "type": "string",
+          "pattern": "^/?[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$",
+          "description": "Command reference in format /plugin:command-name or plugin:command-name. Preferred over skill field - provides deterministic execution via Task tool with hard execution boundaries. Examples: /fractary-spec:generate, /fractary-repo:commit"
+        },
+        "skill": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$",
+          "description": "DEPRECATED: Skill reference in format plugin:skill-name. Use 'command' field instead for deterministic execution. Will be removed in FABER v3.0."
+        },
+        "config": {
+          "type": "object",
+          "description": "Step-specific configuration passed to the skill or command"
+        },
+        "arguments": {
+          "type": "object",
+          "description": "Explicit arguments to pass to the step. Keys are argument names (exact casing), values are literals or {placeholder} references to workflow context.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "result_handling": {
+          "$ref": "#/definitions/step_result_handling"
+        }
+      },
+      "allOf": [
+        {
+          "required": ["id"]
+        },
+        {
+          "anyOf": [
+            {"required": ["description"]},
+            {"required": ["prompt"]},
+            {"required": ["command"]},
+            {"required": ["skill"]}
+          ]
+        }
+      ]
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "DEPRECATED: Use pre_steps and post_steps in phase definitions instead.",
+      "properties": {
+        "pre_frame": {
+          "$ref": "#/definitions/hook_array"
+        },
+        "post_frame": {
+          "$ref": "#/definitions/hook_array"
+        },
+        "pre_architect": {
+          "$ref": "#/definitions/hook_array"
+        },
+        "post_architect": {
+          "$ref": "#/definitions/hook_array"
+        },
+        "pre_build": {
+          "$ref": "#/definitions/hook_array"
+        },
+        "post_build": {
+          "$ref": "#/definitions/hook_array"
+        },
+        "pre_evaluate": {
+          "$ref": "#/definitions/hook_array"
+        },
+        "post_evaluate": {
+          "$ref": "#/definitions/hook_array"
+        },
+        "pre_release": {
+          "$ref": "#/definitions/hook_array"
+        },
+        "post_release": {
+          "$ref": "#/definitions/hook_array"
+        }
+      }
+    },
+    "hook_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/hook"
+      }
+    },
+    "hook": {
+      "type": "object",
+      "required": ["type", "name", "description"],
+      "additionalProperties": false,
+      "description": "DEPRECATED: Convert to pre_steps or post_steps instead.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["document", "script", "skill"],
+          "description": "Hook type"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Hook identifier"
+        },
+        "description": {
+          "type": "string",
+          "description": "Hook description"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to document or script (required for document and script types)"
+        },
+        "skill": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Skill name (required for skill type)"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600,
+          "description": "Timeout in seconds (default: 300)"
+        },
+        "on_error": {
+          "type": "string",
+          "enum": ["continue", "abort", "retry"],
+          "description": "DEPRECATED: Use result_handling instead.",
+          "deprecated": true
+        },
+        "result_handling": {
+          "$ref": "#/definitions/hook_result_handling"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "document"
+            }
+          },
+          "required": ["path"]
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "script"
+            }
+          },
+          "required": ["path"]
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "skill"
+            }
+          },
+          "required": ["skill"]
+        }
+      ]
+    },
+    "autonomy": {
+      "type": "object",
+      "required": ["level"],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["dry-run", "assist", "guarded", "autonomous"],
+          "description": "Workflow autonomy level"
+        },
+        "description": {
+          "type": "string",
+          "description": "Autonomy level description"
+        },
+        "pause_before_release": {
+          "type": "boolean",
+          "description": "Pause before release phase for approval"
+        },
+        "require_approval_for": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of actions requiring explicit approval"
+        },
+        "overrides": {
+          "type": "object",
+          "description": "Phase-specific autonomy overrides"
+        }
+      }
+    },
+    "step_result_handling": {
+      "type": "object",
+      "description": "Defines behavior for step execution outcomes. Optional - if omitted, defaults are: on_success='continue', on_warning='continue', on_failure='stop'. on_failure is ALWAYS 'stop' (immutable).",
+      "additionalProperties": false,
+      "properties": {
+        "on_success": {
+          "type": "string",
+          "enum": ["continue", "prompt"],
+          "default": "continue",
+          "description": "Action when step succeeds: 'continue' proceeds automatically (default), 'prompt' asks user"
+        },
+        "on_warning": {
+          "type": "string",
+          "enum": ["continue", "prompt", "stop"],
+          "default": "continue",
+          "description": "Action when step has warnings: 'continue' proceeds (default), 'prompt' asks user with options, 'stop' halts workflow"
+        },
+        "on_failure": {
+          "const": "stop",
+          "default": "stop",
+          "description": "IMMUTABLE: Failure ALWAYS stops workflow execution. This cannot be changed. Default: 'stop'"
+        }
+      }
+    },
+    "hook_result_handling": {
+      "type": "object",
+      "description": "DEPRECATED: Defines behavior for hook execution outcomes.",
+      "additionalProperties": false,
+      "properties": {
+        "on_success": {
+          "type": "string",
+          "enum": ["continue", "prompt"],
+          "default": "continue",
+          "description": "Action when hook succeeds: 'continue' proceeds automatically (default), 'prompt' asks user"
+        },
+        "on_warning": {
+          "type": "string",
+          "enum": ["continue", "prompt", "stop"],
+          "default": "continue",
+          "description": "Action when hook has warnings: 'continue' proceeds (default), 'prompt' asks user with options, 'stop' halts workflow"
+        },
+        "on_failure": {
+          "type": "string",
+          "enum": ["stop", "continue"],
+          "default": "stop",
+          "description": "Action when hook fails: 'stop' halts workflow (default), 'continue' for informational hooks only"
+        }
+      }
+    },
+    "step_result": {
+      "type": "object",
+      "description": "Standard result structure that ALL steps must return. See plugins/faber/config/schemas/skill-response.schema.json for complete schema.",
+      "required": ["status", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["success", "warning", "failure"],
+          "description": "Execution outcome status: 'success' = goal achieved, 'warning' = goal achieved with concerns, 'failure' = goal NOT achieved"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable summary of what happened (1-2 sentences)"
+        },
+        "details": {
+          "type": "object",
+          "description": "Operation-specific structured data (artifacts, metrics, paths, etc.)"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of error messages (required when status is 'failure')"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of warning messages (required when status is 'warning')"
+        },
+        "error_analysis": {
+          "type": "string",
+          "description": "Root cause analysis for failures - explains what went wrong and why"
+        },
+        "warning_analysis": {
+          "type": "string",
+          "description": "Impact assessment for warnings - explains potential consequences"
+        },
+        "suggested_fixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actionable recovery suggestions, ordered by likelihood of success"
+        }
+      }
+    }
+  }
+}

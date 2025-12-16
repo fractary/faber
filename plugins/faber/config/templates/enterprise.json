@@ -1,0 +1,51 @@
+{
+  "$schema": "../config.schema.json",
+  "schema_version": "2.0",
+  "_comment": "Enterprise template with multiple workflows and enhanced safety (for large teams)",
+  "workflows": [
+    {
+      "id": "default",
+      "file": "./workflows/default.json",
+      "description": "Standard FABER workflow with comprehensive validation"
+    },
+    {
+      "id": "hotfix",
+      "file": "./workflows/hotfix.json",
+      "description": "Expedited workflow for production fixes"
+    }
+  ],
+  "integrations": {
+    "work_plugin": "fractary-work",
+    "repo_plugin": "fractary-repo",
+    "spec_plugin": "fractary-spec",
+    "logs_plugin": "fractary-logs"
+  },
+  "logging": {
+    "use_logs_plugin": true,
+    "log_type": "workflow",
+    "log_level": "debug",
+    "log_phases": true,
+    "log_sub_steps": true,
+    "log_hooks": true
+  },
+  "safety": {
+    "protected_paths": [
+      "secrets/**",
+      "infra/prod/**",
+      "infra/staging/**",
+      ".env*",
+      "credentials/**",
+      "*.pem",
+      "*.key",
+      "**/.aws/**"
+    ],
+    "require_confirm_for": [
+      "deploy",
+      "merge_to_main",
+      "merge_to_production",
+      "tag_release",
+      "delete_branch",
+      "force_push"
+    ]
+  }
+}

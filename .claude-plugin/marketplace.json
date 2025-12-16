@@ -1,0 +1,128 @@
+{
+    "name": "fractary-faber",
+    "owner": {
+      "name": "The Fractary",
+      "email": "admin@fractary.com",
+      "url": "https://github.com/fractary"
+    },
+    "metadata": {
+      "description": "Production-ready workflow orchestration.",
+      "version": "2.0.2",
+      "pluginRoot": "./plugins"
+    },
+    "plugins": [
+      {
+        "name": "fractary-faber",
+        "source": "./plugins/faber",
+        "description": "Universal SDLC workflow framework - Frame → Architect → Build → Evaluate → Release",
+        "version": "3.0.2",
+        "author": {
+          "name": "The Fractary",
+          "url": "https://github.com/fractary"
+        },
+        "homepage": "https://github.com/fractary/faber/tree/main/plugins/faber",
+        "repository": "https://github.com/fractary/faber/tree/main/plugins/faber",
+        "license": "MIT",
+        "keywords": [
+          "faber",
+          "sdlc",
+          "workflow",
+          "automation",
+          "frame",
+          "architect",
+          "build",
+          "evaluate",
+          "release",
+          "software-development"
+        ],
+        "category": "development",
+        "strict": true,
+        "commands": [
+          "./commands/init.md",
+          "./commands/run.md",
+          "./commands/status.md",
+          "./commands/audit.md",
+          "./commands/archive.md",
+          "./commands/debugger.md"
+        ],
+        "agents": [
+          "./agents/faber-manager.md"
+        ]
+      },
+      {
+        "name": "fractary-faber-cloud",
+        "source": "./plugins/faber-cloud",
+        "description": "Comprehensive infrastructure and operations management for Claude Code - design, deploy, and monitor cloud infrastructure with AI assistance",
+        "version": "2.2.1",
+        "author": {
+          "name": "The Fractary",
+          "url": "https://github.com/fractary"
+        },
+        "homepage": "https://github.com/fractary/faber/tree/main/plugins/faber-cloud",
+        "repository": "https://github.com/fractary/faber/tree/main/plugins/faber-cloud",
+        "license": "MIT",
+        "keywords": [
+          "infrastructure",
+          "cloud",
+          "devops",
+          "aws",
+          "terraform",
+          "deployment",
+          "monitoring",
+          "operations",
+          "iac",
+          "infrastructure-as-code"
+        ],
+        "category": "development",
+        "strict": true,
+        "commands": [
+          "./commands/init.md",
+          "./commands/director.md",
+          "./commands/manage.md"
+        ],
+        "agents": [
+          "./agents/cloud-director.md",
+          "./agents/infra-manager.md"
+        ]
+      },
+      {
+        "name": "fractary-faber-article",
+        "source": "./plugins/faber-article",
+        "description": "Content creation lifecycle automation for blog articles - ideate, research, outline, draft, enhance, optimize SEO, generate hero images, and publish with AI assistance",
+        "version": "1.0.1",
+        "author": {
+          "name": "The Fractary",
+          "url": "https://github.com/fractary"
+        },
+        "homepage": "https://github.com/fractary/faber/tree/main/plugins/faber-article",
+        "repository": "https://github.com/fractary/faber/tree/main/plugins/faber-article",
+        "license": "MIT",
+        "keywords": [
+          "content",
+          "articles",
+          "blog",
+          "writing",
+          "seo",
+          "publishing",
+          "content-creation",
+          "ai-writing"
+        ],
+        "category": "productivity",
+        "strict": true,
+        "commands": [
+          "./commands/content/new.md",
+          "./commands/content/ideate.md",
+          "./commands/content/research.md",
+          "./commands/content/draft.md",
+          "./commands/content/edit.md",
+          "./commands/content/seo.md",
+          "./commands/content/image.md",
+          "./commands/content/publish.md",
+          "./commands/content/status.md"
+        ],
+        "agents": [
+          "./agents/content-manager.md"
+        ]
+      }
+    ]
+  }

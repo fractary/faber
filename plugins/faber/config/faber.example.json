@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fractary/claude-plugins/main/plugins/faber/config/config.schema.json",
+  "schema_version": "2.0",
+  "_comment": "IMPORTANT: Workflows are now in separate files. See workflows/ directory for templates.",
+  "workflows": [
+    {
+      "id": "default",
+      "file": "./workflows/default.json",
+      "description": "Standard FABER workflow (Frame → Architect → Build → Evaluate → Release)"
+    }
+  ],
+  "workflow_inference": {
+    "_comment": "Maps issue labels to workflows. Used when --workflow is not explicitly specified.",
+    "label_mapping": {
+      "bug": "default",
+      "feature": "default",
+      "enhancement": "default"
+    }
+  },
+  "integrations": {
+    "work_plugin": "fractary-work",
+    "repo_plugin": "fractary-repo",
+    "spec_plugin": "fractary-spec",
+    "logs_plugin": "fractary-logs"
+  },
+  "logging": {
+    "use_logs_plugin": true,
+    "log_type": "workflow",
+    "log_level": "info",
+    "log_phases": true,
+    "log_sub_steps": true,
+    "log_hooks": true
+  },
+  "safety": {
+    "protected_paths": [
+      "secrets/**",
+      "infra/prod/**",
+      ".env*",
+      "credentials/**"
+    ],
+    "require_confirm_for": [
+      "deploy",
+      "merge_to_main",
+      "tag_release"
+    ]
+  }
+}
