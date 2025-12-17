@@ -14,19 +14,24 @@ export function formatError(
   message: string,
   details?: unknown,
 ): ErrorOutput {
-  const errorObj: ErrorOutput = {
+  if (details !== undefined) {
+    return {
+      status: 'error',
+      error: {
+        code,
+        message,
+        details,
+      },
+    };
+  }
+
+  return {
     status: 'error',
     error: {
       code,
       message,
     },
   };
-
-  if (details) {
-    (errorObj.error as any).details = details;
-  }
-
-  return errorObj;
 }
 
 export function printError(message: string, details?: string): void {

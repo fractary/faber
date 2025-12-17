@@ -54,3 +54,5 @@ temp/
 
 # Session state
 .fractary/plugins/status/
+# CLI build artifacts
+cli/dist/
