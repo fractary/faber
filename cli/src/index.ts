@@ -9,12 +9,15 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand } from './commands/workflow/index';
-import { createWorkCommand } from './commands/work/index';
-import { createRepoCommand } from './commands/repo/index';
-import { createSpecCommand } from './commands/spec/index';
-import { createLogsCommand } from './commands/logs/index';
-import { createInitCommand } from './commands/init';
+import { createReadStream } from 'fs';
+import { createInterface } from 'readline';
+import { fileURLToPath } from 'url';
+import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand } from './commands/workflow/index.js';
+import { createWorkCommand } from './commands/work/index.js';
+import { createRepoCommand } from './commands/repo/index.js';
+import { createSpecCommand } from './commands/spec/index.js';
+import { createLogsCommand } from './commands/logs/index.js';
+import { createInitCommand } from './commands/init.js';
 
 const version = '1.0.0';
 
@@ -65,8 +68,11 @@ export function createFaberCLI(): Command {
   return program;
 }
 
-// Main execution
-if (require.main === module) {
+// Main execution - ESM compatible entry point detection
+const isMainModule = import.meta.url === `file://${process.argv[1]}` ||
+                     process.argv[1]?.endsWith('fractary-faber');
+
+if (isMainModule) {
   const program = createFaberCLI();
   program.parse(process.argv);
 
