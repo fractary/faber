@@ -6,6 +6,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as yaml from 'js-yaml';
 import { z } from 'zod';
 import {
   FaberConfig,
@@ -139,10 +140,11 @@ const FaberConfigSchema = z.object({
 // Configuration Paths
 // ============================================================================
 
-const CONFIG_FILENAME = 'config.json';
-const FABER_CONFIG_PATH = `.fractary/plugins/faber/${CONFIG_FILENAME}`;
-const WORK_CONFIG_PATH = `.fractary/plugins/work/${CONFIG_FILENAME}`;
-const REPO_CONFIG_PATH = `.fractary/plugins/repo/${CONFIG_FILENAME}`;
+const CONFIG_FILENAME_YAML = 'config.yaml';
+const CONFIG_FILENAME_JSON = 'config.json';
+const FABER_CONFIG_DIR = '.fractary/plugins/faber';
+const WORK_CONFIG_DIR = '.fractary/plugins/work';
+const REPO_CONFIG_DIR = '.fractary/plugins/repo';
 
 // ============================================================================
 // Configuration Loader
@@ -174,19 +176,33 @@ export function findProjectRoot(startDir?: string): string {
 }
 
 /**
- * Load a JSON configuration file
+ * Load a configuration file (supports both YAML and JSON)
+ * Prefers YAML (.yaml) over JSON (.json) for backward compatibility
  */
-export function loadJsonConfig<T>(filePath: string): T | null {
-  if (!fs.existsSync(filePath)) {
-    return null;
+export function loadConfigFile<T>(configDir: string, root: string): T | null {
+  // Try YAML first (preferred format)
+  const yamlPath = path.join(root, configDir, CONFIG_FILENAME_YAML);
+  if (fs.existsSync(yamlPath)) {
+    try {
+      const content = fs.readFileSync(yamlPath, 'utf-8');
+      return yaml.load(content) as T;
+    } catch {
+      return null;
+    }
   }
 
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(content) as T;
-  } catch {
-    return null;
+  // Fall back to JSON (legacy format)
+  const jsonPath = path.join(root, configDir, CONFIG_FILENAME_JSON);
+  if (fs.existsSync(jsonPath)) {
+    try {
+      const content = fs.readFileSync(jsonPath, 'utf-8');
+      return JSON.parse(content) as T;
+    } catch {
+      return null;
+    }
   }
+
+  return null;
 }
 
 /**
@@ -202,21 +218,22 @@ export function loadWorkConfig(
   options?: LoadConfigOptions
 ): WorkConfig | null {
   const root = projectRoot || findProjectRoot();
-  const configPath = path.join(root, WORK_CONFIG_PATH);
-  const config = loadJsonConfig<Record<string, unknown>>(configPath);
+  const config = loadConfigFile<Record<string, unknown>>(WORK_CONFIG_DIR, root);
 
   if (!config) {
     if (options?.allowMissing) {
       return null;
     }
 
+    const yamlPath = path.join(root, WORK_CONFIG_DIR, CONFIG_FILENAME_YAML);
+    const jsonPath = path.join(root, WORK_CONFIG_DIR, CONFIG_FILENAME_JSON);
     throw new ConfigValidationError([
       'Work plugin configuration not found.',
       '',
       'Run the following command to create a default configuration:',
       '  fractary init',
       '',
-      `Expected config at: ${configPath}`,
+      `Expected config at: ${yamlPath} or ${jsonPath}`,
     ]);
   }
 
@@ -266,21 +283,22 @@ export function loadRepoConfig(
   options?: LoadConfigOptions
 ): RepoConfig | null {
   const root = projectRoot || findProjectRoot();
-  const configPath = path.join(root, REPO_CONFIG_PATH);
-  const config = loadJsonConfig<Record<string, unknown>>(configPath);
+  const config = loadConfigFile<Record<string, unknown>>(REPO_CONFIG_DIR, root);
 
   if (!config) {
     if (options?.allowMissing) {
       return null;
     }
 
+    const yamlPath = path.join(root, REPO_CONFIG_DIR, CONFIG_FILENAME_YAML);
+    const jsonPath = path.join(root, REPO_CONFIG_DIR, CONFIG_FILENAME_JSON);
     throw new ConfigValidationError([
       'Repo plugin configuration not found.',
       '',
       'Run the following command to create a default configuration:',
       '  fractary init',
       '',
-      `Expected config at: ${configPath}`,
+      `Expected config at: ${yamlPath} or ${jsonPath}`,
     ]);
   }
 
@@ -330,8 +348,7 @@ export function loadFaberConfig(
   options?: LoadConfigOptions
 ): FaberConfig | null {
   const root = projectRoot || findProjectRoot();
-  const configPath = path.join(root, FABER_CONFIG_PATH);
-  const config = loadJsonConfig<Record<string, unknown>>(configPath);
+  const config = loadConfigFile<Record<string, unknown>>(FABER_CONFIG_DIR, root);
 
   if (!config) {
     // Try to construct from individual plugin configs
@@ -366,13 +383,15 @@ export function loadFaberConfig(
       return null;
     }
 
+    const yamlPath = path.join(root, FABER_CONFIG_DIR, CONFIG_FILENAME_YAML);
+    const jsonPath = path.join(root, FABER_CONFIG_DIR, CONFIG_FILENAME_JSON);
     throw new ConfigValidationError([
       'FABER configuration not found.',
       '',
       'Run the following command to create a default configuration:',
       '  fractary init',
       '',
-      `Expected config at: ${configPath}`,
+      `Expected config at: ${yamlPath} or ${jsonPath}`,
     ]);
   }
 
@@ -475,7 +494,7 @@ export function initFaberConfig(
   projectRoot: string,
   config: Partial<FaberConfig>
 ): string {
-  const configPath = path.join(projectRoot, FABER_CONFIG_PATH);
+  const configPath = path.join(projectRoot, FABER_CONFIG_DIR, CONFIG_FILENAME_JSON);
   const fullConfig = validateConfig({
     schema_version: '1.0',
     ...config,
