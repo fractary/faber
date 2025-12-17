@@ -5,7 +5,8 @@
   "description": "FABER SDK Monorepo - JavaScript and Python SDKs",
   "workspaces": [
     "sdk/js",
-    "cli"
+    "cli",
+    "mcp/server"
   ],
   "scripts": {
     "build": "npm run build:js && npm run build:py",

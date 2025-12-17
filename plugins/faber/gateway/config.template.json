@@ -33,7 +33,7 @@
 
   "mcp_server": {
     "transport": "stdio",
-    "name": "faber-event-gateway",
+    "name": "fractary-faber",
     "version": "1.0.0"
   },
 
