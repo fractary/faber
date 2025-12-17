@@ -20,32 +20,42 @@ For migration instructions, see [docs/MIGRATION-FABER-FORGE.md](docs/MIGRATION-F
 
 ## Repository Structure
 
-This is a monorepo containing both JavaScript and Python SDKs:
+This is a monorepo containing JavaScript and Python SDKs, plus the CLI:
 
 ```
 faber/
+├── cli/                     # CLI (@fractary/faber-cli)
+│   ├── src/                # TypeScript source
+│   ├── dist/               # Compiled output
+│   └── package.json        # @fractary/faber-cli
 ├── sdk/
-│   ├── js/                  # JavaScript/TypeScript SDK
-│   │   ├── src/            # TypeScript source
-│   │   ├── dist/           # Compiled output
-│   │   └── package.json    # @fractary/faber
-│   └── py/                 # Python SDK
-│       ├── faber/          # Python package
-│       ├── tests/          # Python tests
-│       └── pyproject.toml  # faber
-├── specs/                  # Design specifications
-├── docs/                   # Documentation
-└── package.json            # Monorepo root
+│   ├── js/                 # JavaScript/TypeScript SDK
+│   │   ├── src/           # TypeScript source
+│   │   ├── dist/          # Compiled output
+│   │   └── package.json   # @fractary/faber (v2.0+)
+│   └── py/                # Python SDK
+│       ├── faber/         # Python package
+│       ├── tests/         # Python tests
+│       └── pyproject.toml # faber
+├── specs/                 # Design specifications
+├── docs/                  # Documentation
+└── package.json           # Monorepo root
 ```
 
 ### Development
 
+**CLI:**
+```bash
+npm run build:cli    # Build CLI
+npm run test:cli     # Test CLI
+npm run lint:cli     # Lint CLI
+```
+
 **JavaScript SDK:**
 ```bash
-cd sdk/js
-npm install
-npm run build
-npm test
+npm run build:js     # Build SDK
+npm run test:js      # Test SDK
+npm run lint:js      # Lint SDK
 ```
 
 **Python SDK:**
@@ -55,10 +65,12 @@ pip install -e ".[dev]"
 pytest
 ```
 
-**Run all tests:**
+**Run all builds:**
 ```bash
 # From root
+npm run build
 npm run test
+npm run lint
 ```
 
 ---
@@ -152,15 +164,25 @@ const result = await workflow.run({
 });
 ```
 
-Or use the CLI:
+Or use the CLI ([@fractary/faber-cli](cli/)):
 
 ```bash
 # Run workflow for issue #123
-faber run 123 --autonomy assisted
+fractary-faber run --work-id 123 --autonomy assisted
 
 # Check status
-faber status <workflow-id>
+fractary-faber status
+
+# Manage work items
+fractary-faber work issue fetch 123
+fractary-faber work comment create 123 --body "Starting"
+
+# Repository operations
+fractary-faber repo branch create feat/fix-123
+fractary-faber repo pr create "Fix issue" --body "Resolves #123"
 ```
+
+See [CLI README](cli/README.md) for comprehensive documentation.
 
 ## SDK Modules
 
@@ -227,26 +249,37 @@ const result = await faber.run({ workId: '123' });
 
 ## CLI Commands
 
+For comprehensive CLI documentation, see [@fractary/faber-cli](cli/README.md).
+
+Quick reference:
+
 ```bash
 # Workflow
-faber run <issue> [--autonomy <level>]
-faber status <workflow-id>
-faber resume <workflow-id>
+fractary-faber init                                  # Initialize project
+fractary-faber run --work-id <issue>                # Run workflow
+fractary-faber status                               # Check status
+fractary-faber resume <workflow-id>                 # Resume workflow
 
 # Work tracking
-faber work fetch <issue>
-faber work create --title "Feature" --type feature
-faber work comment <issue> --body "Update"
+fractary-faber work issue fetch <issue>
+fractary-faber work issue create --title "Feature"
+fractary-faber work comment create <issue> --body "Update"
+fractary-faber work label add <issue> --label "bug"
 
 # Repository
-faber repo branch create <name>
-faber repo pr create --title "Title" --head <branch>
-faber repo commit --message "Message" --type feat
+fractary-faber repo branch create <name>
+fractary-faber repo pr create --title "Title"
+fractary-faber repo commit "feat: message"
+fractary-faber repo tag create v1.0.0
 
 # Specifications
-faber spec create "Title" --template feature
-faber spec validate <spec-id>
-faber spec refine <spec-id>
+fractary-faber spec create "Title"
+fractary-faber spec validate <spec-id>
+fractary-faber spec refine <spec-id>
+
+# Logs
+fractary-faber logs capture <workflow-id>
+fractary-faber logs read <session-id>
 ```
 
 ## Configuration
