@@ -1,0 +1,74 @@
+{
+  "$schema": "../workflow.schema.json",
+  "id": "default",
+  "description": "Default FABER workflow for software development - extends core with spec generation and implementation",
+  "extends": "fractary-faber:core",
+  "phases": {
+    "frame": {
+      "enabled": true,
+      "pre_steps": [],
+      "steps": [],
+      "post_steps": []
+    },
+    "architect": {
+      "enabled": true,
+      "description": "Generate and refine technical specification from issue context",
+      "pre_steps": [],
+      "steps": [
+        {
+          "id": "generate-spec",
+          "name": "Generate Specification",
+          "description": "Create technical specification from issue context",
+          "command": "/fractary-spec:create",
+          "arguments": {
+            "work_id": "{work_id}"
+          }
+        },
+        {
+          "id": "refine-spec",
+          "name": "Refine Specification",
+          "description": "Critically review spec and gather clarifications from user",
+          "command": "/fractary-spec:refine",
+          "arguments": {
+            "work_id": "{work_id}"
+          }
+        }
+      ],
+      "post_steps": []
+    },
+    "build": {
+      "enabled": true,
+      "description": "Implement solution based on specification",
+      "pre_steps": [],
+      "steps": [
+        {
+          "id": "implement",
+          "name": "Implement Solution",
+          "description": "Implement based on specification following project patterns",
+          "command": "/fractary-faber:build",
+          "arguments": {
+            "work_id": "{work_id}"
+          }
+        }
+      ],
+      "post_steps": []
+    },
+    "evaluate": {
+      "enabled": true,
+      "pre_steps": [],
+      "steps": [],
+      "post_steps": []
+    },
+    "release": {
+      "enabled": true,
+      "pre_steps": [],
+      "steps": [],
+      "post_steps": []
+    }
+  },
+  "autonomy": {
+    "level": "guarded",
+    "description": "Pauses before release for approval - recommended for production",
+    "require_approval_for": ["release"]
+  }
+}

@@ -19,7 +19,7 @@ This implementation specification details the concrete steps to integrate `@frac
 ### 1.1 Objectives
 
 1. **Integrate Forge AgentAPI** into FABER's TypeScript workflow engine
-2. **Deprecate Python definitions** (`/python/faber/definitions/` and `/python/faber/agents/`)
+2. **Deprecate Python definitions** (`/sdk/py/faber/definitions/` and `/sdk/py/faber/agents/`)
 3. **Convert 5 built-in agents** from Python to YAML definitions
 4. **Enable dual-mode support** for gradual migration
 5. **Remove legacy code** in preparation for v2.0
@@ -31,9 +31,9 @@ This implementation specification details the concrete steps to integrate `@frac
 | `@fractary/forge` dependency | ✅ Installed | `package.json` v1.1.1 |
 | Forge AgentAPI | ✅ Implemented | `@fractary/forge/definitions` |
 | Forge ToolAPI | ✅ Implemented | `@fractary/forge/definitions` |
-| FABER workflow engine | ⚠️ No Forge integration | `/src/workflow/faber.ts` |
-| Python definitions | ❌ Needs deprecation | `/python/faber/definitions/` |
-| Python agents | ❌ Needs conversion | `/python/faber/agents/` |
+| FABER workflow engine | ⚠️ No Forge integration | `/sdk/js/src/workflow/faber.ts` |
+| Python definitions | ❌ Needs deprecation | `/sdk/py/faber/definitions/` |
+| Python agents | ❌ Needs conversion | `/sdk/py/faber/agents/` |
 
 ---
 
@@ -43,7 +43,7 @@ This implementation specification details the concrete steps to integrate `@frac
 
 #### Task 1: Create AgentExecutor Class
 
-**File:** `/src/workflow/agent-executor.ts`
+**File:** `/sdk/js/src/workflow/agent-executor.ts`
 
 **Purpose:** Bridge between FABER workflow and Forge's AgentAPI
 
@@ -237,7 +237,7 @@ export class AgentExecutor {
 
 #### Task 2: Update WorkflowConfig Types
 
-**File:** `/src/types.ts`
+**File:** `/sdk/js/src/types.ts`
 
 **Changes to add:**
 
@@ -288,7 +288,7 @@ export interface WorkflowConfig {
 
 #### Task 3: Integrate AgentExecutor into FaberWorkflow
 
-**File:** `/src/workflow/faber.ts`
+**File:** `/sdk/js/src/workflow/faber.ts`
 
 **Changes:**
 
@@ -435,7 +435,7 @@ export class FaberWorkflow {
 
 #### Task 4: Export AgentExecutor from Workflow Module
 
-**File:** `/src/workflow/index.ts`
+**File:** `/sdk/js/src/workflow/index.ts`
 
 **Update:**
 
@@ -461,7 +461,7 @@ export * from './types';
 
 #### Task 5: Convert Frame Agent to YAML
 
-**Source:** `/python/faber/agents/frame.py`
+**Source:** `/sdk/py/faber/agents/frame.py`
 **Target:** `.fractary/agents/frame-agent.yaml` (in Forge first-party package)
 
 ```yaml
@@ -844,7 +844,7 @@ tags:
 
 #### Task 10: Add Deprecation Warnings to Python Code
 
-**File:** `/python/faber/definitions/__init__.py`
+**File:** `/sdk/py/faber/definitions/__init__.py`
 
 ```python
 """
@@ -880,7 +880,7 @@ from .tool_executor import ToolExecutor
 from .converters import LangChainConverter
 ```
 
-**File:** `/python/faber/agents/__init__.py`
+**File:** `/sdk/py/faber/agents/__init__.py`
 
 ```python
 """
@@ -1122,15 +1122,15 @@ For users who want to stay on legacy mode temporarily:
 
 | Component | Current Location | Target Location |
 |-----------|-----------------|-----------------|
-| AgentExecutor | (new) | `/src/workflow/agent-executor.ts` |
-| Type updates | `/src/types.ts` | `/src/types.ts` |
-| FaberWorkflow | `/src/workflow/faber.ts` | `/src/workflow/faber.ts` |
-| Frame Agent | `/python/faber/agents/frame.py` | Forge: `frame-agent.yaml` |
-| Architect Agent | `/python/faber/agents/architect.py` | Forge: `architect-agent.yaml` |
-| Build Agent | `/python/faber/agents/build.py` | Forge: `build-agent.yaml` |
-| Evaluate Agent | `/python/faber/agents/evaluate.py` | Forge: `evaluate-agent.yaml` |
-| Release Agent | `/python/faber/agents/release.py` | Forge: `release-agent.yaml` |
-| Python Definitions | `/python/faber/definitions/` | DEPRECATED → Removed |
+| AgentExecutor | (new) | `/sdk/js/src/workflow/agent-executor.ts` |
+| Type updates | `/sdk/js/src/types.ts` | `/sdk/js/src/types.ts` |
+| FaberWorkflow | `/sdk/js/src/workflow/faber.ts` | `/sdk/js/src/workflow/faber.ts` |
+| Frame Agent | `/sdk/py/faber/agents/frame.py` | Forge: `frame-agent.yaml` |
+| Architect Agent | `/sdk/py/faber/agents/architect.py` | Forge: `architect-agent.yaml` |
+| Build Agent | `/sdk/py/faber/agents/build.py` | Forge: `build-agent.yaml` |
+| Evaluate Agent | `/sdk/py/faber/agents/evaluate.py` | Forge: `evaluate-agent.yaml` |
+| Release Agent | `/sdk/py/faber/agents/release.py` | Forge: `release-agent.yaml` |
+| Python Definitions | `/sdk/py/faber/definitions/` | DEPRECATED → Removed |
 
 ### B. Dependencies
 

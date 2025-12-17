@@ -5,6 +5,18 @@ node_modules/
 # dist/
 *.tsbuildinfo
 
+# SDK-specific
+sdk/js/dist/
+sdk/js/node_modules/
+sdk/py/dist/
+sdk/py/build/
+sdk/py/**/__pycache__/
+sdk/py/**/*.pyc
+sdk/py/.pytest_cache/
+sdk/py/.venv/
+sdk/py/.coverage
+sdk/py/htmlcov/
+
 # IDE
 .vscode/
 .idea/
