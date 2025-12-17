@@ -4,7 +4,8 @@
   "private": true,
   "description": "FABER SDK Monorepo - JavaScript and Python SDKs",
   "workspaces": [
-    "sdk/js"
+    "sdk/js",
+    "cli"
   ],
   "scripts": {
     "build": "npm run build:js && npm run build:py",
@@ -15,6 +16,11 @@
     "test:js": "npm run test -w sdk/js",
     "lint:js": "npm run lint -w sdk/js",
     "typecheck:js": "npm run typecheck -w sdk/js",
+
+    "build:cli": "npm run build -w cli",
+    "test:cli": "npm run test -w cli",
+    "lint:cli": "npm run lint -w cli",
+    "typecheck:cli": "npm run typecheck -w cli",
 
     "build:py": "cd sdk/py && python -m build",
     "test:py": "cd sdk/py && pytest",
