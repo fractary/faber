@@ -221,10 +221,13 @@ export function loadWorkConfig(
   const config = loadConfigFile<Record<string, unknown>>(WORK_CONFIG_DIR, root);
 
   if (!config) {
-    // Try loading from FABER config as fallback
-    const faberConfig = loadFaberConfig(root, { allowMissing: true });
-    if (faberConfig?.work) {
-      return faberConfig.work;
+    // Try loading from FABER config as fallback (but only if FABER config file exists to avoid infinite recursion)
+    const faberConfigFile = loadConfigFile<Record<string, unknown>>(FABER_CONFIG_DIR, root);
+    if (faberConfigFile) {
+      const faberConfig = loadFaberConfig(root, { allowMissing: true });
+      if (faberConfig?.work) {
+        return faberConfig.work;
+      }
     }
 
     if (options?.allowMissing) {
@@ -307,10 +310,13 @@ export function loadRepoConfig(
   const config = loadConfigFile<Record<string, unknown>>(REPO_CONFIG_DIR, root);
 
   if (!config) {
-    // Try loading from FABER config as fallback
-    const faberConfig = loadFaberConfig(root, { allowMissing: true });
-    if (faberConfig?.repo) {
-      return faberConfig.repo;
+    // Try loading from FABER config as fallback (but only if FABER config file exists to avoid infinite recursion)
+    const faberConfigFile = loadConfigFile<Record<string, unknown>>(FABER_CONFIG_DIR, root);
+    if (faberConfigFile) {
+      const faberConfig = loadFaberConfig(root, { allowMissing: true });
+      if (faberConfig?.repo) {
+        return faberConfig.repo;
+      }
     }
 
     if (options?.allowMissing) {
