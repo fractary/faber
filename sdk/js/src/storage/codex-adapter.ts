@@ -94,7 +94,7 @@ export class CodexAdapter {
 
     try {
       // Dynamic import for ESM compatibility - no compile-time dependency
-      // @ts-ignore - @fractary/codex is optional and may not be installed
+      // @ts-expect-error - @fractary/codex is optional and may not be installed
       const codexModule = await import('@fractary/codex') as unknown as CodexModule;
       this.codex = codexModule;
       return codexModule;
