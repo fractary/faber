@@ -7,6 +7,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { FaberWorkflow, StateManager } from '@fractary/faber';
+import { parsePositiveInteger } from '../../utils/validation.js';
 
 /**
  * Create the run command
@@ -248,7 +249,7 @@ export function createCleanupCommand(): Command {
       try {
         const stateManager = new StateManager();
 
-        const result = stateManager.cleanup(parseInt(options.maxAge, 10));
+        const result = stateManager.cleanup(parsePositiveInteger(options.maxAge, 'max age (days)'));
 
         if (options.json) {
           console.log(JSON.stringify({ status: 'success', data: result }, null, 2));

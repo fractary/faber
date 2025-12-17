@@ -7,6 +7,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { LogManager } from '@fractary/faber';
+import { parseOptionalInteger, parseValidInteger, parsePositiveInteger } from '../../utils/validation.js';
 
 /**
  * Create the logs command tree
@@ -37,7 +38,7 @@ function createLogsCaptureCommand(): Command {
       try {
         const logManager = new LogManager();
         const result = await logManager.startCapture({
-          issueNumber: parseInt(issueNumber, 10),
+          issueNumber: parseValidInteger(issueNumber, 'issue number'),
           model: options.model,
         });
 
@@ -91,7 +92,7 @@ function createLogsWriteCommand(): Command {
           type: options.type,
           title: options.title,
           content: options.content,
-          issueNumber: options.issue ? parseInt(options.issue, 10) : undefined,
+          issueNumber: parseOptionalInteger(options.issue, 'issue number'),
         });
 
         if (options.json) {
@@ -158,7 +159,7 @@ function createLogsSearchCommand(): Command {
         const results = logManager.searchLogs({
           query: options.query,
           type: options.type,
-          issueNumber: options.issue ? parseInt(options.issue, 10) : undefined,
+          issueNumber: parseOptionalInteger(options.issue, 'issue number'),
           regex: options.regex,
         });
 
@@ -200,8 +201,8 @@ function createLogsListCommand(): Command {
         const logs = logManager.listLogs({
           type: options.type,
           status: options.status,
-          issueNumber: options.issue ? parseInt(options.issue, 10) : undefined,
-          limit: parseInt(options.limit, 10),
+          issueNumber: parseOptionalInteger(options.issue, 'issue number'),
+          limit: parsePositiveInteger(options.limit, 'limit'),
         });
 
         if (options.json) {
@@ -232,7 +233,7 @@ function createLogsArchiveCommand(): Command {
       try {
         const logManager = new LogManager();
         const result = logManager.archiveLogs({
-          maxAgeDays: parseInt(options.maxAge, 10),
+          maxAgeDays: parsePositiveInteger(options.maxAge, 'max age (days)'),
           compress: options.compress,
         });
 

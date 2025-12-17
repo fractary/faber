@@ -9,6 +9,7 @@ import chalk from 'chalk';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { WorkManager } from '@fractary/faber';
+import { parseOptionalInteger, parseValidInteger, parsePositiveInteger } from '../../utils/validation.js';
 
 /**
  * Create the work command tree
@@ -73,7 +74,7 @@ function createIssueFetchCommand(): Command {
     .action(async (number: string, options) => {
       try {
         const workManager = new WorkManager();
-        const issue = await workManager.fetchIssue(parseInt(number, 10));
+        const issue = await workManager.fetchIssue(parseValidInteger(number, 'issue number'));
 
         if (options.json) {
           console.log(JSON.stringify({ status: 'success', data: issue }, null, 2));
@@ -130,7 +131,7 @@ function createIssueUpdateCommand(): Command {
     .action(async (number: string, options) => {
       try {
         const workManager = new WorkManager();
-        const issue = await workManager.updateIssue(parseInt(number, 10), {
+        const issue = await workManager.updateIssue(parseValidInteger(number, 'issue number'), {
           title: options.title,
           body: options.body,
           state: options.state,
@@ -159,10 +160,10 @@ function createIssueCloseCommand(): Command {
 
         // Add comment if provided
         if (options.comment) {
-          await workManager.createComment(parseInt(number, 10), options.comment);
+          await workManager.createComment(parseValidInteger(number, 'issue number'), options.comment);
         }
 
-        const issue = await workManager.closeIssue(parseInt(number, 10));
+        const issue = await workManager.closeIssue(parseValidInteger(number, 'issue number'));
 
         if (options.json) {
           console.log(JSON.stringify({ status: 'success', data: issue }, null, 2));
@@ -190,7 +191,7 @@ function createIssueSearchCommand(): Command {
           state: options.state,
           labels: options.labels?.split(',').map((l: string) => l.trim()),
         });
-        const limitedIssues = options.limit ? issues.slice(0, parseInt(options.limit, 10)) : issues;
+        const limitedIssues = options.limit ? issues.slice(0, parsePositiveInteger(options.limit, 'limit')) : issues;
 
         if (options.json) {
           console.log(JSON.stringify({ status: 'success', data: limitedIssues }, null, 2));
@@ -221,10 +222,10 @@ function createIssueReopenCommand(): Command {
 
         // Add comment if provided
         if (options.comment) {
-          await workManager.createComment(parseInt(number, 10), options.comment);
+          await workManager.createComment(parseValidInteger(number, 'issue number'), options.comment);
         }
 
-        const issue = await workManager.reopenIssue(parseInt(number, 10));
+        const issue = await workManager.reopenIssue(parseValidInteger(number, 'issue number'));
 
         if (options.json) {
           console.log(JSON.stringify({
@@ -256,9 +257,9 @@ function createIssueAssignCommand(): Command {
         let issue;
 
         if (options.user) {
-          issue = await workManager.assignIssue(parseInt(number, 10), options.user);
+          issue = await workManager.assignIssue(parseValidInteger(number, 'issue number'), options.user);
         } else {
-          issue = await workManager.unassignIssue(parseInt(number, 10));
+          issue = await workManager.unassignIssue(parseValidInteger(number, 'issue number'));
         }
 
         if (options.json) {
@@ -291,7 +292,7 @@ function createIssueClassifyCommand(): Command {
     .action(async (number: string, options) => {
       try {
         const workManager = new WorkManager();
-        const issue = await workManager.fetchIssue(parseInt(number, 10));
+        const issue = await workManager.fetchIssue(parseValidInteger(number, 'issue number'));
 
         const result = classifyWorkType(issue);
 
@@ -299,7 +300,7 @@ function createIssueClassifyCommand(): Command {
           console.log(JSON.stringify({
             status: 'success',
             data: {
-              number: parseInt(number, 10),
+              number: parseValidInteger(number, 'issue number'),
               work_type: result.work_type,
               confidence: result.confidence,
               signals: result.signals,
@@ -331,7 +332,7 @@ function createCommentCreateCommand(): Command {
     .action(async (issueNumber: string, options) => {
       try {
         const workManager = new WorkManager();
-        const comment = await workManager.createComment(parseInt(issueNumber, 10), options.body);
+        const comment = await workManager.createComment(parseValidInteger(issueNumber, 'issue number'), options.body);
 
         if (options.json) {
           console.log(JSON.stringify({ status: 'success', data: comment }, null, 2));
@@ -353,8 +354,8 @@ function createCommentListCommand(): Command {
     .action(async (issueNumber: string, options) => {
       try {
         const workManager = new WorkManager();
-        const comments = await workManager.listComments(parseInt(issueNumber, 10), {
-          limit: parseInt(options.limit, 10),
+        const comments = await workManager.listComments(parseValidInteger(issueNumber, 'issue number'), {
+          limit: parsePositiveInteger(options.limit, 'limit'),
         });
 
         if (options.json) {
@@ -388,7 +389,7 @@ function createLabelAddCommand(): Command {
       try {
         const workManager = new WorkManager();
         const labels = options.label.split(',').map((l: string) => l.trim());
-        const result = await workManager.addLabels(parseInt(issueNumber, 10), labels);
+        const result = await workManager.addLabels(parseValidInteger(issueNumber, 'issue number'), labels);
 
         if (options.json) {
           console.log(JSON.stringify({ status: 'success', data: result }, null, 2));
@@ -411,7 +412,7 @@ function createLabelRemoveCommand(): Command {
       try {
         const workManager = new WorkManager();
         const labels = options.label.split(',').map((l: string) => l.trim());
-        await workManager.removeLabels(parseInt(issueNumber, 10), labels);
+        await workManager.removeLabels(parseValidInteger(issueNumber, 'issue number'), labels);
 
         if (options.json) {
           console.log(JSON.stringify({ status: 'success', data: { removed: labels } }, null, 2));
@@ -433,7 +434,7 @@ function createLabelListCommand(): Command {
       try {
         const workManager = new WorkManager();
         const labels = options.issue
-          ? await workManager.listLabels(parseInt(options.issue, 10))
+          ? await workManager.listLabels(parseValidInteger(options.issue, 'issue number'))
           : await workManager.listLabels();
 
         if (options.json) {
@@ -518,7 +519,7 @@ function createMilestoneSetCommand(): Command {
     .action(async (issueNumber: string, options) => {
       try {
         const workManager = new WorkManager();
-        const issue = await workManager.setMilestone(parseInt(issueNumber, 10), options.milestone);
+        const issue = await workManager.setMilestone(parseValidInteger(issueNumber, 'issue number'), options.milestone);
 
         if (options.json) {
           console.log(JSON.stringify({ status: 'success', data: issue }, null, 2));

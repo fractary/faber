@@ -76,22 +76,31 @@ export class CodexAdapter {
   private cacheManager: CacheManager | null = null;
   private storageManager: StorageManager | null = null;
   private config: CodexConfig | null = null;
+  private codexLoadAttempted = false;
 
   constructor() {
-    this.codex = this.tryLoadCodex();
+    // Lazy load codex on first use
   }
 
   /**
-   * Try to load @fractary/codex at runtime
+   * Try to load @fractary/codex at runtime (lazy, async)
    */
-  private tryLoadCodex(): CodexModule | null {
+  private async tryLoadCodex(): Promise<CodexModule | null> {
+    if (this.codexLoadAttempted) {
+      return this.codex;
+    }
+
+    this.codexLoadAttempted = true;
+
     try {
-      // Dynamic require - no compile-time dependency
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const codexModule = require('@fractary/codex') as CodexModule;
+      // Dynamic import for ESM compatibility - no compile-time dependency
+      // @ts-ignore - @fractary/codex is optional and may not be installed
+      const codexModule = await import('@fractary/codex') as unknown as CodexModule;
+      this.codex = codexModule;
       return codexModule;
     } catch {
       // Codex not installed - this is fine
+      this.codex = null;
       return null;
     }
   }
@@ -100,6 +109,11 @@ export class CodexAdapter {
    * Initialize codex managers (lazy initialization)
    */
   private async ensureInitialized(): Promise<void> {
+    // Try to load codex if not already attempted
+    if (!this.codexLoadAttempted) {
+      await this.tryLoadCodex();
+    }
+
     if (!this.codex) {
       throw new FaberError('Codex not available', 'CODEX_NOT_AVAILABLE', {});
     }
@@ -128,9 +142,12 @@ export class CodexAdapter {
   }
 
   /**
-   * Check if Codex is available
+   * Check if Codex is available (lazy loads on first check)
    */
-  isAvailable(): boolean {
+  async isAvailable(): Promise<boolean> {
+    if (!this.codexLoadAttempted) {
+      await this.tryLoadCodex();
+    }
     return this.codex !== null;
   }
 
@@ -338,17 +355,17 @@ const DEFAULT_PATHS: Record<string, string> = {
  *
  * Otherwise falls back to local storage.
  */
-export function createStorage(
+export async function createStorage(
   artifactType: 'specs' | 'logs' | 'state',
   config?: FaberConfig
-): Storage {
+): Promise<Storage> {
   const codex = new CodexAdapter();
   const projectRoot = findProjectRoot();
 
   // Check if Codex should be used
   const useCodex =
     config?.artifacts?.[artifactType]?.use_codex === true &&
-    codex.isAvailable() &&
+    (await codex.isAvailable()) &&
     codex.isEnabledFor(artifactType);
 
   if (useCodex) {

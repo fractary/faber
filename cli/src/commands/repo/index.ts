@@ -7,6 +7,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { RepoManager } from '@fractary/faber';
+import { parseOptionalInteger, parseValidInteger } from '../../utils/validation.js';
 
 /**
  * Create the repo command tree
@@ -134,7 +135,7 @@ function createBranchListCommand(): Command {
           merged: options.merged,
           stale: options.stale,
           pattern: options.pattern,
-          limit: options.limit ? parseInt(options.limit, 10) : undefined,
+          limit: parseOptionalInteger(options.limit, 'limit'),
         });
 
         if (options.json) {
@@ -272,7 +273,7 @@ function createPRMergeCommand(): Command {
     .action(async (number: string, options) => {
       try {
         const repoManager = new RepoManager();
-        const pr = await repoManager.mergePR(parseInt(number, 10), {
+        const pr = await repoManager.mergePR(parseValidInteger(number, 'PR number'), {
           strategy: options.strategy,
           deleteBranch: options.deleteBranch,
         });
@@ -305,7 +306,7 @@ function createPRReviewCommand(): Command {
 
         const action = options.approve ? 'approve' :
                        options.requestChanges ? 'request_changes' : 'comment';
-        await repoManager.reviewPR(parseInt(number, 10), {
+        await repoManager.reviewPR(parseValidInteger(number, 'PR number'), {
           action,
           comment: options.comment,
         });
@@ -384,7 +385,7 @@ function createTagListCommand(): Command {
         const repoManager = new RepoManager();
         const tags = repoManager.listTags({
           pattern: options.pattern,
-          latest: options.latest ? parseInt(options.latest, 10) : undefined,
+          latest: parseOptionalInteger(options.latest, 'latest'),
         });
 
         if (options.json) {

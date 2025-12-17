@@ -9,9 +9,6 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createReadStream } from 'fs';
-import { createInterface } from 'readline';
-import { fileURLToPath } from 'url';
 import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand } from './commands/workflow/index.js';
 import { createWorkCommand } from './commands/work/index.js';
 import { createRepoCommand } from './commands/repo/index.js';
