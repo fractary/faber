@@ -284,12 +284,12 @@ class WorkflowCompiler:
                 raise WorkflowValidationError(
                     f"Agent '{step.agent}' not found in definitions registry. "
                     f"Ensure the agent is defined in .fractary/agents/{step.agent}.yaml"
-                )
+                ) from e
             except Exception as e:
                 logger.error(f"Agent invocation failed for step {step.name}: {e}")
                 raise WorkflowValidationError(
                     f"Failed to invoke agent '{step.agent}' in step '{step.name}': {str(e)}"
-                )
+                ) from e
 
         else:  # type == "tool"
             # Check if it's a built-in tool first
@@ -353,12 +353,12 @@ class WorkflowCompiler:
                     raise WorkflowValidationError(
                         f"Tool '{tool_name}' not found. Check built-in tools or ensure "
                         f"custom tool is defined in .fractary/tools/{tool_name}.yaml"
-                    )
+                    ) from e
                 except Exception as e:
                     logger.error(f"Tool invocation failed for step {step.name}: {e}")
                     raise WorkflowValidationError(
                         f"Failed to invoke tool '{tool_name}' in step '{step.name}': {str(e)}"
-                    )
+                    ) from e
 
     def _create_node_function(
         self,

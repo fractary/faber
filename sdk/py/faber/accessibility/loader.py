@@ -97,7 +97,7 @@ def load_workflow(path: Union[str, Path]) -> WorkflowSchema:
         raise WorkflowValidationError(
             f"YAML parsing error: {e}",
             path=path,
-        )
+        ) from e
 
     if raw_config is None:
         raise WorkflowValidationError(
@@ -119,7 +119,7 @@ def load_workflow(path: Union[str, Path]) -> WorkflowSchema:
             formatted,
             path=path,
             errors=e.errors(),
-        )
+        ) from e
 
 
 def load_workflow_from_dict(data: Dict[str, Any]) -> WorkflowSchema:
@@ -169,7 +169,7 @@ def load_agent(path: Union[str, Path]) -> AgentSchema:
         raise WorkflowValidationError(
             f"YAML parsing error: {e}",
             path=path,
-        )
+        ) from e
 
     try:
         return AgentSchema(**raw_config)
@@ -179,7 +179,7 @@ def load_agent(path: Union[str, Path]) -> AgentSchema:
             formatted,
             path=path,
             errors=e.errors(),
-        )
+        ) from e
 
 
 def load_tools(path: Union[str, Path]) -> list[ToolSchema]:
@@ -209,7 +209,7 @@ def load_tools(path: Union[str, Path]) -> list[ToolSchema]:
         raise WorkflowValidationError(
             f"YAML parsing error: {e}",
             path=path,
-        )
+        ) from e
 
     if not isinstance(raw_config, dict) or "tools" not in raw_config:
         raise WorkflowValidationError(
