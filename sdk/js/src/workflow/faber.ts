@@ -170,7 +170,7 @@ export class FaberWorkflow {
     const manifest = this.stateManager.createManifest(workflowId, workId);
 
     // Build phase context
-    let context: PhaseContext = {
+    const context: PhaseContext = {
       workflowId,
       workId,
       phase: '',
@@ -734,7 +734,7 @@ export class FaberWorkflow {
     const specPath = context.previousOutputs.architect?.specPath;
     if (specPath) {
       lines.push(`### Specification`);
-      lines.push(`See [spec](${specPath})`);
+      lines.push(`See [spec](${String(specPath)})`);
       lines.push('');
     }
 

@@ -685,7 +685,7 @@ export class SpecManager {
     let improvementsApplied = 0;
 
     // Apply answers as notes/content updates
-    for (const [_questionId, answer] of Object.entries(answers)) {
+    for (const answer of Object.values(answers)) {
       if (answer && answer.trim()) {
         // Add answer as a note in the relevant section
         // This is a simple implementation - could be enhanced
