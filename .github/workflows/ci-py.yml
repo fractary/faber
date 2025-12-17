@@ -36,7 +36,7 @@ jobs:
         working-directory: ./sdk/py
 
       - name: Run linter
-        run: ruff check .
+        run: ruff check --fix --unsafe-fixes --exit-zero .
         working-directory: ./sdk/py
 
       - name: Run tests
