@@ -26,6 +26,12 @@ module.exports = {
     }],
     '@typescript-eslint/require-await': 'warn',
     '@typescript-eslint/unbound-method': 'off',
+    '@typescript-eslint/no-unsafe-return': 'warn',
+    '@typescript-eslint/no-unsafe-assignment': 'warn',
+    '@typescript-eslint/no-unsafe-member-access': 'warn',
+    '@typescript-eslint/no-unsafe-argument': 'warn',
+    '@typescript-eslint/no-unsafe-call': 'warn',
+    '@typescript-eslint/no-var-requires': 'warn',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'prefer-const': 'error'
   },
