@@ -218,7 +218,7 @@ export function loadWorkConfig(
   options?: LoadConfigOptions
 ): WorkConfig | null {
   const root = projectRoot || findProjectRoot();
-  let config = loadConfigFile<Record<string, unknown>>(WORK_CONFIG_DIR, root);
+  const config = loadConfigFile<Record<string, unknown>>(WORK_CONFIG_DIR, root);
 
   if (!config) {
     // Try loading from FABER config as fallback
@@ -304,7 +304,7 @@ export function loadRepoConfig(
   options?: LoadConfigOptions
 ): RepoConfig | null {
   const root = projectRoot || findProjectRoot();
-  let config = loadConfigFile<Record<string, unknown>>(REPO_CONFIG_DIR, root);
+  const config = loadConfigFile<Record<string, unknown>>(REPO_CONFIG_DIR, root);
 
   if (!config) {
     // Try loading from FABER config as fallback
