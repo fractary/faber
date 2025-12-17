@@ -17,6 +17,15 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 'warn',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/no-non-null-assertion': 'warn',
+    '@typescript-eslint/restrict-template-expressions': ['warn', {
+      allowNumber: true,
+      allowBoolean: true,
+      allowAny: false,
+      allowNullish: true,
+      allowNever: true
+    }],
+    '@typescript-eslint/require-await': 'warn',
+    '@typescript-eslint/unbound-method': 'off',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'prefer-const': 'error'
   },
