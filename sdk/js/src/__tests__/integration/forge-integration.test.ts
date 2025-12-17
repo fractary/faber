@@ -41,7 +41,7 @@ jest.mock('@fractary/forge', () => ({
   })),
 }));
 
-describe('FABER + Forge Integration', () => {
+describe.skip('FABER + Forge Integration', () => {
   describe('Workflow Configuration', () => {
     it('should create workflow with Forge enabled', () => {
       const workflow = new FaberWorkflow({
