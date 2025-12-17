@@ -153,9 +153,9 @@ def load_config(path: Optional[Path] = None) -> dict:
             "langsmith_project": config.langsmith_project,
         }
     except FileNotFoundError as e:
-        raise ConfigError(f"Configuration not found: {e}")
+        raise ConfigError(f"Configuration not found: {e}") from e
     except Exception as e:
-        raise ConfigError(f"Invalid configuration: {e}")
+        raise ConfigError(f"Invalid configuration: {e}") from e
 
 
 def validate_config(config: dict) -> list[str]:

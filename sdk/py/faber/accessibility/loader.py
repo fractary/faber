@@ -141,7 +141,7 @@ def load_workflow_from_dict(data: Dict[str, Any]) -> WorkflowSchema:
         raise WorkflowValidationError(
             formatted,
             errors=e.errors(),
-        )
+        ) from e
 
 
 def load_agent(path: Union[str, Path]) -> AgentSchema:
@@ -230,7 +230,7 @@ def load_tools(path: Union[str, Path]) -> list[ToolSchema]:
                 formatted,
                 path=path,
                 errors=e.errors(),
-            )
+            ) from e
 
     return tools
 
