@@ -240,6 +240,7 @@ export function loadWorkConfig(
   // Handle handlers structure from plugins
   const handlers = config['handlers'] as Record<string, unknown> | undefined;
   if (handlers) {
+    // Try complex structure first (handlers.work-tracker.active.platform)
     const workTracker = handlers['work-tracker'] as Record<string, unknown> | undefined;
     if (workTracker) {
       const platform = workTracker['active'] as string;
@@ -248,6 +249,20 @@ export function loadWorkConfig(
       if (platformConfig) {
         return {
           platform: platform as 'github' | 'jira' | 'linear',
+          owner: platformConfig['owner'] as string | undefined,
+          repo: platformConfig['repo'] as string | undefined,
+          project: platformConfig['project_key'] as string | undefined,
+        };
+      }
+    }
+
+    // Fallback to simple structure (handlers.github)
+    const platforms = ['github', 'jira', 'linear'] as const;
+    for (const platform of platforms) {
+      const platformConfig = handlers[platform] as Record<string, unknown> | undefined;
+      if (platformConfig) {
+        return {
+          platform: platform,
           owner: platformConfig['owner'] as string | undefined,
           repo: platformConfig['repo'] as string | undefined,
           project: platformConfig['project_key'] as string | undefined,
@@ -305,6 +320,7 @@ export function loadRepoConfig(
   // Handle handlers structure from plugins
   const handlers = config['handlers'] as Record<string, unknown> | undefined;
   if (handlers) {
+    // Try complex structure first (handlers.source-control.active.platform)
     const sourceControl = handlers['source-control'] as Record<string, unknown> | undefined;
     if (sourceControl) {
       const platform = sourceControl['active'] as string;
@@ -313,6 +329,20 @@ export function loadRepoConfig(
       if (platformConfig) {
         return {
           platform: platform as 'github' | 'gitlab' | 'bitbucket',
+          owner: platformConfig['owner'] as string,
+          repo: platformConfig['repo'] as string,
+          defaultBranch: (platformConfig['default_branch'] as string) || 'main',
+        };
+      }
+    }
+
+    // Fallback to simple structure (handlers.github)
+    const platforms = ['github', 'gitlab', 'bitbucket'] as const;
+    for (const platform of platforms) {
+      const platformConfig = handlers[platform] as Record<string, unknown> | undefined;
+      if (platformConfig) {
+        return {
+          platform: platform,
           owner: platformConfig['owner'] as string,
           repo: platformConfig['repo'] as string,
           defaultBranch: (platformConfig['default_branch'] as string) || 'main',
@@ -530,8 +560,9 @@ export function loadSpecConfig(
   const faberConfig = loadFaberConfig(root, { allowMissing: true });
 
   if (faberConfig?.artifacts?.specs) {
+    const configPath = faberConfig.artifacts.specs.local_path;
     return {
-      localPath: path.join(root, faberConfig.artifacts.specs.local_path),
+      localPath: path.isAbsolute(configPath) ? configPath : path.join(root, configPath),
     };
   }
 
@@ -562,8 +593,9 @@ export function loadLogConfig(projectRoot?: string): LogConfig {
   const faberConfig = loadFaberConfig(root, { allowMissing: true });
 
   if (faberConfig?.artifacts?.logs) {
+    const configPath = faberConfig.artifacts.logs.local_path;
     return {
-      localPath: path.join(root, faberConfig.artifacts.logs.local_path),
+      localPath: path.isAbsolute(configPath) ? configPath : path.join(root, configPath),
     };
   }
 
@@ -584,8 +616,9 @@ export function loadStateConfig(projectRoot?: string): StateConfig {
   const faberConfig = loadFaberConfig(root, { allowMissing: true });
 
   if (faberConfig?.artifacts?.state) {
+    const configPath = faberConfig.artifacts.state.local_path;
     return {
-      localPath: path.join(root, faberConfig.artifacts.state.local_path),
+      localPath: path.isAbsolute(configPath) ? configPath : path.join(root, configPath),
     };
   }
 
