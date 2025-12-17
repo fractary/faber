@@ -245,6 +245,11 @@ export function loadWorkConfig(
     return result.data;
   }
 
+  // If config is invalid and allowMissing is true, return null
+  if (options?.allowMissing) {
+    return null;
+  }
+
   throw new ConfigValidationError(['Invalid work configuration']);
 }
 
@@ -302,6 +307,11 @@ export function loadRepoConfig(
   const result = RepoConfigSchema.safeParse(config);
   if (result.success) {
     return result.data;
+  }
+
+  // If config is invalid and allowMissing is true, return null
+  if (options?.allowMissing) {
+    return null;
   }
 
   throw new ConfigValidationError(['Invalid repo configuration']);

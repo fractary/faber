@@ -18,7 +18,7 @@
 
     "build:py": "cd sdk/py && python -m build",
     "test:py": "cd sdk/py && pytest",
-    "lint:py": "cd sdk/py && ruff check . || true",
+    "lint:py": "cd sdk/py && ruff check .",
 
     "install:py": "cd sdk/py && pip install -e '.[dev]'",
     "clean": "npm run clean:js && npm run clean:py",

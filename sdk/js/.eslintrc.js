@@ -19,5 +19,20 @@ module.exports = {
     '@typescript-eslint/no-non-null-assertion': 'warn',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'prefer-const': 'error'
-  }
+  },
+  overrides: [
+    {
+      files: ['**/__tests__/**/*', '**/*.test.ts', '**/cli/**/*'],
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off',
+        '@typescript-eslint/no-unsafe-argument': 'off',
+        '@typescript-eslint/no-var-requires': 'off',
+        '@typescript-eslint/require-await': 'off',
+        'no-console': 'off'
+      }
+    }
+  ]
 };

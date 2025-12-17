@@ -11,7 +11,6 @@ from faber.approval.queue import (
     ApprovalRequest,
     ApprovalResponse,
     ApprovalStatus,
-    ApprovalType,
 )
 
 

@@ -184,3 +184,34 @@ def create_initial_state(
         # Messages
         messages=[],
     )
+
+
+def is_phase_completed(state: FaberState, phase: str) -> bool:
+    """Check if a phase has been completed.
+
+    Args:
+        state: Current workflow state
+        phase: Phase name to check
+
+    Returns:
+        True if phase is in completed_phases
+    """
+    return phase in state.get("completed_phases", [])
+
+
+def set_error(state: FaberState, error: str, error_phase: Optional[str] = None) -> FaberState:
+    """Set error information in state.
+
+    Args:
+        state: Current workflow state
+        error: Error message
+        error_phase: Phase where error occurred
+
+    Returns:
+        Updated state with error information
+    """
+    updated = state.copy()
+    updated["error"] = error
+    if error_phase:
+        updated["error_phase"] = error_phase
+    return updated
