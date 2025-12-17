@@ -67,6 +67,9 @@
   ],
   "author": "Fractary Team",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@fractary/forge": "^1.1.1",
     "commander": "^12.0.0",

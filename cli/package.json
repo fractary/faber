@@ -32,6 +32,9 @@
   ],
   "author": "Fractary Team",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@fractary/faber": "*",
     "chalk": "^5.0.0",
