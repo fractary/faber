@@ -176,7 +176,7 @@ class TestWorkflowAPI:
         with pytest.raises(ValueError, match="Invalid status"):
             list_workflows(status="invalid")
 
-    @patch("faber.api.workflow.LogManager")
+    @patch("faber.primitives.logs.manager.LogManager")
     def test_list_workflows_returns_workflow_summaries(self, mock_log_manager):
         """Test that list_workflows returns list of WorkflowSummary."""
         # Mock the log manager
@@ -198,7 +198,7 @@ class TestWorkflowAPI:
         assert results[0].status == WorkflowStatus.COMPLETED
         assert results[0].entry_count == 3
 
-    @patch("faber.api.workflow.LogManager")
+    @patch("faber.primitives.logs.manager.LogManager")
     def test_view_workflow_returns_workflow_details(self, mock_log_manager):
         """Test that view_workflow returns workflow details."""
         # Mock the log manager
@@ -226,7 +226,7 @@ class TestWorkflowAPI:
         assert result["status"] == "completed"
         assert len(result["entries"]) == 1
 
-    @patch("faber.api.workflow.LogManager")
+    @patch("faber.primitives.logs.manager.LogManager")
     def test_view_workflow_returns_none_for_missing_workflow(self, mock_log_manager):
         """Test that view_workflow returns None for missing workflow."""
         mock_log_manager.return_value.get_workflow_log.return_value = None

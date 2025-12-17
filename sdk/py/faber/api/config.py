@@ -115,6 +115,10 @@ def load_config(path: Optional[Path] = None) -> dict:
     """
     from faber.workflows.config import load_workflow_config
 
+    # If an explicit path is provided, verify it exists
+    if path is not None and not path.exists():
+        raise ConfigError(f"Configuration not found: {path}")
+
     try:
         config = load_workflow_config(path)
 
