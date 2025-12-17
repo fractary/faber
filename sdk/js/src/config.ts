@@ -218,9 +218,15 @@ export function loadWorkConfig(
   options?: LoadConfigOptions
 ): WorkConfig | null {
   const root = projectRoot || findProjectRoot();
-  const config = loadConfigFile<Record<string, unknown>>(WORK_CONFIG_DIR, root);
+  let config = loadConfigFile<Record<string, unknown>>(WORK_CONFIG_DIR, root);
 
   if (!config) {
+    // Try loading from FABER config as fallback
+    const faberConfig = loadFaberConfig(root, { allowMissing: true });
+    if (faberConfig?.work) {
+      return faberConfig.work;
+    }
+
     if (options?.allowMissing) {
       return null;
     }
@@ -298,9 +304,15 @@ export function loadRepoConfig(
   options?: LoadConfigOptions
 ): RepoConfig | null {
   const root = projectRoot || findProjectRoot();
-  const config = loadConfigFile<Record<string, unknown>>(REPO_CONFIG_DIR, root);
+  let config = loadConfigFile<Record<string, unknown>>(REPO_CONFIG_DIR, root);
 
   if (!config) {
+    // Try loading from FABER config as fallback
+    const faberConfig = loadFaberConfig(root, { allowMissing: true });
+    if (faberConfig?.repo) {
+      return faberConfig.repo;
+    }
+
     if (options?.allowMissing) {
       return null;
     }
@@ -561,6 +573,12 @@ export function loadSpecConfig(
 
   if (faberConfig?.artifacts?.specs) {
     const configPath = faberConfig.artifacts.specs.local_path;
+    // If it's the schema default (/specs), use relative default instead
+    if (configPath === '/specs') {
+      return {
+        localPath: path.join(root, 'specs'),
+      };
+    }
     return {
       localPath: path.isAbsolute(configPath) ? configPath : path.join(root, configPath),
     };
@@ -617,6 +635,12 @@ export function loadStateConfig(projectRoot?: string): StateConfig {
 
   if (faberConfig?.artifacts?.state) {
     const configPath = faberConfig.artifacts.state.local_path;
+    // If it's the schema default (.fractary/plugins/faber), use new default instead
+    if (configPath === '.fractary/plugins/faber') {
+      return {
+        localPath: path.join(root, '.faber', 'state'),
+      };
+    }
     return {
       localPath: path.isAbsolute(configPath) ? configPath : path.join(root, configPath),
     };
