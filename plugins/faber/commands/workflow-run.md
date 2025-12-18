@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:run
+name: fractary-faber:workflow-run
 description: Execute FABER workflow - creates plan and executes it in one step
 argument-hint: '[<target>] [--work-id <id>] [--workflow <id>] [--autonomy <level>] [--phase <phases>]'
 tools: Task, Skill

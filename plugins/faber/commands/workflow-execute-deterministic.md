@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:execute-deterministic
+name: fractary-faber:workflow-execute-deterministic
 description: Execute a FABER plan using the deterministic executor (prototype) - prevents step skipping
 argument-hint: '<plan-id> [--run-id <id>] [--resume-from <n>] [--serialized-input] [--dry-run] [--verbose]'
 tools: Bash

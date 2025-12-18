@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:plan
+name: fractary-faber:workflow-plan
 description: Create a FABER execution plan without executing it
 argument-hint: '[<target>] [--work-id <id>] [--workflow <id>] [--autonomy <level>] [--phase <phases>]'
 tools: Task

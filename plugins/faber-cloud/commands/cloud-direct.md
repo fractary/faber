@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:director
+name: fractary-faber-cloud:cloud-direct
 description: Natural language entry point for fractary-faber-cloud - routes requests to appropriate commands
 model: claude-haiku-4-5
 argument-hint: '"<natural-language-request>"'

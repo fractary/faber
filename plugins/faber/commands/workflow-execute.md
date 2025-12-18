@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:execute
+name: fractary-faber:workflow-execute
 description: Execute a FABER plan created by /fractary-faber:plan, with optional resume support
 argument-hint: '<plan-id> [--serial] [--max-concurrent <n>] [--items <ids>] [--resume]'
 tools: Skill

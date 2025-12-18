@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:archive
+name: fractary-faber:workflow-archive
 description: Archive all FABER workflow artifacts for completed work
 argument-hint: <issue_number> [--skip-specs] [--skip-logs] [--force]
 tools: Bash, Read

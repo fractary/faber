@@ -1,7 +1,7 @@
 /**
  * Workflow commands - FABER workflow execution
  *
- * Provides run, status, resume, pause commands via FaberWorkflow SDK.
+ * Provides workflow-run, workflow-status, workflow-resume, workflow-pause commands via FaberWorkflow SDK.
  */
 
 import { Command } from 'commander';
@@ -10,10 +10,10 @@ import { FaberWorkflow, StateManager } from '@fractary/faber';
 import { parsePositiveInteger } from '../../utils/validation.js';
 
 /**
- * Create the run command
+ * Create the workflow-run command
  */
 export function createRunCommand(): Command {
-  return new Command('run')
+  return new Command('workflow-run')
     .description('Run FABER workflow')
     .requiredOption('--work-id <id>', 'Work item ID to process')
     .option('--autonomy <level>', 'Autonomy level: supervised|assisted|autonomous', 'supervised')
@@ -65,10 +65,10 @@ export function createRunCommand(): Command {
 }
 
 /**
- * Create the status command
+ * Create the workflow-status command
  */
 export function createStatusCommand(): Command {
-  return new Command('status')
+  return new Command('workflow-status')
     .description('Show workflow status')
     .option('--work-id <id>', 'Work item ID to check')
     .option('--workflow-id <id>', 'Workflow ID to check')
@@ -81,7 +81,7 @@ export function createStatusCommand(): Command {
         if (options.workflowId) {
           // Status for specific workflow by ID
           const workflow = new FaberWorkflow();
-          const status = workflow.getStatus(options.workflowId);
+          const status = workflow.status.get(options.workflowId);
 
           if (options.json) {
             console.log(JSON.stringify({ status: 'success', data: status }, null, 2));
@@ -92,7 +92,7 @@ export function createStatusCommand(): Command {
           }
         } else if (options.workId) {
           // Status for work item's active workflow
-          const state = stateManager.getActiveWorkflow(options.workId);
+          const state = stateManager.workflow.getActive(options.workId);
 
           if (!state) {
             if (options.json) {
@@ -128,7 +128,7 @@ export function createStatusCommand(): Command {
           }
         } else {
           // List all workflows
-          const workflows = stateManager.listWorkflows();
+          const workflows = stateManager.workflow.list();
 
           if (options.json) {
             console.log(JSON.stringify({ status: 'success', data: workflows }, null, 2));
@@ -151,10 +151,10 @@ export function createStatusCommand(): Command {
 }
 
 /**
- * Create the resume command
+ * Create the workflow-resume command
  */
 export function createResumeCommand(): Command {
-  return new Command('resume')
+  return new Command('workflow-resume')
     .description('Resume a paused workflow')
     .argument('<workflow_id>', 'Workflow ID to resume')
     .option('--json', 'Output as JSON')
@@ -181,10 +181,10 @@ export function createResumeCommand(): Command {
 }
 
 /**
- * Create the pause command
+ * Create the workflow-pause command
  */
 export function createPauseCommand(): Command {
-  return new Command('pause')
+  return new Command('workflow-pause')
     .description('Pause a running workflow')
     .argument('<workflow_id>', 'Workflow ID to pause')
     .option('--json', 'Output as JSON')
@@ -206,10 +206,10 @@ export function createPauseCommand(): Command {
 }
 
 /**
- * Create the recover command
+ * Create the workflow-recover command
  */
 export function createRecoverCommand(): Command {
-  return new Command('recover')
+  return new Command('workflow-recover')
     .description('Recover a workflow from checkpoint')
     .argument('<workflow_id>', 'Workflow ID to recover')
     .option('--checkpoint <id>', 'Specific checkpoint ID to recover from')
@@ -219,7 +219,7 @@ export function createRecoverCommand(): Command {
       try {
         const stateManager = new StateManager();
 
-        const state = stateManager.recoverWorkflow(workflowId, {
+        const state = stateManager.workflow.recover(workflowId, {
           checkpointId: options.checkpoint,
           fromPhase: options.phase,
         });
@@ -238,10 +238,10 @@ export function createRecoverCommand(): Command {
 }
 
 /**
- * Create the cleanup command
+ * Create the workflow-cleanup command
  */
 export function createCleanupCommand(): Command {
-  return new Command('cleanup')
+  return new Command('workflow-cleanup')
     .description('Clean up old workflow states')
     .option('--max-age <days>', 'Delete workflows older than N days', '30')
     .option('--json', 'Output as JSON')

@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:list
+name: fractary-faber-cloud:cloud-list
 description: List deployed infrastructure resources
 model: claude-haiku-4-5
 examples:

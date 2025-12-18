@@ -8,7 +8,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 
 export function createInitCommand(): Command {
-  return new Command('init')
+  return new Command('workflow-init')
     .description('Initialize a new FABER project')
     .option('--preset <name>', 'Use a preset configuration', 'default')
     .option('--force', 'Overwrite existing configuration')

@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:manage
+name: fractary-faber-cloud:cloud-manage
 description: Unified infrastructure lifecycle management - routes operations to infra-manager agent
 model: claude-haiku-4-5
 argument-hint: <operation> [--env <environment>] [--complete]
