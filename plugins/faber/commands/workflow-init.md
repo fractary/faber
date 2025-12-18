@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:init
+name: fractary-faber:workflow-init
 description: Initialize FABER workflow configuration for a project
 model: claude-haiku-4-5
 ---

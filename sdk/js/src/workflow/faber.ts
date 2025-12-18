@@ -157,9 +157,9 @@ export class FaberWorkflow {
     this.artifacts = [];
 
     // Create or resume workflow state
-    let state = this.stateManager.getActiveWorkflow(workId);
+    let state = this.stateManager.workflow.getActive(workId);
     if (!state) {
-      state = this.stateManager.createWorkflow(workId);
+      state = this.stateManager.workflow.create(workId);
     }
 
     const workflowId = state.workflow_id;
@@ -167,7 +167,7 @@ export class FaberWorkflow {
     this.emit('workflow:start', { workflowId, workId, autonomy });
 
     // Create run manifest
-    const manifest = this.stateManager.createManifest(workflowId, workId);
+    const manifest = this.stateManager.manifest.create(workflowId, workId);
 
     // Build phase context
     const context: PhaseContext = {
@@ -201,7 +201,7 @@ export class FaberWorkflow {
             status: 'skipped',
             duration_ms: 0,
           });
-          this.stateManager.skipPhase(workflowId, phase, 'disabled');
+          this.stateManager.phase.skip(workflowId, phase, 'disabled');
           continue;
         }
 
@@ -221,7 +221,7 @@ export class FaberWorkflow {
         const phaseStartTime = Date.now();
 
         this.emit('phase:start', { workflowId, phase });
-        this.stateManager.startPhase(workflowId, phase);
+        this.stateManager.phase.start(workflowId, phase);
 
         // Execute pre-hook if defined
         await this.runHook(`pre_${phase}` as keyof typeof this.config.hooks);
@@ -235,14 +235,14 @@ export class FaberWorkflow {
         const phaseDuration = Date.now() - phaseStartTime;
 
         if (result.status === 'completed') {
-          this.stateManager.completePhase(workflowId, phase, result.outputs);
+          this.stateManager.phase.complete(workflowId, phase, result.outputs);
           context.previousOutputs[phase] = result.outputs || {};
           this.emit('phase:complete', { workflowId, phase, outputs: result.outputs });
         } else if (result.status === 'failed') {
-          this.stateManager.failPhase(workflowId, phase, result.error || 'Unknown error');
+          this.stateManager.phase.fail(workflowId, phase, result.error || 'Unknown error');
           this.emit('phase:fail', { workflowId, phase, error: result.error });
         } else if (result.status === 'skipped') {
-          this.stateManager.skipPhase(workflowId, phase);
+          this.stateManager.phase.skip(workflowId, phase);
           this.emit('phase:skip', { workflowId, phase });
         }
 
@@ -255,7 +255,7 @@ export class FaberWorkflow {
         });
 
         // Add phase to manifest
-        this.stateManager.addPhaseToManifest(manifest.manifest_id, {
+        this.stateManager.manifest.addPhase(manifest.manifest_id, {
           phase,
           status: result.status,
           duration_ms: phaseDuration,
@@ -270,13 +270,13 @@ export class FaberWorkflow {
         // Handle needs_input status
         if (result.status === 'needs_input') {
           // Pause workflow for user input
-          this.stateManager.pauseWorkflow(workflowId);
+          this.stateManager.workflow.pause(workflowId);
           this.emit('workflow:pause', { workflowId, phase, message: result.message });
           break;
         }
 
         // Update state for next iteration
-        state = this.stateManager.getWorkflow(workflowId)!;
+        state = this.stateManager.workflow.get(workflowId)!;
       }
 
       // Determine final status
@@ -285,11 +285,11 @@ export class FaberWorkflow {
                           phaseResults.every(p => p.status === 'completed' || p.status === 'skipped') ? 'completed' : 'paused';
 
       // Complete manifest
-      this.stateManager.completeManifest(manifest.manifest_id, finalStatus === 'failed' ? 'failed' : 'completed');
+      this.stateManager.manifest.complete(manifest.manifest_id, finalStatus === 'failed' ? 'failed' : 'completed');
 
       // Add artifacts to manifest
       for (const artifact of this.artifacts) {
-        this.stateManager.addArtifactToManifest(manifest.manifest_id, artifact);
+        this.stateManager.manifest.addArtifact(manifest.manifest_id, artifact);
       }
 
       const duration = Date.now() - startTime;
@@ -314,7 +314,7 @@ export class FaberWorkflow {
       const duration = Date.now() - startTime;
 
       this.emit('workflow:fail', { workflowId, error });
-      this.stateManager.completeManifest(manifest.manifest_id, 'failed');
+      this.stateManager.manifest.complete(manifest.manifest_id, 'failed');
 
       return {
         workflow_id: workflowId,
@@ -787,12 +787,12 @@ export class FaberWorkflow {
    * Resume a paused workflow
    */
   async resume(workflowId: string): Promise<WorkflowResult> {
-    const state = this.stateManager.getWorkflow(workflowId);
+    const state = this.stateManager.workflow.get(workflowId);
     if (!state) {
       throw new WorkflowError(`Workflow not found: ${workflowId}`);
     }
 
-    this.stateManager.resumeWorkflow(workflowId);
+    this.stateManager.workflow.resume(workflowId);
 
     return this.run({
       workId: state.work_id,
@@ -804,31 +804,46 @@ export class FaberWorkflow {
    * Pause the current workflow
    */
   pause(workflowId: string): void {
-    this.stateManager.pauseWorkflow(workflowId);
+    this.stateManager.workflow.pause(workflowId);
   }
 
   /**
+   * Status operations
+   */
+  public readonly status = {
+    get: (workflowId: string): {
+      state: Record<string, unknown> | null;
+      currentPhase: string;
+      progress: number;
+    } => {
+      const state = this.stateManager.workflow.get(workflowId);
+      if (!state) {
+        return { state: null, currentPhase: '', progress: 0 };
+      }
+
+      const phases: FaberPhase[] = ['frame', 'architect', 'build', 'evaluate', 'release'];
+      const completedCount = phases.filter(
+        p => state.phase_states[p].status === 'completed' || state.phase_states[p].status === 'skipped'
+      ).length;
+
+      return {
+        state: state as unknown as Record<string, unknown>,
+        currentPhase: state.current_phase,
+        progress: Math.round((completedCount / phases.length) * 100),
+      };
+    }
+  };
+
+  /**
    * Get workflow status
+   * @deprecated Use workflow.status.get() instead. Will be removed in v2.0
    */
   getStatus(workflowId: string): {
     state: Record<string, unknown> | null;
     currentPhase: string;
     progress: number;
   } {
-    const state = this.stateManager.getWorkflow(workflowId);
-    if (!state) {
-      return { state: null, currentPhase: '', progress: 0 };
-    }
-
-    const phases: FaberPhase[] = ['frame', 'architect', 'build', 'evaluate', 'release'];
-    const completedCount = phases.filter(
-      p => state.phase_states[p].status === 'completed' || state.phase_states[p].status === 'skipped'
-    ).length;
-
-    return {
-      state: state as unknown as Record<string, unknown>,
-      currentPhase: state.current_phase,
-      progress: Math.round((completedCount / phases.length) * 100),
-    };
+    console.warn('DEPRECATED: FaberWorkflow.getStatus() is deprecated. Use workflow.status.get() instead.');
+    return this.status.get(workflowId);
   }
 }

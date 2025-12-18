@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:status
+name: fractary-faber-cloud:cloud-status
 description: Check deployment status and configuration
 model: claude-haiku-4-5
 examples:
