@@ -167,9 +167,9 @@ export function createEventTools(backend) {
                 };
             },
         },
-        // Tool 4: fractary_faber_events_consolidate (migrated from consolidate_events)
+        // Tool 4: fractary_faber_event_consolidate (migrated from consolidate_events)
         {
-            name: 'fractary_faber_events_consolidate',
+            name: 'fractary_faber_event_consolidate',
             description: 'Consolidate run events to JSONL format',
             inputSchema: {
                 type: 'object',
