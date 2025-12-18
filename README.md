@@ -316,13 +316,37 @@ Example work configuration:
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Vision](docs/vision/FABER-VISION.md) | Mission, philosophy, and strategic positioning |
-| [SDK Architecture](specs/SPEC-00016-sdk-architecture.md) | Technical architecture overview |
-| [LangGraph Integration](specs/SPEC-00025-langgraph-integration.md) | Graph-based workflow orchestration |
-| [Intelligent Guardrails](specs/SPEC-00028-intelligent-guardrails.md) | Confidence-based autonomy system |
-| [Multi-Workflow Orchestration](specs/SPEC-00027-multi-workflow-orchestration.md) | DAC foundation |
+### Getting Started
+- [Getting Started Guide](docs/public/getting-started.md) - Installation and first steps
+- [Core Concepts](docs/public/concepts.md) - FABER methodology and architecture
+- [Guardrails System](docs/public/guardrails.md) - Three layers of safety
+
+### Guides
+- [API Reference](docs/guides/api-reference.md) - Complete SDK API documentation (TypeScript & Python)
+- [CLI Integration](docs/guides/cli-integration.md) - CLI usage patterns and integration
+- [Configuration](docs/guides/configuration.md) - Complete configuration reference
+- [Troubleshooting](docs/guides/troubleshooting.md) - Common issues and solutions
+
+### Examples
+- [Code Examples](docs/examples/README.md) - Runnable TypeScript and Python examples
+  - Simple Workflow - Basic workflow execution
+  - Work Tracking - Issue and PR automation
+  - Repository Automation - Branch and PR management
+  - And more...
+
+### Component Documentation
+- [CLI Reference](cli/README.md) - Command-line interface
+- [MCP Server](mcp/server/README.md) - Model Context Protocol integration
+- [Python SDK](sdk/py/README.md) - Python SDK guide
+
+### Technical Specifications
+- [SDK Architecture](specs/SPEC-00016-sdk-architecture.md) - Technical architecture overview
+- [LangGraph Integration](specs/SPEC-00025-langgraph-integration.md) - Graph-based workflow orchestration
+- [Intelligent Guardrails](specs/SPEC-00028-intelligent-guardrails.md) - Confidence-based autonomy system
+- [Multi-Workflow Orchestration](specs/SPEC-00027-multi-workflow-orchestration.md) | DAC foundation
+
+### Vision & Strategy
+- [FABER Vision](docs/vision/FABER-VISION.md) - Mission, philosophy, and strategic positioning
 
 ## Type Exports
 

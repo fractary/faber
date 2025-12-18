@@ -1,10 +1,12 @@
 # SPEC-00025: LangGraph Integration Architecture
 
-## Status: Draft
-## Version: 1.1.0
-## Last Updated: 2025-12-12
-
----
+| Field | Value |
+|-------|-------|
+| **Status** | Draft |
+| **Version** | 1.1.0 |
+| **Created** | 2025-12-12 |
+| **Author** | Claude (with human direction) |
+| **Related** | SPEC-00015-faber-orchestrator, SPEC-00016-sdk-architecture, SPEC-00023-faber-sdk |
 
 ## 1. Executive Summary
 
