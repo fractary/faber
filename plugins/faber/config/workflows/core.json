@@ -11,10 +11,7 @@
           "id": "core-fetch-or-create-issue",
           "name": "Fetch or Create Issue",
           "description": "Fetch existing issue or create new one. Reads referenced docs and existing commits.",
-          "prompt": "/fractary-work:issue-fetch",
-          "arguments": {
-            "issue_number": "{work_id}"
-          }
+          "prompt": "/fractary-work:issue-fetch --work-id {work_id}"
         },
         {
           "id": "core-switch-or-create-branch",
