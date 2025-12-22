@@ -11,7 +11,7 @@
           "id": "core-fetch-or-create-issue",
           "name": "Fetch or Create Issue",
           "description": "Fetch existing issue or create new one. Reads referenced docs and existing commits.",
-          "command": "/fractary-work:issue-fetch",
+          "prompt": "/fractary-work:issue-fetch",
           "arguments": {
             "issue_number": "{work_id}"
           }
@@ -20,10 +20,7 @@
           "id": "core-switch-or-create-branch",
           "name": "Switch or Create Branch",
           "description": "Checkout existing branch or create new one linked to issue",
-          "command": "/fractary-repo:branch-create",
-          "arguments": {
-            "work_id": "{work_id}"
-          }
+          "prompt": "/fractary-repo:branch-create --work-id {work_id}"
         }
       ],
       "steps": [],
@@ -46,26 +43,19 @@
           "id": "core-commit-and-push-build",
           "name": "Commit and Push Changes",
           "description": "Ensure all build changes are committed and pushed",
-          "command": "/fractary-repo:commit-and-push",
-          "arguments": {
-            "work_id": "{work_id}"
-          }
+          "prompt": "/fractary-repo:commit-and-push --work-id {work_id}"
         }
       ]
     },
     "evaluate": {
       "enabled": true,
       "description": "Review implementation and create PR",
-      "max_retries": 3,
       "pre_steps": [
         {
           "id": "core-issue-review",
           "name": "Review Issue Implementation",
           "description": "Verify implementation completeness against issue requirements",
-          "command": "/fractary-faber:review",
-          "arguments": {
-            "work_id": "{work_id}"
-          }
+          "prompt": "/fractary-faber:review --work-id {work_id}"
         }
       ],
       "steps": [],
@@ -74,28 +64,19 @@
           "id": "core-commit-and-push-evaluate",
           "name": "Commit and Push Fixes",
           "description": "Ensure evaluation fixes are committed",
-          "command": "/fractary-repo:commit-and-push",
-          "arguments": {
-            "work_id": "{work_id}"
-          }
+          "prompt": "/fractary-repo:commit-and-push --work-id {work_id}"
         },
         {
           "id": "core-create-pr",
           "name": "Create Pull Request",
           "description": "Create PR for the implementation (skips if PR already exists). Links to issue for auto-close on merge.",
-          "command": "/fractary-repo:pr-create",
-          "arguments": {
-            "work_id": "{work_id}"
-          }
+          "prompt": "/fractary-repo:pr-create --work-id {work_id}"
         },
         {
           "id": "core-review-pr-checks",
           "name": "Review PR CI Checks",
           "description": "Wait for and review CI/CD pipeline results",
-          "command": "/fractary-repo:pr-review",
-          "arguments": {
-            "wait_for_ci": true
-          }
+          "prompt": "/fractary-repo:pr-review --wait-for-ci"
         }
       ]
     },
@@ -110,10 +91,7 @@
           "id": "core-merge-pr",
           "name": "Merge Pull Request",
           "description": "Merge the PR and delete branch",
-          "command": "/fractary-repo:pr-merge",
-          "arguments": {
-            "delete_branch": true
-          }
+          "prompt": "/fractary-repo:pr-merge --delete-branch"
         }
       ]
     }

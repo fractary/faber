@@ -164,12 +164,16 @@
         },
         "prompt": {
           "type": "string",
-          "description": "Execution instruction for Claude when no skill/command is present, or to customize skill behavior. Takes precedence over description for execution."
+          "description": "PRIMARY execution instruction. Can be: (1) a slash command (e.g., '/fractary-repo:commit'), (2) freeform text instruction for Claude to execute directly, or (3) a description of what to do. Takes precedence over command and description fields."
+        },
+        "context": {
+          "type": "string",
+          "description": "Optional additional context to provide when executing the prompt. Used to customize or clarify the execution without modifying the prompt itself. Appended to prompt during execution."
         },
         "command": {
           "type": "string",
           "pattern": "^/?[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$",
-          "description": "Command reference in format /plugin:command-name or plugin:command-name. Preferred over skill field - provides deterministic execution via Task tool with hard execution boundaries. Examples: /fractary-spec:generate, /fractary-repo:commit"
+          "description": "DEPRECATED: Use 'prompt' field instead. Command reference in format /plugin:command-name. Will be migrated to prompt field in future versions."
         },
         "skill": {
           "type": "string",
@@ -197,10 +201,10 @@
         },
         {
           "anyOf": [
-            {"required": ["description"]},
             {"required": ["prompt"]},
             {"required": ["command"]},
-            {"required": ["skill"]}
+            {"required": ["skill"]},
+            {"required": ["description"]}
           ]
         }
       ]
