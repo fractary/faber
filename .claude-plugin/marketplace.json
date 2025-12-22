@@ -37,16 +37,10 @@
         ],
         "category": "development",
         "strict": true,
-        "commands": [
-          "./commands/init.md",
-          "./commands/run.md",
-          "./commands/status.md",
-          "./commands/audit.md",
-          "./commands/archive.md",
-          "./commands/debugger.md"
-        ],
+        "commands": "./commands/",
         "agents": [
-          "./agents/faber-manager.md"
+          "./agents/faber-manager.md",
+          "./agents/faber-planner.md"
         ]
       },
       {
