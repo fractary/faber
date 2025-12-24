@@ -1,8 +1,8 @@
 ---
 name: fractary-faber:workflow-run
-description: Execute a FABER workflow with Claude Code as the primary orchestrator
-argument-hint: '<work-id> [--workflow <id>] [--resume <run-id>]'
-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch
+description: Execute a FABER plan created by /fractary-faber:plan with Claude Code as the primary orchestrator
+argument-hint: '<plan-id> [--resume <run-id>]'
+allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
 model: claude-sonnet-4-5
 ---
 
@@ -32,30 +32,30 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 
 **Syntax:**
 ```bash
-/fractary-faber:workflow-run <work-id> [options]
+/fractary-faber:workflow-run <plan-id> [options]
 ```
 
 **Arguments:**
 | Argument | Type | Required | Description |
 |----------|------|----------|-------------|
-| `<work-id>` | string/number | Yes | Work item ID (issue number) to execute |
+| `<plan-id>` | string | Yes | Plan ID created by /fractary-faber:plan |
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--workflow <id>` | string | "default" | Workflow definition ID to use |
 | `--resume <run-id>` | string | none | Resume previous run from where it stopped |
 
 **Examples:**
 ```bash
-# Execute default workflow for issue #123
-/fractary-faber:workflow-run 123
-
-# Execute specific workflow for issue #456
-/fractary-faber:workflow-run 456 --workflow custom-workflow
+# Execute a plan
+/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229
 
 # Resume previous run
-/fractary-faber:workflow-run 123 --resume abc123-def456-789
+/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --resume abc123-def456-789
+
+# Create and execute in one step (use /fractary-faber:run instead)
+# First: /fractary-faber:plan --work-id 123
+# Then: /fractary-faber:workflow-run <returned-plan-id>
 ```
 
 </INPUTS>
@@ -67,13 +67,12 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 ### Step 1.1: Parse Arguments
 
 Extract from user input:
-1. `work_id`: First positional argument (required)
-2. `workflow_id`: Value of `--workflow` flag (default: "default")
-3. `resume_run_id`: Value of `--resume` flag (optional)
+1. `plan_id`: First positional argument (required)
+2. `resume_run_id`: Value of `--resume` flag (optional)
 
 **Validation:**
-- If no `work_id`: Show error and usage
-- `work_id` must be a valid issue number
+- If no `plan_id`: Show error and usage
+- Plan file must exist at `logs/fractary/plugins/faber/plans/{plan_id}.json`
 
 ### Step 1.2: Load Orchestration Protocol
 
@@ -102,7 +101,29 @@ console.log(`Protocol: ${protocolPath}`);
 - Autonomy gates (approval procedures)
 - Error recovery (what to do when things go wrong)
 
-### Step 1.3: Load or Resume Workflow
+### Step 1.3: Load Plan and Initialize or Resume Workflow
+
+**First: Load the plan file**
+
+```javascript
+// Read the plan file created by /fractary-faber:plan
+const planPath = `logs/fractary/plugins/faber/plans/${plan_id}.json`;
+const planContent = await Read({ file_path: planPath });
+const fullPlan = JSON.parse(planContent);
+
+console.log("✓ Plan loaded");
+console.log(`Plan ID: ${fullPlan.id}`);
+console.log(`Workflow: ${fullPlan.workflow.id}`);
+console.log(`Work items: ${fullPlan.items.length}`);
+
+// Extract workflow phases from plan
+const workflow = fullPlan.workflow;
+const workItems = fullPlan.items;
+const autonomy = fullPlan.autonomy || "guarded";
+
+// For single-item plans, extract the work_id
+const work_id = workItems.length === 1 ? workItems[0].work_id : null;
+```
 
 **If resuming (`--resume` provided):**
 
@@ -116,50 +137,47 @@ const state = JSON.parse(await Read({ file_path: statePath }));
 
 console.log("✓ Resuming workflow");
 console.log(`Run ID: ${runId}`);
-console.log(`Workflow: ${state.workflow_name}`);
+console.log(`Plan ID: ${state.plan_id}`);
 console.log(`Current phase: ${state.current_phase}`);
 console.log(`Current step: ${state.current_step}`);
 
-// Load the workflow plan from state
-const plan = state.workflow_plan; // Plan is stored in state for resume
+// Verify plan_id matches
+if (state.plan_id !== plan_id) {
+  console.error(`Error: Plan ID mismatch. State has ${state.plan_id}, provided ${plan_id}`);
+  throw new Error("Plan ID mismatch");
+}
 ```
 
 **If starting new run (`--resume` not provided):**
 
 ```javascript
 // Generate unique run ID
-const runId = `${workflow_id}-${work_id}-${Date.now()}`;
+const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+const runId = `${plan_id}-run-${timestamp}`;
 const statePath = `.fractary/runs/${runId}/state.json`;
 
-// Invoke workflow-plan to resolve and merge workflow definition
-console.log("Resolving workflow definition...");
-
-// Use Read tool to load workflow directly
-const workflowPath = `plugins/faber/config/workflows/${workflow_id}.json`;
-const plan = JSON.parse(await Read({ file_path: workflowPath }));
-
-console.log("✓ Workflow resolved");
-console.log(`Workflow: ${plan.name}`);
-console.log(`Phases: ${plan.phases.map(p => p.name).join(", ")}`);
+console.log("✓ Starting new workflow execution");
+console.log(`Run ID: ${runId}`);
 
 // Initialize state file
 const initialState = {
   run_id: runId,
-  workflow_id: workflow_id,
-  workflow_name: plan.name || workflow_id,
-  workflow_plan: plan, // Store plan for resume capability
+  plan_id: plan_id,
+  workflow_id: workflow.id,
+  workflow_name: workflow.id,
   status: "pending",
   current_phase: null,
   current_step: null,
   work_id: work_id,
+  work_items: workItems,
   branch: null, // Will be set by branch creation step
-  phases: Object.keys(plan.phases).map(phaseName => {
-    const p = plan.phases[phaseName];
+  autonomy: autonomy,
+  phases: Object.keys(workflow.phases).map(phaseName => {
+    const p = workflow.phases[phaseName];
     return {
       name: phaseName,
       status: "pending",
       enabled: p.enabled !== false,
-      autonomy_gate: p.autonomy_gate,
       max_retries: p.max_retries || 0,
       retry_count: 0
     };
@@ -204,10 +222,10 @@ await fractary_faber_event_emit({
   run_id: runId,
   type: "workflow_start",
   metadata: {
-    workflow_id: workflow_id,
-    workflow_name: plan.name,
+    plan_id: plan_id,
+    workflow_id: workflow.id,
     work_id: work_id,
-    branch: state.branch
+    work_items_count: workItems.length
   }
 });
 
@@ -218,16 +236,14 @@ console.log("✓ Event system ready");
 
 ```javascript
 // Flatten all steps from all phases into a single todo list
+// The plan already has flattened steps in workflow.phases[phaseName].steps
 const allSteps = [];
-for (const phaseName of Object.keys(plan.phases)) {
-  const phase = plan.phases[phaseName];
+for (const phaseName of Object.keys(workflow.phases)) {
+  const phase = workflow.phases[phaseName];
   if (phase.enabled === false) continue;
 
-  const phaseSteps = [
-    ...(phase.pre_steps || []),
-    ...(phase.steps || []),
-    ...(phase.post_steps || [])
-  ];
+  // Plan structure already has all steps flattened into phase.steps array
+  const phaseSteps = phase.steps || [];
 
   for (const step of phaseSteps) {
     allSteps.push({

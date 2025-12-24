@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:workflow-review
 description: Review implementation against issue and specification to ensure completeness and quality
-tools: Task
+allowed-tools: Task
 model: claude-opus-4-5
 ---
 

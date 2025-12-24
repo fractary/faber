@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:workflow-build
 description: Execute the Build phase of a FABER workflow to implement a solution from specification
-tools: Task
+allowed-tools: Task
 model: claude-opus-4-5
 ---
 
