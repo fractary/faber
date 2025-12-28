@@ -151,22 +151,22 @@ ELSE:
 ```
 
 ```bash
-# Determine plugin root (where plugin source code lives)
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/fractary}"
+# Determine marketplace root (where all plugin marketplaces live)
+MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}"
 
 # Execute the merge-workflows.sh script
-"${PLUGIN_ROOT}/plugins/faber/skills/faber-config/scripts/merge-workflows.sh" \
+"${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/skills/faber-config/scripts/merge-workflows.sh" \
   "{workflow_id}" \
-  --plugin-root "${PLUGIN_ROOT}" \
+  --marketplace-root "${MARKETPLACE_ROOT}" \
   --project-root "$(pwd)"
 ```
 
 **Example with default workflow:**
 ```bash
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/fractary}"
-"${PLUGIN_ROOT}/plugins/faber/skills/faber-config/scripts/merge-workflows.sh" \
+MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}"
+"${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/skills/faber-config/scripts/merge-workflows.sh" \
   "fractary-faber:default" \
-  --plugin-root "${PLUGIN_ROOT}" \
+  --marketplace-root "${MARKETPLACE_ROOT}" \
   --project-root "$(pwd)"
 ```
 

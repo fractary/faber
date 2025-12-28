@@ -12,23 +12,37 @@
           "name": "Fetch or Create Issue",
           "description": "Fetch existing issue or create new one. Reads referenced docs and existing commits.",
           "prompt": "/fractary-work:issue-fetch --work-id {work_id}"
-        },
+        }, 
         {
-          "id": "core-switch-or-create-branch",
-          "name": "Switch or Create Branch",
-          "description": "Checkout existing branch or create new one linked to issue",
-          "prompt": "/fractary-repo:branch-create --work-id {work_id}"
+          "id": "core-issue-refine",
+          "name": "Refine Issue",
+          "description": "Clarify issue details with user",
+          "prompt": "/fractary-work:issue-clarify --work-id {work_id}"
         }
       ],
       "steps": [],
-      "post_steps": []
+      "post_steps": [
+        {
+          "id": "core-commit-and-push-architect",
+          "name": "Commit and Push Changes",
+          "description": "Ensure all build changes are committed and pushed",
+          "prompt": "/fractary-repo:commit-push"
+        }
+      ]
     },
     "architect": {
       "enabled": true,
       "description": "Design and plan - extend this phase in child workflows",
       "pre_steps": [],
       "steps": [],
-      "post_steps": []
+      "post_steps": [
+        {
+          "id": "core-commit-and-push-architect",
+          "name": "Commit and Push Changes",
+          "description": "Ensure all build changes are committed and pushed",
+          "prompt": "/fractary-repo:commit-push"
+        }
+      ]
     },
     "build": {
       "enabled": true,
@@ -40,7 +54,7 @@
           "id": "core-commit-and-push-build",
           "name": "Commit and Push Changes",
           "description": "Ensure all build changes are committed and pushed",
-          "prompt": "/fractary-repo:commit-and-push --work-id {work_id}"
+          "prompt": "/fractary-repo:commit-push"
         }
       ]
     },
@@ -61,13 +75,13 @@
           "id": "core-commit-and-push-evaluate",
           "name": "Commit and Push Fixes",
           "description": "Ensure evaluation fixes are committed",
-          "prompt": "/fractary-repo:commit-and-push --work-id {work_id}"
+          "prompt": "/fractary-repo:commit-push"
         },
         {
           "id": "core-create-pr",
           "name": "Create Pull Request",
           "description": "Create PR for the implementation (skips if PR already exists). Links to issue for auto-close on merge.",
-          "prompt": "/fractary-repo:pr-create --work-id {work_id}"
+          "prompt": "/fractary-repo:commit-push-pr"
         },
         {
           "id": "core-review-pr-checks",
@@ -88,7 +102,7 @@
           "id": "core-merge-pr",
           "name": "Merge Pull Request",
           "description": "Merge the PR and delete branch",
-          "prompt": "/fractary-repo:pr-merge --delete-branch"
+          "prompt": "/fractary-repo:pr-merge {pr_number} --delete-branch"
         }
       ]
     }

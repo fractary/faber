@@ -1,0 +1,180 @@
+{
+  "id": "fractary-faber-24-create-test-file-20251224T015229",
+  "created": "2025-12-24T01:52:29Z",
+  "created_by": "faber-planner",
+  "metadata": {
+    "org": "fractary",
+    "project": "faber",
+    "subproject": "create-test-file",
+    "year": "2025",
+    "month": "12",
+    "day": "24",
+    "hour": "01",
+    "minute": "52",
+    "second": "29"
+  },
+  "source": {
+    "input": "24",
+    "work_id": "24",
+    "planning_mode": "work_id",
+    "target_match": null,
+    "expanded_from": null
+  },
+  "workflow": {
+    "id": "fractary-faber:default",
+    "resolved_at": "2025-12-24T01:52:29Z",
+    "inheritance_chain": [
+      "fractary-faber:default",
+      "fractary-faber:core"
+    ],
+    "phases": {
+      "frame": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "core-fetch-or-create-issue",
+            "name": "Fetch or Create Issue",
+            "description": "Fetch existing issue or create new one. Reads referenced docs and existing commits.",
+            "prompt": "/fractary-work:issue-fetch --work-id {work_id}",
+            "source": "fractary-faber:core",
+            "position": "pre_step"
+          },
+          {
+            "id": "core-switch-or-create-branch",
+            "name": "Switch or Create Branch",
+            "description": "Checkout existing branch or create new one linked to issue",
+            "prompt": "/fractary-repo:branch-create --work-id {work_id}",
+            "source": "fractary-faber:core",
+            "position": "pre_step"
+          }
+        ]
+      },
+      "architect": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "generate-spec",
+            "name": "Generate Specification",
+            "description": "Create technical specification from issue context",
+            "prompt": "/fractary-spec:create --work-id {work_id}",
+            "source": "fractary-faber:default",
+            "position": "step"
+          },
+          {
+            "id": "refine-spec",
+            "name": "Refine Specification",
+            "description": "Critically review spec and gather clarifications from user",
+            "prompt": "/fractary-spec:refine --work-id {work_id}",
+            "source": "fractary-faber:default",
+            "position": "step"
+          }
+        ]
+      },
+      "build": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "implement",
+            "name": "Implement Solution",
+            "description": "Implement based on specification following project patterns",
+            "prompt": "/fractary-faber:build --work-id {work_id}",
+            "source": "fractary-faber:default",
+            "position": "step"
+          },
+          {
+            "id": "core-commit-and-push-build",
+            "name": "Commit and Push Changes",
+            "description": "Ensure all build changes are committed and pushed",
+            "prompt": "/fractary-repo:commit-and-push --work-id {work_id}",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          }
+        ]
+      },
+      "evaluate": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "core-issue-review",
+            "name": "Review Issue Implementation",
+            "description": "Verify implementation completeness against issue requirements",
+            "prompt": "/fractary-faber:review --work-id {work_id}",
+            "source": "fractary-faber:core",
+            "position": "pre_step"
+          },
+          {
+            "id": "core-commit-and-push-evaluate",
+            "name": "Commit and Push Fixes",
+            "description": "Ensure evaluation fixes are committed",
+            "prompt": "/fractary-repo:commit-and-push --work-id {work_id}",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          },
+          {
+            "id": "core-create-pr",
+            "name": "Create Pull Request",
+            "description": "Create PR for the implementation (skips if PR already exists). Links to issue for auto-close on merge.",
+            "prompt": "/fractary-repo:pr-create --work-id {work_id}",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          },
+          {
+            "id": "core-review-pr-checks",
+            "name": "Review PR CI Checks",
+            "description": "Wait for and review CI/CD pipeline results",
+            "prompt": "/fractary-repo:pr-review --wait-for-ci",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          }
+        ],
+        "max_retries": 3
+      },
+      "release": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "core-merge-pr",
+            "name": "Merge Pull Request",
+            "description": "Merge the PR and delete branch",
+            "prompt": "/fractary-repo:pr-merge --delete-branch",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          }
+        ]
+      }
+    }
+  },
+  "autonomy": "guarded",
+  "phases_to_run": null,
+  "step_to_run": null,
+  "additional_instructions": null,
+  "items": [
+    {
+      "target": "fractary/faber",
+      "work_id": "24",
+      "planning_mode": "work_id",
+      "issue": {
+        "number": 24,
+        "title": "create simple test file",
+        "url": "https://github.com/fractary/faber/issues/24",
+        "state": "OPEN",
+        "labels": []
+      },
+      "target_context": null,
+      "branch": {
+        "name": "feat/24-create-simple-test-file",
+        "status": "new",
+        "resume_from": null
+      },
+      "worktree": "../faber-wt-feat-24-create-simple-test-file"
+    }
+  ],
+  "execution": {
+    "mode": "parallel",
+    "max_concurrent": 5,
+    "status": "pending",
+    "started_at": null,
+    "completed_at": null,
+    "results": []
+  }
+}

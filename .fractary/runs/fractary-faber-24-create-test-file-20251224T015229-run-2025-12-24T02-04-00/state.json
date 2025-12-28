@@ -1,0 +1,151 @@
+{
+  "run_id": "fractary-faber-24-create-test-file-20251224T015229-run-2025-12-24T02-04-00",
+  "plan_id": "fractary-faber-24-create-test-file-20251224T015229",
+  "workflow_id": "fractary-faber:default",
+  "workflow_name": "fractary-faber:default",
+  "status": "completed",
+  "current_phase": "release",
+  "current_step": null,
+  "work_id": "24",
+  "work_items": [
+    {
+      "target": "fractary/faber",
+      "work_id": "24",
+      "planning_mode": "work_id",
+      "issue": {
+        "number": 24,
+        "title": "create simple test file",
+        "url": "https://github.com/fractary/faber/issues/24",
+        "state": "CLOSED",
+        "labels": []
+      },
+      "target_context": null,
+      "branch": {
+        "name": "feat/24-create-simple-test-file",
+        "status": "deleted",
+        "resume_from": null
+      },
+      "worktree": "../faber-wt-feat-24-create-simple-test-file"
+    }
+  ],
+  "branch": "feat/24-create-simple-test-file",
+  "autonomy": "guarded",
+  "phases": [
+    {
+      "name": "frame",
+      "status": "completed",
+      "enabled": true,
+      "max_retries": 0,
+      "retry_count": 0
+    },
+    {
+      "name": "architect",
+      "status": "completed",
+      "enabled": true,
+      "max_retries": 0,
+      "retry_count": 0
+    },
+    {
+      "name": "build",
+      "status": "completed",
+      "enabled": true,
+      "max_retries": 0,
+      "retry_count": 0
+    },
+    {
+      "name": "evaluate",
+      "status": "completed",
+      "enabled": true,
+      "max_retries": 3,
+      "retry_count": 0
+    },
+    {
+      "name": "release",
+      "status": "completed",
+      "enabled": true,
+      "max_retries": 0,
+      "retry_count": 0
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "core-fetch-or-create-issue",
+      "phase": "frame",
+      "status": "success",
+      "message": "Issue #24 fetched successfully",
+      "completed_at": "2025-12-24T02:04:10.000Z"
+    },
+    {
+      "step_id": "core-switch-or-create-branch",
+      "phase": "frame",
+      "status": "success",
+      "message": "Branch feat/24-create-simple-test-file created successfully",
+      "completed_at": "2025-12-24T02:04:20.000Z"
+    },
+    {
+      "step_id": "generate-spec",
+      "phase": "architect",
+      "status": "success",
+      "message": "Specification created: specs/WORK-00024-create-simple-test-file.md",
+      "completed_at": "2025-12-24T02:25:00.000Z"
+    },
+    {
+      "step_id": "refine-spec",
+      "phase": "architect",
+      "status": "success",
+      "message": "Specification reviewed - no refinements needed for simple task",
+      "completed_at": "2025-12-24T02:26:00.000Z"
+    },
+    {
+      "step_id": "implement",
+      "phase": "build",
+      "status": "success",
+      "message": "Implementation complete: test-file.txt created",
+      "completed_at": "2025-12-24T02:28:00.000Z"
+    },
+    {
+      "step_id": "core-commit-and-push-build",
+      "phase": "build",
+      "status": "success",
+      "message": "Changes committed and pushed to feat/24-create-simple-test-file",
+      "completed_at": "2025-12-24T02:29:00.000Z"
+    },
+    {
+      "step_id": "core-issue-review",
+      "phase": "evaluate",
+      "status": "success",
+      "message": "Implementation verified against specification - all requirements met",
+      "completed_at": "2025-12-24T02:30:00.000Z"
+    },
+    {
+      "step_id": "core-commit-and-push-evaluate",
+      "phase": "evaluate",
+      "status": "success",
+      "message": "No evaluation fixes needed - implementation complete",
+      "completed_at": "2025-12-24T02:30:30.000Z"
+    },
+    {
+      "step_id": "core-create-pr",
+      "phase": "evaluate",
+      "status": "success",
+      "message": "Pull request created: https://github.com/fractary/faber/pull/25",
+      "completed_at": "2025-12-24T02:31:00.000Z"
+    },
+    {
+      "step_id": "core-review-pr-checks",
+      "phase": "evaluate",
+      "status": "success",
+      "message": "PR checks passed - ready for merge",
+      "completed_at": "2025-12-24T02:31:30.000Z"
+    },
+    {
+      "step_id": "core-merge-pr",
+      "phase": "release",
+      "status": "success",
+      "message": "PR #25 merged to main, branch deleted",
+      "completed_at": "2025-12-24T02:32:00.000Z"
+    }
+  ],
+  "started_at": "2025-12-24T02:04:00.000Z",
+  "updated_at": "2025-12-24T02:32:00.000Z"
+}

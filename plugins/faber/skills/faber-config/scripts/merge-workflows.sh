@@ -4,12 +4,13 @@
 # This script performs the critical workflow merge operation deterministically,
 # removing LLM variability from this critical path.
 #
-# Usage: merge-workflows.sh <workflow_id> [--plugin-root <path>] [--project-root <path>]
+# Usage: merge-workflows.sh <workflow_id> [--marketplace-root <path>] [--project-root <path>]
 #
 # Arguments:
-#   workflow_id    - ID of workflow to resolve (e.g., "fractary-faber:default", "project:my-workflow")
-#   --plugin-root  - Plugin installation root (default: ~/.claude/plugins/marketplaces/fractary)
-#   --project-root - Project root directory (default: current working directory)
+#   workflow_id         - ID of workflow to resolve (e.g., "fractary-faber:default", "project:my-workflow")
+#   --marketplace-root  - Marketplace root directory (default: ~/.claude/plugins/marketplaces)
+#   --plugin-root       - Deprecated: use --marketplace-root (backward compatibility)
+#   --project-root      - Project root directory (default: current working directory)
 #
 # Output: JSON with merged workflow and inheritance chain
 #
@@ -24,15 +25,20 @@
 set -e
 
 # Default paths
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/fractary}"
+MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}"
 PROJECT_ROOT="$(pwd)"
 
 # Parse arguments
 WORKFLOW_ID=""
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --marketplace-root)
+            MARKETPLACE_ROOT="$2"
+            shift 2
+            ;;
         --plugin-root)
-            PLUGIN_ROOT="$2"
+            # Backward compatibility: treat as marketplace root
+            MARKETPLACE_ROOT="$2"
             shift 2
             ;;
         --project-root)
@@ -68,20 +74,29 @@ resolve_workflow_path() {
         workflow_name="$workflow_id"
     fi
 
-    # Map namespace to path
+    # Map namespace to marketplace-aware path
     case "$namespace" in
         "fractary-faber")
-            echo "${PLUGIN_ROOT}/plugins/faber/config/workflows/${workflow_name}.json"
+            echo "${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/config/workflows/${workflow_name}.json"
             ;;
         "fractary-faber-cloud")
-            echo "${PLUGIN_ROOT}/plugins/faber-cloud/config/workflows/${workflow_name}.json"
+            echo "${MARKETPLACE_ROOT}/fractary-faber/plugins/faber-cloud/config/workflows/${workflow_name}.json"
+            ;;
+        "fractary-core")
+            # Extract plugin name from workflow_name if it contains slash
+            local plugin="${workflow_name%%/*}"
+            local workflow="${workflow_name##*/}"
+            echo "${MARKETPLACE_ROOT}/fractary-core/plugins/${plugin}/config/workflows/${workflow}.json"
+            ;;
+        "fractary-codex")
+            echo "${MARKETPLACE_ROOT}/fractary-codex/plugins/codex/config/workflows/${workflow_name}.json"
             ;;
         "project"|"")
             echo "${PROJECT_ROOT}/.fractary/plugins/faber/workflows/${workflow_name}.json"
             ;;
         *)
-            echo '{"status": "failure", "message": "Invalid namespace: '"$namespace"'", "errors": ["Unknown namespace: '"$namespace"'"]}' >&2
-            exit 2
+            # Fallback to old unified marketplace for backward compatibility
+            echo "${MARKETPLACE_ROOT}/fractary/plugins/${namespace#fractary-}/config/workflows/${workflow_name}.json"
             ;;
     esac
 }
@@ -99,7 +114,7 @@ load_workflow() {
         # Fallback logic: if no explicit namespace was provided (no colon in workflow_id),
         # try the plugin's default workflow location before failing
         if [[ "$workflow_id" != *":"* ]]; then
-            local fallback_path="${PLUGIN_ROOT}/plugins/faber/config/workflows/${workflow_id}.json"
+            local fallback_path="${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/config/workflows/${workflow_id}.json"
             if [[ -f "$fallback_path" ]]; then
                 # Found in plugin defaults - use this path
                 path="$fallback_path"
