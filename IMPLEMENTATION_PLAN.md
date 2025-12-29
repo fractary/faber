@@ -405,9 +405,11 @@ class StateManager {
 
 ### 4.2 fractary-faber-cloud Plugin (13 renames)
 
+**⚠️ SUPERSEDED**: This section documented adding the `cloud-` prefix, which has been **reversed** as of v2.3.1+. The `cloud-` prefix was deemed redundant since the plugin namespace already provides context. All commands now use simple names without the prefix (e.g., `init`, `architect`, `engineer`).
+
 **Base Path**: `/plugins/faber-cloud/`
 
-**Renames Required**:
+**Renames Required (REVERSED IN v2.3.1+)**:
 | Old File | New File | Old Name | New Name |
 |----------|----------|----------|----------|
 | `init.md` | `cloud-init.md` | `fractary-faber-cloud:init` | `fractary-faber-cloud:cloud-init` |

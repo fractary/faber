@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:cloud-test
+name: fractary-faber-cloud:test
 description: Run security scans and cost estimates on infrastructure
 model: claude-haiku-4-5
 examples:
