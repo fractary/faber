@@ -108,6 +108,16 @@ If tests fail:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `test-changes` operation.
+This command immediately invokes the dedicated **test-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=test-changes, environment from --env parameter (defaults to test), and phase from --phase parameter (defaults to pre-deployment)
+**Execution Pattern:**
+
+```
+Parse Arguments (--env, --phase)
+    ↓
+Invoke test-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The test-agent handles security scans, cost estimates, compliance checks, and testing.

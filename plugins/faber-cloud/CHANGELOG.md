@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2025-12-29
+
+### BREAKING CHANGES
+
+- **Architecture Migration:** Migrated from manager/director architecture to command-agent architecture
+- **Removed Agents:** cloud-director and infra-manager agents removed
+- **New Pattern:** Each command now invokes its own dedicated agent via Task tool
+- **Workflow Updates:** Custom workflows must update agent references from `skill:` to `agent:`
+
+### Added
+
+- 15 dedicated command-specific agents for reliable execution
+- Improved architecture: one command = one agent
+- Better maintainability and debuggability
+- Task tool invocation pattern ensures deterministic agent execution
+
+### Changed
+
+- All commands updated to use Task tool for agent invocation
+- Workflow JSON files updated with agent references
+- Plugin configuration now uses directory-based agent discovery
+
+### Deprecated
+
+- cloud-director agent (replaced by direct-agent)
+- infra-manager agent (replaced by dedicated command agents)
+- 10 workflow skills (converted to agents)
+
+### Migration Guide
+
+#### For Custom Workflows
+
+If you have custom FABER workflows that reference faber-cloud skills:
+
+**OLD (v2.x):**
+```json
+{
+  "skill": "fractary-faber-cloud:infra-architect"
+}
+```
+
+**NEW (v3.0):**
+```json
+{
+  "agent": "@agent-fractary-faber-cloud:architect-agent"
+}
+```
+
+**Skill → Agent Mapping:**
+- `infra-adopt` → `adopt-agent`
+- `infra-architect` → `architect-agent`
+- `infra-auditor` → `audit-agent`
+- `infra-debugger` → `debug-agent`
+- `infra-deployer` → `deploy-apply-agent`
+- `infra-engineer` → `engineer-agent`
+- `infra-planner` → `deploy-plan-agent`
+- `infra-tester` → `test-agent`
+- `infra-teardown` → `teardown-agent`
+- `infra-validator` → `validate-agent`
+
+#### For End Users
+
+**No action required!** All slash commands work exactly as before:
+
+```bash
+/fractary-faber-cloud:architect "S3 bucket"
+/fractary-faber-cloud:deploy-apply --env test
+/fractary-faber-cloud:audit --env prod
+```
+
+The migration is transparent to command users.
+
+---
+
+## [Unreleased - Pre-v3.0]
+
 ### Changed
 
 - **BREAKING**: Revised command names for clarity and Terraform alignment

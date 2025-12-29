@@ -426,6 +426,16 @@ Before running adopt:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `adopt` operation.
+This command immediately invokes the dedicated **adopt-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=adopt, project-root from --project-root parameter (defaults to current directory), and dry-run from --dry-run parameter (defaults to false)
+**Execution Pattern:**
+
+```
+Parse Arguments (--project-root, --dry-run)
+    ↓
+Invoke adopt-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The adopt-agent handles infrastructure discovery, configuration generation, and migration reporting.

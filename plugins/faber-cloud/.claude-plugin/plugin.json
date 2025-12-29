@@ -1,11 +1,8 @@
 {
   "name": "fractary-faber-cloud",
-  "version": "2.3.0",
+  "version": "3.0.0",
   "description": "Infrastructure lifecycle management for Claude Code - architect, engineer, test, and deploy cloud infrastructure (FABER workflow). Includes audit for non-destructive observability. For operations monitoring, use fractary-helm-cloud.",
   "commands": "./commands/",
-  "agents": [
-    "./agents/cloud-director.md",
-    "./agents/infra-manager.md"
-  ],
+  "agents": "./agents/",
   "skills": "./skills/"
 }

@@ -107,6 +107,16 @@ Based on status:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `check-status` operation.
+This command immediately invokes the dedicated **status-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=check-status and environment from --env parameter (optional)
+**Execution Pattern:**
+
+```
+Parse Arguments (no arguments)
+    ↓
+Invoke status-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The status-agent handles configuration status reporting and returns the current configuration state.

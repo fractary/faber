@@ -195,6 +195,16 @@ After audit:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `audit` operation.
+This command immediately invokes the dedicated **audit-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=audit, environment from --env parameter (defaults to test), and check-type from --check parameter (defaults to config-valid)
+**Execution Pattern:**
+
+```
+Parse Arguments (--env, --check)
+    ↓
+Invoke audit-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The audit-agent handles all non-destructive infrastructure audits and returns the audit report.

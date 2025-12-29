@@ -1,6 +1,6 @@
 # Fractary faber-cloud Plugin
 
-**Version:** 2.3.1
+**Version:** 3.0.0
 
 Comprehensive cloud infrastructure lifecycle management plugin for Claude Code.
 
@@ -394,81 +394,62 @@ Initialize plugin configuration:
 /fractary-faber-cloud:init --provider=aws --iac=terraform --env=test
 ```
 
-## Architecture
+## Architecture (v3.0)
 
-### Component Hierarchy
+faber-cloud uses a distributed command-agent architecture where each command invokes a dedicated agent via the Task tool.
+
+### Command → Agent Pattern
+
+Each command invokes a dedicated agent via the Task tool:
 
 ```
-Natural Language
-  ↓
-devops-director (intent parsing & routing)
-  ↓
-┌─────────────────────┬─────────────────────┐
-│  infra-manager      │  ops-manager        │
-│  (infrastructure)   │  (operations)       │
-└─────────────────────┴─────────────────────┘
-  ↓                     ↓
-Skills (execution)    Skills (execution)
-  ↓                     ↓
-Handlers (providers)  Handlers (CloudWatch)
+/fractary-faber-cloud:architect
+    ↓ (Task tool)
+architect-agent.md (opus-4-5)
+    ↓ (Skill tool)
+Skills: cloud-common, handlers
 ```
 
-### Agents
+### 15 Dedicated Agents
 
-**devops-director:**
-- Natural language router
-- Parses intent (infrastructure vs operations)
-- Routes to infra-manager or ops-manager
+- **adopt-agent** - Discover and adopt existing infrastructure
+- **architect-agent** - Design infrastructure solutions
+- **audit-agent** - Non-destructive infrastructure audits
+- **debug-agent** - Diagnose and fix errors
+- **deploy-apply-agent** - Execute deployments
+- **deploy-plan-agent** - Generate deployment plans
+- **direct-agent** - Natural language routing
+- **engineer-agent** - Generate Infrastructure-as-Code
+- **init-agent** - Initialize plugin configuration
+- **list-agent** - List deployed resources
+- **manage-agent** - FABER workflow orchestration
+- **status-agent** - Show configuration status
+- **teardown-agent** - Safe infrastructure destruction
+- **test-agent** - Security scans, cost estimates, testing
+- **validate-agent** - Validate terraform configuration
 
-**infra-manager:**
-- Infrastructure lifecycle orchestration
-- Workflow: architect → engineer → validate → test → audit → deploy-plan → deploy-apply
-- Delegates to infrastructure skills
+### 4 Utility Skills
 
-**ops-manager:**
-- Runtime operations orchestration
-- Workflow: monitor → investigate → respond → audit
-- Delegates to operations skills
+Shared utilities invoked by agents:
 
-### Skills
+- **cloud-common** - Config loading, hooks, pattern substitution
+- **handler-hosting-aws** - AWS CLI operations, CloudWatch
+- **handler-iac-terraform** - Terraform init/plan/apply/destroy
+- **infra-permission-manager** - Auto-generate IAM policies
 
-**Infrastructure Skills (Phase 1):**
-- infra-architect: Design solutions
-- infra-engineer: Generate Terraform code
-- infra-validator: Validate configurations
-- infra-previewer: Generate deployment plans
-- infra-deployer: Execute deployments
-- infra-permission-manager: Manage IAM permissions
+### FABER Workflow Integration
 
-**Testing & Debugging Skills (Phase 2):**
-- infra-tester: Security scans, cost estimation, verification
-- infra-debugger: Error analysis and solution matching
+Workflows reference agents directly:
 
-**Operations Skills (Phase 3):**
-- ops-monitor: Health checks and metrics
-- ops-investigator: Log analysis and incident investigation
-- ops-responder: Incident remediation
-- ops-auditor: Cost, security, compliance auditing
-
-**Handler Skills:**
-- handler-hosting-aws: AWS operations (deploy, verify, CloudWatch)
-- handler-iac-terraform: Terraform operations (init, plan, apply)
-
-### Data Flows
-
-**Resource Tracking:**
-```
-Deploy → Update Registry → Generate DEPLOYED.md → Console URLs
-```
-
-**Error Learning:**
-```
-Error → Categorize → Search Issue Log → Propose Solution → Log Outcome
-```
-
-**Health Monitoring:**
-```
-Check Status → Query CloudWatch → Analyze Metrics → Report Health
+```json
+{
+  "steps": [
+    {
+      "name": "design",
+      "agent": "@agent-fractary-faber-cloud:architect-agent"
+    }
+  ]
+}
 ```
 
 ## Hook System

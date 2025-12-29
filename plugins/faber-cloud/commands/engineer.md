@@ -94,6 +94,16 @@ After generating code, you should:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `engineer` operation.
+This command immediately invokes the dedicated **engineer-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=engineer and instructions
+**Execution Pattern:**
+
+```
+Parse Arguments
+    ↓
+Invoke engineer-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The engineer-agent handles all IaC code generation and returns the generated code location.

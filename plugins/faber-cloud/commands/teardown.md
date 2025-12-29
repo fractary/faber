@@ -102,8 +102,18 @@ If destruction fails:
 - Suggests resolution steps
 - Does NOT continue if critical resources remain
 
-## Agent Invocation
+## Invocation
 
-This command invokes the infra-manager agent with operation="teardown".
+This command immediately invokes the dedicated **teardown-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=teardown and environment from --env parameter
+**Execution Pattern:**
+
+```
+Parse Arguments (--env, --backup, --confirm)
+    ↓
+Invoke teardown-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The teardown-agent handles safe infrastructure destruction with backup and verification.

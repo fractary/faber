@@ -46,7 +46,7 @@
         {
           "name": "estimate-savings",
           "description": "Estimate cost savings from teardown",
-          "skill": "fractary-faber-cloud:infra-tester",
+          "agent": "@agent-fractary-faber-cloud:test-agent",
           "config": {
             "test_type": "cost-estimation",
             "calculate_savings": true
@@ -62,7 +62,7 @@
         {
           "name": "generate-destroy-plan",
           "description": "Generate Terraform destroy plan",
-          "skill": "fractary-faber-cloud:infra-planner",
+          "agent": "@agent-fractary-faber-cloud:deploy-plan-agent",
           "config": {
             "operation": "destroy",
             "save_plan": true
@@ -104,7 +104,7 @@
         {
           "name": "final-safety-check",
           "description": "Final safety check before destruction",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "pre-teardown",
             "check_protected_resources": true
@@ -126,7 +126,7 @@
         {
           "name": "execute-teardown",
           "description": "Execute infrastructure destruction (terraform destroy)",
-          "skill": "fractary-faber-cloud:infra-teardown",
+          "agent": "@agent-fractary-faber-cloud:teardown-agent",
           "config": {
             "require_confirmation": true,
             "backup_state": true,
@@ -136,7 +136,7 @@
         {
           "name": "verify-destruction",
           "description": "Verify all resources destroyed successfully",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "post-teardown",
             "check_resource_existence": true

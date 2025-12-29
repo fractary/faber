@@ -109,6 +109,16 @@ After reviewing plan:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `deploy-plan` operation.
+This command immediately invokes the dedicated **deploy-plan-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=deploy-plan and environment from --env parameter
+**Execution Pattern:**
+
+```
+Parse Arguments (--env)
+    ↓
+Invoke deploy-plan-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The deploy-plan-agent handles terraform plan execution and returns the deployment preview.
