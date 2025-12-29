@@ -213,9 +213,9 @@
     "post_evaluate": [],
     "pre_release": [
       {
-        "type": "skill",
+        "type": "agent",
         "name": "final-security-check",
-        "skill": "infra-tester",
+        "agent": "@agent-fractary-faber-cloud:test-agent",
         "description": "Final security validation before deployment",
         "config": {
           "test_type": "security",

@@ -187,9 +187,9 @@
     "post_evaluate": [],
     "pre_release": [
       {
-        "type": "skill",
+        "type": "agent",
         "name": "final-environment-verification",
-        "skill": "infra-auditor",
+        "agent": "@agent-fractary-faber-cloud:audit-agent",
         "description": "Final verification that correct environment is targeted",
         "config": {
           "strict_environment_check": true

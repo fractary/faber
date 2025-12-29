@@ -1,6 +1,6 @@
 # Fractary faber-cloud Plugin
 
-**Version:** 3.0.0
+**Version:** 3.0.1
 
 Comprehensive cloud infrastructure lifecycle management plugin for Claude Code.
 
