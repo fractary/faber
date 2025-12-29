@@ -7,7 +7,7 @@
     },
     "metadata": {
       "description": "Production-ready workflow orchestration.",
-      "version": "2.0.5",
+      "version": "2.0.6",
       "pluginRoot": "./plugins"
     },
     "plugins": [
@@ -47,7 +47,7 @@
         "name": "fractary-faber-cloud",
         "source": "./plugins/faber-cloud",
         "description": "Comprehensive infrastructure and operations management for Claude Code - design, deploy, and monitor cloud infrastructure with AI assistance",
-        "version": "2.2.1",
+        "version": "3.0.0",
         "author": {
           "name": "The Fractary",
           "url": "https://github.com/fractary"
@@ -69,15 +69,8 @@
         ],
         "category": "development",
         "strict": true,
-        "commands": [
-          "./commands/init.md",
-          "./commands/director.md",
-          "./commands/manage.md"
-        ],
-        "agents": [
-          "./agents/cloud-director.md",
-          "./agents/infra-manager.md"
-        ]
+        "commands": "./commands/",
+        "agents": "./agents/"
       },
       {
         "name": "fractary-faber-article",
