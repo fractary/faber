@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:cloud-teardown
+name: fractary-faber-cloud:teardown
 description: Teardown deployed infrastructure (terraform destroy)
 model: claude-haiku-4-5
 examples:

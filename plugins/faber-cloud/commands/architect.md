@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:cloud-architect
+name: fractary-faber-cloud:architect
 description: Design cloud infrastructure architecture from requirements
 model: claude-haiku-4-5
 examples:

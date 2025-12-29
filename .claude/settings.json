@@ -27,7 +27,10 @@
     "fractary-work@fractary-core": true,
     "fractary-docs@fractary-core": true,
     "fractary-spec@fractary-core": true,
-    "fractary-faber@fractary-faber": true
+    "fractary-logs@fractary-core": true,
+    "fractary-file@fractary-core": true,
+    "fractary-faber@fractary-faber": true, 
+    "fractary-faber-cloud@fractary-faber": true
   },
   "permissions": {
     "bash": {

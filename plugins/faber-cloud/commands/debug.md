@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:cloud-debug
+name: fractary-faber-cloud:debug
 description: Debug deployment errors and permission issues
 model: claude-haiku-4-5
 examples:

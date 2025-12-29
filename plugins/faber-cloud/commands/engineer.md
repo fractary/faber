@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:cloud-engineer
+name: fractary-faber-cloud:engineer
 description: Generate Infrastructure as Code from architecture design, specification, or direct instructions
 model: claude-haiku-4-5
 examples:

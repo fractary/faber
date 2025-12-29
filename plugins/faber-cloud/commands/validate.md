@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-cloud:cloud-validate
+name: fractary-faber-cloud:validate
 description: Validate Terraform configuration syntax and structure
 model: claude-haiku-4-5
 examples:

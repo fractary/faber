@@ -223,23 +223,23 @@ All workflow commands now have a `workflow-` prefix:
 
 ### fractary-faber-cloud Plugin
 
-All cloud commands now have a `cloud-` prefix:
+**UPDATE (v2.3.1+)**: The `cloud-` prefix has been **removed** as redundant since the plugin namespace already provides context. Commands are now simpler and more consistent with other plugins.
 
-| Old Command (Deprecated) | New Command | Status |
-|-------------------------|-------------|--------|
-| `/fractary-faber-cloud:init` | `/fractary-faber-cloud:cloud-init` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:director` | `/fractary-faber-cloud:cloud-direct` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:manage` | `/fractary-faber-cloud:cloud-manage` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:architect` | `/fractary-faber-cloud:cloud-architect` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:engineer` | `/fractary-faber-cloud:cloud-engineer` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:adopt` | `/fractary-faber-cloud:cloud-adopt` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:test` | `/fractary-faber-cloud:cloud-test` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:audit` | `/fractary-faber-cloud:cloud-audit` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:teardown` | `/fractary-faber-cloud:cloud-teardown` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:validate` | `/fractary-faber-cloud:cloud-validate` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:debug` | `/fractary-faber-cloud:cloud-debug` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:status` | `/fractary-faber-cloud:cloud-status` | ✅ Renamed (no alias) |
-| `/fractary-faber-cloud:list` | `/fractary-faber-cloud:cloud-list` | ✅ Renamed (no alias) |
+| Old Command (v2.3.0) | New Command (v2.3.1+) | Status |
+|----------------------|----------------------|--------|
+| `/fractary-faber-cloud:cloud-init` | `/fractary-faber-cloud:init` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-direct` | `/fractary-faber-cloud:direct` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-manage` | `/fractary-faber-cloud:manage` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-architect` | `/fractary-faber-cloud:architect` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-engineer` | `/fractary-faber-cloud:engineer` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-adopt` | `/fractary-faber-cloud:adopt` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-test` | `/fractary-faber-cloud:test` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-audit` | `/fractary-faber-cloud:audit` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-teardown` | `/fractary-faber-cloud:teardown` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-validate` | `/fractary-faber-cloud:validate` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-debug` | `/fractary-faber-cloud:debug` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-status` | `/fractary-faber-cloud:status` | ✅ Renamed (no alias) |
+| `/fractary-faber-cloud:cloud-list` | `/fractary-faber-cloud:list` | ✅ Renamed (no alias) |
 
 **Already Correct** (no changes):
 - `/fractary-faber-cloud:deploy-plan`
