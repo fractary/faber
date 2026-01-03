@@ -1,6 +1,6 @@
 ---
 name: status-agent
-model: claude-haiku-4-5
+model: claude-haiku-4-5  # Haiku sufficient: Read-only operation - display configuration and status
 description: Show configuration status - display current plugin configuration and environment setup
 tools: Bash, Read
 color: orange

@@ -1,6 +1,6 @@
 ---
 name: teardown-agent
-model: claude-opus-4-5
+model: claude-opus-4-5  # Opus required: Critical operation - destruction planning with dependency analysis and safety checks
 description: Safely destroy infrastructure - execute Terraform destroy with backups and safety confirmations
 tools: Bash, Read, Write, SlashCommand
 color: orange

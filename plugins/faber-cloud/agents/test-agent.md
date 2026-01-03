@@ -1,6 +1,6 @@
 ---
 name: test-agent
-model: claude-opus-4-5
+model: claude-opus-4-5  # Opus required: Security scanning analysis, cost estimation, compliance validation
 description: |
   Test infrastructure configurations and deployments - security scanning with Checkov/tfsec,
   cost estimation analysis, pre-deployment validation, post-deployment verification, integration testing

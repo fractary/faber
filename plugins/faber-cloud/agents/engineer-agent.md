@@ -1,6 +1,6 @@
 ---
 name: engineer-agent
-model: claude-opus-4-5
+model: claude-opus-4-5  # Opus required: Infrastructure-as-Code generation, complex Terraform/HCL synthesis
 description: |
   Generate Terraform infrastructure as code - read design documents and implement them as Terraform
   configurations including resources, variables, outputs, and provider configurations. Creates modular,

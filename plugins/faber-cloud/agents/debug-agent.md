@@ -1,6 +1,6 @@
 ---
 name: debug-agent
-model: claude-opus-4-5
+model: claude-opus-4-5  # Opus required: Complex error diagnosis, root cause analysis, multi-layer troubleshooting
 description: Analyze and fix deployment errors - categorize error types and provide remediation steps
 tools: Bash, Read, Write, SlashCommand
 color: orange

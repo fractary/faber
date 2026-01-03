@@ -1,6 +1,6 @@
 ---
 name: deploy-plan-agent
-model: claude-haiku-4-5
+model: claude-haiku-4-5  # Haiku sufficient: Read-only operation - generate Terraform plan output
 description: |
   Preview infrastructure changes - run Terraform plan to show what resources will be created, modified, or
   destroyed. Generate human-readable plan summaries showing resource changes before deployment

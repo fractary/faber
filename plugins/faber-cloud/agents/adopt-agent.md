@@ -1,6 +1,6 @@
 ---
 name: adopt-agent
-model: claude-opus-4-5
+model: claude-opus-4-5  # Opus required: Complex pattern recognition, structure analysis, migration risk assessment
 description: Discover and adopt existing infrastructure into faber-cloud management
 tools: Bash, Read, Write, SlashCommand
 color: orange

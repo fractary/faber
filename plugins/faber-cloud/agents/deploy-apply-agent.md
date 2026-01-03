@@ -1,6 +1,6 @@
 ---
 name: deploy-apply-agent
-model: claude-opus-4-5
+model: claude-opus-4-5  # Opus required: Critical operation - deployment execution with safety validation and rollback planning
 description: |
   Execute infrastructure deployments - run Terraform apply to create/update AWS resources, verify deployment success,
   update resource registry with ARNs and console URLs, generate deployment documentation

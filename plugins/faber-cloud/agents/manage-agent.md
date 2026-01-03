@@ -1,6 +1,6 @@
 ---
 name: manage-agent
-model: claude-opus-4-5
+model: claude-opus-4-5  # Opus required: FABER workflow orchestration, complex multi-phase coordination
 description: FABER workflow orchestration - execute complete infrastructure workflows (Frame→Architect→Build→Evaluate→Release)
 tools: SlashCommand
 color: orange

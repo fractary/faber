@@ -1,6 +1,6 @@
 ---
 name: validate-agent
-model: claude-haiku-4-5
+model: claude-haiku-4-5  # Haiku sufficient: Simple validation - run terraform validate and report syntax errors
 description: |
   Validate infrastructure configuration - run Terraform validate, check syntax, verify resource configurations,
   validate security settings, and ensure compliance with best practices

@@ -1,6 +1,6 @@
 ---
 name: audit-agent
-model: claude-opus-4-5
+model: claude-opus-4-5  # Opus required: Comprehensive security analysis, compliance checking, drift detection
 description: |
   Audit infrastructure status, health, and compliance without modifications - provides observability and drift detection
 tools: Bash, Read, Write, SlashCommand

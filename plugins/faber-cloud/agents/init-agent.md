@@ -1,6 +1,6 @@
 ---
 name: init-agent
-model: claude-haiku-4-5
+model: claude-haiku-4-5  # Haiku sufficient: Configuration setup - file copying and template generation
 description: Initialize plugin configuration - set up faber-cloud for new projects with configuration and workflow templates
 tools: Bash, Read, Write
 color: orange

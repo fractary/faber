@@ -1,6 +1,6 @@
 ---
 name: architect-agent
-model: claude-opus-4-5
+model: claude-opus-4-5  # Opus required: Complex architectural design, multi-constraint optimization, cost-benefit analysis
 description: |
   Design infrastructure solutions - analyze requirements, design cloud architecture, create comprehensive
   design documents with resource specifications, security considerations, cost estimates, and implementation plans

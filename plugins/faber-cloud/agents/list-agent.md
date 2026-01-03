@@ -1,6 +1,6 @@
 ---
 name: list-agent
-model: claude-haiku-4-5
+model: claude-haiku-4-5  # Haiku sufficient: Read-only operation - query and format resource lists
 description: List deployed resources with details - ARNs, configurations, status, and cost
 tools: Bash, Read
 color: orange

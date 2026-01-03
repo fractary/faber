@@ -1,6 +1,6 @@
 ---
 name: direct-agent
-model: claude-haiku-4-5
+model: claude-haiku-4-5  # Haiku sufficient: Simple intent parsing and command routing
 description: Natural language routing - parse user queries and route to appropriate command
 tools: SlashCommand
 color: orange
