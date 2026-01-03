@@ -36,19 +36,19 @@
         {
           "name": "analyze-requirements",
           "description": "Analyze infrastructure requirements and constraints",
-          "skill": "fractary-faber-cloud:infra-architect",
+          "agent": "@agent-fractary-faber-cloud:architect-agent",
           "prompt": "Analyze requirements: review issue details, identify infrastructure components, determine hosting platform (AWS/GCP/Azure)"
         },
         {
           "name": "design-architecture",
           "description": "Design infrastructure architecture and generate design document",
-          "skill": "fractary-faber-cloud:infra-architect",
+          "agent": "@agent-fractary-faber-cloud:architect-agent",
           "prompt": "Design architecture: create infrastructure diagram, define resource hierarchy, plan networking, document security model"
         },
         {
           "name": "estimate-cost",
           "description": "Estimate infrastructure costs",
-          "skill": "fractary-faber-cloud:infra-tester",
+          "agent": "@agent-fractary-faber-cloud:test-agent",
           "config": {
             "test_type": "cost-estimation",
             "include_monthly_estimate": true
@@ -64,13 +64,13 @@
         {
           "name": "generate-iac",
           "description": "Generate Terraform code from architecture design",
-          "skill": "fractary-faber-cloud:infra-engineer",
+          "agent": "@agent-fractary-faber-cloud:engineer-agent",
           "prompt": "Generate Terraform code: translate architecture into IaC, follow naming conventions, implement resource dependencies, add documentation"
         },
         {
           "name": "configure-backend",
           "description": "Configure Terraform backend and state management",
-          "skill": "fractary-faber-cloud:infra-engineer",
+          "agent": "@agent-fractary-faber-cloud:engineer-agent",
           "config": {
             "operation": "configure-backend",
             "enable_state_locking": true
@@ -98,13 +98,13 @@
         {
           "name": "validate-terraform",
           "description": "Validate Terraform configuration syntax and structure",
-          "skill": "fractary-faber-cloud:infra-validator",
+          "agent": "@agent-fractary-faber-cloud:validate-agent",
           "prompt": "Run terraform validate, check syntax, verify module references, validate variable definitions"
         },
         {
           "name": "security-scan",
           "description": "Run security scans (checkov, tfsec, terrascan)",
-          "skill": "fractary-faber-cloud:infra-tester",
+          "agent": "@agent-fractary-faber-cloud:test-agent",
           "config": {
             "test_type": "security",
             "tools": ["checkov", "tfsec"],
@@ -114,7 +114,7 @@
         {
           "name": "compliance-check",
           "description": "Check compliance with organizational policies",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "compliance",
             "policies": ["naming", "tagging", "networking"]
@@ -123,7 +123,7 @@
         {
           "name": "cost-review",
           "description": "Review estimated infrastructure costs",
-          "skill": "fractary-faber-cloud:infra-tester",
+          "agent": "@agent-fractary-faber-cloud:test-agent",
           "config": {
             "test_type": "cost-estimation",
             "compare_with_budget": true
@@ -146,7 +146,7 @@
         {
           "name": "generate-plan",
           "description": "Generate Terraform deployment plan",
-          "skill": "fractary-faber-cloud:infra-planner",
+          "agent": "@agent-fractary-faber-cloud:deploy-plan-agent",
           "prompt": "Run terraform plan, capture resource changes, identify potential risks, estimate deployment time"
         },
         {
@@ -157,7 +157,7 @@
         {
           "name": "deploy-infrastructure",
           "description": "Apply infrastructure changes (terraform apply)",
-          "skill": "fractary-faber-cloud:infra-deployer",
+          "agent": "@agent-fractary-faber-cloud:deploy-apply-agent",
           "config": {
             "require_plan_approval": true,
             "auto_approve": false,
@@ -167,7 +167,7 @@
         {
           "name": "verify-deployment",
           "description": "Verify infrastructure deployed successfully",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "health",
             "check_connectivity": true
@@ -213,9 +213,9 @@
     "post_evaluate": [],
     "pre_release": [
       {
-        "type": "skill",
+        "type": "agent",
         "name": "final-security-check",
-        "skill": "infra-tester",
+        "agent": "@agent-fractary-faber-cloud:test-agent",
         "description": "Final security validation before deployment",
         "config": {
           "test_type": "security",

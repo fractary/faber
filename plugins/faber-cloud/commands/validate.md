@@ -84,6 +84,16 @@ After validation passes:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `validate-config` operation.
+This command immediately invokes the dedicated **validate-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=validate-config and environment from --env parameter (defaults to test)
+**Execution Pattern:**
+
+```
+Parse Arguments (--env)
+    ↓
+Invoke validate-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The validate-agent handles Terraform configuration validation and returns validation results.

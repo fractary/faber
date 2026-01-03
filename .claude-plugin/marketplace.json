@@ -7,7 +7,7 @@
     },
     "metadata": {
       "description": "Production-ready workflow orchestration.",
-      "version": "2.0.5",
+      "version": "2.0.7",
       "pluginRoot": "./plugins"
     },
     "plugins": [
@@ -47,7 +47,7 @@
         "name": "fractary-faber-cloud",
         "source": "./plugins/faber-cloud",
         "description": "Comprehensive infrastructure and operations management for Claude Code - design, deploy, and monitor cloud infrastructure with AI assistance",
-        "version": "2.2.1",
+        "version": "3.0.1",
         "author": {
           "name": "The Fractary",
           "url": "https://github.com/fractary"
@@ -70,13 +70,38 @@
         "category": "development",
         "strict": true,
         "commands": [
+          "./commands/adopt.md",
+          "./commands/architect.md",
+          "./commands/audit.md",
+          "./commands/debug.md",
+          "./commands/deploy-apply.md",
+          "./commands/deploy-plan.md",
+          "./commands/direct.md",
+          "./commands/engineer.md",
           "./commands/init.md",
-          "./commands/director.md",
-          "./commands/manage.md"
+          "./commands/list.md",
+          "./commands/manage.md",
+          "./commands/status.md",
+          "./commands/teardown.md",
+          "./commands/test.md",
+          "./commands/validate.md"
         ],
         "agents": [
-          "./agents/cloud-director.md",
-          "./agents/infra-manager.md"
+          "./agents/adopt-agent.md",
+          "./agents/architect-agent.md",
+          "./agents/audit-agent.md",
+          "./agents/debug-agent.md",
+          "./agents/deploy-apply-agent.md",
+          "./agents/deploy-plan-agent.md",
+          "./agents/direct-agent.md",
+          "./agents/engineer-agent.md",
+          "./agents/init-agent.md",
+          "./agents/list-agent.md",
+          "./agents/manage-agent.md",
+          "./agents/status-agent.md",
+          "./agents/teardown-agent.md",
+          "./agents/test-agent.md",
+          "./agents/validate-agent.md"
         ]
       },
       {

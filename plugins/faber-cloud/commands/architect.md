@@ -57,6 +57,16 @@ After designing, you can:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `architect` operation.
+This command immediately invokes the dedicated **architect-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=architect and description from user input
+**Execution Pattern:**
+
+```
+Parse Arguments
+    ↓
+Invoke architect-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The architect-agent handles all design work and returns the design document location.

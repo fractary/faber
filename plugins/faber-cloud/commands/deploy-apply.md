@@ -157,6 +157,16 @@ If deployment fails or causes issues:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `deploy-apply` operation.
+This command immediately invokes the dedicated **deploy-apply-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=deploy-apply and environment from --env parameter
+**Execution Pattern:**
+
+```
+Parse Arguments (--env, --auto-approve)
+    ↓
+Invoke deploy-apply-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The deploy-apply-agent handles all deployment orchestration and returns deployment results.

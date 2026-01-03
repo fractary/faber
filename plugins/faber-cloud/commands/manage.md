@@ -119,6 +119,16 @@ See `.fractary/plugins/faber-cloud/workflows/README.md` for detailed workflow do
 
 ## Invocation
 
-This command routes all operations to the `infra-manager` agent.
+This command immediately invokes the dedicated **manage-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation and parameters from user input
+**Execution Pattern:**
+
+```
+Parse Arguments (work-id, workflow, operation)
+    ↓
+Invoke manage-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The manage-agent handles FABER workflow orchestration and returns workflow execution results.

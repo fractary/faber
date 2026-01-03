@@ -1,6 +1,6 @@
 # Fractary faber-cloud Plugin
 
-**Version:** 2.3.1
+**Version:** 3.0.1
 
 Comprehensive cloud infrastructure lifecycle management plugin for Claude Code.
 
@@ -9,7 +9,112 @@ Focus: Infrastructure architecture, engineering, deployment, and lifecycle manag
 
 ---
 
-## What's New in v2.3.0 (SPEC-00030)
+## What's New in v3.0 - Command-Agent Architecture
+
+**BREAKING CHANGES**: Major architectural migration from centralized manager/director to distributed command-agent pattern
+
+### New Architecture
+
+faber-cloud v3.0 introduces a **command-agent architecture** where each command invokes its own dedicated agent via the Task tool:
+
+```
+Command (lightweight wrapper)
+    ↓ Task tool
+Dedicated Agent (specialized intelligence)
+    ↓ Skill tool
+Shared Utilities (cloud-common, terraform handler, AWS handler)
+```
+
+**Benefits:**
+- ✅ **Maintainability**: Each agent is independent and focused on a single operation
+- ✅ **Reliability**: Task tool invocation ensures deterministic agent execution
+- ✅ **Debuggability**: Clear separation between command, agent, and infrastructure layers
+- ✅ **Scalability**: Easy to add new commands/agents without affecting existing ones
+
+### Migration Guide
+
+**Commands remain identical** - No user action required! All slash commands work exactly as before:
+
+```bash
+/fractary-faber-cloud:architect "S3 bucket with versioning"
+/fractary-faber-cloud:deploy-apply --env test
+/fractary-faber-cloud:audit --env prod
+```
+
+**Custom workflows need updates** - If you have FABER workflows that reference faber-cloud skills:
+
+**OLD (v2.x):**
+```json
+{
+  "skill": "fractary-faber-cloud:infra-architect"
+}
+```
+
+**NEW (v3.0):**
+```json
+{
+  "agent": "@agent-fractary-faber-cloud:architect-agent"
+}
+```
+
+**Complete skill → agent mapping:**
+- `infra-adopt` → `adopt-agent`
+- `infra-architect` → `architect-agent`
+- `infra-auditor` → `audit-agent`
+- `infra-debugger` → `debug-agent`
+- `infra-deployer` → `deploy-apply-agent`
+- `infra-engineer` → `engineer-agent`
+- `infra-planner` → `deploy-plan-agent`
+- `infra-tester` → `test-agent`
+- `infra-teardown` → `teardown-agent`
+- `infra-validator` → `validate-agent`
+
+See [CHANGELOG.md](CHANGELOG.md) for complete migration details and breaking changes.
+
+### 15 Dedicated Agents
+
+Each command now has its own specialized agent:
+
+| Agent | Model | Purpose |
+|-------|-------|---------|
+| adopt-agent | Opus | Discover and adopt existing infrastructure |
+| architect-agent | Opus | Design infrastructure solutions |
+| audit-agent | Opus | Non-destructive infrastructure audits |
+| debug-agent | Opus | Diagnose and fix deployment errors |
+| deploy-apply-agent | Opus | Execute infrastructure deployments |
+| deploy-plan-agent | Haiku | Generate deployment preview plans |
+| direct-agent | Haiku | Natural language intent routing |
+| engineer-agent | Opus | Generate Infrastructure-as-Code |
+| init-agent | Haiku | Initialize plugin configuration |
+| list-agent | Haiku | List deployed cloud resources |
+| manage-agent | Opus | Orchestrate FABER workflows |
+| status-agent | Haiku | Display configuration status |
+| teardown-agent | Opus | Safe infrastructure destruction |
+| test-agent | Opus | Security scans, cost estimation |
+| validate-agent | Haiku | Terraform syntax validation |
+
+**Model Selection:**
+- **Opus-4-5**: Complex reasoning, critical operations, code generation (10 agents)
+- **Haiku-4-5**: Simple tasks, parsing, read-only operations (5 agents)
+
+### Deprecated Components
+
+**Removed in v3.0:**
+- `cloud-director` agent (replaced by `direct-agent`)
+- `infra-manager` agent (replaced by 15 dedicated agents)
+- 10 workflow skills (converted to agents)
+
+**Retained as Shared Utilities:**
+- `cloud-common` - Config loading, hooks, pattern substitution
+- `handler-hosting-aws` - AWS CLI operations
+- `handler-iac-terraform` - Terraform operations
+- `infra-permission-manager` - IAM policy generation
+
+---
+
+## Previous Versions
+
+### What's New in v2.3.0 (SPEC-00030)
 
 **Infrastructure Adoption & Migration**: Comprehensive support for adopting existing infrastructure into faber-cloud
 
@@ -151,7 +256,7 @@ Focus: Infrastructure architecture, engineering, deployment, and lifecycle manag
 
 ## Overview
 
-The Fractary FABER Cloud plugin (v2.0.0) provides infrastructure lifecycle management following the FABER workflow:
+The Fractary FABER Cloud plugin provides infrastructure lifecycle management following the FABER workflow:
 
 - **Frame:** Understand requirements and context
 - **Architect:** Design infrastructure solutions
@@ -196,7 +301,7 @@ The Fractary FABER Cloud plugin (v2.0.0) provides infrastructure lifecycle manag
 - Security and compliance auditing
 
 **Natural Language Interface:**
-- Plain English commands via devops-director
+- Plain English commands via `direct` command
 - Automatic intent parsing and routing
 - Context-aware command mapping
 
@@ -222,7 +327,7 @@ See [Migration from Custom Agents](docs/guides/MIGRATION-FROM-CUSTOM-AGENTS.md) 
 
 ```bash
 # In your project directory
-/fractary-faber-cloud:init --provider=aws --iac=terraform
+/fractary-faber-cloud:init --provider aws --iac terraform
 ```
 
 This creates `.fractary/plugins/faber-cloud/config.json` with your project configuration.
@@ -231,45 +336,45 @@ This creates `.fractary/plugins/faber-cloud/config.json` with your project confi
 
 Using natural language:
 ```bash
-/fractary-faber-cloud:director "deploy my infrastructure to test"
+/fractary-faber-cloud:direct "deploy my infrastructure to test"
 ```
 
 Or direct command:
 ```bash
-/fractary-faber-cloud:infra-manage deploy --env=test
+/fractary-faber-cloud:deploy-apply --env test
 ```
 
 ### 3. Monitor Operations
 
 Check health of deployed services:
 ```bash
-/fractary-faber-cloud:director "check health of my services"
+/fractary-faber-cloud:direct "check health of my services"
 ```
 
 Or direct command:
 ```bash
-/fractary-faber-cloud:ops-manage check-health --env=test
+/fractary-faber-cloud:audit --env test
 ```
 
 ## Commands
 
 ### Natural Language Entry Point
 
-#### /fractary-faber-cloud:director
+#### /fractary-faber-cloud:direct
 
 Route natural language requests to appropriate operations:
 
 ```bash
 # Infrastructure examples
-/fractary-faber-cloud:director "architect an S3 bucket for user uploads"
-/fractary-faber-cloud:director "deploy to production"
-/fractary-faber-cloud:director "validate my terraform configuration"
+/fractary-faber-cloud:direct "architect an S3 bucket for user uploads"
+/fractary-faber-cloud:direct "deploy to production"
+/fractary-faber-cloud:direct "validate my terraform configuration"
 
 # Operations examples
-/fractary-faber-cloud:director "check if production is healthy"
-/fractary-faber-cloud:director "investigate errors in API service"
-/fractary-faber-cloud:director "show me the logs from Lambda"
-/fractary-faber-cloud:director "analyze costs for test environment"
+/fractary-faber-cloud:direct "check if production is healthy"
+/fractary-faber-cloud:direct "investigate errors in API service"
+/fractary-faber-cloud:direct "show me the logs from Lambda"
+/fractary-faber-cloud:direct "analyze costs for test environment"
 ```
 
 ### Infrastructure Commands
@@ -394,81 +499,62 @@ Initialize plugin configuration:
 /fractary-faber-cloud:init --provider=aws --iac=terraform --env=test
 ```
 
-## Architecture
+## Architecture (v3.0)
 
-### Component Hierarchy
+faber-cloud uses a distributed command-agent architecture where each command invokes a dedicated agent via the Task tool.
+
+### Command → Agent Pattern
+
+Each command invokes a dedicated agent via the Task tool:
 
 ```
-Natural Language
-  ↓
-devops-director (intent parsing & routing)
-  ↓
-┌─────────────────────┬─────────────────────┐
-│  infra-manager      │  ops-manager        │
-│  (infrastructure)   │  (operations)       │
-└─────────────────────┴─────────────────────┘
-  ↓                     ↓
-Skills (execution)    Skills (execution)
-  ↓                     ↓
-Handlers (providers)  Handlers (CloudWatch)
+/fractary-faber-cloud:architect
+    ↓ (Task tool)
+architect-agent.md (opus-4-5)
+    ↓ (Skill tool)
+Skills: cloud-common, handlers
 ```
 
-### Agents
+### 15 Dedicated Agents
 
-**devops-director:**
-- Natural language router
-- Parses intent (infrastructure vs operations)
-- Routes to infra-manager or ops-manager
+- **adopt-agent** - Discover and adopt existing infrastructure
+- **architect-agent** - Design infrastructure solutions
+- **audit-agent** - Non-destructive infrastructure audits
+- **debug-agent** - Diagnose and fix errors
+- **deploy-apply-agent** - Execute deployments
+- **deploy-plan-agent** - Generate deployment plans
+- **direct-agent** - Natural language routing
+- **engineer-agent** - Generate Infrastructure-as-Code
+- **init-agent** - Initialize plugin configuration
+- **list-agent** - List deployed resources
+- **manage-agent** - FABER workflow orchestration
+- **status-agent** - Show configuration status
+- **teardown-agent** - Safe infrastructure destruction
+- **test-agent** - Security scans, cost estimates, testing
+- **validate-agent** - Validate terraform configuration
 
-**infra-manager:**
-- Infrastructure lifecycle orchestration
-- Workflow: architect → engineer → validate → test → audit → deploy-plan → deploy-apply
-- Delegates to infrastructure skills
+### 4 Utility Skills
 
-**ops-manager:**
-- Runtime operations orchestration
-- Workflow: monitor → investigate → respond → audit
-- Delegates to operations skills
+Shared utilities invoked by agents:
 
-### Skills
+- **cloud-common** - Config loading, hooks, pattern substitution
+- **handler-hosting-aws** - AWS CLI operations, CloudWatch
+- **handler-iac-terraform** - Terraform init/plan/apply/destroy
+- **infra-permission-manager** - Auto-generate IAM policies
 
-**Infrastructure Skills (Phase 1):**
-- infra-architect: Design solutions
-- infra-engineer: Generate Terraform code
-- infra-validator: Validate configurations
-- infra-previewer: Generate deployment plans
-- infra-deployer: Execute deployments
-- infra-permission-manager: Manage IAM permissions
+### FABER Workflow Integration
 
-**Testing & Debugging Skills (Phase 2):**
-- infra-tester: Security scans, cost estimation, verification
-- infra-debugger: Error analysis and solution matching
+Workflows reference agents directly:
 
-**Operations Skills (Phase 3):**
-- ops-monitor: Health checks and metrics
-- ops-investigator: Log analysis and incident investigation
-- ops-responder: Incident remediation
-- ops-auditor: Cost, security, compliance auditing
-
-**Handler Skills:**
-- handler-hosting-aws: AWS operations (deploy, verify, CloudWatch)
-- handler-iac-terraform: Terraform operations (init, plan, apply)
-
-### Data Flows
-
-**Resource Tracking:**
-```
-Deploy → Update Registry → Generate DEPLOYED.md → Console URLs
-```
-
-**Error Learning:**
-```
-Error → Categorize → Search Issue Log → Propose Solution → Log Outcome
-```
-
-**Health Monitoring:**
-```
-Check Status → Query CloudWatch → Analyze Metrics → Report Health
+```json
+{
+  "steps": [
+    {
+      "name": "design",
+      "agent": "@agent-fractary-faber-cloud:architect-agent"
+    }
+  ]
+}
 ```
 
 ## Hook System
@@ -644,10 +730,10 @@ Example: `{project}-{subsystem}-{environment}-{resource}` → `my-project-core-t
 **Using natural language:**
 
 ```bash
-/fractary-faber-cloud:director "architect an API service with RDS database"
-/fractary-faber-cloud:director "engineer the API service design"
-/fractary-faber-cloud:director "deploy to test environment"
-/fractary-faber-cloud:director "check health of test services"
+/fractary-faber-cloud:direct "architect an API service with RDS database"
+/fractary-faber-cloud:direct "engineer the API service design"
+/fractary-faber-cloud:direct "deploy to test environment"
+/fractary-faber-cloud:direct "check health of test services"
 ```
 
 ### Incident Response Workflow
@@ -683,10 +769,10 @@ Example: `{project}-{subsystem}-{environment}-{resource}` → `my-project-core-t
 **Using natural language:**
 
 ```bash
-/fractary-faber-cloud:director "check health of production"
-/fractary-faber-cloud:director "investigate API Lambda errors"
-/fractary-faber-cloud:director "restart API Lambda in production"
-/fractary-faber-cloud:director "analyze costs for production"
+/fractary-faber-cloud:direct "check health of production"
+/fractary-faber-cloud:direct "investigate API Lambda errors"
+/fractary-faber-cloud:direct "restart API Lambda in production"
+/fractary-faber-cloud:direct "analyze costs for production"
 ```
 
 ## Safety Features

@@ -45,7 +45,7 @@
         {
           "name": "configuration-audit",
           "description": "Audit infrastructure configuration validity",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "config-valid",
             "check_syntax": true,
@@ -55,7 +55,7 @@
         {
           "name": "drift-detection",
           "description": "Detect drift between code and actual infrastructure",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "drift",
             "generate_diff": true
@@ -64,7 +64,7 @@
         {
           "name": "security-audit",
           "description": "Audit security posture and vulnerabilities",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "security",
             "tools": ["checkov", "tfsec"],
@@ -74,7 +74,7 @@
         {
           "name": "cost-analysis",
           "description": "Analyze current and projected infrastructure costs",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "cost",
             "include_monthly_breakdown": true,
@@ -84,7 +84,7 @@
         {
           "name": "iam-health-check",
           "description": "Check IAM permissions and policy health",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "iam-health",
             "check_overprivileged": true,
@@ -94,7 +94,7 @@
         {
           "name": "compliance-check",
           "description": "Verify compliance with organizational policies",
-          "skill": "fractary-faber-cloud:infra-auditor",
+          "agent": "@agent-fractary-faber-cloud:audit-agent",
           "config": {
             "audit_type": "full",
             "policies": ["naming", "tagging", "encryption", "networking"]

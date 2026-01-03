@@ -117,6 +117,16 @@ After viewing resources:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `list-resources` operation.
+This command immediately invokes the dedicated **list-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=list-resources and environment from --env parameter
+**Execution Pattern:**
+
+```
+Parse Arguments (--env)
+    ↓
+Invoke list-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The list-agent handles resource listing and returns the formatted resource inventory.

@@ -182,6 +182,16 @@ After debugging:
 
 ## Invocation
 
-This command invokes the `infra-manager` agent with the `debug` operation.
+This command immediately invokes the dedicated **debug-agent** using the Task tool.
 
-USE AGENT: infra-manager with operation=debug and description from user input (optional)
+**Execution Pattern:**
+
+```
+Parse Arguments (description - optional)
+    ↓
+Invoke debug-agent (via Task tool)
+    ↓
+Return agent's output
+```
+
+The debug-agent handles error diagnosis, root cause analysis, and provides remediation steps.
