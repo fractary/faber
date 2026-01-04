@@ -66,7 +66,7 @@
           "id": "core-issue-review",
           "name": "Review Issue Implementation",
           "description": "Verify implementation completeness against issue requirements",
-          "prompt": "/fractary-faber:review --work-id {work_id}"
+          "prompt": "Review the implementation against the issue requirements and specification. Check code quality, test coverage, and completeness. Identify any gaps or issues that need to be addressed. Return status: success (ready for PR), warning (minor issues but can proceed), or failure (must return to build phase)."
         }
       ],
       "steps": [],

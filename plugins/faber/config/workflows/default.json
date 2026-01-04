@@ -39,7 +39,7 @@
           "id": "implement",
           "name": "Implement Solution",
           "description": "Implement based on specification following project patterns",
-          "prompt": "/fractary-faber:build --work-id {work_id}"
+          "prompt": "Implement the solution according to the specification. Follow existing project patterns and conventions. Create atomic commits for each logical unit of work. Run tests to verify the implementation. Ensure code quality and completeness."
         }
       ],
       "post_steps": []

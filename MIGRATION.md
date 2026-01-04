@@ -1,4 +1,144 @@
-# Migration Guide: Command Alignment v2.1 / v1.1
+# Migration Guide
+
+This guide helps you migrate between major versions of FABER.
+
+---
+
+## Migration: v3.1.0 - Workflow Command Rationalization (Plugin)
+
+**Released**: 2026-01-03
+**Breaking Changes**: ✅ Yes - Command removal
+**Affects**: Plugin `fractary-faber` v3.1.0+
+
+### Overview
+
+FABER v3.1 removes standalone workflow commands in favor of the unified orchestrator pattern. The `workflow-run` command now handles all phases directly with full context, eliminating the need for separate build/review/archive/execute commands.
+
+### What Changed
+
+#### Removed Commands
+
+The following commands have been **REMOVED** (no deprecation period):
+
+| Removed Command | Replacement | Migration |
+|----------------|-------------|-----------|
+| `/fractary-faber:workflow-build` | `/fractary-faber:workflow-run <plan-id> --phase build` | Use `--phase` argument for granular control |
+| `/fractary-faber:workflow-review` | `/fractary-faber:workflow-run <plan-id>` | Review is automatic in evaluate phase |
+| `/fractary-faber:workflow-archive` | *(removed entirely)* | Archive functionality removed |
+| `/fractary-faber:workflow-execute` | `/fractary-faber:workflow-run <plan-id>` | Use `workflow-run` directly |
+| `/fractary-faber:workflow-execute-deterministic` | `/fractary-faber:workflow-run <plan-id>` | Protocol-based execution prevents step skipping |
+
+#### New Capabilities
+
+`workflow-run` now supports granular execution via new arguments:
+
+```bash
+# Full workflow (all phases)
+/fractary-faber:workflow-run <plan-id>
+
+# Execute specific phase
+/fractary-faber:workflow-run <plan-id> --phase build
+
+# Execute multiple phases
+/fractary-faber:workflow-run <plan-id> --phases build,evaluate
+
+# Execute specific step
+/fractary-faber:workflow-run <plan-id> --step core-implement-solution
+
+# Execute multiple steps
+/fractary-faber:workflow-run <plan-id> --steps step1,step2
+
+# Resume from failure
+/fractary-faber:workflow-run <plan-id> --resume <run-id>
+```
+
+#### Archive Functionality Removed
+
+All archive-related functionality has been removed:
+- `workflow-archive` command removed
+- Archive steps removed from workflows
+- Archive skill removed
+- Archive configuration options removed
+
+If you need archival, use external tools or the `fractary-logs` plugin directly.
+
+### Why This Change?
+
+**Problem**: The old delegation pattern (workflow-execute → faber-manager agent) caused:
+- Context loss between phases
+- Step skipping due to hallucinated completion
+- Confusion about which command to use when
+
+**Solution**: The orchestrator pattern (workflow-run with protocol) provides:
+- Full context maintained throughout workflow
+- Protocol-based execution prevents step skipping
+- Single command with granular control via arguments
+- Better decision-making with complete context
+
+### Migration Steps
+
+#### 1. Update Scripts and Automation
+
+If you have scripts that call removed commands:
+
+```bash
+# OLD (no longer works)
+fractary-faber workflow-build --work-id 123
+fractary-faber workflow-execute <plan-id>
+
+# NEW (use workflow-run with filters)
+fractary-faber workflow-run <plan-id> --phase build
+fractary-faber workflow-run <plan-id>
+```
+
+#### 2. Update Custom Workflows
+
+If you have custom workflow definitions that reference removed commands:
+
+```json
+// OLD (in workflow JSON)
+{
+  "id": "my-step",
+  "prompt": "/fractary-faber:workflow-build"
+}
+
+// NEW (direct instruction)
+{
+  "id": "my-step",
+  "prompt": "Implement the solution according to the specification. Create atomic commits for each logical unit of work. Run tests to verify the implementation."
+}
+```
+
+#### 3. Remove Archive References
+
+If your workflows or configs reference archive:
+- Remove archive steps from custom workflows
+- Remove archive configuration from config files
+- Use `fractary-logs` plugin if you need log management
+
+### No Functionality Lost
+
+All capabilities are preserved:
+- ✅ Full workflow execution: `workflow-run <plan-id>`
+- ✅ Single phase execution: `workflow-run <plan-id> --phase build`
+- ✅ Multiple phase execution: `workflow-run <plan-id> --phases build,evaluate`
+- ✅ Step-level control: `workflow-run <plan-id> --step <step-id>`
+- ✅ Resume capability: `workflow-run <plan-id> --resume <run-id>`
+
+### Getting Help
+
+If you encounter issues migrating:
+1. Review the [workflow-run documentation](plugins/faber/commands/workflow-run.md)
+2. Check the [orchestration protocol](plugins/faber/docs/workflow-orchestration-protocol.md)
+3. File an issue at https://github.com/fractary/faber/issues
+
+---
+
+## Migration: Command Alignment v2.1 / v1.1
+
+**Released**: 2024-12-20
+**Breaking Changes**: ⚠️ No (deprecation period)
+**Affects**: All FABER interfaces
 
 This guide helps you migrate to the new noun-first, verb-second command naming convention introduced in:
 - `@fractary/faber` v2.1.0

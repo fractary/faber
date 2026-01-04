@@ -1,7 +1,7 @@
 {
   "name": "fractary-faber",
-  "version": "3.2.5",
-  "description": "Universal SDLC workflow framework with two-phase plan/execute architecture",
+  "version": "3.1.0",
+  "description": "Universal SDLC workflow framework with unified orchestrator pattern (plan + run)",
   "commands": "./commands/",
   "agents": [
     "./agents/faber-manager.md",
