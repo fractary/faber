@@ -8,18 +8,18 @@
       "description": "Fetch work item and setup branch",
       "pre_steps": [
         {
-          "id": "core-fetch-or-create-issue",
-          "name": "Fetch or Create Issue",
-          "description": "Fetch existing issue or create new one. Reads referenced docs and existing commits.",
+          "id": "core-fetch-issue",
+          "name": "Fetch Issue",
+          "description": "Fetch existing issue. Reads referenced docs and existing commits.",
           "prompt": "/fractary-work:issue-fetch --work-id {work_id}"
         }        
       ],
       "steps": [],
       "post_steps": [
         {
-          "id": "core-commit-and-push-architect",
+          "id": "core-commit-and-push-frame",
           "name": "Commit and Push Changes",
-          "description": "Ensure all build changes are committed and pushed",
+          "description": "Ensure all frame changes are committed and pushed",
           "prompt": "/fractary-repo:commit-push"
         }
       ]
