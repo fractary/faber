@@ -108,14 +108,16 @@ if (phaseFilter && stepFilter) {
 
 The protocol defines how you execute workflows. It is your operating manual.
 
-```javascript
-// Read the orchestration protocol
-const protocolPath = "plugins/faber/docs/workflow-orchestration-protocol.md";
-const protocol = await Read({ file_path: protocolPath });
+```bash
+# Determine marketplace root (where all plugin marketplaces live)
+MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}"
 
-// Display confirmation to user
-console.log("✓ Loaded orchestration protocol");
-console.log(`Protocol: ${protocolPath}`);
+# Read the orchestration protocol from the marketplace
+Read(file_path: "${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/docs/workflow-orchestration-protocol.md")
+
+# Output confirmation to user
+✓ Loaded orchestration protocol
+Protocol: ${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/docs/workflow-orchestration-protocol.md
 ```
 
 **The protocol contains:**
@@ -336,6 +338,7 @@ if (phaseFilter || stepFilter) {
 ```javascript
 // Flatten all steps from all phases into a single todo list
 // The plan already has flattened steps in workflow.phases[phaseName].steps
+// Include step ID in content for traceability
 const allSteps = [];
 for (const phaseName of Object.keys(workflow.phases)) {
   const phase = workflow.phases[phaseName];
@@ -346,7 +349,7 @@ for (const phaseName of Object.keys(workflow.phases)) {
 
   for (const step of phaseSteps) {
     allSteps.push({
-      content: `[${phaseName}] ${step.name}`,
+      content: `[${phaseName}] ${step.name} (${step.id})`,
       status: "pending",
       activeForm: `Executing [${phaseName}] ${step.name}`
     });
@@ -358,6 +361,8 @@ await TodoWrite({ todos: allSteps });
 console.log("✓ Progress tracking initialized");
 console.log(`Total steps: ${allSteps.length}`);
 ```
+
+**Note:** The step ID is included in the `content` field (e.g., `"(core-fetch-issue)"`) because the TodoWrite tool does not support custom fields beyond `content`, `status`, and `activeForm`. This provides traceability to cross-reference todos with state file entries and plan definitions.
 
 ## Phase 2: Workflow Execution
 

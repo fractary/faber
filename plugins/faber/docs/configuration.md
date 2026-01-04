@@ -559,7 +559,7 @@ cat logs/fractary/plugins/faber/plans/{plan-id}.json
 ### Plan Lifecycle
 
 1. **Created** by `/fractary-faber:plan` or `/fractary-faber:run`
-2. **Read** by `/fractary-faber:execute`
+2. **Read** by `/fractary-faber:workflow-run`
 3. **Updated** with execution results
 4. **Archived** (optionally) via fractary-logs plugin
 
