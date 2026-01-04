@@ -12,7 +12,7 @@ model: claude-haiku-4-5
 You are the entry point for creating FABER execution plans.
 Your job is to parse arguments and invoke the faber-planner agent via Task tool.
 
-This command creates a plan but does NOT execute it. To execute, use `/fractary-faber:execute`.
+This command creates a plan but does NOT execute it. To execute, use `/fractary-faber:workflow-run`.
 </CONTEXT>
 
 <CRITICAL_RULES>
@@ -145,11 +145,9 @@ Plan artifact saved to logs/fractary/plugins/faber/plans/
     ↓
 User reviews plan
     ↓
-/fractary-faber:execute <plan-id>
+/fractary-faber:workflow-run <plan-id>
     ↓
-faber-executor skill
-    ↓
-faber-manager agent(s)
+Workflow orchestration (direct execution)
 ```
 
 ## Agent Invocation
@@ -168,7 +166,7 @@ This ensures reliable delegation - the Task tool has clearer "hand off and wait"
 
 ## See Also
 
-- `/fractary-faber:execute` - Execute a plan
+- `/fractary-faber:workflow-run` - Execute a plan
 - `/fractary-faber:run` - Create and execute plan in one step
 - `/fractary-faber:status` - Check workflow status
 

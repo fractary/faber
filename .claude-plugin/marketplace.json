@@ -15,7 +15,7 @@
         "name": "fractary-faber",
         "source": "./plugins/faber",
         "description": "Universal SDLC workflow framework - Frame → Architect → Build → Evaluate → Release",
-        "version": "3.2.6",
+        "version": "3.2.7",
         "author": {
           "name": "The Fractary",
           "url": "https://github.com/fractary"

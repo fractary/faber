@@ -423,6 +423,8 @@ FOR each phase_name, phase_data in workflow.phases:
 
 ### 8b. Output Plan Summary
 
+**CRITICAL:** Always output the plan file path. This is required information for the user.
+
 Output the plan summary with detailed workflow overview:
 
 **For work_id mode:**
@@ -430,6 +432,7 @@ Output the plan summary with detailed workflow overview:
 FABER Plan Created
 
 Plan ID: {plan_id}
+Plan File: logs/fractary/plugins/faber/plans/{plan_id}.json
 
 Workflow: {workflow_id}{extends_text}
 Autonomy: {autonomy}
@@ -440,8 +443,6 @@ Phases & Steps:
 Items ({count}):
   1. #{work_id} {title} -> {branch} [{status}]
   2. ...
-
-Plan saved: logs/fractary/plugins/faber/plans/{plan_id}.json
 ```
 
 **For target mode:**
@@ -449,6 +450,7 @@ Plan saved: logs/fractary/plugins/faber/plans/{plan_id}.json
 FABER Plan Created
 
 Plan ID: {plan_id}
+Plan File: logs/fractary/plugins/faber/plans/{plan_id}.json
 
 Planning Mode: Target-based (no work_id)
 Target Type: {target_context.type}
@@ -463,8 +465,6 @@ Phases & Steps:
 Items ({count}):
   1. {target} ({target_context.type}) -> {branch} [{status}]
   2. ...
-
-Plan saved: logs/fractary/plugins/faber/plans/{plan_id}.json
 ```
 
 ### 8c. Prompt User with AskUserQuestion
@@ -477,7 +477,7 @@ AskUserQuestion(
     "question": "What would you like to do?",
     "header": "FABER Plan Ready",
     "options": [
-      {"label": "Execute now", "description": "Run: /fractary-faber:execute {plan_id}"},
+      {"label": "Execute now", "description": "Run: /fractary-faber:workflow-run {plan_id}"},
       {"label": "Review plan details", "description": "Show full plan contents before deciding"},
       {"label": "Exit", "description": "Do nothing, plan is saved for later"}
     ],
@@ -496,7 +496,7 @@ AskUserQuestion(
 1. Output the execute command for reference:
    ```
    Execute Command:
-   /fractary-faber:execute {plan_id}
+   /fractary-faber:workflow-run {plan_id}
 
    Plan Location:
    logs/fractary/plugins/faber/plans/{plan_id}.json
@@ -530,7 +530,7 @@ AskUserQuestion(
        "question": "Ready to execute?",
        "header": "Execute Plan",
        "options": [
-         {"label": "Execute now", "description": "Run: /fractary-faber:execute {plan_id}"},
+         {"label": "Execute now", "description": "Run: /fractary-faber:workflow-run {plan_id}"},
          {"label": "Exit", "description": "Do nothing, plan is saved for later"}
        ],
        "multiSelect": false
@@ -583,11 +583,11 @@ plan_id: {plan_id}
 1. **`/fractary-faber:plan`** (creates plan only):
    - Ignores the execute signal
    - Simply returns the plan_id to the user
-   - User must manually run `/fractary-faber:execute {plan_id}`
+   - User must manually run `/fractary-faber:workflow-run {plan_id}`
 
 2. **`/fractary-faber:run`** (creates and optionally executes):
    - Parses the agent response for `execute: true|false`
-   - If `execute: true`: Automatically invokes faber-executor with the plan_id
+   - If `execute: true`: Automatically invokes workflow-run with the plan_id
    - If `execute: false`: Returns without executing, plan remains saved
 
 **Example Agent Response (execute true):**
@@ -612,7 +612,7 @@ execute: false
 plan_id: fractary-claude-plugins-csv-export-20251208T160000
 
 Plan saved for later execution:
-/fractary-faber:execute fractary-claude-plugins-csv-export-20251208T160000
+/fractary-faber:workflow-run fractary-claude-plugins-csv-export-20251208T160000
 ```
 
 **Why This Design:**
@@ -703,6 +703,7 @@ When no pattern matches:
 FABER Plan Created
 
 Plan ID: fractary-claude-plugins-csv-export-20251208T160000
+Plan File: logs/fractary/plugins/faber/plans/fractary-claude-plugins-csv-export-20251208T160000.json
 
 Workflow: fractary-faber:default (extends fractary-faber:core)
 Autonomy: guarded
@@ -730,8 +731,6 @@ Items (3):
   2. #124 Add PDF export -> feat/124-add-pdf-export [new]
   3. #125 Fix export bug -> fix/125-fix-export-bug [resume: build:implement]
 
-Plan saved: logs/fractary/plugins/faber/plans/fractary-claude-plugins-csv-export-20251208T160000.json
-
 [AskUserQuestion prompt appears here with 3 options: Execute now, Review plan details, Exit]
 ```
 
@@ -741,6 +740,7 @@ Plan saved: logs/fractary/plugins/faber/plans/fractary-claude-plugins-csv-export
 FABER Plan Created
 
 Plan ID: fractary-claude-plugins-ipeds-admissions-20251208T160000
+Plan File: logs/fractary/plugins/faber/plans/fractary-claude-plugins-ipeds-admissions-20251208T160000.json
 
 Planning Mode: Target-based (no work_id)
 Target Type: dataset
@@ -767,8 +767,6 @@ Phases & Steps:
 Items (1):
   1. ipeds/admissions (dataset) -> feat/ipeds-admissions [new]
 
-Plan saved: logs/fractary/plugins/faber/plans/fractary-claude-plugins-ipeds-admissions-20251208T160000.json
-
 [AskUserQuestion prompt appears here with 3 options: Execute now, Review plan details, Exit]
 ```
 
@@ -776,7 +774,7 @@ Plan saved: logs/fractary/plugins/faber/plans/fractary-claude-plugins-ipeds-admi
 
 ```
 Execute Command:
-/fractary-faber:execute fractary-claude-plugins-csv-export-20251208T160000
+/fractary-faber:workflow-run fractary-claude-plugins-csv-export-20251208T160000
 
 Plan Location:
 logs/fractary/plugins/faber/plans/fractary-claude-plugins-csv-export-20251208T160000.json
