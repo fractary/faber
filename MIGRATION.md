@@ -22,7 +22,7 @@ The following commands have been **REMOVED** (no deprecation period):
 
 | Removed Command | Replacement | Migration |
 |----------------|-------------|-----------|
-| `/fractary-faber:workflow-build` | `/fractary-faber:workflow-run <plan-id> --phase build` | Use `--phase` argument for granular control |
+| `/fractary-faber:workflow-build` | `/fractary-faber:workflow-run <plan-id> --phase build` | Use `--phase` for granular control |
 | `/fractary-faber:workflow-review` | `/fractary-faber:workflow-run <plan-id>` | Review is automatic in evaluate phase |
 | `/fractary-faber:workflow-archive` | *(removed entirely)* | Archive functionality removed |
 | `/fractary-faber:workflow-execute` | `/fractary-faber:workflow-run <plan-id>` | Use `workflow-run` directly |
@@ -40,13 +40,13 @@ The following commands have been **REMOVED** (no deprecation period):
 /fractary-faber:workflow-run <plan-id> --phase build
 
 # Execute multiple phases
-/fractary-faber:workflow-run <plan-id> --phases build,evaluate
+/fractary-faber:workflow-run <plan-id> --phase build,evaluate
 
-# Execute specific step
+# Execute single step
 /fractary-faber:workflow-run <plan-id> --step core-implement-solution
 
 # Execute multiple steps
-/fractary-faber:workflow-run <plan-id> --steps step1,step2
+/fractary-faber:workflow-run <plan-id> --step step1,step2
 
 # Resume from failure
 /fractary-faber:workflow-run <plan-id> --resume <run-id>
@@ -86,7 +86,7 @@ If you have scripts that call removed commands:
 fractary-faber workflow-build --work-id 123
 fractary-faber workflow-execute <plan-id>
 
-# NEW (use workflow-run with filters)
+# NEW (use workflow-run)
 fractary-faber workflow-run <plan-id> --phase build
 fractary-faber workflow-run <plan-id>
 ```
@@ -121,7 +121,7 @@ If your workflows or configs reference archive:
 All capabilities are preserved:
 - ✅ Full workflow execution: `workflow-run <plan-id>`
 - ✅ Single phase execution: `workflow-run <plan-id> --phase build`
-- ✅ Multiple phase execution: `workflow-run <plan-id> --phases build,evaluate`
+- ✅ Multiple phase execution: `workflow-run <plan-id> --phase build,evaluate`
 - ✅ Step-level control: `workflow-run <plan-id> --step <step-id>`
 - ✅ Resume capability: `workflow-run <plan-id> --resume <run-id>`
 
