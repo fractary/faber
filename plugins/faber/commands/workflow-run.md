@@ -44,18 +44,28 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--resume <run-id>` | string | none | Resume previous run from where it stopped |
+| `--phase <phase>` | string | none | Execute only specified phase(s) - single or comma-separated (e.g., build or build,evaluate) |
+| `--step <step-id>` | string | none | Execute only specified step(s) - single or comma-separated |
 
 **Examples:**
 ```bash
-# Execute a plan
+# Execute full workflow (all phases)
 /fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229
+
+# Execute single phase
+/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --phase build
+
+# Execute multiple phases
+/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --phase build,evaluate
+
+# Execute single step
+/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --step core-implement-solution
+
+# Execute multiple steps
+/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --step core-implement-solution,core-commit-changes
 
 # Resume previous run
 /fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --resume abc123-def456-789
-
-# Create and execute in one step (use /fractary-faber:run instead)
-# First: /fractary-faber:plan --work-id 123
-# Then: /fractary-faber:workflow-run <returned-plan-id>
 ```
 
 </INPUTS>
@@ -69,10 +79,28 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 Extract from user input:
 1. `plan_id`: First positional argument (required)
 2. `resume_run_id`: Value of `--resume` flag (optional)
+3. `phase_filter`: Value of `--phase` flag (optional, single or comma-separated phase names)
+4. `step_filter`: Value of `--step` flag (optional, single or comma-separated step IDs)
 
 **Validation:**
 - If no `plan_id`: Show error and usage
 - Plan file must exist at `logs/fractary/plugins/faber/plans/{plan_id}.json`
+- Cannot specify both `--phase` and `--step` simultaneously
+- If phase filter specified: validate phase names exist in workflow
+- If step filter specified: validate step IDs exist in workflow
+
+**Filter Processing:**
+```javascript
+// Parse filter arguments (handle both single and comma-separated values)
+const phaseFilter = phase_filter ? phase_filter.split(',').map(p => p.trim()) : null;
+const stepFilter = step_filter ? step_filter.split(',').map(s => s.trim()) : null;
+
+// Validate mutual exclusivity
+if (phaseFilter && stepFilter) {
+  console.error("Error: Cannot specify both --phase and --step filters");
+  return;
+}
+```
 
 ### Step 1.2: Load Orchestration Protocol
 
@@ -232,7 +260,78 @@ await fractary_faber_event_emit({
 console.log("✓ Event system ready");
 ```
 
-### Step 1.5: Initialize TodoWrite
+### Step 1.5: Apply Phase/Step Filters
+
+```javascript
+// If phase or step filters are specified, filter the workflow
+if (phaseFilter || stepFilter) {
+  console.log("✓ Applying filters...");
+
+  if (phaseFilter) {
+    console.log(`Filtering to phases: ${phaseFilter.join(', ')}`);
+
+    // Validate all specified phases exist
+    for (const phaseName of phaseFilter) {
+      if (!workflow.phases[phaseName]) {
+        console.error(`Error: Phase '${phaseName}' not found in workflow`);
+        console.error(`Available phases: ${Object.keys(workflow.phases).join(', ')}`);
+        return;
+      }
+    }
+
+    // Disable phases not in filter
+    for (const phaseName of Object.keys(workflow.phases)) {
+      if (!phaseFilter.includes(phaseName)) {
+        workflow.phases[phaseName].enabled = false;
+      }
+    }
+  }
+
+  if (stepFilter) {
+    console.log(`Filtering to steps: ${stepFilter.join(', ')}`);
+
+    // Build list of all steps
+    const allStepIds = [];
+    for (const phaseName of Object.keys(workflow.phases)) {
+      const phase = workflow.phases[phaseName];
+      const phaseSteps = phase.steps || [];
+      for (const step of phaseSteps) {
+        allStepIds.push(step.step_id);
+      }
+    }
+
+    // Validate all specified steps exist
+    for (const stepId of stepFilter) {
+      if (!allStepIds.includes(stepId)) {
+        console.error(`Error: Step '${stepId}' not found in workflow`);
+        console.error(`Available steps: ${allStepIds.join(', ')}`);
+        return;
+      }
+    }
+
+    // Filter steps in each phase
+    for (const phaseName of Object.keys(workflow.phases)) {
+      const phase = workflow.phases[phaseName];
+      const phaseSteps = phase.steps || [];
+
+      // Keep only steps that are in the filter
+      const filteredSteps = phaseSteps.filter(step => stepFilter.includes(step.step_id));
+
+      if (filteredSteps.length === 0) {
+        // Disable phase if no steps match
+        phase.enabled = false;
+      } else {
+        // Update phase with filtered steps
+        phase.steps = filteredSteps;
+      }
+    }
+  }
+
+  console.log("✓ Filters applied");
+}
+```
+
+### Step 1.6: Initialize TodoWrite
 
 ```javascript
 // Flatten all steps from all phases into a single todo list
