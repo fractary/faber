@@ -6,7 +6,14 @@
   "phases": {
     "frame": {
       "enabled": true,
-      "pre_steps": [],
+      "pre_steps": [
+        {
+          "id": "core-issue-refine",
+          "name": "Refine Issue",
+          "description": "Clarify issue details with user",
+          "prompt": "/fractary-work:issue-clarify --work-id {work_id}"
+        }
+      ],
       "steps": [],
       "post_steps": []
     },
