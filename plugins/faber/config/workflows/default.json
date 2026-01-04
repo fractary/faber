@@ -68,5 +68,36 @@
     "level": "guarded",
     "description": "Pauses before release for approval - recommended for production",
     "require_approval_for": ["release"]
+  },
+  "critical_artifacts": {
+    "always_load": [
+      {
+        "id": "workflow-state",
+        "type": "json",
+        "path": ".fractary/runs/{run_id}/state.json",
+        "description": "Current workflow state file - essential for continuation",
+        "required": true,
+        "reload_triggers": ["session_start", "manual"]
+      },
+      {
+        "id": "orchestration-protocol",
+        "type": "markdown",
+        "path": "plugins/faber/docs/workflow-orchestration-protocol.md",
+        "description": "Workflow execution protocol - defines how to execute steps",
+        "required": true,
+        "reload_triggers": ["session_start"]
+      }
+    ],
+    "conditional_load": [
+      {
+        "id": "specification",
+        "type": "markdown",
+        "path_from_state": "artifacts.spec_path",
+        "description": "Technical specification for the work",
+        "required": false,
+        "condition": "state.artifacts.spec_path != null",
+        "reload_triggers": ["session_start", "phase_transition:architect->build"]
+      }
+    ]
   }
 }
