@@ -36,14 +36,32 @@ The context-manager skill manages critical context artifacts during FABER workfl
 ## Workflows
 
 ### prime-context
-Main workflow for reloading critical artifacts. See `workflow/prime-context.md`.
+Reloads critical artifacts into context. See `workflow/prime-context.md`.
+
+**Triggers**:
+- SessionStart Hook (after compaction or resume) - automatic
+- Workflow pre_steps (session start) - optional
+- Manual: `/fractary-faber:prime-context` command
+
+### session-end
+Saves session metadata before session ends or compaction occurs. See `workflow/session-end.md`.
+
+**Triggers**:
+- PreCompact Hook (before compaction) - automatic
+- SessionEnd Hook (on exit) - automatic
+- Manual: `/fractary-faber:session-end` command
 
 ## Integration Points
 
 ### Used By
-- `/fractary-faber:prime-context` command (manual reload)
-- Workflow pre_steps (automatic reload on session start)
-- Context compaction handlers (if detectable)
+- **Automatic (via hooks)**:
+  - PreCompact Hook → `/fractary-faber:session-end --reason compaction`
+  - SessionStart Hook → `/fractary-faber:prime-context --trigger session_start`
+  - SessionEnd Hook → `/fractary-faber:session-end --reason normal`
+- **Manual**:
+  - `/fractary-faber:prime-context` command (context reload)
+  - `/fractary-faber:session-end` command (session save)
+- **Workflow pre_steps** (automatic reload on session start) [optional, hooks preferred]
 
 ### Dependencies
 - State schema (`state.schema.json`) - for session tracking
@@ -256,7 +274,16 @@ The skill updates state.json with:
 
 ## Related Documentation
 
-- `SPEC-00027-faber-context-management.md` - Full specification
-- `docs/CONTEXT-MANAGEMENT.md` - User guide
-- `docs/standards/manager-protocols/context-reload.md` - Reload protocol
-- `docs/standards/manager-protocols/context-reconstitution.md` - Existing reconstitution
+- **Specification**: `SPEC-00027-faber-context-management.md` - Full context management specification
+- **User Guides**:
+  - `docs/CONTEXT-MANAGEMENT.md` - Context management user guide
+  - `docs/HOOKS-SETUP.md` - Hook configuration guide
+- **Protocols**:
+  - `docs/standards/manager-protocols/context-reload.md` - Context reload protocol
+  - `docs/standards/manager-protocols/context-reconstitution.md` - Initial context loading
+- **Algorithms**:
+  - `workflow/prime-context.md` - Context reload algorithm
+  - `workflow/session-end.md` - Session end algorithm
+- **Commands**:
+  - `commands/prime-context.md` - Context reload command
+  - `commands/session-end.md` - Session end command

@@ -43,6 +43,158 @@ Long-running FABER workflows can lose critical context when:
 - ✅ Portable workflows that work across machines
 - ✅ Complete audit trail of all sessions that contributed to workflow
 
+## Automatic Context Management with Hooks
+
+**RECOMMENDED**: Configure Claude Code hooks for automatic context management. This provides seamless workflow continuity without manual intervention.
+
+### What Hooks Do
+
+Claude Code hooks enable fully automatic context management:
+
+1. **PreCompact Hook** - Saves session metadata before context compaction occurs
+2. **SessionStart Hook** - Restores critical artifacts when new session begins (after compaction or resume)
+3. **SessionEnd Hook** - Saves final session state when Claude Code exits
+
+**Result**: Workflows continue seamlessly across compaction events and session boundaries without any manual context restoration.
+
+### Setup Hooks (5 Minutes)
+
+See **[HOOKS-SETUP.md](./HOOKS-SETUP.md)** for complete step-by-step setup instructions.
+
+**Quick setup**: Add to `.claude/settings.json` in your project:
+
+```json
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/fractary-faber:session-end --reason compaction",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/fractary-faber:prime-context --trigger session_start"
+          }
+        ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/fractary-faber:prime-context --trigger session_start"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/fractary-faber:session-end --reason normal"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### How Hooks Work
+
+```
+SESSION 1                    COMPACTION EVENT              SESSION 2
+  ↓                               ↓                           ↓
+  Frame phase                     │                           │
+  Architect phase                 │                           │
+  Build phase (long)              │                           │
+    ├─ context filling up         │                           │
+    ├─ auto-compact triggered ────┤                           │
+    │                              │                           │
+    │  [PreCompact Hook]           │                           │
+    │  ├─ Saves session metadata   │                           │
+    │  ├─ Records phases completed │                           │
+    │  └─ Updates state.json       │                           │
+    │                              │                           │
+    ├─ [COMPACTION OCCURS] ────────┤                           │
+    │                              │  [SessionStart Hook]      │
+    │                              │  ├─ Detects new session   │
+    │                              │  ├─ Loads all artifacts   │
+    │                              │  └─ Context restored      │
+    │                              │                           │
+  Build phase continues ───────────────────────────────────────┤
+  Evaluate phase                                               │
+  Release phase                                                │
+                                                               │
+                                   [SessionEnd Hook]           │
+                                   └─ Saves final session      │
+```
+
+### One Workflow Per Worktree
+
+**Design Limitation**: FABER supports **one active workflow per git worktree** at a time.
+
+**Why**: Hooks use a single `.fractary/faber/.active-run-id` file to track which workflow is active. Multiple workflows in the same worktree would conflict.
+
+**Solution for Concurrent Workflows**: Use **git worktrees**:
+
+```bash
+# Create separate worktrees for each workflow
+git worktree add ../myproject-issue-258 -b feature/258
+git worktree add ../myproject-issue-259 -b feature/259
+
+# Terminal 1: Work on issue 258
+cd ../myproject-issue-258
+/fractary-faber:workflow-run <plan-id-258>
+
+# Terminal 2: Work on issue 259 in parallel (different worktree)
+cd ../myproject-issue-259
+/fractary-faber:workflow-run <plan-id-259>
+```
+
+**Automatic Detection**: The `workflow-run` command detects if another workflow is active and warns you:
+
+```
+⚠️  WARNING: Another workflow is active in this worktree
+   Active: fractary-faber-258-20260104-143022
+   New: fractary-faber-259-20260105-151500
+
+Recommendation: Use separate worktrees for concurrent workflows
+```
+
+### Cross-Environment Workflow Continuity
+
+The `.fractary/faber/.active-run-id` file enables workflows to resume across machines:
+
+**On Machine A**:
+```bash
+/fractary-faber:workflow-run <plan-id>
+# Creates: .fractary/faber/.active-run-id
+# Workflow progresses through Frame, Architect phases
+```
+
+**On Machine B** (after syncing via git):
+```bash
+git pull  # Syncs .active-run-id and state files
+# Hooks automatically detect active workflow
+# Context automatically restored on session start
+# Continue workflow seamlessly
+```
+
+**Important**: Commit `.fractary/faber/.active-run-id` to git (not in `.gitignore`) for cross-environment continuity.
+
 ## Quick Start
 
 ### 1. Configure Critical Artifacts (Optional)
@@ -877,12 +1029,19 @@ When extending workflows, artifacts are inherited and can be overridden:
 
 ## See Also
 
-- **Command Reference**: `plugins/faber/commands/prime-context.md`
+- **Hook Setup Guide**: [HOOKS-SETUP.md](./HOOKS-SETUP.md) - Step-by-step hook configuration for automatic context management
+- **Command References**:
+  - `plugins/faber/commands/prime-context.md` - Manual context reload command
+  - `plugins/faber/commands/session-end.md` - Session end command
 - **Skill Documentation**: `plugins/faber/skills/context-manager/SKILL.md`
-- **Algorithm Details**: `plugins/faber/skills/context-manager/workflow/prime-context.md`
-- **Workflow Schema**: `plugins/faber/config/workflow.schema.json`
-- **State Schema**: `plugins/faber/config/state.schema.json`
+- **Algorithm Details**:
+  - `plugins/faber/skills/context-manager/workflow/prime-context.md` - Context reload algorithm
+  - `plugins/faber/skills/context-manager/workflow/session-end.md` - Session end algorithm
+- **Schemas**:
+  - `plugins/faber/config/workflow.schema.json` - Workflow configuration schema
+  - `plugins/faber/config/state.schema.json` - State file schema
 - **Full Specification**: `specs/SPEC-00027-faber-context-management.md`
-- **State Tracking**: [STATE-TRACKING.md](./STATE-TRACKING.md)
-- **Configuration Guide**: [configuration.md](./configuration.md)
-- **Workflow Guide**: [workflow-guide.md](./workflow-guide.md)
+- **Other Guides**:
+  - [STATE-TRACKING.md](./STATE-TRACKING.md) - State tracking guide
+  - [configuration.md](./configuration.md) - Configuration guide
+  - [workflow-guide.md](./workflow-guide.md) - Workflow guide

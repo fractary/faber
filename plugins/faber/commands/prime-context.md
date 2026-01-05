@@ -49,7 +49,10 @@ Use this command when:
 /fractary-faber:prime-context
 
 # Reload specific workflow run
-/fractary-faber:prime-context --run-id fractary-faber-258-20260104
+/fractary-faber:prime-context --run-id fractary-faber-258-20260105-143022
+
+# Called by SessionStart hook (tracks trigger reason)
+/fractary-faber:prime-context --trigger session_start
 
 # Reload only specific artifacts (faster)
 /fractary-faber:prime-context --artifacts workflow-state,specification
@@ -61,7 +64,7 @@ Use this command when:
 /fractary-faber:prime-context --dry-run
 
 # Combine options
-/fractary-faber:prime-context --run-id xyz --force --artifacts workflow-state
+/fractary-faber:prime-context --run-id fractary-faber-258-20260105-143022 --force --artifacts workflow-state
 ```
 
 ## Implementation
@@ -74,8 +77,9 @@ This command delegates to the **context-manager skill** for execution. See:
 
 ```
 1. Detect Target Workflow
-   ├─ If run_id provided → Use it
-   ├─ If no run_id → Search .fractary/runs/ for active workflows
+   ├─ If --run-id provided → Use it
+   ├─ Else if .fractary/faber/.active-run-id exists → Read run ID from file
+   ├─ Else search .fractary/runs/ for active workflows
    └─ If multiple found → Prompt user to select
 
 2. Load State and Workflow Config
@@ -83,30 +87,43 @@ This command delegates to the **context-manager skill** for execution. See:
    ├─ Extract workflow_id
    └─ Load workflow config (fractary-faber:X or custom)
 
-3. Determine Artifacts to Load
+3. Detect and Create Session
+   ├─ Check state.sessions.current_session_id
+   ├─ Generate new session ID (timestamp-based)
+   ├─ If new session ID != current session ID:
+   │  ├─ Create new session record with:
+   │  │  ├─ session_id
+   │  │  ├─ started_at (current timestamp)
+   │  │  ├─ environment (hostname, platform, cwd, git_commit)
+   │  │  └─ artifacts_loaded (initially empty)
+   │  ├─ Set as current_session_id
+   │  └─ Increment total_sessions
+   └─ Continue with current session if IDs match
+
+4. Determine Artifacts to Load
    ├─ Always load: workflow-state, orchestration-protocol, etc.
    ├─ Conditional load: Based on state (e.g., spec_path exists)
    ├─ Phase-specific: Load artifacts for current phase
    └─ Filter by --artifacts if specified
 
-4. Check Reload Status
+5. Check Reload Status
    ├─ Check state.context_metadata.artifacts_in_context
    ├─ Skip if loaded within last 5 minutes (unless --force)
    └─ Log skipped artifacts
 
-5. Load Each Artifact
+6. Load Each Artifact
    ├─ JSON/Markdown → Use Read tool
    ├─ Directory → Load based on load_strategy
    ├─ Work plugin → Use Skill tool
    └─ Git info → Use Bash tool
 
-6. Update State Metadata
+7. Update State Metadata
    ├─ Update context_metadata.last_artifact_reload
    ├─ Increment context_metadata.reload_count
-   ├─ Add/update artifacts_in_context entries
-   └─ Track current session in sessions.session_history
+   ├─ Add/update artifacts_in_context entries with load_trigger
+   └─ Record loaded artifacts in current session
 
-7. Report Results
+8. Report Results
    └─ Show loaded artifacts with status and metadata
 ```
 
@@ -206,7 +223,8 @@ Paths in workflow config can use placeholders:
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--run-id` | string | Specific run ID to reload (auto-detects if omitted) |
+| `--run-id` | string | Specific run ID to reload (auto-detects from `.fractary/faber/.active-run-id` if omitted) |
+| `--trigger` | string | What triggered this reload: `session_start`, `manual`, `phase_start` (default: `manual`) |
 | `--artifacts` | string | Comma-separated list of artifact IDs to load |
 | `--force` | boolean | Force reload even if recently loaded |
 | `--dry-run` | boolean | Show what would be loaded without loading |

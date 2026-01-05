@@ -26,14 +26,7 @@
     "architect": {
       "enabled": true,
       "description": "Generate and refine technical specification from issue context",
-      "pre_steps": [
-        {
-          "id": "auto-reload-context",
-          "name": "Reload Context",
-          "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
-        }
-      ],
+      "pre_steps": [],
       "steps": [
         {
           "id": "generate-spec",
@@ -53,14 +46,7 @@
     "build": {
       "enabled": true,
       "description": "Implement solution based on specification",
-      "pre_steps": [
-        {
-          "id": "auto-reload-context",
-          "name": "Reload Context",
-          "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
-        }
-      ],
+      "pre_steps": [],
       "steps": [
         {
           "id": "implement",
@@ -73,27 +59,13 @@
     },
     "evaluate": {
       "enabled": true,
-      "pre_steps": [
-        {
-          "id": "auto-reload-context",
-          "name": "Reload Context",
-          "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
-        }
-      ],
+      "pre_steps": [],
       "steps": [],
       "post_steps": []
     },
     "release": {
       "enabled": true,
-      "pre_steps": [
-        {
-          "id": "auto-reload-context",
-          "name": "Reload Context",
-          "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
-        }
-      ],
+      "pre_steps": [],
       "steps": [],
       "post_steps": []
     }

@@ -12,7 +12,8 @@ Reloads critical artifacts for an active or resuming FABER workflow to ensure al
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `run_id` | string | No | Specific run ID to reload. If omitted, auto-detects active workflow |
+| `run_id` | string | No | Specific run ID to reload. If omitted, auto-detects from `.fractary/faber/.active-run-id` or searches for active workflows |
+| `trigger` | string | No | What triggered this reload: `session_start`, `manual`, `phase_start`. Default: `manual` |
 | `artifacts` | string | No | Comma-separated list of specific artifact IDs to load. If omitted, loads all configured artifacts |
 | `force` | boolean | No | Force reload even if recently loaded. Default: false |
 | `dry_run` | boolean | No | Show what would be loaded without actually loading. Default: false |
@@ -21,11 +22,17 @@ Reloads critical artifacts for an active or resuming FABER workflow to ensure al
 
 ### Step 1: Detect Target Workflow
 
-If run_id is provided, use it directly. Otherwise:
-1. Search `.fractary/runs/` for state.json files with status "in_progress" or "paused"
-2. If none found: Return error "No active workflow found"
-3. If one found: Use that run_id
-4. If multiple found: Prompt user to select which workflow
+**Priority order:**
+1. If `run_id` parameter provided → Use it directly
+2. Else if `.fractary/faber/.active-run-id` exists → Read run ID from file
+3. Else search `.fractary/runs/` for state.json files with status "in_progress" or "paused"
+   - If none found: Return error "No active workflow found"
+   - If one found: Use that run_id
+   - If multiple found: Prompt user to select which workflow
+
+**Active run ID file format:**
+- Path: `.fractary/faber/.active-run-id`
+- Content: Single line containing run ID (e.g., `fractary-faber-258-20260105-143022`)
 
 ### Step 2: Load State and Workflow Config
 
@@ -41,7 +48,50 @@ Validate state integrity:
 - Check state is valid JSON
 - If invalid, return error with recovery suggestions
 
-### Step 3: Determine Artifacts to Load
+### Step 3: Detect and Create Session
+
+**Session detection logic:**
+
+1. **Check current session:**
+   - Read `state.sessions.current_session_id`
+   - If null or missing, session field needs initialization
+
+2. **Generate new session ID:**
+   ```
+   timestamp = format(now(), "YYYYMMDD-HHMMSS")
+   random = generate_random_string(6, "alphanumeric-lowercase")
+   new_session_id = "claude-session-${timestamp}-${random}"
+   ```
+
+3. **Compare session IDs:**
+   - If `new_session_id` != `current_session_id` → New session detected
+   - If IDs match → Continue with current session
+
+4. **If new session detected:**
+   ```json
+   new_session = {
+     "session_id": new_session_id,
+     "started_at": current_timestamp_iso8601,
+     "environment": {
+       "hostname": bash("hostname"),
+       "platform": bash("uname -s").lowercase(),
+       "cwd": bash("pwd"),
+       "git_commit": bash("git rev-parse --short HEAD")
+     },
+     "artifacts_loaded": []
+   }
+   ```
+
+5. **Update state:**
+   - Set `state.sessions.current_session_id = new_session_id`
+   - Append `new_session` to `state.sessions.session_history` (if not already present)
+   - Increment `state.sessions.total_sessions`
+
+6. **Session continuity check:**
+   - If session already exists in history (resume case), update it instead of creating new entry
+   - This handles cross-environment workflow resumption
+
+### Step 4: Determine Artifacts to Load
 
 ```
 artifacts_to_load = []
@@ -67,14 +117,14 @@ if artifacts_parameter:
   artifacts_to_load = filter(artifacts_to_load, id in requested_ids)
 ```
 
-### Step 4: Check if Reload Needed
+### Step 5: Check if Reload Needed
 
 If NOT in force mode:
 - For each artifact, check `state.context_metadata.artifacts_in_context`
 - If artifact was loaded within last 5 minutes, skip it
 - Log skipped artifacts for transparency
 
-### Step 5: Load Each Artifact
+### Step 6: Load Each Artifact
 
 For each artifact in `artifacts_to_load`:
 
@@ -99,7 +149,7 @@ Replace placeholders in paths:
 - If artifact is required and fails: Stop and return error
 - If artifact is optional and fails: Log warning and continue
 
-### Step 6: Update State Metadata
+### Step 7: Update State Metadata
 
 Update `state.json` with:
 
@@ -113,7 +163,7 @@ Update `state.json` with:
       {
         "artifact_id": "workflow-state",
         "loaded_at": "<timestamp>",
-        "load_trigger": "manual",
+        "load_trigger": "<trigger parameter value: session_start, manual, or phase_start>",
         "source": ".fractary/runs/xyz/state.json",
         "size_bytes": 4096
       }
@@ -121,6 +171,8 @@ Update `state.json` with:
   }
 }
 ```
+
+**Note**: The `load_trigger` field is set to the value of the `trigger` parameter passed to the command.
 
 **Session tracking (if new session):**
 ```json
@@ -144,7 +196,7 @@ Update `state.json` with:
 }
 ```
 
-### Step 7: Report Results
+### Step 8: Report Results
 
 Output format:
 ```

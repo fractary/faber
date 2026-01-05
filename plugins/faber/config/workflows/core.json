@@ -33,14 +33,7 @@
     "architect": {
       "enabled": true,
       "description": "Design and plan - extend this phase in child workflows",
-      "pre_steps": [
-        {
-          "id": "auto-reload-context",
-          "name": "Reload Context",
-          "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
-        }
-      ],
+      "pre_steps": [],
       "steps": [],
       "post_steps": [
         {
@@ -54,14 +47,7 @@
     "build": {
       "enabled": true,
       "description": "Implementation - extend this phase in child workflows",
-      "pre_steps": [
-        {
-          "id": "auto-reload-context",
-          "name": "Reload Context",
-          "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
-        }
-      ],
+      "pre_steps": [],
       "steps": [],
       "post_steps": [
         {
@@ -75,14 +61,7 @@
     "evaluate": {
       "enabled": true,
       "description": "Review implementation and create PR",
-      "pre_steps": [
-        {
-          "id": "auto-reload-context",
-          "name": "Reload Context",
-          "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
-        }
-      ],
+      "pre_steps": [],
       "steps": [],
       "post_steps": [
         {
@@ -103,14 +82,7 @@
       "enabled": true,
       "description": "Merge PR and complete workflow",
       "require_approval": true,
-      "pre_steps": [
-        {
-          "id": "auto-reload-context",
-          "name": "Reload Context",
-          "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
-        }
-      ],
+      "pre_steps": [],
       "steps": [],
       "post_steps": [
         {

@@ -7,12 +7,16 @@ Protocol for reloading critical workflow artifacts on-demand to recover from con
 **Purpose**: Restore critical workflow context when it has been lost due to context compaction, session boundaries, or environment changes.
 
 **When to Execute**:
-- User runs `/fractary-faber:prime-context` (manual trigger)
-- Workflow pre_step executes automatic reload (session_start trigger)
-- Phase transition requires specific artifacts (phase_transition trigger)
-- Context compaction detected (future: compaction_detected trigger)
+- **Automatic (via hooks)**:
+  - SessionStart Hook after context compaction (`session_start` trigger)
+  - SessionStart Hook when resuming workflow (`session_start` trigger)
+  - PreCompact Hook before context compaction (saves session via `/fractary-faber:session-end`)
+  - SessionEnd Hook on normal exit (saves session via `/fractary-faber:session-end`)
+- **Manual**: User runs `/fractary-faber:prime-context` (manual trigger)
+- **Workflow pre_step**: Frame phase automatic reload (session_start trigger) [optional, hooks preferred]
+- **Phase transition**: When specific artifacts needed for next phase (phase_transition trigger)
 
-**Design Philosophy**: Configurable per-workflow. Each workflow declares which artifacts are critical and when they should be reloaded.
+**Design Philosophy**: Hook-based automatic context management with manual fallback. Each workflow declares which artifacts are critical and when they should be reloaded.
 
 **Relationship to Context Reconstitution**: This protocol EXTENDS the existing context-reconstitution protocol (step 0) with configurable, repeatable artifact reloading throughout workflow execution.
 
@@ -47,17 +51,26 @@ Execute these steps IN ORDER when context reload is triggered:
 
 ### Step 1: Detect Target Workflow
 
+**Priority order for workflow detection**:
+
 ```bash
-# If run_id provided explicitly
+# Priority 1: Explicit run_id parameter
 IF run_id is provided THEN
   target_run_id = run_id
+  LOG "Using specified run_id: ${target_run_id}"
+
+# Priority 2: Active run ID file (hook-based detection)
+ELSE IF file_exists(".fractary/faber/.active-run-id") THEN
+  target_run_id = read(".fractary/faber/.active-run-id").trim()
+  LOG "✓ Auto-detected from .active-run-id: ${target_run_id}"
+
+# Priority 3: Search for active workflows
 ELSE
-  # Auto-detect active workflow
   active_runs = find_active_runs()
 
   IF active_runs.length == 0 THEN
     ERROR: "No active workflow found"
-    SUGGEST: "Use /fractary-faber:run to start a new workflow"
+    SUGGEST: "Use /fractary-faber:workflow-run to start a new workflow"
     SUGGEST: "Or specify run ID: /fractary-faber:prime-context --run-id {id}"
     EXIT 1
 
@@ -74,6 +87,13 @@ ELSE
     selection = GET_USER_INPUT()
     target_run_id = active_runs[selection - 1].run_id
 ```
+
+**Active Run ID File**:
+- **Path**: `.fractary/faber/.active-run-id`
+- **Format**: Single line containing run ID (e.g., `fractary-faber-258-20260105-143022`)
+- **Purpose**: Enables hooks to know which workflow to operate on
+- **Created by**: `/fractary-faber:workflow-run` command
+- **Used by**: PreCompact, SessionStart, SessionEnd hooks
 
 **find_active_runs() Implementation**:
 ```bash
@@ -631,13 +651,111 @@ To ensure correct implementation, validate:
 - **Error threshold**: 1 MB per artifact
 - **Total budget awareness**: Track cumulative size of all loaded artifacts
 
+## Hook-Based Automatic Execution
+
+**Recommended**: Configure Claude Code hooks for automatic context management.
+
+### PreCompact Hook
+
+**Trigger**: Before context compaction
+**Action**: `/fractary-faber:session-end --reason compaction`
+**Purpose**: Save session metadata before context is lost
+
+```json
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/fractary-faber:session-end --reason compaction",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### SessionStart Hook
+
+**Triggers**: After compaction (`compact` matcher) or workflow resume (`resume` matcher)
+**Action**: `/fractary-faber:prime-context --trigger session_start`
+**Purpose**: Restore critical artifacts when new session begins
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/fractary-faber:prime-context --trigger session_start"
+          }
+        ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/fractary-faber:prime-context --trigger session_start"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### SessionEnd Hook
+
+**Trigger**: On session termination (logout, clear, exit)
+**Action**: `/fractary-faber:session-end --reason normal`
+**Purpose**: Save final session state
+
+```json
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/fractary-faber:session-end --reason normal"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Benefits of Hook-Based Approach
+
+1. **Zero Manual Intervention** - Context automatically restored after compaction
+2. **Session Continuity** - Complete session tracking across all workflow executions
+3. **Cross-Environment** - Works seamlessly when moving between machines
+4. **Reliable** - Hooks guaranteed to run at the right time
+5. **Audit Trail** - All sessions recorded with timestamps and environment info
+
+See **[HOOKS-SETUP.md](../HOOKS-SETUP.md)** for complete setup instructions.
+
 ## Integration Points
 
 ### Called By
 
-- `/fractary-faber:prime-context` command (manual trigger)
-- Workflow pre_steps with `reload_triggers: ["session_start"]` (automatic trigger)
-- Phase transition handlers with `reload_triggers: ["phase_transition:X->Y"]` (automatic trigger)
+- **Automatic (via hooks)**:
+  - SessionStart Hook (after compaction or resume)
+  - Workflow pre_steps [optional, hooks preferred]
+- **Manual**:
+  - `/fractary-faber:prime-context` command
+  - Phase transition handlers with `reload_triggers: ["phase_transition:X->Y"]`
 
 ### Calls
 
@@ -650,11 +768,21 @@ To ensure correct implementation, validate:
 
 - `.fractary/runs/{run_id}/state.json` - State metadata, session tracking, context metadata
 
+### Reads
+
+- `.fractary/faber/.active-run-id` - Active workflow detection (hook-based execution)
+
 ## See Also
 
+- **Hook Setup**: [HOOKS-SETUP.md](../HOOKS-SETUP.md) - Step-by-step hook configuration guide
 - **Context Reconstitution**: `context-reconstitution.md` - Initial context loading at workflow start
-- **Command**: `plugins/faber/commands/prime-context.md` - User-facing command interface
+- **Commands**:
+  - `plugins/faber/commands/prime-context.md` - Context reload command
+  - `plugins/faber/commands/session-end.md` - Session end command
 - **Skill**: `plugins/faber/skills/context-manager/SKILL.md` - Context manager skill definition
-- **Algorithm**: `plugins/faber/skills/context-manager/workflow/prime-context.md` - Detailed implementation
-- **Schema**: `plugins/faber/config/workflow.schema.json` - Artifact configuration schema
-- **State Schema**: `plugins/faber/config/state.schema.json` - Session and metadata schema
+- **Algorithms**:
+  - `plugins/faber/skills/context-manager/workflow/prime-context.md` - Context reload implementation
+  - `plugins/faber/skills/context-manager/workflow/session-end.md` - Session end implementation
+- **Schemas**:
+  - `plugins/faber/config/workflow.schema.json` - Artifact configuration schema
+  - `plugins/faber/config/state.schema.json` - Session and metadata schema
