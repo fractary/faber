@@ -120,13 +120,18 @@ if (phases && step_id) {
 
 ### Step 1.2: Auto-Resume Detection
 
+**Initialize workflow state variables:**
+
+```javascript
+// Declare workflow control variables at start
+let plan_id = null;
+let resume_run_id = null;
+let skipPlanning = false;
+```
+
 **Check for existing incomplete runs matching this work_id (unless --force-new):**
 
 ```javascript
-let skipPlanning = false;
-let plan_id = null;
-let resume_run_id = null;
-
 if (!force_new && work_id) {
   console.log("→ Checking for incomplete runs...\n");
 
@@ -145,13 +150,20 @@ if (!force_new && work_id) {
         const stateContent = await Read({ file_path: statePath });
         const state = JSON.parse(stateContent);
 
+        // Validate state structure before using
+        if (!state || typeof state !== 'object') {
+          console.log(`Warning: Invalid state structure at ${statePath}, skipping`);
+          continue;
+        }
+
         // Check if this state matches our work_id and is incomplete
         if (state.work_id === work_id &&
             (state.status === "in_progress" || state.status === "failed")) {
           incompleteRuns.push(state);
         }
       } catch (error) {
-        // Skip corrupted or unreadable state files
+        // Skip corrupted, unreadable, or malformed state files
+        console.log(`Warning: Skipping corrupted state file at ${statePath}: ${error.message}`);
         continue;
       }
     }
@@ -603,11 +615,11 @@ if (phases || step_id) {
 
 ### Step 5.6: Execute Workflow Following Orchestration Protocol
 
-**NOW FOLLOW THE ORCHESTRATION PROTOCOL TO EXECUTE THE WORKFLOW.**
+**YOU MUST NOW EXECUTE THE WORKFLOW FOLLOWING THE ORCHESTRATION PROTOCOL.**
 
-The protocol (`plugins/faber/docs/workflow-orchestration-protocol.md`) defines the exact execution loop.
+The protocol (`plugins/faber/docs/workflow-orchestration-protocol.md`) that you loaded in Step 5.1 defines the exact execution loop. You should follow that protocol directly - this section provides guidance on the high-level flow, but the protocol document contains the complete implementation details that you must follow.
 
-**High-level flow:**
+**High-level flow (see protocol for complete details):**
 
 For each phase in the workflow:
 1. Check if phase is enabled
