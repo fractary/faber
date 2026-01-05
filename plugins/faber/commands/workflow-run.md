@@ -43,7 +43,8 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--resume <run-id>` | string | none | Resume previous run from where it stopped |
+| `--resume <run-id>` | string | none | Resume previous run from where it stopped (manual override) |
+| `--force-new` | flag | false | Force fresh start, bypass auto-resume |
 | `--phase <phase>` | string | none | Execute only specified phase(s) - single or comma-separated (e.g., build or build,evaluate) |
 | `--step <step-id>` | string | none | Execute only specified step(s) - single or comma-separated |
 
@@ -64,8 +65,11 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 # Execute multiple steps
 /fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --step core-implement-solution,core-commit-changes
 
-# Resume previous run
+# Resume previous run (manual override)
 /fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --resume abc123-def456-789
+
+# Force new run (bypass auto-resume)
+/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --force-new
 ```
 
 </INPUTS>
@@ -79,8 +83,9 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 Extract from user input:
 1. `plan_id`: First positional argument (required)
 2. `resume_run_id`: Value of `--resume` flag (optional)
-3. `phase_filter`: Value of `--phase` flag (optional, single or comma-separated phase names)
-4. `step_filter`: Value of `--step` flag (optional, single or comma-separated step IDs)
+3. `force_new`: Boolean flag for `--force-new` (optional, default false)
+4. `phase_filter`: Value of `--phase` flag (optional, single or comma-separated phase names)
+5. `step_filter`: Value of `--step` flag (optional, single or comma-separated step IDs)
 
 **Validation:**
 - If no `plan_id`: Show error and usage
@@ -131,7 +136,7 @@ Protocol: ${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/docs/workflow-orchest
 - Autonomy gates (approval procedures)
 - Error recovery (what to do when things go wrong)
 
-### Step 1.3: Load Plan and Initialize or Resume Workflow
+### Step 1.3: Load Plan and Auto-Resume Detection
 
 **First: Load the plan file**
 
@@ -155,7 +160,65 @@ const autonomy = fullPlan.autonomy || "guarded";
 const work_id = workItems.length === 1 ? workItems[0].work_id : null;
 ```
 
-**If resuming (`--resume` provided):**
+**Auto-Resume Detection (if `--resume` not explicitly provided and `--force-new` not set):**
+
+```javascript
+// Only attempt auto-resume if user didn't explicitly provide --resume or --force-new
+if (!resume_run_id && !force_new) {
+  console.log("\n→ Checking for incomplete runs...");
+
+  // Find all state files for this plan_id
+  const findOutput = await Bash({
+    command: `find .fractary/runs -name "state.json" -type f 2>/dev/null || true`,
+    description: "Find all workflow state files"
+  });
+
+  if (findOutput.stdout.trim()) {
+    const statePaths = findOutput.stdout.trim().split('\n').filter(Boolean);
+    const incompleteRuns = [];
+
+    for (const statePath of statePaths) {
+      try {
+        const stateContent = await Read({ file_path: statePath });
+        const state = JSON.parse(stateContent);
+
+        // Check if this state matches our plan_id and is incomplete
+        if (state.plan_id === plan_id &&
+            (state.status === "in_progress" || state.status === "failed")) {
+          incompleteRuns.push(state);
+        }
+      } catch (error) {
+        // Skip corrupted or unreadable state files
+        continue;
+      }
+    }
+
+    if (incompleteRuns.length > 0) {
+      // Use most recent incomplete run (by started_at timestamp)
+      incompleteRuns.sort((a, b) =>
+        new Date(b.started_at) - new Date(a.started_at)
+      );
+      const latestRun = incompleteRuns[0];
+
+      console.log("✓ Incomplete run detected");
+      console.log(`  Run ID: ${latestRun.run_id}`);
+      console.log(`  Status: ${latestRun.status}`);
+      console.log(`  Last phase: ${latestRun.current_phase || 'not started'}`);
+      console.log(`  Last step: ${latestRun.current_step || 'not started'}`);
+      console.log("\n→ Auto-resuming from where you left off...\n");
+
+      // Set resume_run_id to trigger resume logic below
+      resume_run_id = latestRun.run_id;
+    } else {
+      console.log("  No incomplete runs found. Starting fresh.\n");
+    }
+  } else {
+    console.log("  No previous runs found. Starting fresh.\n");
+  }
+}
+```
+
+**If resuming (`--resume` explicitly provided OR auto-detected above):**
 
 ```javascript
 // Resume from previous run

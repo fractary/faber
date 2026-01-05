@@ -47,7 +47,8 @@ You receive a JSON object in your prompt with these parameters:
   "phases": "string or null - Comma-separated phases to execute",
   "step_id": "string or null - Specific step (format: phase:step-name)",
   "prompt": "string or null - Additional instructions",
-  "working_directory": "string - Project root"
+  "working_directory": "string - Project root",
+  "auto_execute": "boolean or null - If true, skip user prompt and return execute:true"
 }
 ```
 
@@ -467,7 +468,19 @@ Items ({count}):
   2. ...
 ```
 
-### 8c. Prompt User with AskUserQuestion
+### 8c. Prompt User with AskUserQuestion (CONDITIONAL)
+
+**IF auto_execute parameter is true:**
+- Skip AskUserQuestion entirely
+- Output plan summary (as normal in Step 8b)
+- Include in final response:
+  ```
+  execute: true
+  plan_id: {plan_id}
+  ```
+- Return immediately (skip Step 8d)
+
+**ELSE (auto_execute is false or not provided):**
 
 Use AskUserQuestion tool to prompt the user with three options:
 
