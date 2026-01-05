@@ -43,6 +43,10 @@
     },
     "autonomy": {
       "$ref": "#/definitions/autonomy"
+    },
+    "critical_artifacts": {
+      "$ref": "#/definitions/critical_artifacts",
+      "description": "Configuration for critical artifacts that must be maintained in context during workflow execution. Used for context management across sessions and compaction."
     }
   },
   "definitions": {
@@ -453,6 +457,145 @@
           "description": "Actionable recovery suggestions, ordered by likelihood of success"
         }
       }
+    },
+    "critical_artifacts": {
+      "type": "object",
+      "description": "Defines critical artifacts that must be maintained in context during workflow execution. Supports automatic reload on session start, phase transitions, and manual triggering.",
+      "additionalProperties": false,
+      "properties": {
+        "always_load": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/artifact"
+          },
+          "description": "Artifacts that are always loaded regardless of workflow state or phase"
+        },
+        "conditional_load": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/artifact"
+          },
+          "description": "Artifacts loaded only when specific conditions are met"
+        },
+        "phase_specific": {
+          "type": "object",
+          "description": "Phase-specific artifacts (loaded only during specific phases)",
+          "additionalProperties": false,
+          "properties": {
+            "frame": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/artifact"
+              }
+            },
+            "architect": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/artifact"
+              }
+            },
+            "build": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/artifact"
+              }
+            },
+            "evaluate": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/artifact"
+              }
+            },
+            "release": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/artifact"
+              }
+            }
+          }
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["id", "type", "description", "required", "reload_triggers"],
+      "additionalProperties": false,
+      "description": "Defines a critical artifact that must be maintained in context",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique artifact identifier (lowercase, hyphens allowed)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["json", "markdown", "directory", "work_plugin", "skill", "git_info"],
+          "description": "Type of artifact: json (JSON file), markdown (Markdown file), directory (directory of files), work_plugin (fetch via work plugin), skill (fetch via skill), git_info (git command output)"
+        },
+        "path": {
+          "type": "string",
+          "description": "Static file path. Supports placeholders: {run_id}, {plan_id}, {project_root}, {work_id}. Required for json, markdown, directory types."
+        },
+        "path_from_state": {
+          "type": "string",
+          "description": "JSONPath expression to extract path from state file (e.g., 'artifacts.spec_path'). Alternative to static path. Required for conditional artifacts."
+        },
+        "command": {
+          "type": "string",
+          "description": "Slash command or git command to fetch artifact (e.g., '/fractary-work:issue-fetch {work_id}' or 'git log --oneline -20'). Required for work_plugin, skill, git_info types."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable purpose of this artifact"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "If true, workflow cannot proceed without this artifact. If false, missing artifact is logged but workflow continues."
+        },
+        "condition": {
+          "type": "string",
+          "description": "JavaScript expression evaluated against state (e.g., 'state.work_id != null'). Artifact loads only if condition is true. Optional."
+        },
+        "reload_triggers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(session_start|phase_start:[a-z]+|phase_transition:[a-z]+->[a-z]+|manual|compaction_detected)$"
+          },
+          "description": "When to reload this artifact. Valid triggers: session_start, phase_start:{phase}, phase_transition:{from}->{to}, manual, compaction_detected"
+        },
+        "load_strategy": {
+          "type": "string",
+          "enum": ["all", "latest_only", "summary"],
+          "description": "For directory type: 'all' loads all files, 'latest_only' loads most recent file, 'summary' loads a summary. Default: 'all'"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "enum": ["json", "markdown", "directory"]
+            }
+          },
+          "required": ["path"]
+        },
+        {
+          "properties": {
+            "type": {
+              "enum": ["json", "markdown", "directory"]
+            }
+          },
+          "required": ["path_from_state"]
+        },
+        {
+          "properties": {
+            "type": {
+              "enum": ["work_plugin", "skill", "git_info"]
+            }
+          },
+          "required": ["command"]
+        }
+      ]
     }
   }
 }

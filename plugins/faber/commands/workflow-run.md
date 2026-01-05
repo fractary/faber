@@ -241,7 +241,93 @@ await Write({
 });
 ```
 
-### Step 1.4: Load MCP Event Tool
+### Step 1.4: Track Active Workflow
+
+**Track this workflow as the active workflow in the worktree.**
+
+This enables hooks (PreCompact, SessionStart, SessionEnd) to know which workflow to operate on without requiring explicit run_id parameters.
+
+```javascript
+// Ensure .fractary/faber directory exists
+await Bash({
+  command: "mkdir -p .fractary/faber",
+  description: "Create faber tracking directory"
+});
+
+// Check if another workflow is active
+const activeRunIdPath = ".fractary/faber/.active-run-id";
+let existingRunId = null;
+
+try {
+  const existingContent = await Read({ file_path: activeRunIdPath });
+  existingRunId = existingContent.trim();
+} catch (error) {
+  // File doesn't exist, no active workflow
+  existingRunId = null;
+}
+
+// If another workflow is active and different from current
+if (existingRunId && existingRunId !== runId) {
+  console.log("\n⚠️  WARNING: Another workflow is active in this worktree");
+  console.log(`   Active: ${existingRunId}`);
+  console.log(`   New: ${runId}`);
+  console.log("");
+  console.log("Recommendation: Use separate worktrees for concurrent workflows:");
+  console.log("  git worktree add ../myproject-issue-XXX -b feature/XXX");
+  console.log("  cd ../myproject-issue-XXX");
+  console.log("  /fractary-faber:workflow-run <plan-id>");
+  console.log("");
+
+  // Ask user for confirmation
+  const confirmation = await AskUserQuestion({
+    questions: [{
+      question: "Do you want to proceed anyway? This will take over context management for this worktree, potentially interfering with the other workflow.",
+      header: "Proceed?",
+      multiSelect: false,
+      options: [
+        {
+          label: "No, cancel (Recommended)",
+          description: "Stop and use separate worktrees for concurrent workflows"
+        },
+        {
+          label: "Yes, proceed",
+          description: "Take over .active-run-id file (may cause issues with other workflow)"
+        }
+      ]
+    }]
+  });
+
+  const answer = confirmation.answers["0"];
+  if (answer === "No, cancel (Recommended)") {
+    console.log("\n❌ Workflow start cancelled.");
+    console.log("   Use separate worktrees for concurrent workflows.");
+    throw new Error("User cancelled due to active workflow conflict");
+  }
+
+  console.log("\n⚠️  Proceeding with caution...");
+}
+
+// Write current run_id to active-run-id file
+await Write({
+  file_path: activeRunIdPath,
+  content: runId
+});
+
+console.log("✓ Workflow tracked as active");
+console.log(`Active run ID: ${runId}`);
+console.log(`Tracking file: ${activeRunIdPath}`);
+```
+
+**What this enables:**
+- **PreCompact hook**: Knows which workflow to save session for before compaction
+- **SessionStart hook**: Knows which workflow to restore context for after compaction
+- **SessionEnd hook**: Knows which workflow to save final session state for
+- **Manual commands**: `/fractary-faber:prime-context` and `/fractary-faber:session-end` can auto-detect active workflow
+
+**One workflow per worktree:**
+FABER enforces one active workflow per worktree to avoid conflicts. Users needing concurrent workflows should use git worktrees.
+
+### Step 1.5: Load MCP Event Tool
 
 ```javascript
 // Load the fractary_faber_event_emit MCP tool
@@ -262,7 +348,7 @@ await fractary_faber_event_emit({
 console.log("✓ Event system ready");
 ```
 
-### Step 1.5: Apply Phase/Step Filters
+### Step 1.6: Apply Phase/Step Filters
 
 ```javascript
 // If phase or step filters are specified, filter the workflow
@@ -333,7 +419,7 @@ if (phaseFilter || stepFilter) {
 }
 ```
 
-### Step 1.6: Initialize TodoWrite
+### Step 1.7: Initialize TodoWrite
 
 ```javascript
 // Flatten all steps from all phases into a single todo list

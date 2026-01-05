@@ -171,6 +171,56 @@
           "type": "string"
         }
       }
+    },
+    "sessions": {
+      "type": "object",
+      "description": "Session tracking for cross-session and cross-environment workflow execution",
+      "properties": {
+        "current_session_id": {
+          "type": "string",
+          "description": "Current Claude session identifier"
+        },
+        "session_history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/session_record"
+          },
+          "description": "Historical record of all sessions that contributed to this workflow run"
+        },
+        "total_sessions": {
+          "type": "integer",
+          "description": "Total number of sessions (current + historical)"
+        }
+      }
+    },
+    "context_metadata": {
+      "type": "object",
+      "description": "Metadata about loaded context artifacts for debugging and optimization",
+      "properties": {
+        "last_artifact_reload": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of last artifact reload (ISO 8601)"
+        },
+        "reload_count": {
+          "type": "integer",
+          "description": "Total number of context reload operations"
+        },
+        "compaction_events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/compaction_event"
+          },
+          "description": "Record of detected context compaction events"
+        },
+        "artifacts_in_context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/artifact_load_record"
+          },
+          "description": "Currently loaded artifacts with load metadata"
+        }
+      }
     }
   },
   "definitions": {
@@ -243,6 +293,122 @@
         "error": {
           "type": "string",
           "description": "Error message if phase failed"
+        }
+      }
+    },
+    "session_record": {
+      "type": "object",
+      "description": "Record of a single session's contribution to the workflow",
+      "required": ["session_id", "started_at"],
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Unique session identifier"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Session start timestamp (ISO 8601)"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Session end timestamp (ISO 8601)"
+        },
+        "phases_completed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["frame", "architect", "build", "evaluate", "release"]
+          },
+          "description": "Phases completed during this session"
+        },
+        "environment": {
+          "type": "object",
+          "description": "Environment metadata for cross-machine tracking",
+          "properties": {
+            "hostname": {
+              "type": "string",
+              "description": "Machine hostname"
+            },
+            "platform": {
+              "type": "string",
+              "description": "Operating system platform (e.g., 'linux', 'darwin', 'win32')"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Current working directory at session start"
+            },
+            "git_commit": {
+              "type": "string",
+              "description": "Git commit hash at session start"
+            }
+          }
+        },
+        "artifacts_loaded": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Artifact IDs loaded during this session"
+        },
+        "summary_path": {
+          "type": "string",
+          "description": "Path to session summary file (if exists)"
+        }
+      }
+    },
+    "compaction_event": {
+      "type": "object",
+      "description": "Record of a context compaction event",
+      "required": ["detected_at"],
+      "properties": {
+        "detected_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When compaction was detected (ISO 8601)"
+        },
+        "phase": {
+          "type": "string",
+          "description": "Phase during which compaction occurred"
+        },
+        "step": {
+          "type": "string",
+          "description": "Step during which compaction occurred"
+        },
+        "action_taken": {
+          "type": "string",
+          "enum": ["reload_critical_artifacts", "none", "manual_trigger"],
+          "description": "Action taken in response to compaction"
+        }
+      }
+    },
+    "artifact_load_record": {
+      "type": "object",
+      "description": "Record of an artifact load operation",
+      "required": ["artifact_id", "loaded_at", "load_trigger"],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "description": "Unique artifact identifier from workflow config"
+        },
+        "loaded_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When artifact was loaded (ISO 8601)"
+        },
+        "load_trigger": {
+          "type": "string",
+          "enum": ["session_start", "phase_transition", "manual", "compaction_detected"],
+          "description": "What triggered this load"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source path or command used to load artifact"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "description": "Size of loaded artifact in bytes (for optimization tracking)"
         }
       }
     }

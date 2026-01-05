@@ -8,11 +8,17 @@
       "description": "Fetch work item and setup branch",
       "pre_steps": [
         {
+          "id": "auto-reload-context",
+          "name": "Reload Context",
+          "description": "Automatically reload critical artifacts for session continuity",
+          "prompt": "/fractary-faber:prime-context"
+        },
+        {
           "id": "core-fetch-issue",
           "name": "Fetch Issue",
           "description": "Fetch existing issue. Reads referenced docs and existing commits.",
           "prompt": "/fractary-work:issue-fetch --work-id {work_id}"
-        }        
+        }
       ],
       "steps": [],
       "post_steps": [
@@ -92,5 +98,36 @@
     "level": "guarded",
     "description": "Pauses before release for approval - recommended for production",
     "require_approval_for": ["release"]
+  },
+  "critical_artifacts": {
+    "always_load": [
+      {
+        "id": "workflow-state",
+        "type": "json",
+        "path": ".fractary/runs/{run_id}/state.json",
+        "description": "Current workflow state file - essential for continuation",
+        "required": true,
+        "reload_triggers": ["session_start", "manual"]
+      },
+      {
+        "id": "orchestration-protocol",
+        "type": "markdown",
+        "path": "plugins/faber/docs/workflow-orchestration-protocol.md",
+        "description": "Workflow execution protocol - defines how to execute steps",
+        "required": true,
+        "reload_triggers": ["session_start"]
+      }
+    ],
+    "conditional_load": [
+      {
+        "id": "issue-context",
+        "type": "work_plugin",
+        "command": "/fractary-work:issue-fetch {work_id}",
+        "description": "Issue details and context",
+        "required": false,
+        "condition": "state.work_id != null",
+        "reload_triggers": ["session_start"]
+      }
+    ]
   }
 }
