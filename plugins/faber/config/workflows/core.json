@@ -8,11 +8,17 @@
       "description": "Fetch work item and setup branch",
       "pre_steps": [
         {
+          "id": "auto-reload-context",
+          "name": "Reload Context",
+          "description": "Automatically reload critical artifacts for session continuity",
+          "prompt": "/fractary-faber:prime-context"
+        },
+        {
           "id": "core-fetch-issue",
           "name": "Fetch Issue",
           "description": "Fetch existing issue. Reads referenced docs and existing commits.",
           "prompt": "/fractary-work:issue-fetch --work-id {work_id}"
-        }        
+        }
       ],
       "steps": [],
       "post_steps": [
