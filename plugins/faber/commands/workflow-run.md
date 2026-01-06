@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:workflow-run
-description: Execute a FABER plan created by /fractary-faber:plan with Claude Code as the primary orchestrator
-argument-hint: '<plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new]'
+description: Execute a FABER plan created by faber plan CLI command
+argument-hint: '<work-id|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new]'
 allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
 model: claude-sonnet-4-5
 ---
@@ -32,13 +32,13 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 
 **Syntax:**
 ```bash
-/fractary-faber:workflow-run <plan-id> [options]
+/fractary-faber:workflow-run <work-id|plan-id> [options]
 ```
 
 **Arguments:**
 | Argument | Type | Required | Description |
 |----------|------|----------|-------------|
-| `<plan-id>` | string | Yes | Plan ID created by /fractary-faber:plan |
+| `<work-id\|plan-id>` | string | Yes | Work item ID (e.g., "258") OR full plan ID (e.g., "fractary-faber-258-20260106-143022"). If work-id provided, fetches plan from GitHub issue. |
 
 **Options:**
 | Option | Type | Default | Description |
@@ -51,29 +51,29 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 
 **Examples:**
 ```bash
-# Execute full workflow (all phases)
-/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229
+# Execute by work-id (simple!)
+/fractary-faber:workflow-run 258
 
-# Execute single phase
-/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --phase build
+# Execute by full plan-id (backwards compatible)
+/fractary-faber:workflow-run fractary-faber-258-20260106-143022
+
+# Execute with phase filter
+/fractary-faber:workflow-run 258 --phase build
 
 # Execute multiple phases
-/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --phase build,evaluate
+/fractary-faber:workflow-run 258 --phase build,evaluate
 
 # Execute single step
-/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --step core-implement-solution
-
-# Execute multiple steps
-/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --step core-implement-solution,core-commit-changes
+/fractary-faber:workflow-run 258 --step core-implement-solution
 
 # Resume previous run (manual override)
-/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --resume abc123-def456-789
+/fractary-faber:workflow-run 258 --resume abc123-def456-789
 
 # Force new run (bypass auto-resume)
-/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --force-new
+/fractary-faber:workflow-run 258 --force-new
 
 # Auto-create worktree on conflict (no prompt)
-/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --worktree
+/fractary-faber:workflow-run 258 --worktree
 ```
 
 </INPUTS>
@@ -82,18 +82,103 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 
 ## Phase 1: Initialization
 
-### Step 1.1: Parse Arguments
+### Step 1.1: Parse Arguments and Resolve Plan ID
 
 Extract from user input:
-1. `plan_id`: First positional argument (required)
+1. `arg`: First positional argument (required) - can be work-id OR plan-id
 2. `resume_run_id`: Value of `--resume` flag (optional)
 3. `force_new`: Boolean flag for `--force-new` (optional, default false)
 4. `phase_filter`: Value of `--phase` flag (optional, single or comma-separated phase names)
 5. `step_filter`: Value of `--step` flag (optional, single or comma-separated step IDs)
 6. `auto_worktree`: Boolean flag for `--worktree` (optional, default false)
 
+**Resolve Plan ID from Argument:**
+
+The first argument can be either a work-id (e.g., "258") or a full plan-id (e.g., "fractary-faber-258-20260106-143022").
+
+```javascript
+const arg = args[0];
+let plan_id;
+
+if (!arg) {
+  console.error("Error: Missing required argument: <work-id|plan-id>");
+  console.error("Usage: /fractary-faber:workflow-run <work-id|plan-id> [options]");
+  return;
+}
+
+// Determine if argument is a plan-id or work-id
+if (arg.startsWith('fractary-faber-')) {
+  // Full plan ID provided
+  plan_id = arg;
+  console.log(`→ Using plan ID: ${plan_id}`);
+} else {
+  // Work ID provided - fetch plan_id from GitHub issue
+  const work_id = arg;
+  console.log(`→ Fetching plan for issue #${work_id}...`);
+
+  // Call fractary-repo to fetch issue
+  try {
+    const issueResult = await Skill({
+      skill: "fractary-repo:issue-fetch",
+      args: `--ids ${work_id} --format json`
+    });
+
+    // Parse JSON response
+    const issueData = JSON.parse(issueResult);
+    if (!issueData.success || !issueData.issues || issueData.issues.length === 0) {
+      console.error(`Error: Issue #${work_id} not found`);
+      return;
+    }
+
+    const issue = issueData.issues[0];
+
+    // Extract plan_id from issue comments
+    // Look for comment with format: "🤖 Workflow plan created: {plan_id}"
+    plan_id = extractPlanIdFromIssue(issue);
+
+    if (!plan_id) {
+      console.error(`Error: No plan found for issue #${work_id}`);
+      console.error(`Run 'faber plan --work-id ${work_id}' first to create a plan.`);
+      return;
+    }
+
+    console.log(`✓ Found plan: ${plan_id}`);
+
+  } catch (error) {
+    console.error(`Error fetching issue #${work_id}: ${error.message}`);
+    console.error(`Note: fractary-repo:issue-fetch command may not be available yet.`);
+    console.error(`Use full plan-id instead: /fractary-faber:workflow-run fractary-faber-${work_id}-...`);
+    return;
+  }
+}
+
+// Helper function to extract plan_id from issue
+function extractPlanIdFromIssue(issue) {
+  // Check issue comments for plan_id
+  if (issue.comments) {
+    for (const comment of issue.comments) {
+      const match = comment.body.match(/🤖 Workflow plan created: (fractary-faber-\S+)/);
+      if (match) {
+        return match[1];
+      }
+    }
+  }
+
+  // Check issue body for plan_id
+  if (issue.body || issue.description) {
+    const body = issue.body || issue.description;
+    const match = body.match(/🤖 Workflow plan created: (fractary-faber-\S+)/);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+```
+
 **Validation:**
-- If no `plan_id`: Show error and usage
+- If no `plan_id` resolved: Show error and usage
 - Plan file must exist at `logs/fractary/plugins/faber/plans/{plan_id}.json`
 - Cannot specify both `--phase` and `--step` simultaneously
 - If phase filter specified: validate phase names exist in workflow
@@ -385,100 +470,17 @@ if (existingRunId && existingRunId !== runId) {
   }
 
   if (answer === "Create new worktree (Recommended)") {
-    console.log("\n→ Creating new worktree...");
-
-    // Determine worktree path
-    const projectName = await Bash({
-      command: "basename $(git rev-parse --show-toplevel)",
-      description: "Get project name"
-    });
-    const worktreePath = `../${projectName.stdout.trim()}-${work_id || 'workflow'}`;
-
-    // Determine branch name
-    const branchName = workItems.length === 1 && work_id
-      ? `feature/${work_id}`
-      : `workflow/${plan_id}`;
-
-    console.log(`Worktree path: ${worktreePath}`);
-    console.log(`Branch: ${branchName}`);
-    console.log("");
-
-    // Call fractary-repo:worktree-create
-    // NOTE: This command needs to be implemented in fractary-repo plugin
-    try {
-      await Skill({
-        skill: "fractary-repo:worktree-create",
-        args: `--work-id ${work_id || plan_id} --branch ${branchName} --path ${worktreePath}`
-      });
-
-      console.log("✓ Worktree created successfully");
-
-      // Update state with worktree metadata
-      initialState.worktree = {
-        path: worktreePath,
-        created_by: "fractary-faber",
-        created_at: new Date().toISOString(),
-        auto_cleanup: true,
-        branch: branchName
-      };
-
-      // Write worktree metadata to global tracking
-      await Bash({
-        command: "mkdir -p .fractary/faber",
-        description: "Ensure faber directory exists"
-      });
-
-      const worktreesPath = ".fractary/faber/worktrees.json";
-      let worktreesData = { worktrees: [] };
-
-      try {
-        const existingData = await Read({ file_path: worktreesPath });
-        worktreesData = JSON.parse(existingData);
-      } catch (error) {
-        // File doesn't exist, use empty structure
-      }
-
-      // Add new worktree record
-      worktreesData.worktrees.push({
-        path: worktreePath,
-        workflow_run_id: runId,
-        work_id: work_id || null,
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        branch: branchName,
-        created_by: "fractary-faber",
-        auto_cleanup: true,
-        last_activity: new Date().toISOString()
-      });
-
-      worktreesData.last_updated = new Date().toISOString();
-
-      await Write({
-        file_path: worktreesPath,
-        content: JSON.stringify(worktreesData, null, 2)
-      });
-
-      console.log("\n✓ Worktree tracking updated");
-      console.log(`\n📁 Worktree location: ${worktreePath}`);
-      console.log(`📌 To return to main worktree: cd ${process.cwd()}`);
-      console.log(`\n→ Workflow will continue in new worktree...`);
-      console.log(`   (You may need to switch context if working in IDE)\n`);
-
-      // The workflow will continue in the new worktree
-      // The fractary-repo:worktree-create command should have switched directories
-
-    } catch (error) {
-      console.error("\n✗ Failed to create worktree");
-      console.error(`Error: ${error.message}`);
-      console.error("\nNote: The /fractary-repo:worktree-create command may not be available yet.");
-      console.error("Falling back to manual worktree creation instructions.");
-      console.error("\nTo manually create a worktree:");
-      console.error(`  git worktree add ${worktreePath} -b ${branchName}`);
-      console.error(`  cd ${worktreePath}`);
-      console.error("  /fractary-faber:workflow-run <plan-id>");
-      throw new Error("Worktree creation failed");
-    }
+    console.log("\n⚠️  Worktree creation is now handled by the CLI.");
+    console.log("\nWorkflows should be planned with 'faber plan', which creates worktrees automatically.");
+    console.log("\nRecommended workflow:");
+    console.log("  1. Plan workflow: faber plan --work-id <id>");
+    console.log("  2. Navigate to worktree: cd ~/.claude-worktrees/{org}-{project}-{id}");
+    console.log("  3. Run workflow: /fractary-faber:workflow-run <work-id>");
+    console.log("\nAlternatively, create worktree manually:");
+    console.log(`  git worktree add ~/.claude-worktrees/{org}-{project}-${work_id || 'workflow'} -b feature/${work_id || plan_id}`);
+    console.log(`  cd ~/.claude-worktrees/{org}-{project}-${work_id || 'workflow'}`);
+    console.log("  /fractary-faber:workflow-run <work-id>");
+    throw new Error("Use CLI for worktree creation (faber plan)");
   } else {
     // User chose "Take over this worktree"
     console.log("\n⚠️  Taking over this worktree...");

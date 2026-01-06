@@ -153,6 +153,37 @@ npm install @fractary/faber
 
 ## Quick Start
 
+### CLI Workflow (Recommended)
+
+FABER uses a two-phase approach: **plan** (CLI) + **execute** (Claude Code):
+
+```bash
+# 1. Plan workflow (creates plan, branch, worktree)
+faber plan --work-id 258
+
+# 2. Execute workflow (in Claude Code session)
+cd ~/.claude-worktrees/fractary-myproject-258
+claude
+/fractary-faber:workflow-run 258
+```
+
+**Batch Planning:**
+```bash
+# Plan multiple workflows at once
+faber plan --work-id 258,259,260
+
+# Or search by labels
+faber plan --work-label "workflow:etl,status:approved"
+```
+
+**Benefits:**
+- ✅ Plan 10+ workflows in one command
+- ✅ Each workflow runs in isolated worktree
+- ✅ Parallel execution across multiple Claude sessions
+- ✅ Claude focuses only on execution (no planning confusion)
+
+### SDK Usage
+
 ```typescript
 import { FaberWorkflow } from '@fractary/faber';
 
@@ -164,14 +195,11 @@ const result = await workflow.run({
 });
 ```
 
-Or use the CLI ([@fractary/faber-cli](cli/)):
+### Additional CLI Commands
 
 ```bash
-# Run workflow for issue #123
-fractary-faber run --work-id 123 --autonomy assisted
-
-# Check status
-fractary-faber status
+# Check workflow status
+fractary-faber workflow-status --work-id 258
 
 # Manage work items
 fractary-faber work issue fetch 123

@@ -1,19 +1,69 @@
 # FABER Worktree Management
 
-**Status**: Implemented (FABER side)
-**Version**: 3.3.0+
-**Related**: [SPEC-00028](../../../specs/SPEC-00028-faber-worktree-management.md), [Context Management](./CONTEXT-MANAGEMENT.md)
+**Status**: Implemented
+**Version**: 3.4.0+
+**Architecture**: CLI-first (planning) + Claude Code (execution)
+**Related**: [SPEC-00029](../../../specs/SPEC-00029-FABER-CLI-PLANNING.md), [SPEC-00028](../../../specs/SPEC-00028-faber-worktree-management.md), [Context Management](./CONTEXT-MANAGEMENT.md)
 
 ## Overview
 
-FABER workflows follow a **one-workflow-per-worktree** design for reliable context management. To make concurrent workflows seamless, FABER automates git worktree lifecycle management.
+FABER workflows follow a **one-workflow-per-worktree** design for reliable context management. Worktrees are created automatically by the **FABER CLI** during the planning phase, enabling seamless concurrent workflow execution.
 
 **Key Benefits:**
 - ✅ Run multiple workflows concurrently without conflicts
-- ✅ Automatic worktree creation when needed
+- ✅ Worktrees created automatically during planning (CLI)
 - ✅ Tracked worktree metadata for audit and cleanup
 - ✅ Automatic cleanup prompts after workflow completion
-- ✅ No need to learn git worktree commands
+- ✅ Centralized worktree location (`~/.claude-worktrees/`)
+- ✅ Organization-scoped paths prevent conflicts
+
+## New Architecture (v3.4.0+)
+
+### Two-Phase Workflow
+
+**Phase 1: Planning (CLI)**
+```bash
+# CLI creates: plan + branch + worktree
+faber plan --work-id 258
+
+# Output:
+✓ Plan: fractary-faber-258-20260106-143022
+  Branch: feature/258
+  Worktree: ~/.claude-worktrees/fractary-myproject-258
+```
+
+**Phase 2: Execution (Claude Code)**
+```bash
+# Navigate to worktree
+cd ~/.claude-worktrees/fractary-myproject-258
+
+# Start Claude session
+claude
+
+# Run workflow (uses work-id, fetches plan from issue)
+/fractary-faber:workflow-run 258
+```
+
+### Worktree Path Pattern
+
+**Default:** `~/.claude-worktrees/{organization}-{project}-{work-id}/`
+
+**Examples:**
+```
+~/.claude-worktrees/fractary-myproject-258/
+~/.claude-worktrees/fractary-myproject-259/
+~/.claude-worktrees/acme-webapp-42/
+```
+
+**Why include organization?**
+- Prevents conflicts across projects with same name
+- Supports working on multiple organizations simultaneously
+- Clear ownership and isolation
+
+**Configuration:**
+- Respects Claude Code settings (if configured)
+- Fallback: `~/.claude-worktrees/`
+- Configurable via `.fractary/settings.json`
 
 ## How It Works
 
@@ -27,39 +77,30 @@ When you start a workflow (`/fractary-faber:workflow-run`), FABER checks if anot
    Active: fractary-faber-258-20260105-143022
    New: fractary-faber-259-20260105-144500
 
-For concurrent workflows, it's recommended to use separate worktrees.
+For concurrent workflows, use separate worktrees.
+
+Recommended approach:
+  1. Use 'faber plan --work-id 259' to create plan + worktree
+  2. Navigate to worktree: cd ~/.claude-worktrees/fractary-myproject-259
+  3. Run workflow: /fractary-faber:workflow-run 259
 
 How would you like to proceed?
-  1. Create new worktree (Recommended)
+  1. Cancel and use CLI (Recommended)
   2. Take over this worktree
-  3. Cancel
 ```
 
-### Option 1: Create New Worktree (Recommended)
+### Option 1: Cancel and Use CLI (Recommended)
 
-FABER automatically:
-1. Determines worktree path: `../{project-name}-{work-id}`
-2. Determines branch name: `feature/{work-id}`
-3. Calls `/fractary-repo:worktree-create` to create worktree
-4. Updates workflow state with worktree metadata
-5. Adds worktree to global tracking (`.fractary/faber/worktrees.json`)
-6. Continues workflow in new worktree
+The proper way to run concurrent workflows is via CLI planning:
 
-**Example:**
 ```bash
-$ /fractary-faber:workflow-run fractary-faber-259-...
+# Plan workflow (creates worktree automatically)
+faber plan --work-id 259
 
-→ Creating new worktree...
-Worktree path: ../myproject-259
-Branch: feature/259
-
-✓ Worktree created successfully
-✓ Worktree tracking updated
-
-📁 Worktree location: ../myproject-259
-📌 To return to main worktree: cd /mnt/c/GitHub/fractary/myproject
-
-→ Workflow will continue in new worktree...
+# Execute in new worktree
+cd ~/.claude-worktrees/fractary-myproject-259
+claude
+/fractary-faber:workflow-run 259
 ```
 
 ### Option 2: Take Over This Worktree
@@ -67,10 +108,6 @@ Branch: feature/259
 Overrides the active workflow tracking. This may cause issues with the other workflow's context management.
 
 **Use case**: When you're sure the other workflow is no longer running or you want to stop it.
-
-### Option 3: Cancel
-
-Exits without starting the workflow. Provides manual instructions for creating a worktree.
 
 ## Workflow Completion: Automatic Cleanup
 
@@ -230,34 +267,73 @@ Summary:
 
 ## Use Cases
 
-### Running Multiple Issues Concurrently
+### Planning and Running Multiple Issues Concurrently
+
+**New Approach (CLI-first):**
 
 ```bash
-# Terminal 1: Start first workflow
-$ /fractary-faber:workflow-run fractary-faber-258-...
-✓ Workflow started in current worktree
+# Step 1: Plan multiple workflows at once
+$ faber plan --work-id 258,259,260
 
-# Terminal 2: Start second workflow (auto-creates worktree)
-$ /fractary-faber:workflow-run fractary-faber-259-...
-⚠️  Another workflow (258) is active
-How would you like to proceed? Create new worktree
-✓ Created worktree: ../myproject-259
-→ Workflow continues in new worktree
+✓ Planned 3 workflows successfully:
+
+[1/3] Issue #258: Load IPEDS HD dataset
+      Worktree: ~/.claude-worktrees/fractary-myproject-258
+      To execute: cd ~/.claude-worktrees/fractary-myproject-258 && claude
+
+[2/3] Issue #259: Load IPEDS IC dataset
+      Worktree: ~/.claude-worktrees/fractary-myproject-259
+      To execute: cd ~/.claude-worktrees/fractary-myproject-259 && claude
+
+[3/3] Issue #260: Fix authentication timeout
+      Worktree: ~/.claude-worktrees/fractary-myproject-260
+      To execute: cd ~/.claude-worktrees/fractary-myproject-260 && claude
+
+# Step 2: Execute workflows in parallel (different terminals/sessions)
+# Terminal 1:
+$ cd ~/.claude-worktrees/fractary-myproject-258
+$ claude
+> /fractary-faber:workflow-run 258
+
+# Terminal 2:
+$ cd ~/.claude-worktrees/fractary-myproject-259
+$ claude
+> /fractary-faber:workflow-run 259
+
+# Terminal 3:
+$ cd ~/.claude-worktrees/fractary-myproject-260
+$ claude
+> /fractary-faber:workflow-run 260
 ```
 
 ### Switching Between Workflows
 
 ```bash
 # Work on issue 258
-$ cd ../myproject-258
-$ /fractary-faber:workflow-run fractary-faber-258-... --resume
+$ cd ~/.claude-worktrees/fractary-myproject-258
+$ claude
+> /fractary-faber:workflow-run 258 --resume
 
 # Switch to issue 259
-$ cd ../myproject-259
-$ /fractary-faber:workflow-run fractary-faber-259-... --resume
+$ cd ~/.claude-worktrees/fractary-myproject-259
+$ claude
+> /fractary-faber:workflow-run 259 --resume
 
 # Return to main worktree
 $ cd /mnt/c/GitHub/fractary/myproject
+```
+
+### Batch Planning with Label Filters
+
+```bash
+# Plan all approved ETL workflows
+$ faber plan --work-label "workflow:etl,status:approved"
+
+# Plan all high-priority bugs
+$ faber plan --work-label "workflow:bugfix,priority:high"
+
+# Plan with workflow override
+$ faber plan --work-id 258,259 --workflow custom-etl
 ```
 
 ### Cleaning Up After Merge
@@ -341,18 +417,18 @@ In workflow config (e.g., `workflows/core.json`):
 
 ### Worktree Creation Fails
 
-**Error**: `/fractary-repo:worktree-create command not found`
+**Error**: `faber plan` command fails to create worktree
 
-**Cause**: The fractary-repo plugin doesn't have worktree commands yet.
+**Cause**: The fractary-repo plugin doesn't have worktree commands yet, or git worktree creation failed.
 
 **Solution**:
 1. Check fractary-repo plugin version: `fractary-repo --version`
 2. Update to v4.0+: `fractary plugin update fractary-repo`
 3. Or manually create worktree:
    ```bash
-   git worktree add ../myproject-259 -b feature/259
-   cd ../myproject-259
-   /fractary-faber:workflow-run <plan-id>
+   git worktree add ~/.claude-worktrees/fractary-myproject-259 -b feature/259
+   cd ~/.claude-worktrees/fractary-myproject-259
+   /fractary-faber:workflow-run 259
    ```
 
 ### Can't Remove Worktree
@@ -365,7 +441,7 @@ In workflow config (e.g., `workflows/core.json`):
 1. Commit or stash changes in worktree
 2. Use `--force` flag (caution: loses uncommitted work):
    ```bash
-   /fractary-repo:worktree-remove ../myproject-259 --force
+   /fractary-repo:worktree-remove ~/.claude-worktrees/fractary-myproject-259 --force
    ```
 
 ### Orphaned Worktrees Accumulating
@@ -385,27 +461,38 @@ In workflow config (e.g., `workflows/core.json`):
 
 **Cause**: Trying to start a second workflow without creating new worktree.
 
-**Solution**: Choose "Create new worktree" option when prompted.
+**Solution**: Use CLI to plan and create a new worktree:
+```bash
+faber plan --work-id 260
+cd ~/.claude-worktrees/fractary-myproject-260
+claude
+/fractary-faber:workflow-run 260
+```
 
 ## Best Practices
 
-1. **Always Use Separate Worktrees for Concurrent Work**
+1. **Use CLI for Planning (Recommended)**
+   - Plan workflows using `faber plan` command before execution
+   - Enables batch planning and automated worktree setup
+   - Separates planning from execution for better clarity
+
+2. **Always Use Separate Worktrees for Concurrent Work**
    - One worktree per active workflow
    - Prevents context management conflicts
 
-2. **Enable Auto-Cleanup**
+3. **Enable Auto-Cleanup**
    - Set `auto_cleanup: true` in settings
    - Accept cleanup prompts after workflow completion
 
-3. **Run Periodic Prune**
+4. **Run Periodic Prune**
    - Monthly: `/fractary-repo:worktree-prune`
    - Keeps disk space under control
 
-4. **Check Active Worktrees**
+5. **Check Active Worktrees**
    - Before starting new work: `/fractary-repo:worktree-list`
    - Identify abandoned workflows
 
-5. **Don't Manually Delete Worktree Directories**
+6. **Don't Manually Delete Worktree Directories**
    - Use `/fractary-repo:worktree-remove`
    - Ensures git metadata is cleaned up
 
@@ -431,6 +518,7 @@ Planned improvements (see SPEC-00028):
 
 ## References
 
+- [SPEC-00029](../../../specs/SPEC-00029-FABER-CLI-PLANNING.md) - CLI planning architecture
 - [SPEC-00028](../../../specs/SPEC-00028-faber-worktree-management.md) - Full specification
 - [SPEC-00028 Implementation Note](../../../specs/SPEC-00028-IMPLEMENTATION-NOTE.md) - Implementation status
 - [Context Management](./CONTEXT-MANAGEMENT.md) - Related context management docs

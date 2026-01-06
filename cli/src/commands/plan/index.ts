@@ -1,0 +1,456 @@
+/**
+ * Plan command - FABER CLI planning command
+ *
+ * Batch workflow planning for GitHub issues
+ */
+
+import { Command } from 'commander';
+import chalk from 'chalk';
+import { AnthropicClient } from '../../lib/anthropic-client.js';
+import { RepoClient } from '../../lib/repo-client.js';
+import { ConfigManager } from '../../lib/config.js';
+import { prompt } from '../../utils/prompt.js';
+import fs from 'fs/promises';
+import path from 'path';
+
+interface PlanOptions {
+  workId?: string;
+  workLabel?: string;
+  workflow?: string;
+  noWorktree?: boolean;
+  noBranch?: boolean;
+  skipConfirm?: boolean;
+  output?: string;
+  json?: boolean;
+}
+
+interface Issue {
+  id: string;
+  number: number;
+  title: string;
+  description: string;
+  labels: string[];
+  url: string;
+  state: string;
+  workflow?: string; // Extracted workflow label
+}
+
+interface PlanResult {
+  issue: Issue;
+  planId: string;
+  branch: string;
+  worktree: string;
+  error?: string;
+}
+
+/**
+ * Create the plan command
+ */
+export function createPlanCommand(): Command {
+  return new Command('plan')
+    .description('Plan workflows for GitHub issues')
+    .option('--work-id <ids>', 'Comma-separated list of work item IDs (e.g., "258,259,260")')
+    .option('--work-label <labels>', 'Comma-separated label filters (e.g., "workflow:etl,status:approved")')
+    .option('--workflow <name>', 'Override workflow (default: read from issue "workflow:*" label)')
+    .option('--no-worktree', 'Skip worktree creation')
+    .option('--no-branch', 'Skip branch creation')
+    .option('--skip-confirm', 'Skip confirmation prompt (use with caution)')
+    .option('--output <format>', 'Output format: text|json|yaml', 'text')
+    .option('--json', 'Output as JSON (shorthand for --output json)')
+    .action(async (options: PlanOptions) => {
+      try {
+        await executePlanCommand(options);
+      } catch (error) {
+        handlePlanError(error, options);
+      }
+    });
+}
+
+/**
+ * Main execution logic for plan command
+ */
+async function executePlanCommand(options: PlanOptions): Promise<void> {
+  const outputFormat = options.json ? 'json' : options.output || 'text';
+
+  // Validate arguments
+  if (!options.workId && !options.workLabel) {
+    throw new Error('Either --work-id or --work-label must be provided');
+  }
+
+  if (options.workId && options.workLabel) {
+    throw new Error('Cannot use both --work-id and --work-label at the same time');
+  }
+
+  // Initialize clients
+  const config = await ConfigManager.load();
+  const repoClient = new RepoClient(config);
+  const anthropicClient = new AnthropicClient(config);
+
+  if (outputFormat === 'text') {
+    console.log(chalk.blue('FABER CLI - Workflow Planning'));
+    console.log(chalk.gray('═'.repeat(50)));
+  }
+
+  // Step 1: Fetch issues from GitHub
+  if (outputFormat === 'text') {
+    console.log(chalk.cyan('\n→ Fetching issues from GitHub...'));
+  }
+
+  let issues: Issue[];
+  try {
+    if (options.workId) {
+      const ids = options.workId.split(',').map(id => id.trim());
+      issues = await repoClient.fetchIssues(ids);
+      if (outputFormat === 'text') {
+        console.log(chalk.green(`  ✓ Fetched ${issues.length} issue(s) by ID`));
+      }
+    } else if (options.workLabel) {
+      const labels = options.workLabel.split(',').map(label => label.trim());
+      issues = await repoClient.searchIssues(labels);
+      if (outputFormat === 'text') {
+        console.log(chalk.green(`  ✓ Found ${issues.length} issue(s) matching labels`));
+      }
+    } else {
+      throw new Error('No issues to process');
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('not yet implemented')) {
+      if (outputFormat === 'text') {
+        console.log(chalk.yellow('\n⚠️  fractary-repo commands not yet available'));
+        console.log(chalk.gray('   This command requires fractary-repo plugin implementation.'));
+        console.log(chalk.gray('   See SPEC-00030-FRACTARY-REPO-ENHANCEMENTS.md'));
+      } else {
+        console.log(JSON.stringify({
+          status: 'error',
+          error: {
+            code: 'DEPENDENCY_NOT_AVAILABLE',
+            message: 'fractary-repo commands not yet implemented',
+            details: 'See SPEC-00030-FRACTARY-REPO-ENHANCEMENTS.md',
+          },
+        }, null, 2));
+      }
+      return;
+    }
+    throw error;
+  }
+
+  if (issues.length === 0) {
+    if (outputFormat === 'text') {
+      console.log(chalk.yellow('\n⚠️  No issues found'));
+    } else {
+      console.log(JSON.stringify({ status: 'success', issues: [], message: 'No issues found' }, null, 2));
+    }
+    return;
+  }
+
+  // Step 2: Extract workflows from labels or prompt user
+  if (outputFormat === 'text') {
+    console.log(chalk.cyan('\n→ Identifying workflows...'));
+  }
+
+  const availableWorkflows = await loadAvailableWorkflows(config);
+  const issuesWithWorkflows = await assignWorkflows(issues, availableWorkflows, options, outputFormat);
+
+  // Step 3: Show confirmation prompt
+  if (!options.skipConfirm) {
+    const confirmed = await showConfirmationPrompt(issuesWithWorkflows, config, outputFormat);
+    if (!confirmed) {
+      if (outputFormat === 'text') {
+        console.log(chalk.yellow('\n✖ Planning cancelled'));
+      } else {
+        console.log(JSON.stringify({ status: 'cancelled', message: 'User cancelled planning' }, null, 2));
+      }
+      return;
+    }
+  }
+
+  // Step 4: Plan each issue
+  if (outputFormat === 'text') {
+    console.log(chalk.cyan('\n→ Planning workflows...'));
+  }
+
+  const results: PlanResult[] = [];
+
+  for (const issue of issuesWithWorkflows) {
+    if (outputFormat === 'text') {
+      console.log(chalk.gray(`\n[${results.length + 1}/${issuesWithWorkflows.length}] Issue #${issue.number}: ${issue.title}`));
+    }
+
+    try {
+      const result = await planSingleIssue(issue, config, repoClient, anthropicClient, options, outputFormat);
+      results.push(result);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (outputFormat === 'text') {
+        console.log(chalk.red(`  ✗ Error: ${errorMessage}`));
+      }
+      results.push({
+        issue,
+        planId: '',
+        branch: '',
+        worktree: '',
+        error: errorMessage,
+      });
+    }
+  }
+
+  // Step 5: Output summary
+  if (outputFormat === 'json') {
+    console.log(JSON.stringify({
+      status: 'success',
+      total: results.length,
+      successful: results.filter(r => !r.error).length,
+      failed: results.filter(r => r.error).length,
+      results,
+    }, null, 2));
+  } else {
+    outputTextSummary(results);
+  }
+}
+
+/**
+ * Load available workflow configurations
+ */
+async function loadAvailableWorkflows(config: any): Promise<string[]> {
+  const workflowDir = config.workflow?.config_path || './plugins/faber/config/workflows';
+  try {
+    const files = await fs.readdir(workflowDir);
+    return files
+      .filter(f => f.endsWith('.json'))
+      .map(f => path.basename(f, '.json'));
+  } catch (error) {
+    // Default workflows if directory doesn't exist
+    return ['core', 'etl', 'bugfix', 'feature'];
+  }
+}
+
+/**
+ * Assign workflows to issues (extract from labels or prompt user)
+ */
+async function assignWorkflows(
+  issues: Issue[],
+  availableWorkflows: string[],
+  options: PlanOptions,
+  outputFormat: string
+): Promise<Issue[]> {
+  const issuesWithWorkflows: Issue[] = [];
+
+  for (const issue of issues) {
+    let workflow = options.workflow; // Command-line override
+
+    if (!workflow) {
+      // Extract from issue labels
+      const workflowLabel = issue.labels.find(label => label.startsWith('workflow:'));
+      if (workflowLabel) {
+        workflow = workflowLabel.replace('workflow:', '');
+      }
+    }
+
+    if (!workflow) {
+      // Prompt user
+      if (outputFormat === 'text') {
+        console.log(chalk.yellow(`\n⚠️  Issue #${issue.number} is missing a workflow label:`));
+        console.log(chalk.gray(`    ${issue.title}`));
+        console.log(chalk.gray(`    Available workflows: ${availableWorkflows.join(', ')}`));
+
+        workflow = await prompt(`    Select workflow for this issue [${availableWorkflows[0]}]: `);
+        if (!workflow) {
+          workflow = availableWorkflows[0];
+        }
+
+        if (!availableWorkflows.includes(workflow)) {
+          throw new Error(`Invalid workflow: ${workflow}. Available: ${availableWorkflows.join(', ')}`);
+        }
+      } else {
+        throw new Error(`Issue #${issue.number} is missing workflow label and interactive prompts are disabled in JSON mode`);
+      }
+    }
+
+    issuesWithWorkflows.push({ ...issue, workflow });
+  }
+
+  if (outputFormat === 'text') {
+    console.log(chalk.green(`  ✓ All issues have workflows assigned`));
+  }
+
+  return issuesWithWorkflows;
+}
+
+/**
+ * Show confirmation prompt before planning
+ */
+async function showConfirmationPrompt(
+  issues: Issue[],
+  config: any,
+  outputFormat: string
+): Promise<boolean> {
+  if (outputFormat !== 'text') {
+    return true; // Skip in JSON mode
+  }
+
+  console.log(chalk.cyan('\n📋 Will plan workflows for the following issues:\n'));
+
+  for (const issue of issues) {
+    const { organization, project } = getRepoInfoFromConfig(config);
+    const branch = `feature/${issue.number}`;
+    const worktree = `~/.claude-worktrees/${organization}-${project}-${issue.number}`;
+
+    console.log(chalk.bold(`#${issue.number}: ${issue.title}`));
+    console.log(chalk.gray(`  Workflow: ${issue.workflow}`));
+    console.log(chalk.gray(`  Branch: ${branch}`));
+    console.log(chalk.gray(`  Worktree: ${worktree}`));
+    console.log();
+  }
+
+  const response = await prompt('Proceed? [Y/n]: ');
+  return !response || response.toLowerCase() === 'y' || response.toLowerCase() === 'yes';
+}
+
+/**
+ * Plan a single issue
+ */
+async function planSingleIssue(
+  issue: Issue,
+  config: any,
+  repoClient: RepoClient,
+  anthropicClient: AnthropicClient,
+  options: PlanOptions,
+  outputFormat: string
+): Promise<PlanResult> {
+  const { organization, project } = getRepoInfoFromConfig(config);
+  const branch = `feature/${issue.number}`;
+  const worktree = `~/.claude-worktrees/${organization}-${project}-${issue.number}`;
+
+  // Generate plan via Anthropic API
+  if (outputFormat === 'text') {
+    console.log(chalk.gray('  → Generating plan...'));
+  }
+
+  const plan = await anthropicClient.generatePlan({
+    workflow: issue.workflow!,
+    issueTitle: issue.title,
+    issueDescription: issue.description,
+    issueNumber: issue.number,
+  });
+
+  const planId = plan.plan_id;
+
+  // Create branch
+  if (!options.noBranch) {
+    if (outputFormat === 'text') {
+      console.log(chalk.gray(`  → Creating branch: ${branch}...`));
+    }
+    await repoClient.createBranch(branch);
+  }
+
+  // Create worktree
+  let worktreePath = worktree;
+  if (!options.noWorktree) {
+    if (outputFormat === 'text') {
+      console.log(chalk.gray(`  → Creating worktree: ${worktree}...`));
+    }
+    const worktreeResult = await repoClient.createWorktree({
+      workId: issue.number.toString(),
+      path: worktree,
+    });
+    worktreePath = worktreeResult.absolute_path;
+  }
+
+  // Write plan to worktree
+  if (!options.noWorktree) {
+    const planDir = path.join(worktreePath, '.fractary', 'plans');
+    await fs.mkdir(planDir, { recursive: true });
+    const planPath = path.join(planDir, `${planId}.json`);
+    await fs.writeFile(planPath, JSON.stringify(plan, null, 2));
+
+    if (outputFormat === 'text') {
+      console.log(chalk.gray(`  → Plan written to ${planPath}`));
+    }
+  }
+
+  // Update GitHub issue with plan_id
+  if (outputFormat === 'text') {
+    console.log(chalk.gray(`  → Updating GitHub issue...`));
+  }
+  await repoClient.updateIssue({
+    id: issue.number.toString(),
+    comment: `🤖 Workflow plan created: ${planId}`,
+    addLabel: 'faber:planned',
+  });
+
+  if (outputFormat === 'text') {
+    console.log(chalk.green(`  ✓ Plan: ${planId}`));
+  }
+
+  return {
+    issue,
+    planId,
+    branch,
+    worktree: worktreePath,
+  };
+}
+
+/**
+ * Get repository info from config
+ */
+function getRepoInfoFromConfig(config: any): { organization: string; project: string } {
+  return {
+    organization: config.github?.organization || 'unknown',
+    project: config.github?.project || 'unknown',
+  };
+}
+
+/**
+ * Output text summary
+ */
+function outputTextSummary(results: PlanResult[]): void {
+  console.log(chalk.cyan('\n' + '═'.repeat(50)));
+
+  const successful = results.filter(r => !r.error);
+  const failed = results.filter(r => r.error);
+
+  if (successful.length > 0) {
+    console.log(chalk.green(`\n✓ Planned ${successful.length} workflow(s) successfully:\n`));
+
+    successful.forEach((result, index) => {
+      console.log(chalk.bold(`[${index + 1}/${successful.length}] Issue #${result.issue.number}: ${result.issue.title}`));
+      console.log(chalk.gray(`      Workflow: ${result.issue.workflow}`));
+      console.log(chalk.gray(`      Plan: ${result.planId}`));
+      console.log(chalk.gray(`      Branch: ${result.branch}`));
+      console.log(chalk.gray(`      Worktree: ${result.worktree}`));
+      console.log();
+      console.log(chalk.cyan('      To execute:'));
+      console.log(chalk.gray(`        cd ${result.worktree} && claude`));
+      console.log(chalk.gray(`        /fractary-faber:workflow-run ${result.issue.number}`));
+      console.log();
+    });
+  }
+
+  if (failed.length > 0) {
+    console.log(chalk.red(`\n✗ Failed to plan ${failed.length} workflow(s):\n`));
+
+    failed.forEach((result, index) => {
+      console.log(chalk.bold(`[${index + 1}/${failed.length}] Issue #${result.issue.number}: ${result.issue.title}`));
+      console.log(chalk.red(`      Error: ${result.error}`));
+      console.log();
+    });
+  }
+}
+
+/**
+ * Error handling
+ */
+function handlePlanError(error: unknown, options: PlanOptions): void {
+  const message = error instanceof Error ? error.message : String(error);
+  const outputFormat = options.json ? 'json' : options.output || 'text';
+
+  if (outputFormat === 'json') {
+    console.error(JSON.stringify({
+      status: 'error',
+      error: { code: 'PLAN_ERROR', message },
+    }));
+  } else {
+    console.error(chalk.red('Error:'), message);
+  }
+  process.exit(1);
+}
