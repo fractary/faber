@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:workflow-run
 description: Execute a FABER plan created by /fractary-faber:plan with Claude Code as the primary orchestrator
-argument-hint: '<plan-id> [--resume <run-id>]'
+argument-hint: '<plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new]'
 allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
 model: claude-sonnet-4-5
 ---
@@ -47,6 +47,7 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 | `--force-new` | flag | false | Force fresh start, bypass auto-resume |
 | `--phase <phase>` | string | none | Execute only specified phase(s) - single or comma-separated (e.g., build or build,evaluate) |
 | `--step <step-id>` | string | none | Execute only specified step(s) - single or comma-separated |
+| `--worktree` | flag | false | Automatically create worktree on conflict without prompting |
 
 **Examples:**
 ```bash
@@ -70,6 +71,9 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 
 # Force new run (bypass auto-resume)
 /fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --force-new
+
+# Auto-create worktree on conflict (no prompt)
+/fractary-faber:workflow-run fractary-faber-24-create-test-file-20251224T015229 --worktree
 ```
 
 </INPUTS>
@@ -86,6 +90,7 @@ Extract from user input:
 3. `force_new`: Boolean flag for `--force-new` (optional, default false)
 4. `phase_filter`: Value of `--phase` flag (optional, single or comma-separated phase names)
 5. `step_filter`: Value of `--step` flag (optional, single or comma-separated step IDs)
+6. `auto_worktree`: Boolean flag for `--worktree` (optional, default false)
 
 **Validation:**
 - If no `plan_id`: Show error and usage
@@ -335,39 +340,150 @@ if (existingRunId && existingRunId !== runId) {
   console.log(`   Active: ${existingRunId}`);
   console.log(`   New: ${runId}`);
   console.log("");
-  console.log("Recommendation: Use separate worktrees for concurrent workflows:");
-  console.log("  git worktree add ../myproject-issue-XXX -b feature/XXX");
-  console.log("  cd ../myproject-issue-XXX");
-  console.log("  /fractary-faber:workflow-run <plan-id>");
+  console.log("For concurrent workflows, it's recommended to use separate worktrees.");
   console.log("");
 
-  // Ask user for confirmation
-  const confirmation = await AskUserQuestion({
-    questions: [{
-      question: "Do you want to proceed anyway? This will take over context management for this worktree, potentially interfering with the other workflow.",
-      header: "Proceed?",
-      multiSelect: false,
-      options: [
-        {
-          label: "No, cancel (Recommended)",
-          description: "Stop and use separate worktrees for concurrent workflows"
-        },
-        {
-          label: "Yes, proceed",
-          description: "Take over .active-run-id file (may cause issues with other workflow)"
-        }
-      ]
-    }]
-  });
+  // If --worktree flag provided, automatically create worktree without prompting
+  let answer;
+  if (auto_worktree) {
+    console.log("→ --worktree flag detected: automatically creating new worktree");
+    answer = "Create new worktree (Recommended)";
+  } else {
+    // Ask user what they want to do
+    const confirmation = await AskUserQuestion({
+      questions: [{
+        question: "How would you like to proceed?",
+        header: "Action",
+        multiSelect: false,
+        options: [
+          {
+            label: "Create new worktree (Recommended)",
+            description: "Automatically create a new git worktree and start workflow there"
+          },
+          {
+            label: "Take over this worktree",
+            description: "Stop tracking other workflow and use this worktree (may cause conflicts)"
+          },
+          {
+            label: "Cancel",
+            description: "Stop and manually manage worktrees"
+          }
+        ]
+      }]
+    });
 
-  const answer = confirmation.answers["0"];
-  if (answer === "No, cancel (Recommended)") {
+    answer = confirmation.answers["0"];
+  }
+
+  if (answer === "Cancel") {
     console.log("\n❌ Workflow start cancelled.");
-    console.log("   Use separate worktrees for concurrent workflows.");
+    console.log("\nTo manually create a worktree:");
+    console.log("  git worktree add ../myproject-issue-XXX -b feature/XXX");
+    console.log("  cd ../myproject-issue-XXX");
+    console.log("  /fractary-faber:workflow-run <plan-id>");
     throw new Error("User cancelled due to active workflow conflict");
   }
 
-  console.log("\n⚠️  Proceeding with caution...");
+  if (answer === "Create new worktree (Recommended)") {
+    console.log("\n→ Creating new worktree...");
+
+    // Determine worktree path
+    const projectName = await Bash({
+      command: "basename $(git rev-parse --show-toplevel)",
+      description: "Get project name"
+    });
+    const worktreePath = `../${projectName.stdout.trim()}-${work_id || 'workflow'}`;
+
+    // Determine branch name
+    const branchName = workItems.length === 1 && work_id
+      ? `feature/${work_id}`
+      : `workflow/${plan_id}`;
+
+    console.log(`Worktree path: ${worktreePath}`);
+    console.log(`Branch: ${branchName}`);
+    console.log("");
+
+    // Call fractary-repo:worktree-create
+    // NOTE: This command needs to be implemented in fractary-repo plugin
+    try {
+      await Skill({
+        skill: "fractary-repo:worktree-create",
+        args: `--work-id ${work_id || plan_id} --branch ${branchName} --path ${worktreePath}`
+      });
+
+      console.log("✓ Worktree created successfully");
+
+      // Update state with worktree metadata
+      initialState.worktree = {
+        path: worktreePath,
+        created_by: "fractary-faber",
+        created_at: new Date().toISOString(),
+        auto_cleanup: true,
+        branch: branchName
+      };
+
+      // Write worktree metadata to global tracking
+      await Bash({
+        command: "mkdir -p .fractary/faber",
+        description: "Ensure faber directory exists"
+      });
+
+      const worktreesPath = ".fractary/faber/worktrees.json";
+      let worktreesData = { worktrees: [] };
+
+      try {
+        const existingData = await Read({ file_path: worktreesPath });
+        worktreesData = JSON.parse(existingData);
+      } catch (error) {
+        // File doesn't exist, use empty structure
+      }
+
+      // Add new worktree record
+      worktreesData.worktrees.push({
+        path: worktreePath,
+        workflow_run_id: runId,
+        work_id: work_id || null,
+        status: "active",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        branch: branchName,
+        created_by: "fractary-faber",
+        auto_cleanup: true,
+        last_activity: new Date().toISOString()
+      });
+
+      worktreesData.last_updated = new Date().toISOString();
+
+      await Write({
+        file_path: worktreesPath,
+        content: JSON.stringify(worktreesData, null, 2)
+      });
+
+      console.log("\n✓ Worktree tracking updated");
+      console.log(`\n📁 Worktree location: ${worktreePath}`);
+      console.log(`📌 To return to main worktree: cd ${process.cwd()}`);
+      console.log(`\n→ Workflow will continue in new worktree...`);
+      console.log(`   (You may need to switch context if working in IDE)\n`);
+
+      // The workflow will continue in the new worktree
+      // The fractary-repo:worktree-create command should have switched directories
+
+    } catch (error) {
+      console.error("\n✗ Failed to create worktree");
+      console.error(`Error: ${error.message}`);
+      console.error("\nNote: The /fractary-repo:worktree-create command may not be available yet.");
+      console.error("Falling back to manual worktree creation instructions.");
+      console.error("\nTo manually create a worktree:");
+      console.error(`  git worktree add ${worktreePath} -b ${branchName}`);
+      console.error(`  cd ${worktreePath}`);
+      console.error("  /fractary-faber:workflow-run <plan-id>");
+      throw new Error("Worktree creation failed");
+    }
+  } else {
+    // User chose "Take over this worktree"
+    console.log("\n⚠️  Taking over this worktree...");
+    console.log("   The other workflow's context management will be interrupted.");
+  }
 }
 
 // Write current run_id to active-run-id file

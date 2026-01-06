@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FABER Worktrees Tracking Schema",
+  "description": "Global tracking of all git worktrees associated with FABER workflows",
+  "type": "object",
+  "required": ["worktrees"],
+  "properties": {
+    "worktrees": {
+      "type": "array",
+      "description": "List of all active and historical FABER workflow worktrees",
+      "items": {
+        "$ref": "#/definitions/worktree_record"
+      }
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp for this tracking file (ISO 8601)"
+    }
+  },
+  "definitions": {
+    "worktree_record": {
+      "type": "object",
+      "description": "Record of a single worktree's association with a FABER workflow",
+      "required": ["path", "workflow_run_id", "status", "created_at"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Absolute or relative path to the worktree directory"
+        },
+        "workflow_run_id": {
+          "type": "string",
+          "description": "FABER workflow run ID executing in this worktree"
+        },
+        "work_id": {
+          "type": ["string", "null"],
+          "description": "Work item identifier (e.g., issue number)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "completed", "failed", "abandoned", "removed"],
+          "description": "Current status of the worktree"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the worktree was created (ISO 8601)"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last status update timestamp (ISO 8601)"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the workflow completed (ISO 8601)"
+        },
+        "removed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the worktree was removed (ISO 8601)"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Git branch associated with this worktree"
+        },
+        "created_by": {
+          "type": "string",
+          "enum": ["fractary-faber", "manual", "unknown"],
+          "description": "Who created this worktree"
+        },
+        "auto_cleanup": {
+          "type": "boolean",
+          "description": "Whether auto-cleanup is enabled for this worktree"
+        },
+        "last_activity": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last known activity in this worktree (ISO 8601)"
+        },
+        "pr_number": {
+          "type": "string",
+          "description": "Pull request number (if created)"
+        },
+        "pr_url": {
+          "type": "string",
+          "description": "Pull request URL (if created)"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional worktree metadata",
+          "properties": {
+            "disk_usage_bytes": {
+              "type": "integer",
+              "description": "Approximate disk space used by this worktree"
+            },
+            "git_commit": {
+              "type": "string",
+              "description": "Current git commit hash in this worktree"
+            },
+            "orphaned": {
+              "type": "boolean",
+              "description": "Whether this worktree is orphaned (branch deleted, workflow abandoned)"
+            },
+            "orphaned_reason": {
+              "type": "string",
+              "enum": ["branch_deleted", "no_activity", "workflow_abandoned", "git_error"],
+              "description": "Reason this worktree is considered orphaned"
+            }
+          }
+        }
+      }
+    }
+  }
+}

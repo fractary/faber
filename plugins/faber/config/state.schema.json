@@ -221,6 +221,35 @@
           "description": "Currently loaded artifacts with load metadata"
         }
       }
+    },
+    "worktree": {
+      "type": "object",
+      "description": "Git worktree metadata (if workflow is running in a dedicated worktree)",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Absolute or relative path to the worktree directory"
+        },
+        "created_by": {
+          "type": "string",
+          "enum": ["fractary-faber", "manual", "unknown"],
+          "description": "Who created this worktree (fractary-faber = auto-created, manual = user-created)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the worktree was created (ISO 8601)"
+        },
+        "auto_cleanup": {
+          "type": "boolean",
+          "description": "Whether this worktree should be automatically cleaned up after workflow completion"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Git branch associated with this worktree"
+        }
+      },
+      "required": ["path"]
     }
   },
   "definitions": {
