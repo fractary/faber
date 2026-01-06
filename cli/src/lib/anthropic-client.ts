@@ -5,11 +5,16 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import Ajv from 'ajv';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { Git } from '@fractary/faber';
 import { validateJsonSize } from '../utils/validation.js';
 import type { FaberConfig } from '../types/config.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 interface GeneratePlanInput {
   workflow: string;
@@ -42,10 +47,13 @@ export class AnthropicClient {
   private client: Anthropic;
   private config: FaberConfig;
   private git: Git;
+  private ajv: Ajv;
+  private planSchema: any;
 
   constructor(config: FaberConfig) {
     this.config = config;
     this.git = new Git();
+    this.ajv = new Ajv({ strict: false }); // Allow additional properties
 
     const apiKey = config.anthropic?.api_key;
     if (!apiKey) {
@@ -58,9 +66,50 @@ export class AnthropicClient {
   }
 
   /**
+   * Load plan JSON schema for validation
+   */
+  private async loadPlanSchema(): Promise<void> {
+    if (this.planSchema) {
+      return; // Already loaded
+    }
+
+    try {
+      // Schema path relative to this file
+      const schemaPath = path.resolve(__dirname, '../../../plugins/faber/config/schemas/plan.schema.json');
+      const schemaContent = await fs.readFile(schemaPath, 'utf8');
+      this.planSchema = JSON.parse(schemaContent);
+    } catch (error) {
+      // Schema not found or invalid - log warning but don't fail
+      console.warn('Warning: Could not load plan schema for validation:', error instanceof Error ? error.message : 'Unknown error');
+      this.planSchema = null;
+    }
+  }
+
+  /**
+   * Validate plan JSON against schema
+   */
+  private validatePlan(plan: any): void {
+    if (!this.planSchema) {
+      // Schema not loaded - skip validation
+      return;
+    }
+
+    const validate = this.ajv.compile(this.planSchema);
+    const valid = validate(plan);
+
+    if (!valid) {
+      const errors = validate.errors?.map(e => `${e.instancePath} ${e.message}`).join(', ') || 'Unknown validation errors';
+      throw new Error(`Plan JSON validation failed: ${errors}`);
+    }
+  }
+
+  /**
    * Generate workflow plan via Claude API
    */
   async generatePlan(input: GeneratePlanInput): Promise<WorkflowPlan> {
+    // Load plan schema for validation
+    await this.loadPlanSchema();
+
     // Load workflow configuration
     const workflowConfig = await this.loadWorkflowConfig(input.workflow);
 
@@ -111,6 +160,9 @@ export class AnthropicClient {
       worktree: `~/.claude-worktrees/${organization}-${project}-${input.issueNumber}`,
       workflow: input.workflow,
     };
+
+    // Validate plan against schema
+    this.validatePlan(plan);
 
     return plan;
   }
