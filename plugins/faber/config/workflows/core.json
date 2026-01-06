@@ -90,6 +90,15 @@
           "name": "Merge Pull Request",
           "description": "Merge the PR and delete branch",
           "prompt": "/fractary-repo:pr-merge {pr_number} --delete-branch"
+        },
+        {
+          "id": "core-cleanup-worktree",
+          "name": "Cleanup Worktree",
+          "description": "Remove auto-created worktree if workflow was run in dedicated worktree",
+          "prompt": "Check if this workflow created a worktree (state.worktree.created_by === 'fractary-faber'). If yes, ask user if they want to remove it using /fractary-repo:worktree-remove and update .fractary/faber/worktrees.json tracking.",
+          "guards": {
+            "skip_if": "!state.worktree || state.worktree.created_by !== 'fractary-faber'"
+          }
         }
       ]
     }

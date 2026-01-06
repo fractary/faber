@@ -45,19 +45,41 @@ gh auth login
 aws configure
 ```
 
-### 3. Run Your First Workflow
+### 3. Plan and Execute Your First Workflow
+
+**New in v3.4.0+**: FABER uses a two-phase approach for better efficiency:
 
 ```bash
-# Execute complete workflow for issue #123
-/fractary-faber:run --work-id 123
+# Phase 1: Plan (CLI - outside Claude Code)
+# Creates plan, git branch, and worktree
+faber plan --work-id 123
+
+# Phase 2: Execute (Claude Code session)
+# Navigate to worktree and run workflow
+cd ~/.claude-worktrees/{organization}-{project}-123
+claude
+/fractary-faber:workflow-run 123
+```
+
+**Batch Planning**: Plan multiple workflows at once:
+
+```bash
+# Plan workflows for multiple issues
+faber plan --work-id 123,124,125
+
+# Or search by labels
+faber plan --work-label "workflow:etl,status:approved"
 ```
 
 That's it! FABER will:
-1. Fetch and classify the issue
-2. Generate a detailed specification
-3. Implement the solution
-4. Run tests and reviews
-5. Create a pull request
+1. **Plan Phase (CLI)**: Fetch issues, generate plans, create worktrees
+2. **Execution Phase (Claude)**: Implement solution, run tests, create PR
+
+**Benefits**:
+- ✅ Plan 10+ workflows in one command
+- ✅ Each workflow runs in isolated worktree
+- ✅ Execute multiple workflows in parallel (different Claude sessions)
+- ✅ Claude focuses only on execution (no planning confusion)
 
 ## Installation
 
@@ -170,12 +192,39 @@ Status updates post automatically to GitHub issues. See [GitHub Integration Guid
 
 ### CLI Commands
 
+**Planning Commands (FABER CLI - v3.4.0+)**:
+
+```bash
+# Plan single workflow
+faber plan --work-id 123
+
+# Plan multiple workflows
+faber plan --work-id 123,124,125
+
+# Plan by label search
+faber plan --work-label "workflow:etl,status:approved"
+
+# Override workflow type
+faber plan --work-id 123 --workflow hotfix
+
+# Skip confirmation (for automation)
+faber plan --work-id 123 --skip-confirm
+
+# JSON output
+faber plan --work-id 123 --json
+```
+
+**Execution Commands (Claude Code Plugin)**:
+
 ```bash
 # Initialize FABER in a project
 /fractary-faber:init
 
-# Run workflow for an issue
-/fractary-faber:run --work-id 123
+# Execute workflow with work-id (recommended)
+/fractary-faber:workflow-run 123
+
+# Or use full plan-id
+/fractary-faber:workflow-run fractary-faber-123-20260106-143022
 
 # Check workflow status
 /fractary-faber:status
@@ -183,27 +232,11 @@ Status updates post automatically to GitHub issues. See [GitHub Integration Guid
 
 ### Advanced Usage
 
+**Note**: Most advanced options are now configured in the plan during the planning phase. The workflow-run command focuses on execution only.
+
 ```bash
-# Specify target and work item
-/fractary-faber:run customer-analytics --work-id 123
-
-# Override workflow
-/fractary-faber:run --work-id 123 --workflow hotfix
-
-# Override autonomy level
-/fractary-faber:run --work-id 123 --autonomy autonomous
-
-# Run specific phases
-/fractary-faber:run --work-id 123 --phase frame,architect
-
-# Run single step
-/fractary-faber:run --work-id 123 --step build:implement
-
-# Dry-run (simulation only)
-/fractary-faber:run --work-id 123 --autonomy dry-run
-
-# Add custom instructions
-/fractary-faber:run --work-id 123 --prompt "Focus on performance"
+# Resume an existing workflow
+/fractary-faber:workflow-run 123 --resume
 ```
 
 ### Supported Input Formats
@@ -324,8 +357,9 @@ Layer 3: Scripts (Deterministic Operations)
 - `file-manager` - R2/S3/local storage adapters
 
 #### Commands (User Interface)
+- `faber plan` - Plan workflows (CLI - v3.4.0+)
 - `/fractary-faber:init` - Initialize FABER in a project
-- `/fractary-faber:run` - Execute workflow (consolidated command)
+- `/fractary-faber:workflow-run` - Execute pre-planned workflow
 - `/fractary-faber:status` - Show workflow status
 - `/fractary-faber:audit` - Validate configuration
 
@@ -380,14 +414,22 @@ FABER supports multiple work domains:
 
 ## Examples
 
-### Example 1: Basic Workflow
+### Example 1: Basic Workflow (CLI-First - v3.4.0+)
 
 ```bash
-# Initialize FABER
-/fractary-faber:init
+# Step 1: Plan the workflow (CLI)
+faber plan --work-id 123
 
-# Run workflow for GitHub issue #123
-/fractary-faber:run --work-id 123
+# Output shows:
+# ✓ Plan: fractary-faber-123-20260106-143022
+#   Branch: feature/123
+#   Worktree: ~/.claude-worktrees/fractary-myproject-123
+#   To execute: cd ~/.claude-worktrees/fractary-myproject-123 && claude
+
+# Step 2: Navigate to worktree and execute (Claude Code)
+cd ~/.claude-worktrees/fractary-myproject-123
+claude
+/fractary-faber:workflow-run 123
 
 # FABER executes:
 # 1. Frame: Fetches issue, creates branch
@@ -396,7 +438,7 @@ FABER supports multiple work domains:
 # 4. Evaluate: Runs tests (retries if needed)
 # 5. Release: Creates PR, waits for approval
 
-# Check status
+# Check status (in Claude session)
 /fractary-faber:status
 
 # Approve and merge (manual)
@@ -404,29 +446,33 @@ FABER supports multiple work domains:
 # - Merge via GitHub UI
 ```
 
-### Example 2: Autonomous Workflow
+### Example 2: Batch Planning
 
 ```bash
-# Run with full automation
-/fractary-faber:run --work-id 456 --autonomy autonomous
+# Plan multiple workflows at once
+faber plan --work-id 123,124,125
 
-# FABER executes all phases and merges PR automatically
-# ⚠️ Use only for non-critical changes!
+# Or plan by label search
+faber plan --work-label "workflow:etl,status:approved"
+
+# Output shows all planned workflows with execution instructions
+# Execute each in separate Claude sessions (parallel execution)
 ```
 
-### Example 3: Target-First Workflow
+### Example 3: Concurrent Workflows
 
 ```bash
-# Specify target artifact with work item context
-/fractary-faber:run customer-analytics --work-id 789
+# Terminal 1: Execute workflow for issue #123
+cd ~/.claude-worktrees/fractary-myproject-123
+claude
+/fractary-faber:workflow-run 123
 
-# Run specific phases only
-/fractary-faber:run api-refactor --work-id 789 --phase frame,architect
+# Terminal 2: Execute workflow for issue #124 (parallel!)
+cd ~/.claude-worktrees/fractary-myproject-124
+claude
+/fractary-faber:workflow-run 124
 
-# FABER executes:
-# 1. Frame: Fetches issue, classifies
-# 2. Architect: Creates design spec
-# (Stops after architect - no build/evaluate/release)
+# Each workflow runs in its own worktree with no conflicts
 ```
 
 ## Monitoring and Troubleshooting
@@ -538,15 +584,22 @@ Prevents infinite loops with configurable retry limits:
 
 ## Documentation
 
+### Core Documentation
 - [Configuration Guide](docs/configuration.md) - Detailed configuration reference
 - [Prompt Customization](docs/PROMPT-CUSTOMIZATION.md) - Workflow customization guide
 - [Workflow Guide](docs/workflow-guide.md) - In-depth workflow documentation
 - [Architecture](docs/architecture.md) - System architecture and design
 - [Hooks](docs/HOOKS.md) - Phase-level hooks reference
 - [State Tracking](docs/STATE-TRACKING.md) - Dual-state system guide
+- [Worktree Management](docs/WORKTREE-MANAGEMENT.md) - Worktree and CLI planning guide
 - [Migration Guide](docs/MIGRATION-v2.md) - Upgrade from v1.x to v2.0
 - [Error Codes](docs/ERROR-CODES.md) - Complete error reference
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Problem-to-solution guide
+
+### Technical Specifications
+- [SPEC-00029](../../specs/SPEC-00029-FABER-CLI-PLANNING.md) - CLI planning architecture (v3.4.0+)
+- [SPEC-00030](../../specs/SPEC-00030-FRACTARY-REPO-ENHANCEMENTS.md) - fractary-repo requirements
+- [SPEC-00028](../../specs/SPEC-00028-faber-worktree-management.md) - Worktree management specification
 
 ## Development
 
@@ -565,9 +618,10 @@ fractary-faber/
 │   ├── release/      # Release phase skill
 │   └── core/         # Core scripts (validation, audit, state, hooks)
 ├── commands/         # User commands
-│   ├── init.md       # Initialize configuration
-│   ├── run.md        # Execute workflow
-│   └── audit.md      # Validate configuration
+│   ├── init.md           # Initialize configuration
+│   ├── workflow-run.md   # Execute pre-planned workflow
+│   ├── status.md         # Show workflow status
+│   └── audit.md          # Validate configuration
 ├── config/           # Configuration & schemas
 │   ├── config.schema.json    # JSON Schema v7
 │   ├── templates/            # Configuration templates
@@ -620,7 +674,14 @@ MIT License - see LICENSE file for details
 
 ## Roadmap
 
-### v2.0 (Current - 2025-11-20)
+### v3.4.0 (Current - 2026-01-06)
+- ✅ **CLI planning architecture** - Separate planning from execution
+- ✅ **Batch workflow planning** - Plan multiple workflows at once
+- ✅ **Worktree management** - Isolated execution environments
+- ✅ **Work-id resolution** - Simplified workflow execution
+- ✅ **Organization-scoped paths** - Prevent worktree conflicts
+
+### v2.0 (Released - 2025-11-20)
 - ✅ **JSON-based configuration** with JSON Schema validation
 - ✅ **Prompt customization** for flexible workflow control
 - ✅ **Dual-state tracking** (current + historical logs)
@@ -632,7 +693,7 @@ MIT License - see LICENSE file for details
 - ✅ GitHub integration with work/repo/spec plugins
 - ✅ Autonomy levels (dry-run, assist, guarded, autonomous)
 
-### v2.1 (Planned)
+### v4.0 (Planned)
 - 🚧 Jira integration (fractary-work plugin)
 - 🚧 Linear integration (fractary-work plugin)
 - 🚧 GitLab support (fractary-repo plugin)

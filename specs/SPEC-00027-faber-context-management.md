@@ -760,18 +760,29 @@ user$ /fractary-faber:workflow-run --work-id 259
 | **Forgot to commit `.active-run-id`** | Can't resume cross-environment | Document that file should be committed, not in .gitignore |
 | **`.fractary/faber/` directory not created** | File write fails | Ensure directory exists (mkdir -p) before writing |
 
-## Future Enhancement: Automated Worktree Management
+## Worktree Management Integration
 
+**Status**: Implemented (FABER side)
 **See**: `specs/SPEC-00028-faber-worktree-management.md`
+**Documentation**: `plugins/faber/docs/WORKTREE-MANAGEMENT.md`
 
-The one-workflow-per-worktree limitation is by design for simplicity and reliability. However, to make concurrent workflows easier, the next phase will implement **automated worktree lifecycle management**:
+The one-workflow-per-worktree limitation is by design for simplicity and reliability. To make concurrent workflows easier, **automated worktree lifecycle management** has been implemented:
 
-- **Auto-detection**: Detect worktree conflicts and offer to create new worktree
-- **Auto-creation**: Seamlessly create and switch to new worktree for concurrent workflow
-- **Auto-cleanup**: Remove worktrees after workflow completes and PR merges
-- **Orphan detection**: Identify and clean up forgotten worktrees
+- ✅ **Auto-detection**: Detect worktree conflicts and offer to create new worktree
+- ✅ **Auto-creation**: Seamlessly create and switch to new worktree for concurrent workflow
+- ✅ **Auto-cleanup**: Remove worktrees after workflow completes and PR merges
+- ⏳ **Orphan detection**: Identify and clean up forgotten worktrees (requires fractary-repo plugin)
+
+**Implementation Status:**
+- ✅ State schema includes worktree metadata
+- ✅ Global worktree tracking (`.fractary/faber/worktrees.json`)
+- ✅ Workflow-run command offers worktree creation on conflict
+- ✅ Release phase cleanup step
+- ⏳ Fractary-repo worktree commands (separate repository)
 
 This enhancement makes worktrees transparent to users while maintaining the simple one-workflow-per-worktree design.
+
+**Note**: Full functionality requires fractary-repo plugin v4.0+ with worktree commands. See [SPEC-00028 Implementation Note](./SPEC-00028-IMPLEMENTATION-NOTE.md).
 
 ## Acceptance Criteria
 

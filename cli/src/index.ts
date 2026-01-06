@@ -15,6 +15,7 @@ import { createRepoCommand } from './commands/repo/index.js';
 import { createSpecCommand } from './commands/spec/index.js';
 import { createLogsCommand } from './commands/logs/index.js';
 import { createInitCommand } from './commands/init.js';
+import { createPlanCommand } from './commands/plan/index.js';
 
 const version = '1.0.0';
 
@@ -34,6 +35,7 @@ export function createFaberCLI(): Command {
 
   // Workflow commands (top-level) - NEW NAMES
   program.addCommand(createInitCommand());        // workflow-init
+  program.addCommand(createPlanCommand());         // plan - NEW
   program.addCommand(createRunCommand());          // workflow-run
   program.addCommand(createStatusCommand());       // workflow-status
   program.addCommand(createResumeCommand());       // workflow-resume
