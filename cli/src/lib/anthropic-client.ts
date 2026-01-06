@@ -8,6 +8,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs/promises';
 import path from 'path';
 import { Git } from '@fractary/faber';
+import { validateJsonSize } from '../utils/validation.js';
+import type { FaberConfig } from '../types/config.js';
 
 interface GeneratePlanInput {
   workflow: string;
@@ -38,10 +40,10 @@ interface WorkflowPlan {
  */
 export class AnthropicClient {
   private client: Anthropic;
-  private config: any;
+  private config: FaberConfig;
   private git: Git;
 
-  constructor(config: any) {
+  constructor(config: FaberConfig) {
     this.config = config;
     this.git = new Git();
 
@@ -86,6 +88,9 @@ export class AnthropicClient {
     if (content.type !== 'text') {
       throw new Error('Unexpected response type from Claude API');
     }
+
+    // Validate response size (prevent DoS)
+    validateJsonSize(content.text, 1024 * 1024); // 1MB limit
 
     const planJson = this.extractJsonFromResponse(content.text);
 

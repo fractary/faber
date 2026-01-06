@@ -10,6 +10,14 @@ import { AnthropicClient } from '../../lib/anthropic-client.js';
 import { RepoClient } from '../../lib/repo-client.js';
 import { ConfigManager } from '../../lib/config.js';
 import { prompt } from '../../utils/prompt.js';
+import {
+  validateWorkIds,
+  validateLabels,
+  validateWorkflowName,
+  validateSafePath,
+  validatePlanId,
+} from '../../utils/validation.js';
+import type { FaberConfig } from '../../types/config.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -99,13 +107,15 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
   let issues: Issue[];
   try {
     if (options.workId) {
-      const ids = options.workId.split(',').map(id => id.trim());
+      // Validate work IDs before fetching
+      const ids = validateWorkIds(options.workId);
       issues = await repoClient.fetchIssues(ids);
       if (outputFormat === 'text') {
         console.log(chalk.green(`  ✓ Fetched ${issues.length} issue(s) by ID`));
       }
     } else if (options.workLabel) {
-      const labels = options.workLabel.split(',').map(label => label.trim());
+      // Validate labels before searching
+      const labels = validateLabels(options.workLabel);
       issues = await repoClient.searchIssues(labels);
       if (outputFormat === 'text') {
         console.log(chalk.green(`  ✓ Found ${issues.length} issue(s) matching labels`));
@@ -211,7 +221,7 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
 /**
  * Load available workflow configurations
  */
-async function loadAvailableWorkflows(config: any): Promise<string[]> {
+async function loadAvailableWorkflows(config: FaberConfig): Promise<string[]> {
   const workflowDir = config.workflow?.config_path || './plugins/faber/config/workflows';
   try {
     const files = await fs.readdir(workflowDir);
@@ -238,11 +248,18 @@ async function assignWorkflows(
   for (const issue of issues) {
     let workflow = options.workflow; // Command-line override
 
+    // Validate workflow override if provided
+    if (workflow) {
+      validateWorkflowName(workflow);
+    }
+
     if (!workflow) {
       // Extract from issue labels
       const workflowLabel = issue.labels.find(label => label.startsWith('workflow:'));
       if (workflowLabel) {
         workflow = workflowLabel.replace('workflow:', '');
+        // Validate extracted workflow name
+        validateWorkflowName(workflow);
       }
     }
 
@@ -281,7 +298,7 @@ async function assignWorkflows(
  */
 async function showConfirmationPrompt(
   issues: Issue[],
-  config: any,
+  config: FaberConfig,
   outputFormat: string
 ): Promise<boolean> {
   if (outputFormat !== 'text') {
@@ -311,7 +328,7 @@ async function showConfirmationPrompt(
  */
 async function planSingleIssue(
   issue: Issue,
-  config: any,
+  config: FaberConfig,
   repoClient: RepoClient,
   anthropicClient: AnthropicClient,
   options: PlanOptions,
@@ -358,9 +375,17 @@ async function planSingleIssue(
 
   // Write plan to worktree
   if (!options.noWorktree) {
+    // Validate plan ID format (prevent path traversal via malicious plan IDs)
+    validatePlanId(planId);
+
     const planDir = path.join(worktreePath, '.fractary', 'plans');
     await fs.mkdir(planDir, { recursive: true });
+
+    // Construct and validate path
     const planPath = path.join(planDir, `${planId}.json`);
+    // Note: path.join automatically normalizes and prevents basic traversal,
+    // but we validate the plan ID format as an additional layer of defense
+
     await fs.writeFile(planPath, JSON.stringify(plan, null, 2));
 
     if (outputFormat === 'text') {
@@ -393,7 +418,7 @@ async function planSingleIssue(
 /**
  * Get repository info from config
  */
-function getRepoInfoFromConfig(config: any): { organization: string; project: string } {
+function getRepoInfoFromConfig(config: FaberConfig): { organization: string; project: string } {
   return {
     organization: config.github?.organization || 'unknown',
     project: config.github?.project || 'unknown',

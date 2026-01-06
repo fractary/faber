@@ -7,26 +7,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-
-interface FaberConfig {
-  anthropic?: {
-    api_key?: string;
-  };
-  github?: {
-    token?: string;
-    organization?: string;
-    project?: string;
-    repo?: string;
-  };
-  worktree?: {
-    location?: string;
-    inherit_from_claude?: boolean;
-  };
-  workflow?: {
-    default?: string;
-    config_path?: string;
-  };
-}
+import type { FaberConfig, ClaudeConfig } from '../types/config.js';
 
 /**
  * Configuration Manager
