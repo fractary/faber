@@ -1,8 +1,13 @@
 /**
  * Repo Client
  *
- * Wrapper for fractary-repo plugin commands (CLI-based)
+ * Integrates with @fractary/core SDK for repository and work tracking operations
  */
+
+import { WorkManager, RepoManager } from '@fractary/core';
+import { createWorkConfig, createRepoConfig } from './sdk-config-adapter.js';
+import { sdkIssueToCLIIssue, sdkWorktreeToCLIWorktreeResult } from './sdk-type-adapter.js';
+import os from 'os';
 
 interface Issue {
   id: string;
@@ -32,117 +37,167 @@ interface IssueUpdateOptions {
 }
 
 /**
- * Repo Client - wraps fractary-repo plugin CLI operations
+ * Repo Client - integrates with @fractary/core SDK
  *
- * Note: This calls fractary-repo CLI commands as specified in SPEC-00030.
- * These commands must be implemented in the fractary-repo plugin.
+ * Provides repository and work tracking operations using WorkManager and RepoManager
+ * from the @fractary/core SDK. Replaces the previous CLI-based approach.
  */
 export class RepoClient {
   private config: any;
+  private workManager: WorkManager;
+  private repoManager: RepoManager;
+  private organization: string;
+  private project: string;
 
   constructor(config: any) {
     this.config = config;
 
+    // Validate GitHub token
     const token = config.github?.token;
     if (!token) {
       throw new Error('GitHub token not found. Set GITHUB_TOKEN environment variable.');
+    }
+
+    // Extract organization and project
+    this.organization = config.github?.organization || 'unknown';
+    this.project = config.github?.project || 'unknown';
+
+    // Create SDK configurations
+    const workConfig = createWorkConfig(config);
+    const repoConfig = createRepoConfig(config);
+
+    // Initialize SDK managers
+    try {
+      this.workManager = new WorkManager(workConfig);
+      this.repoManager = new RepoManager(repoConfig);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to initialize SDK managers: ${error.message}`);
+      }
+      throw error;
     }
   }
 
   /**
    * Fetch specific issues by ID
    *
-   * Calls: fractary-repo issue-fetch --ids 258,259,260 --format json
+   * Uses WorkManager from @fractary/core SDK
    */
   async fetchIssues(ids: string[]): Promise<Issue[]> {
-    // TODO: Call fractary-repo CLI when available
-    // const result = await this.callRepoCommand('issue-fetch', ['--ids', ids.join(','), '--format', 'json']);
-
-    // Placeholder implementation
-    throw new Error('fractary-repo issue-fetch command not yet implemented. See SPEC-00030.');
+    try {
+      const issues = await Promise.all(
+        ids.map(id => this.workManager.fetchIssue(id))
+      );
+      return issues.map(sdkIssueToCLIIssue);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to fetch issues: ${error.message}`);
+      }
+      throw error;
+    }
   }
 
   /**
    * Search issues by labels
    *
-   * Calls: fractary-repo issue-search --labels "workflow:etl,status:approved" --format json
+   * Uses WorkManager from @fractary/core SDK
    */
   async searchIssues(labels: string[]): Promise<Issue[]> {
-    // TODO: Call fractary-repo CLI when available
-    // const result = await this.callRepoCommand('issue-search', ['--labels', labels.join(','), '--format', 'json']);
-
-    // Placeholder implementation
-    throw new Error('fractary-repo issue-search command not yet implemented. See SPEC-00030.');
+    try {
+      const issues = await this.workManager.searchIssues('', {
+        state: 'open',
+        labels: labels,
+      });
+      return issues.map(sdkIssueToCLIIssue);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to search issues: ${error.message}`);
+      }
+      throw error;
+    }
   }
 
   /**
    * Create a git branch
    *
-   * Calls: fractary-repo branch-create <branch-name> --format json
+   * Uses RepoManager from @fractary/core SDK
    */
   async createBranch(branchName: string): Promise<void> {
-    // TODO: Call fractary-repo CLI when available
-    // await this.callRepoCommand('branch-create', [branchName, '--format', 'json']);
-
-    // Placeholder implementation
-    throw new Error('fractary-repo branch-create command not yet implemented. See SPEC-00030.');
+    try {
+      await this.repoManager.createBranch(branchName);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to create branch: ${error.message}`);
+      }
+      throw error;
+    }
   }
 
   /**
    * Create a git worktree
    *
-   * Calls: fractary-repo worktree-create --work-id 258 --format json
+   * Uses RepoManager from @fractary/core SDK
    */
   async createWorktree(options: { workId: string; path?: string }): Promise<WorktreeResult> {
-    // TODO: Call fractary-repo CLI when available
-    // const args = ['--work-id', options.workId, '--format', 'json'];
-    // if (options.path) {
-    //   args.push('--path', options.path);
-    // }
-    // const result = await this.callRepoCommand('worktree-create', args);
-    // return result;
+    try {
+      const branch = `feature/${options.workId}`;
+      const path = options.path ||
+        `~/.claude-worktrees/${this.organization}-${this.project}-${options.workId}`;
 
-    // Placeholder implementation
-    throw new Error('fractary-repo worktree-create command not yet implemented. See SPEC-00030.');
+      // Expand ~ to home directory
+      const expandedPath = path.startsWith('~')
+        ? path.replace('~', os.homedir())
+        : path;
+
+      const worktree = this.repoManager.createWorktree({
+        path: expandedPath,
+        branch,
+        workId: options.workId,
+      });
+
+      return sdkWorktreeToCLIWorktreeResult(
+        worktree,
+        this.organization,
+        this.project,
+        options.workId
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to create worktree: ${error.message}`);
+      }
+      throw error;
+    }
   }
 
   /**
    * Update GitHub issue
    *
-   * Calls: fractary-repo issue-update --id 258 --comment "..." --add-label "..."
+   * Uses WorkManager from @fractary/core SDK
    */
   async updateIssue(options: IssueUpdateOptions): Promise<void> {
-    // TODO: Call fractary-repo CLI when available
-    // const args = ['--id', options.id];
-    // if (options.comment) {
-    //   args.push('--comment', options.comment);
-    // }
-    // if (options.addLabel) {
-    //   args.push('--add-label', options.addLabel);
-    // }
-    // if (options.removeLabel) {
-    //   args.push('--remove-label', options.removeLabel);
-    // }
-    // await this.callRepoCommand('issue-update', args);
+    try {
+      const issueId = parseInt(options.id, 10);
 
-    // Placeholder implementation
-    throw new Error('fractary-repo issue-update command not yet implemented. See SPEC-00030.');
+      // Create comment if provided
+      if (options.comment) {
+        await this.workManager.createComment(issueId, options.comment);
+      }
+
+      // Add label if provided
+      if (options.addLabel) {
+        await this.workManager.addLabels(issueId, [options.addLabel]);
+      }
+
+      // Remove label if provided
+      if (options.removeLabel) {
+        await this.workManager.removeLabels(issueId, [options.removeLabel]);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to update issue: ${error.message}`);
+      }
+      throw error;
+    }
   }
 
-  /**
-   * Call fractary-repo CLI command
-   *
-   * This will be implemented to spawn fractary-repo CLI process safely.
-   * For now, this is a placeholder showing the intended interface.
-   */
-  private async callRepoCommand(command: string, args: string[]): Promise<any> {
-    // Implementation will use safe process spawning to call:
-    // fractary-repo <command> [args...]
-    //
-    // Example: fractary-repo issue-fetch --ids 258,259 --format json
-    //
-    // The command will return JSON which we parse and return.
-
-    throw new Error(`fractary-repo ${command} not yet implemented`);
-  }
 }
