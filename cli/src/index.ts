@@ -17,7 +17,7 @@ import { createLogsCommand } from './commands/logs/index.js';
 import { createInitCommand } from './commands/init.js';
 import { createPlanCommand } from './commands/plan/index.js';
 
-const version = '1.3.1';
+const version = '1.3.2';
 
 /**
  * Create and configure the main CLI program
