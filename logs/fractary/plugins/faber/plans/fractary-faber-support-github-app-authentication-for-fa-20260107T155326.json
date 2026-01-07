@@ -1,0 +1,205 @@
+{
+  "id": "fractary-faber-support-github-app-authentication-for-fa-20260107T155326",
+  "created": "2026-01-07T15:53:26Z",
+  "created_by": "faber-planner",
+
+  "metadata": {
+    "org": "fractary",
+    "project": "faber",
+    "subproject": "support-github-app-authentication-for-fa",
+    "year": "2026",
+    "month": "01",
+    "day": "07",
+    "hour": "15",
+    "minute": "53",
+    "second": "26"
+  },
+
+  "source": {
+    "input": "41",
+    "work_id": "41",
+    "planning_mode": "work_id",
+    "target_match": null,
+    "expanded_from": null
+  },
+
+  "workflow": {
+    "id": "fractary-faber:default",
+    "resolved_at": "2026-01-07T15:53:26Z",
+    "inheritance_chain": [
+      "fractary-faber:default",
+      "fractary-faber:core"
+    ],
+    "phases": {
+      "frame": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "auto-reload-context",
+            "name": "Reload Context",
+            "description": "Automatically reload critical artifacts for session continuity",
+            "prompt": "/fractary-faber:prime-context",
+            "source": "fractary-faber:core",
+            "position": "pre_step"
+          },
+          {
+            "id": "core-fetch-issue",
+            "name": "Fetch Issue",
+            "description": "Fetch existing issue. Reads referenced docs and existing commits.",
+            "prompt": "/fractary-work:issue-fetch --work-id {work_id}",
+            "source": "fractary-faber:core",
+            "position": "pre_step"
+          },
+          {
+            "id": "core-issue-refine",
+            "name": "Refine Issue",
+            "description": "Clarify issue details with user",
+            "prompt": "/fractary-work:issue-clarify --work-id {work_id}",
+            "source": "fractary-faber:default",
+            "position": "pre_step"
+          },
+          {
+            "id": "core-commit-and-push-frame",
+            "name": "Commit and Push Changes",
+            "description": "Ensure all frame changes are committed and pushed",
+            "prompt": "/fractary-repo:commit-push",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          }
+        ]
+      },
+      "architect": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "generate-spec",
+            "name": "Generate Specification",
+            "description": "Create technical specification from issue context",
+            "prompt": "/fractary-spec:create --work-id {work_id}",
+            "source": "fractary-faber:default",
+            "position": "step"
+          },
+          {
+            "id": "refine-spec",
+            "name": "Refine Specification",
+            "description": "Critically review spec and gather clarifications from user",
+            "prompt": "/fractary-spec:refine --work-id {work_id}",
+            "source": "fractary-faber:default",
+            "position": "step"
+          },
+          {
+            "id": "core-commit-and-push-architect",
+            "name": "Commit and Push Changes",
+            "description": "Ensure all build changes are committed and pushed",
+            "prompt": "/fractary-repo:commit-push",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          }
+        ]
+      },
+      "build": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "implement",
+            "name": "Implement Solution",
+            "description": "Implement based on specification following project patterns",
+            "prompt": "Implement the solution according to the specification. Follow existing project patterns and conventions. Create atomic commits for each logical unit of work. Run tests to verify the implementation. Ensure code quality and completeness.",
+            "source": "fractary-faber:default",
+            "position": "step"
+          },
+          {
+            "id": "core-commit-and-push-build",
+            "name": "Commit and Push Changes",
+            "description": "Ensure all build changes are committed and pushed",
+            "prompt": "/fractary-repo:commit-push",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          }
+        ]
+      },
+      "evaluate": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "core-create-pr",
+            "name": "Create Pull Request",
+            "description": "Create PR for the implementation (skips if PR already exists). Links to issue for auto-close on merge.",
+            "prompt": "/fractary-repo:commit-push-pr",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          },
+          {
+            "id": "core-review-pr-checks",
+            "name": "Review PR CI Checks",
+            "description": "Wait for and review CI/CD pipeline results",
+            "prompt": "/fractary-repo:pr-review --wait-for-ci",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          }
+        ],
+        "max_retries": 3
+      },
+      "release": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "core-merge-pr",
+            "name": "Merge Pull Request",
+            "description": "Merge the PR and delete branch",
+            "prompt": "/fractary-repo:pr-merge {pr_number} --delete-branch",
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          },
+          {
+            "id": "core-cleanup-worktree",
+            "name": "Cleanup Worktree",
+            "description": "Remove auto-created worktree if workflow was run in dedicated worktree",
+            "prompt": "Check if this workflow created a worktree (state.worktree.created_by === 'fractary-faber'). If yes, ask user if they want to remove it using /fractary-repo:worktree-remove and update .fractary/faber/worktrees.json tracking.",
+            "guards": {
+              "skip_if": "!state.worktree || state.worktree.created_by !== 'fractary-faber'"
+            },
+            "source": "fractary-faber:core",
+            "position": "post_step"
+          }
+        ]
+      }
+    }
+  },
+
+  "autonomy": "guarded",
+  "phases_to_run": null,
+  "step_to_run": null,
+  "additional_instructions": null,
+
+  "items": [
+    {
+      "target": "GitHub App authentication support",
+      "work_id": "41",
+      "planning_mode": "work_id",
+      "issue": {
+        "number": 41,
+        "title": "feat: Support GitHub App authentication for FABER CLI (Future Enhancement)",
+        "url": "https://github.com/fractary/faber/issues/41",
+        "state": "OPEN",
+        "labels": ["enhancement", "type: feature"]
+      },
+      "target_context": null,
+      "branch": {
+        "name": "feat/41-github-app-auth",
+        "status": "new",
+        "resume_from": null
+      },
+      "worktree": "../faber-wt-feat-41-github-app-auth"
+    }
+  ],
+
+  "execution": {
+    "mode": "parallel",
+    "max_concurrent": 5,
+    "status": "pending",
+    "started_at": null,
+    "completed_at": null,
+    "results": []
+  }
+}

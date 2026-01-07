@@ -8,11 +8,22 @@ export interface AnthropicConfig {
   api_key?: string;
 }
 
+/**
+ * GitHub App authentication configuration
+ */
+export interface GitHubAppConfig {
+  id: string;                    // GitHub App ID
+  installation_id: string;       // Installation ID for the target org/repo
+  private_key_path?: string;     // Path to PEM file (optional if env var used)
+  private_key_env_var?: string;  // Env var name containing base64-encoded key
+}
+
 export interface GitHubConfig {
-  token?: string;
+  token?: string;                // PAT (legacy, still supported)
   organization?: string;
   project?: string;
-  repo?: string; // Full repo name (owner/repo)
+  repo?: string;                 // Full repo name (owner/repo)
+  app?: GitHubAppConfig;         // GitHub App configuration (new)
 }
 
 export interface WorktreeConfig {
