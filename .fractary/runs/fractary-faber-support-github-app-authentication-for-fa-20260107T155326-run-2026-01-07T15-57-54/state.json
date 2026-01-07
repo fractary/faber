@@ -4,8 +4,8 @@
   "workflow_id": "fractary-faber:default",
   "workflow_name": "fractary-faber:default",
   "status": "in_progress",
-  "current_phase": "architect",
-  "current_step": "core-commit-and-push-architect",
+  "current_phase": "build",
+  "current_step": "core-commit-and-push-build",
   "work_id": "41",
   "work_items": [
     {
@@ -40,14 +40,14 @@
     },
     {
       "name": "architect",
-      "status": "in_progress",
+      "status": "completed",
       "enabled": true,
       "max_retries": 0,
       "retry_count": 0
     },
     {
       "name": "build",
-      "status": "pending",
+      "status": "in_progress",
       "enabled": true,
       "max_retries": 0,
       "retry_count": 0
@@ -109,6 +109,20 @@
       "status": "success",
       "message": "Specification reviewed with 6 critical issues identified and 8 proposed improvements. Review posted to issue #41.",
       "completed_at": "2026-01-07T16:25:00Z"
+    },
+    {
+      "step_id": "core-commit-and-push-architect",
+      "phase": "architect",
+      "status": "success",
+      "message": "Architect phase changes committed and pushed (commit aa55946)",
+      "completed_at": "2026-01-07T16:28:00Z"
+    },
+    {
+      "step_id": "implement",
+      "phase": "build",
+      "status": "success",
+      "message": "Implementation complete: GitHubAppAuth module, SDK adapter updates, RepoClient factory pattern, unit tests (83 passing)",
+      "completed_at": "2026-01-07T16:45:00Z"
     }
   ],
   "started_at": "2026-01-07T15:57:54Z",
