@@ -27,6 +27,21 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 - Do not skip steps, reorder steps, or "optimize" the plan
 - Do not add your own interpretation or extra tasks unless the prompt explicitly asks for it
 
+**Important about slash commands in prompts:**
+- Slash commands are complete, self-contained invocations (e.g., `/fractary-spec:create --work-id 123`)
+- Invoke them via Skill tool with the full command string
+- Commands handle their own argument parsing and execution strategy
+- Do not parse, manipulate, or reinterpret command strings
+- Trust commands to do what they're designed to do
+
+**Two command execution patterns:**
+1. **Agent-delegating commands** - Use Task tool internally to invoke specialized agents
+   - Example: `/fractary-spec:create` → invokes fractary-spec:spec-create-agent
+2. **Inline commands** - Execute directly using bash, Read, Write, and other tools
+   - Example: `/fractary-work:issue-create` → runs gh commands directly
+
+The orchestrator doesn't need to distinguish between these patterns - just invoke the command.
+
 ### 3. State Is Sacred
 
 **The state file is the source of truth. Update it religiously.**
@@ -120,27 +135,91 @@ if (step.context) {
 // Execute the prompt
 if (step.prompt.startsWith('/')) {
   // It's a slash command - invoke via Skill tool
-  const commandName = step.prompt.slice(1); // Remove leading '/'
-
+  // Pass the full command as-is (including arguments)
   console.log(`Executing command: ${step.prompt}`);
   if (step.context) {
     console.log(`With context: ${step.context}`);
   }
 
   await Skill({
-    skill: commandName,
-    args: step.arguments ? JSON.stringify(step.arguments) : undefined
+    skill: step.prompt,  // Full command with arguments
+    args: step.context   // Additional context if needed
   });
+
+  // Note: Commands handle their own execution strategy
+  // - Agent-delegating commands use Task tool internally
+  // - Inline commands execute directly with bash/other tools
+  // The orchestrator doesn't need to know which pattern is used
+
 } else {
   // It's a freeform prompt - execute directly
   console.log(`Executing step: ${step.name}`);
   console.log(`Prompt: ${executionPrompt}`);
 
   // Execute the prompt as an instruction
-  // (This is where Claude's natural execution takes over)
   // Use relevant tools as needed to fulfill the prompt
 }
 ```
+
+### Command Execution Patterns
+
+Workflow commands follow two distinct patterns, but the orchestrator handles them identically.
+
+#### Pattern 1: Agent-Delegating Commands
+
+Commands that delegate to specialized agents for complex workflows.
+
+**Examples:** `/fractary-spec:create`, `/fractary-spec:refine`
+
+**Flow:**
+```
+Orchestrator invokes command via Skill tool
+    ↓
+Command implementation parses arguments
+    ↓
+Command invokes agent via Task tool
+    ↓
+Agent executes workflow (may use multiple sub-tools)
+    ↓
+Agent returns results to command
+    ↓
+Command returns to orchestrator
+```
+
+**Characteristics:**
+- Command file contains `Task(subagent_type="...", prompt="...")` invocation
+- Agent handles complex multi-step logic
+- Results propagated back through command to orchestrator
+
+#### Pattern 2: Inline Commands
+
+Commands that execute work directly without agent delegation.
+
+**Examples:** `/fractary-work:issue-create`, `/fractary-repo:commit`
+
+**Flow:**
+```
+Orchestrator invokes command via Skill tool
+    ↓
+Command implementation parses arguments
+    ↓
+Command executes directly (gh, git, Read, Write)
+    ↓
+Command returns results to orchestrator
+```
+
+**Characteristics:**
+- Command file contains direct tool invocations (bash, Read, Write)
+- Simpler operations that don't need full agent workflows
+- Faster execution due to no agent overhead
+
+#### Why the Orchestrator Doesn't Care
+
+The orchestrator invokes commands uniformly via `Skill({skill: full_command_string})`. Whether the command delegates to an agent or executes inline is an implementation detail. This separation of concerns means:
+
+1. Commands can change execution strategy without affecting orchestrator
+2. New commands can be added without updating orchestration protocol
+3. Orchestrator logic remains simple and maintainable
 
 ### AFTER Step Execution
 
