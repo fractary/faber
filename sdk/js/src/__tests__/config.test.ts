@@ -13,9 +13,9 @@ import {
   loadSpecConfig,
   loadLogConfig,
   loadStateConfig,
-} from '../config';
-import { ConfigInitializer } from '../config/initializer';
-import { ConfigValidationError } from '../errors';
+} from '../config.js';
+import { ConfigInitializer } from '../config/initializer.js';
+import { ConfigValidationError } from '../errors.js';
 
 describe('Config Loading Functions', () => {
   const testDir = path.join(__dirname, '__test-config-loading__');

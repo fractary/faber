@@ -16,8 +16,8 @@ import {
   SpecConfig,
   LogConfig,
   StateConfig,
-} from './types';
-import { ConfigValidationError } from './errors';
+} from './types.js';
+import { ConfigValidationError } from './errors.js';
 
 // ============================================================================
 // Configuration Loading Options
@@ -662,7 +662,7 @@ export function loadStateConfig(projectRoot?: string): StateConfig {
 // Exports
 // ============================================================================
 
-export { ConfigInitializer } from './config/initializer';
+export { ConfigInitializer } from './config/initializer.js';
 
 export {
   FaberConfigSchema,

@@ -18,9 +18,9 @@ import {
   StateUpdateOptions,
   StateQueryOptions,
   RecoveryOptions,
-} from './types';
-import { loadStateConfig, findProjectRoot } from '../config';
-import { StateError } from '../errors';
+} from './types.js';
+import { loadStateConfig, findProjectRoot } from '../config.js';
+import { StateError } from '../errors.js';
 
 /**
  * Generate a unique workflow ID

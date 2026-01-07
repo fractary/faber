@@ -4,7 +4,7 @@
  * Built-in specification templates for different work types.
  */
 
-import { SpecTemplate, SpecTemplateType } from './types';
+import { SpecTemplate, SpecTemplateType } from './types.js';
 
 /**
  * Basic template - minimal structure for simple tasks

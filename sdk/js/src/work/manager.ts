@@ -17,13 +17,13 @@ import {
   Milestone,
   MilestoneCreateOptions,
   FaberContext,
-} from '../types';
-import { WorkProvider, ListCommentsOptions } from './types';
-import { loadWorkConfig, findProjectRoot } from '../config';
-import { ConfigurationError } from '../errors';
-import { GitHubWorkProvider } from './providers/github';
-import { JiraWorkProvider } from './providers/jira';
-import { LinearWorkProvider } from './providers/linear';
+} from '../types.js';
+import { WorkProvider, ListCommentsOptions } from './types.js';
+import { loadWorkConfig, findProjectRoot } from '../config.js';
+import { ConfigurationError } from '../errors.js';
+import { GitHubWorkProvider } from './providers/github.js';
+import { JiraWorkProvider } from './providers/jira.js';
+import { LinearWorkProvider } from './providers/linear.js';
 
 /**
  * WorkManager - Unified work tracking across platforms

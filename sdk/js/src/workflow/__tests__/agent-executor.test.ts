@@ -2,9 +2,9 @@
  * @fractary/faber - AgentExecutor Tests
  */
 
-import { AgentExecutor } from '../agent-executor';
-import type { PhaseContext } from '../types';
-import { WorkflowError } from '../../errors';
+import { AgentExecutor } from '../agent-executor.js';
+import type { PhaseContext } from '../types.js';
+import { WorkflowError } from '../../errors.js';
 
 // Mock @fractary/forge
 jest.mock('@fractary/forge', () => ({

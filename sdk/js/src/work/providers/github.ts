@@ -16,15 +16,15 @@ import {
   Milestone,
   MilestoneCreateOptions,
   FaberContext,
-} from '../../types';
-import { WorkProvider } from '../types';
+} from '../../types.js';
+import { WorkProvider } from '../types.js';
 import {
   IssueNotFoundError,
   IssueCreateError,
   AuthenticationError,
   CommandExecutionError,
   ProviderError,
-} from '../../errors';
+} from '../../errors.js';
 
 /**
  * Execute a command and return the output

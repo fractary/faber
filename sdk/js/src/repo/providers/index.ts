@@ -4,6 +4,6 @@
  * Repository provider exports.
  */
 
-export { GitHubRepoProvider } from './github';
-export { GitLabRepoProvider } from './gitlab';
-export { BitbucketRepoProvider } from './bitbucket';
+export { GitHubRepoProvider } from './github.js';
+export { GitLabRepoProvider } from './gitlab.js';
+export { BitbucketRepoProvider } from './bitbucket.js';

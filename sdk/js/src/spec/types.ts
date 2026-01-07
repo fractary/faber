@@ -5,7 +5,7 @@
  */
 
 // Import types
-import type { SpecTemplateType } from '../types';
+import type { SpecTemplateType } from '../types.js';
 
 // Re-export common types
 export type {
@@ -21,7 +21,7 @@ export type {
   SpecRefineResult,
   RefinementQuestion,
   WorkType,
-} from '../types';
+} from '../types.js';
 
 /**
  * Template definition

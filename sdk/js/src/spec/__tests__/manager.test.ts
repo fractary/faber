@@ -6,8 +6,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { SpecManager } from '../manager';
-import { ConfigInitializer } from '../../config/initializer';
+import { SpecManager } from '../manager.js';
+import { ConfigInitializer } from '../../config/initializer.js';
 
 describe('SpecManager', () => {
   const testDir = path.join(__dirname, '__test-spec-manager__');

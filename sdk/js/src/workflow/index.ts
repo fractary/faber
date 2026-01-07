@@ -4,7 +4,7 @@
  * FABER workflow orchestration.
  */
 
-export { FaberWorkflow } from './faber';
-export { AgentExecutor } from './agent-executor';
-export type { AgentExecutorConfig, ForgeConfig } from './agent-executor';
-export * from './types';
+export { FaberWorkflow } from './faber.js';
+export { AgentExecutor } from './agent-executor.js';
+export type { AgentExecutorConfig, ForgeConfig } from './agent-executor.js';
+export * from './types.js';

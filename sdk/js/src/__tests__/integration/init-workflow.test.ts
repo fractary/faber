@@ -6,14 +6,14 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { ConfigInitializer } from '../../config/initializer';
+import { ConfigInitializer } from '../../config/initializer.js';
 import {
   loadFaberConfig,
   loadWorkConfig,
   loadRepoConfig,
   loadSpecConfig,
-} from '../../config';
-import { SpecManager } from '../../spec/manager';
+} from '../../config.js';
+import { SpecManager } from '../../spec/manager.js';
 
 describe('Init Workflow Integration', () => {
   const testDir = path.join(__dirname, '__test-init-workflow__');

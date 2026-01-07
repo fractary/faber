@@ -4,5 +4,5 @@
  * Workflow state persistence and recovery.
  */
 
-export { StateManager } from './manager';
-export * from './types';
+export { StateManager } from './manager.js';
+export * from './types.js';

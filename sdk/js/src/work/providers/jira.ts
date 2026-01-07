@@ -16,9 +16,9 @@ import {
   Milestone,
   MilestoneCreateOptions,
   FaberContext,
-} from '../../types';
-import { WorkProvider } from '../types';
-import { ProviderError } from '../../errors';
+} from '../../types.js';
+import { WorkProvider } from '../types.js';
+import { ProviderError } from '../../errors.js';
 
 /**
  * Jira Issues provider

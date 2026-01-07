@@ -4,5 +4,5 @@
  * Work tracking across GitHub Issues, Jira, and Linear.
  */
 
-export { WorkManager } from './manager';
-export * from './types';
+export { WorkManager } from './manager.js';
+export * from './types.js';

@@ -4,6 +4,6 @@
  * Specification management for FABER workflows.
  */
 
-export { SpecManager } from './manager';
-export * from './types';
-export { getTemplate, listTemplates, templates } from './templates';
+export { SpecManager } from './manager.js';
+export * from './types.js';
+export { getTemplate, listTemplates, templates } from './templates.js';

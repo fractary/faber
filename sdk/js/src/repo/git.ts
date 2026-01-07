@@ -12,11 +12,11 @@ import {
   Branch,
   Tag,
   Worktree,
-} from '../types';
+} from '../types.js';
 import {
   CommandExecutionError,
-} from '../errors';
-import { findProjectRoot } from '../config';
+} from '../errors.js';
+import { findProjectRoot } from '../config.js';
 
 /**
  * Execute a git command

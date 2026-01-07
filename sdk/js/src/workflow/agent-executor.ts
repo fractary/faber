@@ -5,8 +5,8 @@
  */
 
 import { AgentAPI, ExecutableAgentInterface, AgentResult } from '@fractary/forge';
-import { PhaseContext } from './types';
-import { WorkflowError } from '../errors';
+import { PhaseContext } from './types.js';
+import { WorkflowError } from '../errors.js';
 
 export interface ForgeConfig {
   enabled: boolean;
@@ -102,7 +102,7 @@ export class AgentExecutor {
 
       if (!agent) {
         // Resolve agent from Forge
-        agent = await this.forge!.resolveAgent(agentName);
+        agent = await this.forge!.agentResolve(agentName);
         this.agentCache.set(agentName, agent);
       }
 
@@ -174,7 +174,7 @@ export class AgentExecutor {
     for (const phase of phases) {
       const agentName = PHASE_AGENT_MAP[phase];
       try {
-        const check = await this.forge!.healthCheck(agentName);
+        const check = await this.forge!.agentHealthCheck(agentName);
         results[phase] = { healthy: check.healthy };
         if (!check.healthy) allHealthy = false;
       } catch (error) {

@@ -18,7 +18,7 @@ export {
   SessionState,
   CaptureStartOptions,
   CaptureResult,
-} from '../types';
+} from '../types.js';
 
 /**
  * Session capture state stored in state module

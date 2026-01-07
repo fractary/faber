@@ -84,7 +84,7 @@ logs/session-*.md
  */
 function createDefaultConfig(preset: string): object {
   const baseConfig = {
-    version: '1.0.0',
+    version: '1.3.1',
     preset,
 
     // Work tracking configuration

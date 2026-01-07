@@ -16,10 +16,10 @@ import {
   BranchCreateOptions,
   BranchDeleteOptions,
   BranchListOptions,
-} from '../../types';
-import { RepoProvider } from '../types';
-import { ProviderError } from '../../errors';
-import { findProjectRoot } from '../../config';
+} from '../../types.js';
+import { RepoProvider } from '../types.js';
+import { ProviderError } from '../../errors.js';
+import { findProjectRoot } from '../../config.js';
 
 /**
  * Execute a gh command and return JSON result

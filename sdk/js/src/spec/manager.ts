@@ -19,10 +19,10 @@ import {
   SpecTemplateType,
   WorkType,
   PhaseUpdateOptions,
-} from './types';
-import { getTemplate, generateSpecContent, templates } from './templates';
-import { loadSpecConfig, findProjectRoot } from '../config';
-import { SpecError } from '../errors';
+} from './types.js';
+import { getTemplate, generateSpecContent, templates } from './templates.js';
+import { loadSpecConfig, findProjectRoot } from '../config.js';
+import { SpecError } from '../errors.js';
 
 /**
  * Parse spec frontmatter and content

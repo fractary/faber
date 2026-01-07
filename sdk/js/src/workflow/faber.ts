@@ -17,14 +17,14 @@ import {
   WorkflowEvent,
   EventListener,
   ArtifactManifest,
-} from './types';
-import { WorkManager } from '../work';
-import { RepoManager } from '../repo';
-import { SpecManager } from '../spec';
-import { LogManager } from '../logs';
-import { StateManager } from '../state';
-import { WorkflowError } from '../errors';
-import { AgentExecutor } from './agent-executor';
+} from './types.js';
+import { WorkManager } from '../work/index.js';
+import { RepoManager } from '../repo/index.js';
+import { SpecManager } from '../spec/index.js';
+import { LogManager } from '../logs/index.js';
+import { StateManager } from '../state/index.js';
+import { WorkflowError } from '../errors.js';
+import { AgentExecutor } from './agent-executor.js';
 import type { AgentResult } from '@fractary/forge';
 
 /**
