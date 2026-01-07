@@ -149,7 +149,7 @@ export class AnthropicClient {
       ...planJson,
       plan_id: planId,
       created_by: 'cli',
-      cli_version: '1.3.1',
+      cli_version: '1.3.2',
       created_at: new Date().toISOString(),
       issue: {
         source: 'github',
