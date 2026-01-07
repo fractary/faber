@@ -191,14 +191,70 @@ All commands support:
 - `--debug` - Enable debug output
 - `--help` - Show command help
 
-## Environment Variables
+## Authentication
 
-Configure providers via environment variables:
+### GitHub App Authentication (Recommended)
+
+For enhanced security, audit trails, and enterprise readiness, use GitHub App authentication instead of Personal Access Tokens.
+
+**Configuration (`.fractary/settings.json`):**
+```json
+{
+  "github": {
+    "organization": "your-org",
+    "project": "your-repo",
+    "app": {
+      "id": "123456",
+      "installation_id": "12345678",
+      "private_key_path": "~/.github/faber-app.pem"
+    }
+  }
+}
+```
+
+**For CI/CD (environment variable):**
+```json
+{
+  "github": {
+    "organization": "your-org",
+    "project": "your-repo",
+    "app": {
+      "id": "123456",
+      "installation_id": "12345678",
+      "private_key_env_var": "GITHUB_APP_PRIVATE_KEY"
+    }
+  }
+}
+```
 
 ```bash
-# GitHub
-export GITHUB_TOKEN=<token>
+export GITHUB_APP_PRIVATE_KEY=$(cat ~/.github/faber-app.pem | base64)
+```
 
+**See detailed setup guide:** [docs/github-app-setup.md](../docs/github-app-setup.md)
+
+### Personal Access Token (Legacy)
+
+Still supported for backward compatibility:
+
+```bash
+export GITHUB_TOKEN=<token>
+```
+
+Or in `.fractary/settings.json`:
+```json
+{
+  "github": {
+    "token": "ghp_xxxxxxxxxxxx",
+    "organization": "your-org",
+    "project": "your-repo"
+  }
+}
+```
+
+### Other Providers
+
+```bash
 # Jira
 export JIRA_BASE_URL=<url>
 export JIRA_USERNAME=<username>
