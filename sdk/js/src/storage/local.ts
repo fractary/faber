@@ -6,7 +6,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { Storage } from '../types';
+import { Storage } from '../types.js';
 
 /**
  * Local filesystem storage implementation

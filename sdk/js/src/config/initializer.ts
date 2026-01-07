@@ -8,7 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { FaberConfig } from '../types';
+import { FaberConfig } from '../types.js';
 
 /**
  * ConfigInitializer class for generating and managing FABER configuration

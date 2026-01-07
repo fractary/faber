@@ -20,9 +20,9 @@ import {
   CaptureSession,
   LogAppendOptions,
   ArchiveResult,
-} from './types';
-import { loadLogConfig, findProjectRoot } from '../config';
-import { LogError } from '../errors';
+} from './types.js';
+import { loadLogConfig, findProjectRoot } from '../config.js';
+import { LogError } from '../errors.js';
 
 /**
  * Generate a unique log ID

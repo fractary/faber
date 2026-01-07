@@ -4,8 +4,8 @@
  * Integration tests for FABER + Forge workflow execution
  */
 
-import { FaberWorkflow } from '../../workflow/faber';
-import { AgentExecutor } from '../../workflow/agent-executor';
+import { FaberWorkflow } from '../../workflow/faber.js';
+import { AgentExecutor } from '../../workflow/agent-executor.js';
 
 // Mock @fractary/forge
 jest.mock('@fractary/forge', () => ({

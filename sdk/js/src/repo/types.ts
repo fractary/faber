@@ -33,7 +33,7 @@ export {
   WorktreeCleanupOptions,
   PushOptions,
   PullOptions,
-} from '../types';
+} from '../types.js';
 
 /**
  * Interface for repository providers
@@ -42,17 +42,17 @@ export interface RepoProvider {
   readonly platform: 'github' | 'gitlab' | 'bitbucket';
 
   // Branches
-  createBranch(name: string, options?: import('../types').BranchCreateOptions): Promise<import('../types').Branch>;
-  deleteBranch(name: string, options?: import('../types').BranchDeleteOptions): Promise<void>;
-  listBranches(options?: import('../types').BranchListOptions): Promise<import('../types').Branch[]>;
-  getBranch(name: string): Promise<import('../types').Branch | null>;
+  createBranch(name: string, options?: import('../types.js').BranchCreateOptions): Promise<import('../types.js').Branch>;
+  deleteBranch(name: string, options?: import('../types.js').BranchDeleteOptions): Promise<void>;
+  listBranches(options?: import('../types.js').BranchListOptions): Promise<import('../types.js').Branch[]>;
+  getBranch(name: string): Promise<import('../types.js').Branch | null>;
 
   // Pull Requests
-  createPR(options: import('../types').PRCreateOptions): Promise<import('../types').PullRequest>;
-  getPR(number: number): Promise<import('../types').PullRequest>;
-  updatePR(number: number, options: import('../types').PRUpdateOptions): Promise<import('../types').PullRequest>;
-  listPRs(options?: import('../types').PRListOptions): Promise<import('../types').PullRequest[]>;
-  mergePR(number: number, options?: import('../types').PRMergeOptions): Promise<import('../types').PullRequest>;
+  createPR(options: import('../types.js').PRCreateOptions): Promise<import('../types.js').PullRequest>;
+  getPR(number: number): Promise<import('../types.js').PullRequest>;
+  updatePR(number: number, options: import('../types.js').PRUpdateOptions): Promise<import('../types.js').PullRequest>;
+  listPRs(options?: import('../types.js').PRListOptions): Promise<import('../types.js').PullRequest[]>;
+  mergePR(number: number, options?: import('../types.js').PRMergeOptions): Promise<import('../types.js').PullRequest>;
   addPRComment(number: number, body: string): Promise<void>;
   requestReview(number: number, reviewers: string[]): Promise<void>;
   approvePR(number: number, comment?: string): Promise<void>;

@@ -28,14 +28,14 @@ import {
   WorktreeCleanupOptions,
   PushOptions,
   PullOptions,
-} from '../types';
-import { RepoProvider, WorktreeCleanupResult, DiffOptions } from './types';
-import { Git } from './git';
-import { GitHubRepoProvider } from './providers/github';
-import { GitLabRepoProvider } from './providers/gitlab';
-import { BitbucketRepoProvider } from './providers/bitbucket';
-import { loadRepoConfig } from '../config';
-import { ConfigurationError, BranchExistsError, ProtectedBranchError } from '../errors';
+} from '../types.js';
+import { RepoProvider, WorktreeCleanupResult, DiffOptions } from './types.js';
+import { Git } from './git.js';
+import { GitHubRepoProvider } from './providers/github.js';
+import { GitLabRepoProvider } from './providers/gitlab.js';
+import { BitbucketRepoProvider } from './providers/bitbucket.js';
+import { loadRepoConfig } from '../config.js';
+import { ConfigurationError, BranchExistsError, ProtectedBranchError } from '../errors.js';
 
 /**
  * Create a provider based on platform

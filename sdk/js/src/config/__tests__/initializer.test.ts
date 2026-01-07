@@ -7,8 +7,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { ConfigInitializer } from '../initializer';
-import { FaberConfig } from '../../types';
+import { ConfigInitializer } from '../initializer.js';
+import { FaberConfig } from '../../types.js';
 
 describe('ConfigInitializer', () => {
   const testDir = path.join(__dirname, '__test-configs__');

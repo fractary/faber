@@ -5,5 +5,5 @@
  * When @fractary/codex is installed and enabled, delegates to Codex.
  */
 
-export { LocalStorage } from './local';
-export { CodexAdapter, createStorage } from './codex-adapter';
+export { LocalStorage } from './local.js';
+export { CodexAdapter, createStorage } from './codex-adapter.js';

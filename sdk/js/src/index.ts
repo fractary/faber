@@ -14,15 +14,15 @@
  */
 
 // Core exports
-export * from './types';
-export * from './errors';
-export * from './config';
+export * from './types.js';
+export * from './errors.js';
+export * from './config.js';
 
 // Module exports
-export * from './work';
-export * from './repo';
-export * from './spec';
-export * from './logs';
-export * from './state';
-export * from './workflow';
-export * from './storage';
+export * from './work/index.js';
+export * from './repo/index.js';
+export * from './spec/index.js';
+export * from './logs/index.js';
+export * from './state/index.js';
+export * from './workflow/index.js';
+export * from './storage/index.js';

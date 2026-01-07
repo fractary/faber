@@ -5,10 +5,10 @@
  * Uses runtime detection - no compile-time dependency on Codex.
  */
 
-import { Storage, FaberConfig } from '../types';
-import { FaberError } from '../errors';
-import { LocalStorage } from './local';
-import { findProjectRoot } from '../config';
+import { Storage, FaberConfig } from '../types.js';
+import { FaberError } from '../errors.js';
+import { LocalStorage } from './local.js';
+import { findProjectRoot } from '../config.js';
 
 // Type definitions for Codex (runtime detection)
 // These match the actual @fractary/codex API
@@ -94,7 +94,6 @@ export class CodexAdapter {
 
     try {
       // Dynamic import for ESM compatibility - no compile-time dependency
-      // @ts-expect-error - @fractary/codex is optional and may not be installed
       const codexModule = await import('@fractary/codex') as unknown as CodexModule;
       this.codex = codexModule;
       return codexModule;

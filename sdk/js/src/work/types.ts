@@ -19,7 +19,7 @@ export {
   Comment,
   CommentCreateOptions,
   FaberContext,
-} from '../types';
+} from '../types.js';
 
 /**
  * Interface for work tracking providers
@@ -28,48 +28,48 @@ export interface WorkProvider {
   readonly platform: 'github' | 'jira' | 'linear';
 
   // Issues
-  createIssue(options: import('../types').IssueCreateOptions): Promise<import('../types').Issue>;
-  fetchIssue(issueId: string | number): Promise<import('../types').Issue>;
+  createIssue(options: import('../types.js').IssueCreateOptions): Promise<import('../types.js').Issue>;
+  fetchIssue(issueId: string | number): Promise<import('../types.js').Issue>;
   updateIssue(
     issueId: string | number,
-    options: import('../types').IssueUpdateOptions
-  ): Promise<import('../types').Issue>;
-  closeIssue(issueId: string | number): Promise<import('../types').Issue>;
-  reopenIssue(issueId: string | number): Promise<import('../types').Issue>;
+    options: import('../types.js').IssueUpdateOptions
+  ): Promise<import('../types.js').Issue>;
+  closeIssue(issueId: string | number): Promise<import('../types.js').Issue>;
+  reopenIssue(issueId: string | number): Promise<import('../types.js').Issue>;
   searchIssues(
     query: string,
-    filters?: import('../types').IssueFilters
-  ): Promise<import('../types').Issue[]>;
+    filters?: import('../types.js').IssueFilters
+  ): Promise<import('../types.js').Issue[]>;
   assignIssue(
     issueId: string | number,
     assignee: string
-  ): Promise<import('../types').Issue>;
-  unassignIssue(issueId: string | number): Promise<import('../types').Issue>;
+  ): Promise<import('../types.js').Issue>;
+  unassignIssue(issueId: string | number): Promise<import('../types.js').Issue>;
 
   // Comments
   createComment(
     issueId: string | number,
     body: string,
-    faberContext?: import('../types').FaberContext
-  ): Promise<import('../types').Comment>;
+    faberContext?: import('../types.js').FaberContext
+  ): Promise<import('../types.js').Comment>;
   listComments(
     issueId: string | number,
     options?: { limit?: number; since?: string }
-  ): Promise<import('../types').Comment[]>;
+  ): Promise<import('../types.js').Comment[]>;
 
   // Labels
-  addLabels(issueId: string | number, labels: string[]): Promise<import('../types').Label[]>;
+  addLabels(issueId: string | number, labels: string[]): Promise<import('../types.js').Label[]>;
   removeLabels(issueId: string | number, labels: string[]): Promise<void>;
-  setLabels(issueId: string | number, labels: string[]): Promise<import('../types').Label[]>;
-  listLabels(issueId?: string | number): Promise<import('../types').Label[]>;
+  setLabels(issueId: string | number, labels: string[]): Promise<import('../types.js').Label[]>;
+  listLabels(issueId?: string | number): Promise<import('../types.js').Label[]>;
 
   // Milestones
   createMilestone(
-    options: import('../types').MilestoneCreateOptions
-  ): Promise<import('../types').Milestone>;
-  setMilestone(issueId: string | number, milestone: string): Promise<import('../types').Issue>;
-  removeMilestone(issueId: string | number): Promise<import('../types').Issue>;
-  listMilestones(state?: 'open' | 'closed' | 'all'): Promise<import('../types').Milestone[]>;
+    options: import('../types.js').MilestoneCreateOptions
+  ): Promise<import('../types.js').Milestone>;
+  setMilestone(issueId: string | number, milestone: string): Promise<import('../types.js').Issue>;
+  removeMilestone(issueId: string | number): Promise<import('../types.js').Issue>;
+  listMilestones(state?: 'open' | 'closed' | 'all'): Promise<import('../types.js').Milestone[]>;
 }
 
 /**

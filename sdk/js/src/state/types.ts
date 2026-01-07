@@ -14,7 +14,7 @@ export {
   PhaseManifest,
   StepManifest,
   ArtifactManifest,
-} from '../types';
+} from '../types.js';
 
 /**
  * State store key

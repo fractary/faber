@@ -15,7 +15,7 @@ export {
   WorkflowStatus,
   FaberPhase,
   ArtifactManifest,
-} from '../types';
+} from '../types.js';
 
 /**
  * Phase handler function type
@@ -30,8 +30,8 @@ export interface PhaseContext {
   workId: string;
   phase: string;
   autonomy: string;
-  issue: import('../types').Issue | null;
-  spec: import('../types').Specification | null;
+  issue: import('../types.js').Issue | null;
+  spec: import('../types.js').Specification | null;
   branch: string | null;
   previousOutputs: Record<string, Record<string, unknown>>;
 }
