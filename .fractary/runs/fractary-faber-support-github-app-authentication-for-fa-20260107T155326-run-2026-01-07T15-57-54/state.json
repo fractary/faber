@@ -4,8 +4,8 @@
   "workflow_id": "fractary-faber:default",
   "workflow_name": "fractary-faber:default",
   "status": "in_progress",
-  "current_phase": "frame",
-  "current_step": "core-commit-and-push-frame",
+  "current_phase": "architect",
+  "current_step": "core-commit-and-push-architect",
   "work_id": "41",
   "work_items": [
     {
@@ -33,14 +33,14 @@
   "phases": [
     {
       "name": "frame",
-      "status": "in_progress",
+      "status": "completed",
       "enabled": true,
       "max_retries": 0,
       "retry_count": 0
     },
     {
       "name": "architect",
-      "status": "pending",
+      "status": "in_progress",
       "enabled": true,
       "max_retries": 0,
       "retry_count": 0
@@ -88,10 +88,31 @@
       "status": "success",
       "message": "Requirements clarified: Full implementation with all features (auto-refresh, wizard, caching, env var), no fallback to PAT",
       "completed_at": "2026-01-07T16:05:30Z"
+    },
+    {
+      "step_id": "core-commit-and-push-frame",
+      "phase": "frame",
+      "status": "success",
+      "message": "Frame changes committed and pushed to feat/41-github-app-auth (commit 132608a)",
+      "completed_at": "2026-01-07T16:07:45Z"
+    },
+    {
+      "step_id": "generate-spec",
+      "phase": "architect",
+      "status": "success",
+      "message": "Specification created: specs/WORK-00041-github-app-authentication.md",
+      "completed_at": "2026-01-07T16:12:00Z"
+    },
+    {
+      "step_id": "refine-spec",
+      "phase": "architect",
+      "status": "success",
+      "message": "Specification reviewed with 6 critical issues identified and 8 proposed improvements. Review posted to issue #41.",
+      "completed_at": "2026-01-07T16:25:00Z"
     }
   ],
   "started_at": "2026-01-07T15:57:54Z",
-  "updated_at": "2026-01-07T16:06:30Z",
+  "updated_at": "2026-01-07T16:13:00Z",
   "sessions": {
     "current_session_id": "claude-session-20260107-155946",
     "total_sessions": 1,
@@ -143,5 +164,8 @@
     },
     "key_storage": ["file_path", "base64_env_var"],
     "fallback_behavior": "no_fallback"
+  },
+  "artifacts": {
+    "spec_path": "specs/WORK-00041-github-app-authentication.md"
   }
 }
