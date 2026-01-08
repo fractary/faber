@@ -141,14 +141,87 @@ target_context = {
 
 **CRITICAL**: You MUST execute this script. Do NOT skip this step or attempt to construct the workflow manually.
 
-**Determine workflow to resolve:**
+**Determine workflow to resolve (4-tier selection strategy):**
 ```
+# Tier 1: Explicit workflow override (highest priority)
 IF workflow_override provided:
   workflow_id = workflow_override
+  GOTO merge_workflow
+
+# Tier 2: Target-based workflow override
 ELSE IF target_context.workflow_override provided:
   workflow_id = target_context.workflow_override
-ELSE:
-  workflow_id = default_workflow
+  GOTO merge_workflow
+
+# Tier 3: Label-based workflow selection (when work_id provided)
+ELSE IF planning_mode == "work_id" AND issue provided:
+  # Check for explicit workflow: label prefix
+  FOR EACH label IN issue.labels:
+    IF label.name starts with "workflow:":
+      workflow_id = label.name without "workflow:" prefix
+      GOTO merge_workflow
+
+  # Check label_mapping from config
+  IF config.workflow_inference.label_mapping exists:
+    FOR EACH label IN issue.labels:
+      IF config.workflow_inference.label_mapping[label.name] exists:
+        workflow_id = config.workflow_inference.label_mapping[label.name]
+        GOTO merge_workflow
+
+  # Tier 4: WorkType classification + mapping
+  IF config.workflow_inference.fallback_to_classification == true:
+    # Classify work type based on labels and title
+    work_type = classify_work_type(issue)
+
+    # Use work_type_mapping if exists, otherwise use defaults
+    IF config.workflow_inference.work_type_mapping exists:
+      workflow_id = config.workflow_inference.work_type_mapping[work_type]
+    ELSE:
+      # Default work type mapping
+      IF work_type == "bug":
+        workflow_id = "fractary-faber:bug"
+      ELSE IF work_type == "feature":
+        workflow_id = "fractary-faber:feature"
+      ELSE IF work_type == "patch":
+        workflow_id = "fractary-faber:bug"  # Patches use bug workflow
+      ELSE:
+        workflow_id = default_workflow
+
+    IF workflow_id is not default_workflow:
+      GOTO merge_workflow
+
+# Tier 5: Default fallback (lowest priority)
+workflow_id = default_workflow
+
+# Label: merge_workflow
+```
+
+**WorkType Classification Logic:**
+```
+classify_work_type(issue):
+  labels = issue.labels.map(l => l.name.toLowerCase())
+  title = issue.title.toLowerCase()
+
+  # Check labels first (highest confidence)
+  IF labels contains "bug" OR "defect" OR "regression":
+    RETURN "bug"
+  IF labels contains "feature" OR "enhancement" OR "new-feature":
+    RETURN "feature"
+  IF labels contains "patch" OR "hotfix" OR "urgent":
+    RETURN "patch"
+  IF labels contains "chore" OR "maintenance":
+    RETURN "chore"
+
+  # Fallback: keyword analysis in title
+  IF title contains "fix" OR "bug" OR "error":
+    RETURN "bug"
+  IF title contains "add" OR "implement" OR "feature":
+    RETURN "feature"
+  IF title contains "refactor" OR "cleanup" OR "chore":
+    RETURN "chore"
+
+  # Default to feature
+  RETURN "feature"
 ```
 
 ```bash

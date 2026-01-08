@@ -27,6 +27,12 @@
           "name": "Commit and Push Changes",
           "description": "Ensure all frame changes are committed and pushed",
           "prompt": "/fractary-repo:commit-push"
+        }, 
+        {
+          "id": "frame-issue-comment",
+          "name": "Add GitHub Issue Comment for Frame Phase",
+          "description": "Share results of the frame phase.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as frame phase completed and reference created workflow plan with link to its location in the repository. Please also reference the issue template that was used to create the issue and give a summary of the steps that will be taken by the workflow plan as a bulleted list organized by phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
         }
       ]
     },
@@ -41,6 +47,12 @@
           "name": "Commit and Push Changes",
           "description": "Ensure all build changes are committed and pushed",
           "prompt": "/fractary-repo:commit-push"
+        }, 
+        {
+          "id": "architect-issue-comment",
+          "name": "Add GitHub Issue Comment for Architect Phase",
+          "description": "Share results of the architect phase.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as architect phase completed and give a summary of the steps that were taken during the architect phase and the results, referencing any artifacts that were created during the phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
         }
       ]
     },
@@ -55,6 +67,12 @@
           "name": "Commit and Push Changes",
           "description": "Ensure all build changes are committed and pushed",
           "prompt": "/fractary-repo:commit-push"
+        }, 
+        {
+          "id": "build-issue-comment",
+          "name": "Add GitHub Issue Comment for Build Phase",
+          "description": "Share results of the build phase.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as build phase completed and give a summary of the steps that were taken during the build phase and the results, referencing any artifacts that were created during the phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
         }
       ]
     },
@@ -75,6 +93,12 @@
           "name": "Review PR CI Checks",
           "description": "Wait for and review CI/CD pipeline results",
           "prompt": "/fractary-repo:pr-review --wait-for-ci"
+        }, 
+        {
+          "id": "evaluate-issue-comment",
+          "name": "Add GitHub Issue Comment for Evaluate Phase",
+          "description": "Share results of evaluate phase.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as evaluate phase completed and give a summary of the steps that were taken during the evaluate phase and the results, referencing any artifacts that were created during the phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
         }
       ]
     },
@@ -99,6 +123,12 @@
           "guards": {
             "skip_if": "!state.worktree || state.worktree.created_by !== 'fractary-faber'"
           }
+        }, 
+        {
+          "id": "release-issue-comment",
+          "name": "Add GitHub Issue Comment for Release Phase",
+          "description": "Share results of completing release phase.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as release phase completed and give a summary of the steps that were taken during the release phase and the results, referencing any artifacts that were created during the phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
         }
       ]
     }

@@ -1,0 +1,113 @@
+{
+  "$schema": "../workflow.schema.json",
+  "id": "feature",
+  "description": "Comprehensive workflow for new features with full design, testing, and documentation requirements",
+  "extends": "fractary-faber:core",
+  "phases": {
+    "frame": {
+      "steps": [
+        {
+          "id": "clarify-feature",
+          "name": "Clarify Feature Requirements",
+          "description": "Ask clarifying questions about feature goals, scope, and success criteria",
+          "prompt": "Review the feature request and determine if critical information is present:\n\n**Required Information:**\n1. **User Value** - What problem does this feature solve? Who benefits?\n2. **Success Criteria** - How do we know when this feature is done and working?\n3. **Scope** - What's explicitly IN scope? What's OUT of scope?\n4. **Technical Constraints** - Any limitations, dependencies, or requirements?\n5. **Integration Points** - How does this integrate with existing features?\n\n**If ANY critical information is missing:**\nUse /fractary-work:issue-comment to request clarification. Be specific about what's needed for effective design.\n\n**If information is complete:**\nProceed to architect phase with confidence.\n\n**Focus:** Understanding user needs and technical approach is essential for good design.",
+          "context": "Feature requirements must be clear before designing the solution",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "continue"
+          }
+        }
+      ]
+    },
+    "architect": {
+      "steps": [
+        {
+          "id": "generate-feature-spec",
+          "name": "Generate Feature Specification",
+          "description": "Create comprehensive specification with technical design, API contracts, and testing strategy",
+          "prompt": "/fractary-spec:create --template feature --context 'Create a comprehensive feature specification including:\n\n1. **User Stories** - Who needs this and why? What are the use cases?\n2. **Technical Design** - How will this be implemented? What are the components?\n3. **API Changes** - New endpoints, updated contracts, data models\n4. **Data Model** - Database schema changes, data structures\n5. **Integration** - How does this integrate with existing features?\n6. **Testing Strategy** - Unit, integration, E2E test plans\n7. **Documentation Needs** - What docs need to be created/updated?\n8. **Performance Considerations** - Expected load, scaling concerns\n\nBe thorough - this spec guides the entire implementation.'",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "prompt"
+          }
+        },
+        {
+          "id": "refine-feature-spec",
+          "name": "Refine Feature Specification",
+          "description": "Review and refine the feature specification for completeness",
+          "prompt": "/fractary-spec:refine --focus 'completeness,technical-approach,testing,documentation' --context 'Review the specification critically:\n\n1. **Completeness** - Are all aspects of the feature covered?\n2. **Technical Soundness** - Is the approach technically sound?\n3. **Testability** - Can we effectively test this design?\n4. **Documentation** - Are documentation needs identified?\n5. **Edge Cases** - Are edge cases and error scenarios addressed?\n\nRefine the spec until it's comprehensive and ready for implementation.'",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "continue"
+          }
+        },
+        {
+          "id": "validate-technical-design",
+          "name": "Validate Technical Design",
+          "description": "Ensure the technical design is sound, complete, and ready for implementation",
+          "prompt": "Critically review the technical design in the specification:\n\n**Architecture Integration**\n- Does this integrate well with existing architecture?\n- Are patterns and conventions followed?\n- Are there any architectural concerns?\n\n**API Contracts**\n- Are API contracts clearly defined?\n- Are request/response formats specified?\n- Is error handling documented?\n\n**Data Model**\n- Is the data model complete?\n- Are relationships clearly defined?\n- Are migrations needed?\n\n**Performance**\n- Are performance implications considered?\n- Will this scale appropriately?\n- Are there any bottlenecks?\n\n**Testing Strategy**\n- Is the testing approach comprehensive?\n- Are test scenarios identified?\n- Is the test strategy realistic?\n\n**If concerns exist:**\n- Use /fractary-spec:refine to address them\n- Ask clarifying questions if needed\n- Update the specification\n\n**If design is sound:**\n- Proceed to build phase with confidence",
+          "context": "Technical validation prevents costly rework later",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "prompt"
+          }
+        }
+      ]
+    },
+    "build": {
+      "steps": [
+        {
+          "id": "implement-with-documentation",
+          "name": "Implement Feature with Documentation",
+          "description": "Build the feature according to spec and create supporting documentation",
+          "prompt": "Implement the feature comprehensively:\n\n**Step 1: Core Implementation**\n- Follow the technical design from the specification\n- Implement all components identified in the spec\n- Use existing patterns and conventions\n- Keep code well-structured and maintainable\n\n**Step 2: Inline Documentation**\n- Add JSDoc/docstrings for public APIs\n- Document complex logic with inline comments\n- Explain non-obvious design decisions\n- Include usage examples where helpful\n\n**Step 3: User Documentation**\n- Create or update user-facing documentation\n- Add usage examples and tutorials\n- Document configuration options\n- Include troubleshooting guidance\n\n**Step 4: API Documentation**\n- Document API endpoints if applicable\n- Include request/response examples\n- Document error codes and responses\n- Update API reference docs\n\n**Step 5: Tests**\n- Implement tests per the testing strategy\n- Cover happy paths and edge cases\n- Include integration tests\n- Ensure tests are maintainable\n\n**Focus:** Features require comprehensive documentation for long-term maintainability.",
+          "context": "Complete implementation includes code AND documentation",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "prompt"
+          }
+        }
+      ]
+    },
+    "evaluate": {
+      "steps": [
+        {
+          "id": "comprehensive-testing",
+          "name": "Run Comprehensive Test Suite",
+          "description": "Validate feature functionality, integration, performance, and documentation",
+          "prompt": "Thoroughly test the feature implementation:\n\n**Step 1: Unit Testing**\n- Run all unit tests for the new feature\n- Verify core logic works correctly\n- Check edge cases and error handling\n- Aim for high code coverage\n\n**Step 2: Integration Testing**\n- Test integration with existing features\n- Verify data flows correctly\n- Check API contracts are correct\n- Test database interactions\n\n**Step 3: End-to-End Testing**\n- Test complete user scenarios\n- Verify the feature works as intended\n- Test from user perspective\n- Check all acceptance criteria\n\n**Step 4: Performance Testing** (if applicable)\n- Test with expected load\n- Check response times\n- Verify scalability\n- Identify bottlenecks\n\n**Step 5: Documentation Review**\n- Verify documentation accuracy\n- Test code examples\n- Check for broken links\n- Ensure completeness\n\n**Step 6: Document Results**\n- Create summary of all test results\n- Note any failures or concerns\n- Document performance metrics\n- Confirm all tests pass\n\n**Required:** All tests must pass before proceeding.",
+          "context": "Features require comprehensive testing across multiple dimensions",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "prompt"
+          }
+        },
+        {
+          "id": "validate-acceptance-criteria",
+          "name": "Validate Acceptance Criteria",
+          "description": "Ensure all acceptance criteria from the specification are met",
+          "prompt": "Systematically validate acceptance criteria:\n\n**Step 1: Review Specification**\n- Open the feature specification\n- Identify all acceptance criteria\n- Create a checklist\n\n**Step 2: Validate Each Criterion**\nFor EACH acceptance criterion:\n- [ ] Test that it's met\n- [ ] Document how it's validated\n- [ ] Mark as PASS or FAIL\n\n**Step 3: Check User Stories**\n- Review each user story\n- Verify the story is fulfilled\n- Test from user perspective\n\n**Step 4: Edge Cases**\n- Review edge cases from spec\n- Verify they're handled correctly\n- Test error scenarios\n\n**Step 5: Non-Functional Requirements**\n- Performance criteria met?\n- Security requirements met?\n- Accessibility requirements met?\n\n**Step 6: Document Validation**\n- Create validation report\n- Note any criteria not fully met\n- Explain any deviations\n\n**Required:** ALL acceptance criteria must be met or explicitly waived.",
+          "context": "Explicit validation ensures nothing is missed",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "prompt"
+          }
+        }
+      ]
+    },
+    "release": {
+      "post_steps": [
+        {
+          "id": "document-feature-release",
+          "name": "Document the Feature Release",
+          "description": "Add feature details to changelog, release notes, and update relevant documentation",
+          "prompt": "After the PR is merged, document the feature release:\n\n**Step 1: Update Changelog**\n- Add entry to CHANGELOG.md (or create if doesn't exist)\n- Format: `- Added: [Feature description] (#<issue-number>)`\n- Include version number if known\n- Commit the changelog update\n\n**Step 2: Update README** (if applicable)\n- If feature changes how users interact with the project\n- Update installation, usage, or configuration sections\n- Add feature to features list\n- Update examples if needed\n\n**Step 3: Migration Notes** (if applicable)\n- If feature requires migration steps\n- Document what users need to do\n- Include migration scripts or commands\n- Note any breaking changes\n\n**Step 4: Update Issue**\n- Add comment: \"Released in version X.Y.Z\" (or commit SHA)\n- Summarize what was implemented\n- Link to documentation\n- Thank contributors\n\n**Step 5: Release Notes** (optional)\n- If this is a significant feature\n- Add to release notes with:\n  - Feature description\n  - Benefits/use cases\n  - Links to documentation\n  - Any breaking changes\n\nProper release documentation helps users discover and adopt new features.",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "continue"
+          }
+        }
+      ]
+    }
+  }
+}
