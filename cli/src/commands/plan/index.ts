@@ -360,27 +360,51 @@ async function planSingleIssue(
 
   const planId = plan.plan_id;
 
-  // Create branch (only if not creating worktree, since worktree creation handles branch creation)
-  if (!options.noBranch && options.noWorktree) {
+  // Create branch without checking it out (so it won't conflict with worktree creation)
+  if (!options.noBranch) {
     if (outputFormat === 'text') {
       console.log(chalk.gray(`  → Creating branch: ${branch}...`));
       process.stdout.write(''); // Force flush
     }
-    await repoClient.createBranch(branch);
+    // Use git branch instead of checkout to avoid switching the main repo
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+    try {
+      await execAsync(`git branch ${branch} 2>/dev/null || true`);
+    } catch (error) {
+      // Branch might already exist, that's ok
+    }
   }
 
-  // Create worktree (this will also create the branch automatically)
+  // Create worktree
   let worktreePath = worktree;
   if (!options.noWorktree) {
     if (outputFormat === 'text') {
       console.log(chalk.gray(`  → Creating worktree: ${worktree}...`));
       process.stdout.write(''); // Force flush
     }
-    const worktreeResult = await repoClient.createWorktree({
-      workId: issue.number.toString(),
-      path: worktree,
-    });
-    worktreePath = worktreeResult.absolute_path;
+
+    try {
+      const worktreeResult = await repoClient.createWorktree({
+        workId: issue.number.toString(),
+        path: worktree,
+      });
+      worktreePath = worktreeResult.absolute_path;
+    } catch (error) {
+      // If worktree already exists, try to use it
+      if (error instanceof Error && error.message.includes('already exists')) {
+        if (outputFormat === 'text') {
+          console.log(chalk.yellow(`  ⚠️  Worktree already exists, using existing worktree`));
+        }
+        const expandedPath = worktree.startsWith('~')
+          ? worktree.replace('~', (await import('os')).homedir())
+          : worktree;
+        worktreePath = path.resolve(expandedPath);
+      } else {
+        throw error;
+      }
+    }
   }
 
   // Write plan to worktree

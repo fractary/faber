@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.11] - 2026-01-08
+
+### Fixed
+
+- **Branch Creation**: Changed to use `git branch` instead of `git checkout -b` to avoid switching the main repository when creating branches for worktrees
+- **Existing Worktree Handling**: Plan command now gracefully handles existing worktrees by reusing them instead of failing with an error
+
+## [1.3.10] - 2026-01-08
+
+### Fixed
+
+- **Authentication Debug**: Added debug logging for GitHub App authentication to diagnose connection issues
+
 ## [1.3.9] - 2026-01-08
 
 ### Fixed
