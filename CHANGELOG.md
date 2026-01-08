@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.6] - 2026-01-08
+
+### Fixed
+
+- **Config File Discovery**: Fixed ConfigManager to search upwards through parent directories for `.fractary/settings.json`, similar to how git finds `.git` directory. This allows commands to work correctly when run from subdirectories (e.g., running `fractary-faber` from the `cli/` directory).
+  - Added `findConfigFile()` method that traverses upward from current working directory
+  - Changed from `path.join(process.cwd(), '.fractary', 'settings.json')` to upward search
+  - Fixes error: "GitHub organization and project must be configured in .fractary/settings.json"
+
 ## [1.3.5] - 2026-01-08
 
 ### Fixed

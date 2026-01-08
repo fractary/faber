@@ -34,24 +34,26 @@ export class ConfigManager {
       token: process.env.GITHUB_TOKEN,
     };
 
-    // Load from FABER config file
+    // Load from FABER config file - search upwards from current directory
     try {
-      const faberConfigPath = path.join(process.cwd(), '.fractary', 'settings.json');
-      const faberConfigContent = await fs.readFile(faberConfigPath, 'utf-8');
-      const faberConfig = JSON.parse(faberConfigContent);
+      const faberConfigPath = await ConfigManager.findConfigFile('.fractary', 'settings.json');
+      if (faberConfigPath) {
+        const faberConfigContent = await fs.readFile(faberConfigPath, 'utf-8');
+        const faberConfig = JSON.parse(faberConfigContent);
 
-      // Merge with config
-      if (faberConfig.anthropic) {
-        config.anthropic = { ...config.anthropic, ...faberConfig.anthropic };
-      }
-      if (faberConfig.github) {
-        config.github = { ...config.github, ...faberConfig.github };
-      }
-      if (faberConfig.worktree) {
-        config.worktree = { ...config.worktree, ...faberConfig.worktree };
-      }
-      if (faberConfig.workflow) {
-        config.workflow = { ...config.workflow, ...faberConfig.workflow };
+        // Merge with config
+        if (faberConfig.anthropic) {
+          config.anthropic = { ...config.anthropic, ...faberConfig.anthropic };
+        }
+        if (faberConfig.github) {
+          config.github = { ...config.github, ...faberConfig.github };
+        }
+        if (faberConfig.worktree) {
+          config.worktree = { ...config.worktree, ...faberConfig.worktree };
+        }
+        if (faberConfig.workflow) {
+          config.workflow = { ...config.workflow, ...faberConfig.workflow };
+        }
       }
     } catch (error) {
       // FABER config not found, use defaults
@@ -84,6 +86,34 @@ export class ConfigManager {
     }
 
     return config;
+  }
+
+  /**
+   * Find config file by searching upwards from current directory
+   * Similar to how git finds .git directory
+   */
+  private static async findConfigFile(dirName: string, fileName: string): Promise<string | null> {
+    let currentDir = process.cwd();
+    const root = path.parse(currentDir).root;
+
+    while (true) {
+      const configPath = path.join(currentDir, dirName, fileName);
+
+      try {
+        await fs.access(configPath);
+        return configPath;
+      } catch (error) {
+        // File doesn't exist, try parent directory
+      }
+
+      // Check if we've reached the root
+      if (currentDir === root) {
+        return null;
+      }
+
+      // Move to parent directory
+      currentDir = path.dirname(currentDir);
+    }
   }
 
   /**
