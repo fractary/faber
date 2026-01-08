@@ -123,8 +123,8 @@ export class GitHubAppAuth {
 
   // Token refresh threshold (5 minutes before expiration)
   private static readonly REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
-  // JWT validity period (10 minutes max for GitHub)
-  private static readonly JWT_EXPIRY_SECONDS = 600;
+  // JWT validity period (reduced to 5 minutes to handle clock skew)
+  private static readonly JWT_EXPIRY_SECONDS = 300;
   // GitHub API base URL
   private static readonly GITHUB_API_URL = 'https://api.github.com';
 

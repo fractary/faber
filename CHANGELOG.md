@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.15] - 2026-01-08
+
+### Fixed
+
+- **JWT Clock Skew**: Reduced JWT expiry from 10 minutes to 5 minutes to handle clock skew between local system and GitHub servers. This fixes the "Expiration time claim ('exp') is too far in the future" error.
+
+## [1.3.14] - 2026-01-08
+
+### Fixed
+
+- **Worktree Error Detection**: Improved error detection for existing worktrees by matching "exit code 128" in error messages
+
+## [1.3.13] - 2026-01-08
+
+### Fixed
+
+- **GitHub API Error Logging**: Added detailed error response logging for authentication failures
+
+## [1.3.12] - 2026-01-08
+
+### Fixed
+
+- **Label Error Detection**: Improved error detection for missing labels by matching multiple error patterns
+
 ## [1.3.11] - 2026-01-08
 
 ### Fixed
