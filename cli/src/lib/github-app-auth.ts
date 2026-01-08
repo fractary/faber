@@ -279,10 +279,11 @@ export class GitHubAppAuth {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error');
+      console.error('[DEBUG] GitHub API error:', response.status, errorBody);
 
       if (response.status === 401) {
         throw new Error(
-          'Failed to authenticate with GitHub App. Verify App ID and private key are correct.'
+          `Failed to authenticate with GitHub App. Status: ${response.status}, Response: ${errorBody}`
         );
       }
 
