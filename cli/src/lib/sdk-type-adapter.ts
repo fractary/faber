@@ -15,6 +15,8 @@ interface CLIIssue {
   labels: string[];
   url: string;
   state: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface WorktreeResult {
@@ -42,6 +44,8 @@ export function sdkIssueToCLIIssue(sdkIssue: SDKIssue): CLIIssue {
     labels: sdkIssue.labels.map(label => label.name), // Extract label names
     url: sdkIssue.url,
     state: sdkIssue.state,
+    createdAt: sdkIssue.created_at,
+    updatedAt: sdkIssue.updated_at,
   };
 }
 

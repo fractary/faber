@@ -46,6 +46,37 @@
     },
     "safety": {
       "$ref": "#/definitions/safety"
+    },
+    "backlog_management": {
+      "type": "object",
+      "description": "Backlog planning and prioritization settings",
+      "additionalProperties": false,
+      "properties": {
+        "default_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 50,
+          "description": "Default maximum issues to plan in one batch"
+        },
+        "default_order_by": {
+          "type": "string",
+          "enum": ["priority", "created", "updated", "none"],
+          "default": "priority",
+          "description": "Default ordering strategy for backlog planning"
+        },
+        "priority_config": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "label_prefix": {
+              "type": "string",
+              "default": "priority",
+              "description": "Label prefix for priority extraction (e.g., 'priority' for 'priority-1' labels)"
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {

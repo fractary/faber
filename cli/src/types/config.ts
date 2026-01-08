@@ -38,11 +38,20 @@ export interface WorkflowConfig {
   config_path?: string;
 }
 
+export interface BacklogManagementConfig {
+  default_limit?: number;
+  default_order_by?: 'priority' | 'created' | 'updated' | 'none';
+  priority_config?: {
+    label_prefix?: string;
+  };
+}
+
 export interface FaberConfig {
   anthropic?: AnthropicConfig;
   github?: GitHubConfig;
   worktree?: WorktreeConfig;
   workflow?: WorkflowConfig;
+  backlog_management?: BacklogManagementConfig;
 }
 
 export interface ClaudeConfig {

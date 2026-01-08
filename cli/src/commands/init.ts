@@ -6,6 +6,8 @@ import { Command } from 'commander';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import chalk from 'chalk';
+import { prompt } from '../utils/prompt.js';
+import { createPriorityLabels, isGitHubCLIAvailable } from '../utils/labels.js';
 
 export function createInitCommand(): Command {
   return new Command('workflow-init')
@@ -50,19 +52,47 @@ logs/session-*.md
 `;
         await fs.writeFile(path.join(configDir, '.gitignore'), gitignore);
 
+        // Offer to create priority labels (if not in JSON mode)
+        let labelsCreated = false;
+        if (!options.json) {
+          const ghAvailable = await isGitHubCLIAvailable();
+          if (ghAvailable) {
+            console.log('');
+            const createLabels = await prompt('Create priority labels (priority-1 through priority-4) for backlog management? [Y/n]: ');
+            if (!createLabels || createLabels.toLowerCase() === 'y' || createLabels.toLowerCase() === 'yes') {
+              console.log(chalk.cyan('\n→ Creating priority labels...'));
+              const result = await createPriorityLabels('priority', false);
+
+              if (result.created.length > 0) {
+                labelsCreated = true;
+              }
+
+              if (result.errors.length > 0) {
+                console.log(chalk.yellow('\n⚠️  Some labels could not be created. You can create them manually later.'));
+              }
+            }
+          }
+        }
+
         if (options.json) {
           console.log(JSON.stringify({
             status: 'success',
-            data: { configPath, preset: options.preset },
+            data: { configPath, preset: options.preset, labelsCreated },
           }, null, 2));
         } else {
-          console.log(chalk.green('✓ FABER initialized successfully'));
+          console.log(chalk.green('\n✓ FABER initialized successfully'));
           console.log(chalk.gray(`  Config: ${configPath}`));
           console.log(chalk.gray(`  Preset: ${options.preset}`));
+          if (labelsCreated) {
+            console.log(chalk.gray('  Priority labels: Created'));
+          }
           console.log('\nNext steps:');
           console.log('  1. Configure work tracking: Edit .fractary/faber/config.json');
           console.log('  2. Start a workflow: fractary-faber run --work-id <issue-number>');
           console.log('  3. Check status: fractary-faber status');
+          if (labelsCreated) {
+            console.log('  4. Use priority labels: gh issue edit <number> --add-label "priority-1"');
+          }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
