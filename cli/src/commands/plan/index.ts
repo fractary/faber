@@ -393,7 +393,12 @@ async function planSingleIssue(
       worktreePath = worktreeResult.absolute_path;
     } catch (error) {
       // If worktree already exists, try to use it
-      if (error instanceof Error && error.message.includes('already exists')) {
+      // Check for both "already exists" and exit code 128 which indicates the path exists
+      if (error instanceof Error &&
+          (error.message.includes('already exists') ||
+           error.message.includes('exit code 128') ||
+           error.message.includes(`'${worktree}'`) ||
+           error.message.includes(worktree.replace('~', (await import('os')).homedir())))) {
         if (outputFormat === 'text') {
           console.log(chalk.yellow(`  ⚠️  Worktree already exists, using existing worktree`));
         }
