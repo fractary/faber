@@ -85,13 +85,18 @@ export function sortIssues(issues: Issue[], options: SortOptions): Issue[] {
       const aPriority = extractPriority(a.labels, options.priorityConfig.labelPrefix, a.number);
       const bPriority = extractPriority(b.labels, options.priorityConfig.labelPrefix, b.number);
       comparison = aPriority - bPriority; // Lower number = higher priority
+
+      // For priority, direction is inverted:
+      // - desc (default) = highest priority first = lowest number first = use comparison as-is
+      // - asc = lowest priority first = highest number first = negate comparison
+      return options.direction === 'asc' ? -comparison : comparison;
     } else if (options.orderBy === 'created' && a.createdAt && b.createdAt) {
       comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     } else if (options.orderBy === 'updated' && a.updatedAt && b.updatedAt) {
       comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
     }
 
-    // Apply direction
+    // Apply direction for dates (standard: asc = oldest first, desc = newest first)
     return options.direction === 'asc' ? comparison : -comparison;
   });
 
