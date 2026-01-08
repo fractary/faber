@@ -91,7 +91,7 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
 
   // Initialize clients
   const config = await ConfigManager.load();
-  const repoClient = new RepoClient(config);
+  const repoClient = await RepoClient.create(config);
   const anthropicClient = new AnthropicClient(config);
 
   if (outputFormat === 'text') {
