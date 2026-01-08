@@ -439,7 +439,10 @@ async function planSingleIssue(
     });
   } catch (error) {
     // If label doesn't exist, just add comment without label
-    if (error instanceof Error && error.message.includes('not found')) {
+    if (error instanceof Error &&
+        (error.message.includes('not found') ||
+         error.message.includes('faber:planned') ||
+         error.message.includes('--add-label'))) {
       if (outputFormat === 'text') {
         console.log(chalk.yellow(`  ⚠️  Label 'faber:planned' not found, adding comment only`));
       }
