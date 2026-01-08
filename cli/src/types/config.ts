@@ -16,6 +16,8 @@ export interface GitHubAppConfig {
   installation_id: string;       // Installation ID for the target org/repo
   private_key_path?: string;     // Path to PEM file (optional if env var used)
   private_key_env_var?: string;  // Env var name containing base64-encoded key
+  created_via?: 'manifest-flow' | 'manual';  // How the app was created
+  created_at?: string;           // ISO 8601 timestamp of creation
 }
 
 export interface GitHubConfig {

@@ -6,6 +6,8 @@ This guide explains how to set up GitHub App authentication for FABER CLI, which
 
 - [Why GitHub App Authentication?](#why-github-app-authentication)
 - [Prerequisites](#prerequisites)
+- [Method 1: Automated Setup (Recommended)](#method-1-automated-setup-recommended)
+- [Method 2: Manual Setup](#method-2-manual-setup)
 - [Step 1: Create a GitHub App](#step-1-create-a-github-app)
 - [Step 2: Install the App](#step-2-install-the-app)
 - [Step 3: Configure FABER CLI](#step-3-configure-faber-cli)
@@ -30,6 +32,39 @@ This guide explains how to set up GitHub App authentication for FABER CLI, which
 - GitHub organization or personal account with admin access
 - FABER CLI version 1.4.0 or higher
 - Repository where you want to use FABER
+
+## Method 1: Automated Setup (Recommended)
+
+The fastest way to set up GitHub App authentication:
+
+```bash
+cd your-project
+fractary-faber auth setup
+```
+
+This command automates the entire setup process:
+- Detects your GitHub organization and repository from git config
+- Generates a GitHub App with correct permissions
+- Guides you through a simple copy-paste flow
+- Configures FABER CLI automatically
+
+**Estimated time**: 30 seconds
+
+**What happens:**
+1. CLI detects your org/repo from git remotes
+2. CLI shows you a GitHub URL to click
+3. You review permissions and create the app on GitHub
+4. GitHub redirects with a code in the URL
+5. You copy the code from your browser's URL bar
+6. You paste the code into the CLI
+7. CLI fetches app credentials and saves configuration
+8. Done! ✓
+
+If the automated setup doesn't work or you prefer manual control, follow Method 2 below.
+
+## Method 2: Manual Setup
+
+For manual control or when the automated setup doesn't work for your environment.
 
 ## Step 1: Create a GitHub App
 

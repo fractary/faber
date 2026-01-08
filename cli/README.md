@@ -16,7 +16,40 @@ npx @fractary/faber-cli --help
 
 ## Quick Start
 
-### Initialize a FABER project
+### 1. Install
+
+```bash
+npm install -g @fractary/faber-cli
+```
+
+Or use directly with `npx`:
+
+```bash
+npx @fractary/faber-cli --help
+```
+
+### 2. Authenticate with GitHub
+
+**Option A: Automated Setup (Recommended)**
+
+```bash
+cd your-project
+fractary-faber auth setup
+```
+
+This command will:
+1. Detect your GitHub organization and repository
+2. Show you a URL to create a GitHub App
+3. Guide you through copying the authorization code
+4. Automatically configure FABER CLI
+
+All in ~30 seconds!
+
+**Option B: Manual Setup**
+
+See [GitHub App Setup Guide](../docs/github-app-setup.md) for detailed manual instructions.
+
+### 3. Initialize a FABER project
 
 ```bash
 fractary-faber init
@@ -197,7 +230,15 @@ All commands support:
 
 For enhanced security, audit trails, and enterprise readiness, use GitHub App authentication instead of Personal Access Tokens.
 
-**Configuration (`.fractary/settings.json`):**
+**Quick Setup (Automated):**
+
+```bash
+fractary-faber auth setup
+```
+
+This command will guide you through creating and configuring a GitHub App in ~30 seconds.
+
+**Manual Configuration (`.fractary/settings.json`):**
 ```json
 {
   "github": {
