@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive documentation in `docs/github-app-setup.md`
   - Full backward compatibility with existing PAT authentication
 
+- **Automated GitHub App Setup** - One-command setup using GitHub App Manifest flow
+  - New `fractary-faber auth setup` command
+  - Reduces setup from 15+ manual steps to single command with copy-paste
+  - Auto-detects GitHub organization and repository from git remotes
+  - Guides users through app creation with clear step-by-step instructions
+  - Automatic credential configuration and private key storage
+  - Cross-platform support (macOS, Linux, Windows)
+  - Setup completes in ~30 seconds
+
 ### Changed
 - Updated `GitHubConfig` type to include optional `app` configuration
 - Enhanced SDK config adapter with async initialization methods

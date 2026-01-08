@@ -16,6 +16,7 @@ import { createSpecCommand } from './commands/spec/index.js';
 import { createLogsCommand } from './commands/logs/index.js';
 import { createInitCommand } from './commands/init.js';
 import { createPlanCommand } from './commands/plan/index.js';
+import { createAuthCommand } from './commands/auth/index.js';
 
 const version = '1.3.2';
 
@@ -26,7 +27,7 @@ export function createFaberCLI(): Command {
   const program = new Command('fractary-faber');
 
   program
-    .description('FABER development toolkit (workflow, work, repo, spec, logs)')
+    .description('FABER development toolkit (workflow, work, repo, spec, logs, auth)')
     .version(version)
     .enablePositionalOptions();
 
@@ -140,6 +141,7 @@ export function createFaberCLI(): Command {
     });
 
   // Subcommand trees
+  program.addCommand(createAuthCommand());
   program.addCommand(createWorkCommand());
   program.addCommand(createRepoCommand());
   program.addCommand(createSpecCommand());
