@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.9] - 2026-01-08
+
+### Fixed
+
+- **Missing Label Handling**: Plan command now gracefully handles missing 'faber:planned' label by adding comment without label. Shows warning instead of failing when label doesn't exist in repository.
+
 ## [1.3.8] - 2026-01-08
 
 ### Fixed

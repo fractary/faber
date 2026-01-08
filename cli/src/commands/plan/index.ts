@@ -407,11 +407,26 @@ async function planSingleIssue(
   if (outputFormat === 'text') {
     console.log(chalk.gray(`  → Updating GitHub issue...`));
   }
-  await repoClient.updateIssue({
-    id: issue.number.toString(),
-    comment: `🤖 Workflow plan created: ${planId}`,
-    addLabel: 'faber:planned',
-  });
+  try {
+    await repoClient.updateIssue({
+      id: issue.number.toString(),
+      comment: `🤖 Workflow plan created: ${planId}`,
+      addLabel: 'faber:planned',
+    });
+  } catch (error) {
+    // If label doesn't exist, just add comment without label
+    if (error instanceof Error && error.message.includes('not found')) {
+      if (outputFormat === 'text') {
+        console.log(chalk.yellow(`  ⚠️  Label 'faber:planned' not found, adding comment only`));
+      }
+      await repoClient.updateIssue({
+        id: issue.number.toString(),
+        comment: `🤖 Workflow plan created: ${planId}`,
+      });
+    } else {
+      throw error;
+    }
+  }
 
   if (outputFormat === 'text') {
     console.log(chalk.green(`  ✓ Plan: ${planId}`));
