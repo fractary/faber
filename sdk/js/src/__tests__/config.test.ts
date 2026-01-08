@@ -13,6 +13,7 @@ import {
   loadSpecConfig,
   loadLogConfig,
   loadStateConfig,
+  findProjectRoot,
 } from '../config.js';
 import { ConfigInitializer } from '../config/initializer.js';
 import { ConfigValidationError } from '../errors.js';
@@ -358,6 +359,79 @@ describe('Config Loading Functions', () => {
       const config = loadFaberConfig(testDir);
 
       expect(config?.repo.owner).toBe('yaml-owner');
+    });
+  });
+
+  describe('findProjectRoot', () => {
+    it('should prioritize .fractary directory in current path over CLAUDE_WORK_CWD', () => {
+      // Create a test directory with .fractary
+      const worktreeDir = path.join(testDir, 'worktree');
+      const fractaryDir = path.join(worktreeDir, '.fractary');
+      fs.mkdirSync(fractaryDir, { recursive: true });
+
+      // Set CLAUDE_WORK_CWD to a different directory
+      const originalCwd = process.env['CLAUDE_WORK_CWD'];
+      process.env['CLAUDE_WORK_CWD'] = testDir;
+
+      try {
+        // findProjectRoot should find the worktree directory, not CLAUDE_WORK_CWD
+        const result = findProjectRoot(worktreeDir);
+        expect(result).toBe(worktreeDir);
+      } finally {
+        // Restore original CLAUDE_WORK_CWD
+        if (originalCwd === undefined) {
+          delete process.env['CLAUDE_WORK_CWD'];
+        } else {
+          process.env['CLAUDE_WORK_CWD'] = originalCwd;
+        }
+      }
+    });
+
+    it('should prioritize .git directory in current path over CLAUDE_WORK_CWD', () => {
+      // Create a test directory with .git
+      const worktreeDir = path.join(testDir, 'worktree');
+      const gitDir = path.join(worktreeDir, '.git');
+      fs.mkdirSync(gitDir, { recursive: true });
+
+      // Set CLAUDE_WORK_CWD to a different directory
+      const originalCwd = process.env['CLAUDE_WORK_CWD'];
+      process.env['CLAUDE_WORK_CWD'] = testDir;
+
+      try {
+        // findProjectRoot should find the worktree directory, not CLAUDE_WORK_CWD
+        const result = findProjectRoot(worktreeDir);
+        expect(result).toBe(worktreeDir);
+      } finally {
+        // Restore original CLAUDE_WORK_CWD
+        if (originalCwd === undefined) {
+          delete process.env['CLAUDE_WORK_CWD'];
+        } else {
+          process.env['CLAUDE_WORK_CWD'] = originalCwd;
+        }
+      }
+    });
+
+    it('should fall back to CLAUDE_WORK_CWD when no .fractary or .git found', () => {
+      // Create a test directory without .fractary or .git
+      const emptyDir = path.join(testDir, 'empty');
+      fs.mkdirSync(emptyDir, { recursive: true });
+
+      // Set CLAUDE_WORK_CWD
+      const originalCwd = process.env['CLAUDE_WORK_CWD'];
+      process.env['CLAUDE_WORK_CWD'] = testDir;
+
+      try {
+        // findProjectRoot should fall back to CLAUDE_WORK_CWD
+        const result = findProjectRoot(emptyDir);
+        expect(result).toBe(testDir);
+      } finally {
+        // Restore original CLAUDE_WORK_CWD
+        if (originalCwd === undefined) {
+          delete process.env['CLAUDE_WORK_CWD'];
+        } else {
+          process.env['CLAUDE_WORK_CWD'] = originalCwd;
+        }
+      }
     });
   });
 });
