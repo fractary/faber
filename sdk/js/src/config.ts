@@ -156,20 +156,24 @@ const REPO_CONFIG_DIR = '.fractary/plugins/repo';
 export function findProjectRoot(startDir?: string): string {
   let dir = startDir || process.cwd();
 
-  // Check for CLAUDE_WORK_CWD environment variable (set by Claude Code)
+  // First, try to find .fractary or .git from current directory
+  // This ensures worktrees use their own configuration
+  let currentDir = dir;
+  while (currentDir !== path.dirname(currentDir)) {
+    if (fs.existsSync(path.join(currentDir, '.fractary'))) {
+      return currentDir;
+    }
+    if (fs.existsSync(path.join(currentDir, '.git'))) {
+      return currentDir;
+    }
+    currentDir = path.dirname(currentDir);
+  }
+
+  // Only fall back to CLAUDE_WORK_CWD if no .fractary or .git found
+  // This handles cases where Claude Code is running in a non-git directory
   const claudeWorkCwd = process.env['CLAUDE_WORK_CWD'];
   if (claudeWorkCwd && fs.existsSync(claudeWorkCwd)) {
     return claudeWorkCwd;
-  }
-
-  while (dir !== path.dirname(dir)) {
-    if (fs.existsSync(path.join(dir, '.fractary'))) {
-      return dir;
-    }
-    if (fs.existsSync(path.join(dir, '.git'))) {
-      return dir;
-    }
-    dir = path.dirname(dir);
   }
 
   return process.cwd();
