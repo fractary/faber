@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-01-08
+
+### Fixed
+
+- **GitHub App Manifest Flow**: Fixed manifest validation error by adding required `redirect_url` field to manifest
+- **WSL Browser Compatibility**: Fixed "file not found" error on WSL by detecting WSL environment and saving HTML file to Windows-accessible directory
+- **HTML Form Generation**: Implemented proper GitHub App manifest flow using HTML form POST instead of simple URL navigation
+- **Cross-Platform Browser Opening**: Added secure cross-platform browser opening using `execFile` instead of `exec` for Windows/macOS/Linux support
+
 ### Added
 - **GitHub App Authentication** - Alternative to Personal Access Tokens with enhanced security
   - JWT generation and automatic token exchange
