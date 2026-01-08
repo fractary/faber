@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.16] - 2026-01-08
+
+### Added
+
+- **Enhanced GitHub Comments**: Plan command now adds detailed comments to GitHub issues including:
+  - Workflow name and inheritance information
+  - Summary of workflow phases with task breakdowns
+  - Full path to the plan file in the worktree
+  - Copy-pasteable commands to execute the workflow
+
 ## [1.3.15] - 2026-01-08
 
 ### Fixed

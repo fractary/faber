@@ -432,6 +432,9 @@ async function planSingleIssue(
     }
   }
 
+  // Generate detailed comment for GitHub issue
+  const planSummary = generatePlanComment(plan, issue.workflow!, worktreePath, planId);
+
   // Update GitHub issue with plan_id
   if (outputFormat === 'text') {
     console.log(chalk.gray(`  → Updating GitHub issue...`));
@@ -439,7 +442,7 @@ async function planSingleIssue(
   try {
     await repoClient.updateIssue({
       id: issue.number.toString(),
-      comment: `🤖 Workflow plan created: ${planId}`,
+      comment: planSummary,
       addLabel: 'faber:planned',
     });
   } catch (error) {
@@ -453,7 +456,7 @@ async function planSingleIssue(
       }
       await repoClient.updateIssue({
         id: issue.number.toString(),
-        comment: `🤖 Workflow plan created: ${planId}`,
+        comment: planSummary,
       });
     } else {
       throw error;
@@ -470,6 +473,52 @@ async function planSingleIssue(
     branch,
     worktree: worktreePath,
   };
+}
+
+/**
+ * Generate a detailed plan comment for GitHub issue
+ */
+function generatePlanComment(plan: any, workflow: string, worktreePath: string, planId: string): string {
+  let comment = `🤖 **Workflow Plan Created**\n\n`;
+  comment += `**Plan ID:** \`${planId}\`\n`;
+  comment += `**Workflow:** \`${workflow}\`\n`;
+
+  // Add workflow inheritance info if available
+  if (plan.workflow_config?.inherits_from) {
+    comment += `**Inherits from:** \`${plan.workflow_config.inherits_from}\`\n`;
+  }
+
+  comment += `\n---\n\n`;
+
+  // Add plan summary by phase
+  if (plan.phases && Array.isArray(plan.phases)) {
+    comment += `### Workflow Phases\n\n`;
+    plan.phases.forEach((phase: any, index: number) => {
+      comment += `**${index + 1}. ${phase.name || phase.phase}**\n`;
+      if (phase.tasks && Array.isArray(phase.tasks)) {
+        phase.tasks.forEach((task: any) => {
+          comment += `  - ${task.description || task.name || task}\n`;
+        });
+      } else if (phase.description) {
+        comment += `  - ${phase.description}\n`;
+      }
+      comment += `\n`;
+    });
+  }
+
+  comment += `---\n\n`;
+  comment += `### Plan Location\n\n`;
+  comment += `\`\`\`\n${worktreePath}/.fractary/plans/${planId}.json\n\`\`\`\n\n`;
+  comment += `### Next Steps\n\n`;
+  comment += `Execute the workflow plan:\n\n`;
+  comment += `\`\`\`bash\n`;
+  comment += `cd ${worktreePath}\n`;
+  comment += `claude\n`;
+  comment += `# Then in Claude Code:\n`;
+  comment += `/fractary-faber:workflow-run ${plan.issue_number || ''}\n`;
+  comment += `\`\`\`\n`;
+
+  return comment;
 }
 
 /**
