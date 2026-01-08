@@ -494,13 +494,28 @@ function generatePlanComment(plan: any, workflow: string, worktreePath: string, 
   if (plan.phases && Array.isArray(plan.phases)) {
     comment += `### Workflow Phases\n\n`;
     plan.phases.forEach((phase: any, index: number) => {
-      comment += `**${index + 1}. ${phase.name || phase.phase}**\n`;
-      if (phase.tasks && Array.isArray(phase.tasks)) {
-        phase.tasks.forEach((task: any) => {
-          comment += `  - ${task.description || task.name || task}\n`;
+      comment += `**${index + 1}. ${phase.name || phase.phase}**\n\n`;
+
+      // Show phase description if available
+      if (phase.description) {
+        comment += `*${phase.description}*\n\n`;
+      }
+
+      // Show steps/tasks
+      if (phase.steps && Array.isArray(phase.steps)) {
+        phase.steps.forEach((step: any) => {
+          const action = step.action || step.name || step.description || step;
+          comment += `  - **${action}**`;
+          if (step.details) {
+            comment += `: ${step.details}`;
+          }
+          comment += `\n`;
         });
-      } else if (phase.description) {
-        comment += `  - ${phase.description}\n`;
+      } else if (phase.tasks && Array.isArray(phase.tasks)) {
+        phase.tasks.forEach((task: any) => {
+          const taskDesc = task.description || task.name || task;
+          comment += `  - ${taskDesc}\n`;
+        });
       }
       comment += `\n`;
     });
