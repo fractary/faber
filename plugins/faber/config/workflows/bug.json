@@ -1,0 +1,91 @@
+{
+  "$schema": "../workflow.schema.json",
+  "id": "bug",
+  "description": "Optimized workflow for bug fixes with emphasis on root cause analysis, minimal scope, and regression testing",
+  "extends": "fractary-faber:core",
+  "phases": {
+    "frame": {
+      "steps": [
+        {
+          "id": "clarify-bug",
+          "name": "Clarify Bug Details",
+          "description": "Ask clarifying questions about bug reproduction, impact, and environment",
+          "prompt": "Review the bug report and determine if critical information is present:\n\n**Required Information:**\n1. **Reproduction Steps** - Are they clear, complete, and reproducible?\n2. **Expected vs Actual Behavior** - Is the difference well-defined?\n3. **Impact/Severity** - Is the impact documented (users affected, frequency, workarounds)?\n4. **Environment Details** - Are relevant details provided (OS, browser, version, etc.)?\n\n**If ANY critical information is missing:**\nUse /fractary-work:issue-comment to politely request the missing information. Be specific about what's needed.\n\n**If information is complete:**\nProceed to next step.\n\n**Focus:** Ensure the bug can be reliably reproduced before proceeding with the fix.",
+          "context": "Bug reports must be complete and reproducible to enable effective fixing",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "continue"
+          }
+        }
+      ]
+    },
+    "architect": {
+      "steps": [
+        {
+          "id": "generate-bug-spec",
+          "name": "Generate Bug Fix Specification",
+          "description": "Create a focused specification emphasizing root cause analysis and minimal scope",
+          "prompt": "/fractary-spec:create --template bug --context 'Create a bug fix specification focusing on:\n1. **Root Cause Analysis** - What is causing this bug? Trace through the code path.\n2. **Minimal Scope** - What is the smallest change that fixes this bug?\n3. **Regression Prevention** - What tests will ensure this bug doesn't reoccur?\n4. **Related Areas** - What related functionality might be affected?\n\nKeep the specification focused and concise. Avoid scope creep.'",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "prompt"
+          }
+        },
+        {
+          "id": "refine-bug-spec",
+          "name": "Refine Bug Specification",
+          "description": "Review and refine the bug fix specification",
+          "prompt": "/fractary-spec:refine --focus 'root-cause,scope,regression-tests' --context 'Review the specification and ensure:\n1. Root cause is clearly identified (not just symptoms)\n2. Fix scope is minimal and targeted\n3. Regression test strategy is defined\n4. No unnecessary scope creep'",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "continue"
+          }
+        }
+      ]
+    },
+    "build": {
+      "steps": [
+        {
+          "id": "verify-bug-reproduction",
+          "name": "Verify Bug Reproduction",
+          "description": "Ensure the bug can be reliably reproduced before implementing the fix",
+          "prompt": "Before implementing the fix, verify the bug:\n\n**Step 1: Reproduce the Bug**\n- Follow the reproduction steps from the specification\n- Confirm you can reproduce the issue consistently\n- Document any deviations or additional findings\n\n**Step 2: Create Failing Test**\n- Write a test that demonstrates the bug\n- Run the test and confirm it fails as expected\n- This test will validate the fix later\n\n**Step 3: Understand the Code Area**\n- Use Read/Grep tools to examine the affected code\n- Understand the control flow and data flow\n- Identify the root cause (if not already clear)\n\n**Step 4: Document Findings**\n- Update the specification with any new insights\n- Note any additional areas that might be affected\n\nOnly proceed once you have a failing test and understand the root cause.",
+          "context": "Verification before fixing ensures we're solving the right problem",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "prompt"
+          }
+        }
+      ]
+    },
+    "evaluate": {
+      "steps": [
+        {
+          "id": "validate-bug-fix",
+          "name": "Validate Bug is Fixed",
+          "description": "Ensure the bug is actually resolved and no regressions were introduced",
+          "prompt": "Validate the bug fix thoroughly:\n\n**Step 1: Verify Fix Works**\n- Run the reproduction test you created earlier\n- Confirm it now PASSES\n- Manually test the original reproduction steps\n- Confirm the bug is resolved\n\n**Step 2: Regression Testing**\n- Run tests for related functionality\n- Check that existing behavior still works\n- Test edge cases around the fix\n- Look for any new issues introduced\n\n**Step 3: Validate Minimal Scope**\n- Review the code changes\n- Confirm the fix is minimal and targeted\n- Ensure no unnecessary changes were made\n- Check for any unintended side effects\n\n**Step 4: Document Validation**\n- Create a summary of validation results\n- Note any findings or concerns\n- Confirm all checks passed\n\n**Required:** All validation steps must pass before proceeding to release.",
+          "context": "Bug validation must be explicit and thorough",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "prompt"
+          }
+        }
+      ]
+    },
+    "release": {
+      "post_steps": [
+        {
+          "id": "document-bug-fix",
+          "name": "Document the Bug Fix",
+          "description": "Add fix details to changelog and update issue with resolution notes",
+          "prompt": "After the PR is merged, document the bug fix:\n\n**Step 1: Update Changelog (if exists)**\n- Check for CHANGELOG.md or similar file\n- Add entry: `- Fixed: [Brief description of bug] (#<issue-number>)`\n- Include version number if known\n- Commit the changelog update\n\n**Step 2: Update Issue**\n- Add comment to the issue: \"Fixed in version X.Y.Z\" (or \"Fixed in commit <sha>\")\n- Note any workarounds that users can now remove\n- Thank the reporter if it was externally reported\n\n**Step 3: Release Notes (optional)**\n- If this is a significant bug, add to release notes\n- Describe impact and resolution\n\nThis documentation helps users know when fixes are available.",
+          "result_handling": {
+            "on_success": "continue",
+            "on_warning": "continue"
+          }
+        }
+      ]
+    }
+  }
+}

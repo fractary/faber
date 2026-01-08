@@ -7,14 +7,42 @@
       "id": "default",
       "file": "./workflows/default.json",
       "description": "Standard FABER workflow (Frame → Architect → Build → Evaluate → Release)"
+    },
+    {
+      "id": "bug",
+      "file": "./workflows/bug.json",
+      "description": "Optimized workflow for bug fixes with emphasis on validation and regression testing"
+    },
+    {
+      "id": "feature",
+      "file": "./workflows/feature.json",
+      "description": "Comprehensive workflow for new features with full design and testing"
     }
   ],
   "workflow_inference": {
-    "_comment": "Maps issue labels to workflows. Used when --workflow is not explicitly specified.",
+    "_comment": "Multi-tier workflow selection: 1) workflow: label prefix, 2) label_mapping, 3) work type classification, 4) default",
+    "enabled": true,
     "label_mapping": {
-      "bug": "default",
-      "feature": "default",
-      "enhancement": "default"
+      "bug": "fractary-faber:bug",
+      "defect": "fractary-faber:bug",
+      "regression": "fractary-faber:bug",
+      "hotfix": "fractary-faber:bug",
+      "urgent": "fractary-faber:bug",
+      "feature": "fractary-faber:feature",
+      "enhancement": "fractary-faber:feature",
+      "new-feature": "fractary-faber:feature",
+      "chore": "fractary-faber:default",
+      "maintenance": "fractary-faber:default",
+      "dependencies": "fractary-faber:default"
+    },
+    "fallback_to_classification": true,
+    "work_type_mapping": {
+      "bug": "fractary-faber:bug",
+      "feature": "fractary-faber:feature",
+      "patch": "fractary-faber:bug",
+      "chore": "fractary-faber:default",
+      "infrastructure": "fractary-faber:default",
+      "api": "fractary-faber:feature"
     }
   },
   "integrations": {

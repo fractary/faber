@@ -35,6 +35,9 @@
         "$ref": "#/definitions/workflow"
       }
     },
+    "workflow_inference": {
+      "$ref": "#/definitions/workflow_inference"
+    },
     "integrations": {
       "$ref": "#/definitions/integrations"
     },
@@ -573,6 +576,37 @@
         "log_sub_steps": {
           "type": "boolean",
           "description": "Log individual step execution"
+        }
+      }
+    },
+    "workflow_inference": {
+      "type": "object",
+      "description": "Multi-tier workflow selection strategy based on labels and work type classification",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable intelligent workflow selection. If false, always uses default_workflow."
+        },
+        "label_mapping": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map issue labels to workflow IDs. Example: {\"bug\": \"fractary-faber:bug\", \"feature\": \"fractary-faber:feature\"}"
+        },
+        "fallback_to_classification": {
+          "type": "boolean",
+          "default": true,
+          "description": "When no label matches, classify work type and use work_type_mapping. If false, uses default_workflow."
+        },
+        "work_type_mapping": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map work types (bug, feature, patch, chore, etc.) to workflow IDs. Used when fallback_to_classification is true."
         }
       }
     },

@@ -13,23 +13,55 @@ Workflows are now stored as separate JSON files instead of being embedded in the
 
 ## Available Workflows
 
-### default.json
-**Standard FABER workflow** for most development tasks.
+### core.json
+**Base workflow** that all other workflows inherit from.
 
 - **Phases**: Frame → Architect → Build → Evaluate → Release
-- **Use case**: Feature development, enhancements, refactoring
+- **Use case**: Foundation for all specialized workflows
 - **Autonomy**: Guarded (pauses before release)
-- **Specification**: Always generated in Architect phase
+- **Features**: Issue fetching, commit/push hooks, GitHub comments
+- **Note**: Not used directly, only extended by other workflows
+
+### default.json
+**General-purpose workflow** for various development tasks.
+
+- **Extends**: core.json
+- **Phases**: Frame → Architect → Build → Evaluate → Release
+- **Use case**: General development, maintenance, chores, refactoring
+- **Autonomy**: Guarded (pauses before release)
+- **Specification**: Generic spec template
 - **Testing**: Full test suite with 3 retry attempts
 
-### hotfix.json
-**Expedited workflow** for critical production fixes.
+### bug.json
+**Optimized workflow** for bug fixes and regression prevention.
 
-- **Phases**: Frame → Build → Evaluate → Release (skips Architect)
-- **Use case**: Critical bugs, security patches, urgent fixes
-- **Autonomy**: Assist (human oversight throughout)
-- **Specification**: Skipped for speed
-- **Testing**: Quick validation with 2 retry attempts
+- **Extends**: core.json
+- **Phases**: Frame → Architect → Build → Evaluate → Release
+- **Use case**: Bug fixes, defects, regressions, urgent issues
+- **Autonomy**: Guarded (pauses before release)
+- **Specification**: Bug template emphasizing root cause analysis
+- **Key Features**:
+  - Clarifies bug reproduction steps in Frame
+  - Focuses on minimal scope and root cause in Architect
+  - Verifies bug reproduction before fixing in Build
+  - Explicit bug validation and regression testing in Evaluate
+  - Documents fix in changelog during Release
+
+### feature.json
+**Comprehensive workflow** for new feature development.
+
+- **Extends**: core.json
+- **Phases**: Frame → Architect → Build → Evaluate → Release
+- **Use case**: New features, enhancements, significant changes
+- **Autonomy**: Guarded (pauses before release)
+- **Specification**: Feature template with full technical design
+- **Key Features**:
+  - Clarifies user value and requirements in Frame
+  - Comprehensive spec with API, data model, testing strategy in Architect
+  - Validates technical design before implementation
+  - Implements with full documentation in Build
+  - Comprehensive testing and acceptance criteria validation in Evaluate
+  - Documents feature release in changelog and README
 
 ## File Structure
 
@@ -75,28 +107,118 @@ Reference workflows in `.fractary/plugins/faber/config.json`:
 
 ### Selecting Workflow
 
-FABER provides three ways to select which workflow to use:
+FABER uses an intelligent **multi-tier workflow selection strategy** to automatically choose the most appropriate workflow based on issue characteristics. This ensures optimal workflows are used without requiring manual specification.
 
-#### 1. Explicit Selection (Highest Priority)
+#### Selection Priority (Highest to Lowest)
+
+##### 1. Explicit Override (Highest Priority)
 
 Use the `--workflow` flag to explicitly specify which workflow to use:
 
 ```bash
 # Use specific workflow
-/fractary-faber:run --work-id 123 --workflow hotfix
-/fractary-faber:run --work-id 456 --workflow default
+/fractary-faber:run --work-id 123 --workflow fractary-faber:bug
+/fractary-faber:run --work-id 456 --workflow fractary-faber:feature
 ```
 
-#### 2. Automatic Inference from Issue Labels (Smart Default)
+##### 2. Target-Based Override
 
-When `--workflow` is not specified, FABER automatically infers the workflow from issue labels:
+When using target-based planning, target definitions can specify workflow overrides:
+
+```json
+{
+  "targets": {
+    "definitions": [
+      {
+        "name": "ipeds-datasets",
+        "pattern": "ipeds/*",
+        "workflow_override": "data-pipeline"
+      }
+    ]
+  }
+}
+```
+
+##### 3. Label-Based Selection (Smart Default)
+
+**Explicit `workflow:` Label Prefix:**
+
+Issues with `workflow:` label prefix explicitly specify the workflow:
 
 ```bash
-# Issue #123 has label "hotfix" → automatically uses hotfix workflow
-/fractary-faber:run 123
+# Issue has label "workflow:hotfix" → uses hotfix workflow
+/fractary-faber:run --work-id 123
 
-# Issue #456 has label "feature" → automatically uses default workflow
-/fractary-faber:run 456
+# Issue has label "workflow:custom" → uses custom workflow
+/fractary-faber:run --work-id 456
+```
+
+**Label Mapping Configuration:**
+
+Configure `workflow_inference.label_mapping` to map common labels to workflows:
+
+```json
+{
+  "workflow_inference": {
+    "label_mapping": {
+      "bug": "fractary-faber:bug",
+      "defect": "fractary-faber:bug",
+      "feature": "fractary-faber:feature",
+      "enhancement": "fractary-faber:feature"
+    }
+  }
+}
+```
+
+**Note**: If an issue has multiple labels that match the mapping, the first matching label (in iteration order) wins.
+
+```bash
+# Issue #123 has label "bug" → automatically uses bug workflow
+/fractary-faber:run --work-id 123
+
+# Issue #456 has label "feature" → automatically uses feature workflow
+/fractary-faber:run --work-id 456
+```
+
+##### 4. WorkType Classification (Intelligent Fallback)
+
+When no labels match, FABER classifies the issue's work type based on labels and title keywords, then maps to a workflow:
+
+**Classification Logic:**
+- Checks labels for: bug, defect, regression, feature, enhancement, patch, hotfix, chore, maintenance
+- Falls back to title keyword analysis: fix, bug, error, add, implement, feature, refactor, cleanup
+
+**Default WorkType Mapping:**
+```json
+{
+  "workflow_inference": {
+    "work_type_mapping": {
+      "bug": "fractary-faber:bug",
+      "feature": "fractary-faber:feature",
+      "patch": "fractary-faber:bug",
+      "chore": "fractary-faber:default",
+      "infrastructure": "fractary-faber:default"
+    }
+  }
+}
+```
+
+```bash
+# Issue title: "Fix login error" → classifies as bug → uses bug workflow
+/fractary-faber:run --work-id 789
+
+# Issue title: "Add user authentication" → classifies as feature → uses feature workflow
+/fractary-faber:run --work-id 101
+```
+
+##### 5. Default Fallback (Lowest Priority)
+
+If no selection method applies, uses `default_workflow` from config (or `fractary-faber:default`):
+
+```json
+{
+  "default_workflow": "fractary-faber:default"
+}
 ```
 
 **Configuration** (`config.json`):

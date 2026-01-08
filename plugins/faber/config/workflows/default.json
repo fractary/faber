@@ -8,12 +8,6 @@
       "enabled": true,
       "pre_steps": [
         {
-          "id": "auto-reload-context",
-          "name": "Reload Context",
-          "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
-        },
-        {
           "id": "core-issue-refine",
           "name": "Refine Issue",
           "description": "Clarify issue details with user",
