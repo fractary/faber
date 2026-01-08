@@ -4,11 +4,11 @@
  * Handles creation and management of priority labels for backlog management
  */
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import chalk from 'chalk';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface PriorityLabel {
   name: string;
@@ -54,10 +54,12 @@ export function generatePriorityLabels(prefix: string): PriorityLabel[] {
 
 /**
  * Check if a label exists in the repository
+ * @param labelName - Name of the label to check
+ * @returns Promise resolving to true if label exists, false otherwise
  */
 export async function labelExists(labelName: string): Promise<boolean> {
   try {
-    const { stdout } = await execAsync(`gh label list --json name --jq '.[].name'`);
+    const { stdout } = await execFileAsync('gh', ['label', 'list', '--json', 'name', '--jq', '.[].name']);
     const labels = stdout.trim().split('\n');
     return labels.includes(labelName);
   } catch (error) {
@@ -68,31 +70,63 @@ export async function labelExists(labelName: string): Promise<boolean> {
 
 /**
  * Create a single label in the repository
+ * @param label - Label to create with name, description, and color
  */
 export async function createLabel(label: PriorityLabel): Promise<void> {
   const { name, description, color } = label;
-  await execAsync(
-    `gh label create "${name}" --description "${description}" --color "${color}" --force`
-  );
+  // Use execFileAsync with array arguments to prevent command injection
+  await execFileAsync('gh', [
+    'label',
+    'create',
+    name,
+    '--description',
+    description,
+    '--color',
+    color,
+    '--force'
+  ]);
 }
 
 /**
  * Create multiple priority labels
+ * @param prefix - Label prefix (e.g., "priority" for priority-1, priority-2, etc.)
+ * @param quiet - If true, suppress console output
+ * @returns Object with arrays of created, skipped, and error labels
  */
 export async function createPriorityLabels(
   prefix: string = 'priority',
   quiet: boolean = false
 ): Promise<{ created: string[]; skipped: string[]; errors: string[] }> {
+  // Validate prefix format
+  if (!isValidLabelPrefix(prefix)) {
+    return {
+      created: [],
+      skipped: [],
+      errors: [`Invalid label prefix: ${prefix}. Must contain only letters, numbers, and hyphens.`]
+    };
+  }
+
   const labels = generatePriorityLabels(prefix);
   const created: string[] = [];
   const skipped: string[] = [];
   const errors: string[] = [];
 
+  // Fetch all existing labels once to optimize API calls
+  let existingLabels: string[] = [];
+  try {
+    const { stdout } = await execFileAsync('gh', ['label', 'list', '--json', 'name', '--jq', '.[].name']);
+    existingLabels = stdout.trim().split('\n').filter(l => l.length > 0);
+  } catch (error) {
+    // If we can't fetch labels, proceed cautiously
+    if (!quiet) {
+      console.log(chalk.yellow('  ⚠️  Could not fetch existing labels, will attempt creation'));
+    }
+  }
+
   for (const label of labels) {
     try {
-      // Check if label already exists
-      const exists = await labelExists(label.name);
-      if (exists) {
+      // Check if label already exists (using cached list)
+      if (existingLabels.includes(label.name)) {
         skipped.push(label.name);
         if (!quiet) {
           console.log(chalk.gray(`  ⊳ Label already exists: ${label.name}`));
@@ -123,11 +157,22 @@ export async function createPriorityLabels(
  */
 export async function isGitHubCLIAvailable(): Promise<boolean> {
   try {
-    await execAsync('gh --version');
+    await execFileAsync('gh', ['--version']);
     return true;
   } catch (error) {
     return false;
   }
+}
+
+/**
+ * Validate label prefix format
+ * @param prefix - Label prefix to validate
+ * @returns True if valid, false otherwise
+ */
+function isValidLabelPrefix(prefix: string): boolean {
+  // Label prefix should only contain lowercase letters, numbers, and hyphens
+  // and should not be empty
+  return /^[a-z0-9-]+$/i.test(prefix) && prefix.length > 0 && prefix.length <= 50;
 }
 
 /**

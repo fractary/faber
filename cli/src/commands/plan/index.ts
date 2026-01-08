@@ -99,6 +99,30 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
     throw new Error('Cannot use both --work-id and --work-label at the same time');
   }
 
+  // Validate backlog management options
+  if (options.limit !== undefined) {
+    if (!Number.isInteger(options.limit) || options.limit <= 0) {
+      throw new Error('--limit must be a positive integer');
+    }
+    if (options.limit > 100) {
+      throw new Error('--limit cannot exceed 100');
+    }
+  }
+
+  if (options.orderBy && options.orderBy !== 'none') {
+    const validOrderBy = ['priority', 'created', 'updated'];
+    if (!validOrderBy.includes(options.orderBy)) {
+      throw new Error(`--order-by must be one of: ${validOrderBy.join(', ')}, or 'none'`);
+    }
+  }
+
+  if (options.orderDirection) {
+    const validDirections = ['asc', 'desc'];
+    if (!validDirections.includes(options.orderDirection)) {
+      throw new Error(`--order-direction must be one of: ${validDirections.join(', ')}`);
+    }
+  }
+
   // Initialize clients
   console.error('[DEBUG] Loading config...');
   const config = await ConfigManager.load();
