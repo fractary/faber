@@ -141,7 +141,7 @@ target_context = {
 
 **CRITICAL**: You MUST execute this script. Do NOT skip this step or attempt to construct the workflow manually.
 
-**Determine workflow to resolve (4-tier selection strategy):**
+**Determine workflow to resolve (5-tier selection strategy):**
 ```
 # Tier 1: Explicit workflow override (highest priority)
 IF workflow_override provided:
@@ -162,6 +162,7 @@ ELSE IF planning_mode == "work_id" AND issue provided:
       GOTO merge_workflow
 
   # Check label_mapping from config
+  # NOTE: If multiple labels match, first match wins (iteration order from issue.labels)
   IF config.workflow_inference.label_mapping exists:
     FOR EACH label IN issue.labels:
       IF config.workflow_inference.label_mapping[label.name] exists:
@@ -173,22 +174,26 @@ ELSE IF planning_mode == "work_id" AND issue provided:
     # Classify work type based on labels and title
     work_type = classify_work_type(issue)
 
-    # Use work_type_mapping if exists, otherwise use defaults
-    IF config.workflow_inference.work_type_mapping exists:
-      workflow_id = config.workflow_inference.work_type_mapping[work_type]
+    # If classification returns null (ambiguous case), skip to default
+    IF work_type is null:
+      # Continue to Tier 5 (default fallback)
     ELSE:
-      # Default work type mapping
-      IF work_type == "bug":
-        workflow_id = "fractary-faber:bug"
-      ELSE IF work_type == "feature":
-        workflow_id = "fractary-faber:feature"
-      ELSE IF work_type == "patch":
-        workflow_id = "fractary-faber:bug"  # Patches use bug workflow
+      # Use work_type_mapping if exists, otherwise use defaults
+      IF config.workflow_inference.work_type_mapping exists:
+        workflow_id = config.workflow_inference.work_type_mapping[work_type]
       ELSE:
-        workflow_id = default_workflow
+        # Default work type mapping
+        IF work_type == "bug":
+          workflow_id = "fractary-faber:bug"
+        ELSE IF work_type == "feature":
+          workflow_id = "fractary-faber:feature"
+        ELSE IF work_type == "patch":
+          workflow_id = "fractary-faber:bug"  # Patches use bug workflow
+        ELSE IF work_type == "chore":
+          workflow_id = default_workflow
 
-    IF workflow_id is not default_workflow:
-      GOTO merge_workflow
+      IF workflow_id is set AND workflow_id is not default_workflow:
+        GOTO merge_workflow
 
 # Tier 5: Default fallback (lowest priority)
 workflow_id = default_workflow
@@ -220,8 +225,9 @@ classify_work_type(issue):
   IF title contains "refactor" OR "cleanup" OR "chore":
     RETURN "chore"
 
-  # Default to feature
-  RETURN "feature"
+  # For truly ambiguous cases, return null to use default_workflow
+  # This prevents routing docs, refactors, or unclear work to feature workflow
+  RETURN null
 ```
 
 ```bash

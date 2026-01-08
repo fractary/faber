@@ -170,6 +170,8 @@ Configure `workflow_inference.label_mapping` to map common labels to workflows:
 }
 ```
 
+**Note**: If an issue has multiple labels that match the mapping, the first matching label (in iteration order) wins.
+
 ```bash
 # Issue #123 has label "bug" → automatically uses bug workflow
 /fractary-faber:run --work-id 123
