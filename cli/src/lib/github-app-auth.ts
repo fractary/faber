@@ -213,8 +213,13 @@ export class GitHubAppAuth {
    * Perform the actual token refresh
    */
   private async doRefresh(): Promise<string> {
+    console.error('[DEBUG] GitHub App auth - App ID:', this.config.id);
+    console.error('[DEBUG] GitHub App auth - Installation ID:', this.config.installation_id);
+    console.error('[DEBUG] GitHub App auth - Private key path:', this.config.private_key_path);
     const jwtToken = await this.generateJWT();
+    console.error('[DEBUG] GitHub App auth - JWT generated successfully');
     const installationToken = await this.exchangeForInstallationToken(jwtToken);
+    console.error('[DEBUG] GitHub App auth - Installation token received');
 
     // Cache the token
     this.cache.set(this.config.installation_id, {
