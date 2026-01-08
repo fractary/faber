@@ -56,3 +56,6 @@ temp/
 .fractary/plugins/status/
 # CLI build artifacts
 cli/dist/
+.github/faber-fractary.pem
+faber-github-app-*.html
+.fractary/settings.json

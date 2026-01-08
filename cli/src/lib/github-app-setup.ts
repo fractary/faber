@@ -117,6 +117,7 @@ export function generateAppManifest(config: ManifestConfig): GitHubAppManifest {
     hook_attributes: {
       url: 'https://example.com/webhook', // Required but not used
     },
+    redirect_url: 'https://example.com', // Required by GitHub for manifest flow
     description:
       'FABER CLI for automated workflow management, issue tracking, and repository operations.',
     public: false,
@@ -131,13 +132,141 @@ export function generateAppManifest(config: ManifestConfig): GitHubAppManifest {
 }
 
 /**
- * Generate GitHub App creation URL
+ * Generate HTML content for manifest submission
  *
- * Note: GitHub does not support pre-filled manifests via URL parameters.
- * Users must manually fill in the form or use the manifest conversion API.
+ * The GitHub App Manifest flow requires POSTing a form to GitHub.
+ * Since CLI cannot POST directly, we generate an HTML file that the user
+ * opens in their browser and clicks to submit.
+ *
+ * @param manifest - The app manifest to submit
+ * @param organization - GitHub organization name
+ * @returns HTML content ready to save to file
+ */
+export function generateManifestHtml(
+  manifest: GitHubAppManifest,
+  organization: string
+): string {
+  const manifestJson = JSON.stringify(manifest, null, 2);
+  const targetUrl = organization
+    ? `https://github.com/organizations/${organization}/settings/apps/new`
+    : 'https://github.com/settings/apps/new';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FABER CLI - Create GitHub App</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f6f8fa;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin-top: 0;
+      color: #24292f;
+    }
+    .info {
+      background: #dff6ff;
+      border-left: 4px solid #0969da;
+      padding: 12px 16px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    button {
+      background: #2da44e;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 20px;
+    }
+    button:hover {
+      background: #2c974b;
+    }
+    .manifest {
+      background: #f6f8fa;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 16px;
+      margin: 16px 0;
+      overflow-x: auto;
+    }
+    .manifest pre {
+      margin: 0;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+    }
+    .instructions {
+      color: #57606a;
+      margin: 16px 0;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 Create FABER GitHub App</h1>
+
+    <div class="info">
+      <strong>Step 1 of 2:</strong> Click the button below to create your GitHub App
+    </div>
+
+    <div class="instructions">
+      <p>This will create a GitHub App for <strong>${organization}</strong> with the following permissions:</p>
+      <ul>
+        <li>Contents: Write</li>
+        <li>Issues: Write</li>
+        <li>Pull Requests: Write</li>
+        <li>Metadata: Read</li>
+      </ul>
+    </div>
+
+    <details>
+      <summary style="cursor: pointer; color: #0969da;">Show manifest JSON</summary>
+      <div class="manifest">
+        <pre>${manifestJson}</pre>
+      </div>
+    </details>
+
+    <form action="${targetUrl}" method="post" id="manifestForm">
+      <input type="hidden" name="manifest" value='${manifestJson.replace(/'/g, '&#39;')}'>
+      <button type="submit">Create GitHub App →</button>
+    </form>
+
+    <div class="instructions" style="margin-top: 20px; font-size: 14px;">
+      <p><strong>What happens next:</strong></p>
+      <ol>
+        <li>GitHub will show you the app details for review</li>
+        <li>Click "Create GitHub App" to confirm</li>
+        <li>GitHub will redirect you to a URL with a code</li>
+        <li>Copy the code and paste it into the CLI</li>
+      </ol>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * Generate GitHub App creation URL (legacy - prefer generateManifestHtml)
+ *
+ * @deprecated Use generateManifestHtml() instead for proper manifest flow
  */
 export function getManifestCreationUrl(manifest: GitHubAppManifest): string {
-  // GitHub App creation page
+  // For backward compatibility, return the basic GitHub App creation page
   return 'https://github.com/settings/apps/new';
 }
 

@@ -8,6 +8,7 @@ import chalk from 'chalk';
 import fs from 'fs/promises';
 import {
   generateAppManifest,
+  generateManifestHtml,
   getManifestCreationUrl,
   exchangeCodeForCredentials,
   validateAppCredentials,
@@ -54,7 +55,9 @@ export function createAuthSetupCommand(): Command {
  * Run the setup flow
  */
 async function runSetup(options: SetupOptions): Promise<void> {
-  console.log(chalk.bold('\n🔐 GitHub App Authentication Setup\n'));
+  // Force output to flush immediately
+  process.stdout.write('\n🔐 GitHub App Authentication Setup\n\n');
+  process.stdout.write('Initializing...\n');
 
   // Step 1: Detect or prompt for GitHub context
   let org = options.org;
@@ -122,26 +125,72 @@ async function runSetup(options: SetupOptions): Promise<void> {
     console.log();
   }
 
-  // Step 4: Display creation instructions
+  // Step 4: Generate and open manifest HTML
   console.log(chalk.bold('━'.repeat(60)));
   console.log(chalk.bold('📋 STEP 1: Create the GitHub App'));
   console.log(chalk.bold('━'.repeat(60)));
   console.log();
 
-  const creationUrl = getManifestCreationUrl(manifest);
-  console.log('Please click this URL to create your GitHub App:\n');
-  console.log(chalk.cyan.bold(`👉 ${creationUrl}\n`));
+  const htmlContent = generateManifestHtml(manifest, org);
+  const os = await import('os');
+  const path = await import('path');
 
-  console.log('The app will request these permissions:');
-  console.log(formatPermissionsDisplay(manifest));
-  console.log();
+  // Detect WSL and use Windows-accessible temp directory
+  let tmpDir = os.tmpdir();
+  const isWsl = process.platform === 'linux' && os.release().toLowerCase().includes('microsoft');
+
+  if (isWsl) {
+    // Use current working directory for WSL (it's usually in /mnt/c which is Windows-accessible)
+    tmpDir = process.cwd();
+  }
+
+  const htmlPath = path.join(tmpDir, `faber-github-app-${Date.now()}.html`);
+
+  try {
+    await fs.writeFile(htmlPath, htmlContent, 'utf-8');
+    console.log(chalk.gray(`✓ Generated manifest form\n`));
+  } catch (error) {
+    console.error(chalk.red('Failed to create manifest file'));
+    if (error instanceof Error) {
+      console.error(chalk.red(error.message));
+    }
+    process.exit(1);
+  }
+
+  console.log('Opening GitHub App creation page in your browser...\n');
+
+  // Open HTML file in default browser (safe - we control the path)
+  const { execFile } = await import('child_process');
+  const { promisify } = await import('util');
+  const execFileAsync = promisify(execFile);
+
+  try {
+    if (process.platform === 'darwin') {
+      await execFileAsync('open', [htmlPath]);
+    } else if (process.platform === 'win32') {
+      // Windows requires cmd /c start for file associations
+      await execFileAsync('cmd', ['/c', 'start', '', htmlPath]);
+    } else {
+      // Linux/Unix
+      await execFileAsync('xdg-open', [htmlPath]);
+    }
+  } catch (error) {
+    console.log(chalk.yellow('\n⚠️  Could not open browser automatically.'));
+    console.log(chalk.yellow(`Please open this file manually:\n  ${htmlPath}\n`));
+  }
+
+  console.log(chalk.bold('In your browser:'));
+  console.log('  1. Review the app permissions');
+  console.log('  2. Click the green "Create GitHub App →" button');
+  console.log('  3. GitHub will ask you to confirm - click "Create GitHub App" again');
+  console.log('  4. After creation, look at the browser URL bar\n');
 
   const rl1 = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
-  await rl1.question('Press Enter when you have created the app...');
+  await rl1.question('Press Enter after you have clicked the Create button in your browser...');
   rl1.close();
 
   // Step 5: Prompt for code
