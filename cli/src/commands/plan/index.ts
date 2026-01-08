@@ -78,6 +78,7 @@ export function createPlanCommand(): Command {
  * Main execution logic for plan command
  */
 async function executePlanCommand(options: PlanOptions): Promise<void> {
+  console.error('[DEBUG] Starting executePlanCommand');
   const outputFormat = options.json ? 'json' : options.output || 'text';
 
   // Validate arguments
@@ -90,9 +91,13 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
   }
 
   // Initialize clients
+  console.error('[DEBUG] Loading config...');
   const config = await ConfigManager.load();
+  console.error('[DEBUG] Creating RepoClient...');
   const repoClient = await RepoClient.create(config);
+  console.error('[DEBUG] Creating AnthropicClient...');
   const anthropicClient = new AnthropicClient(config);
+  console.error('[DEBUG] Clients initialized');
 
   if (outputFormat === 'text') {
     console.log(chalk.blue('FABER CLI - Workflow Planning'));
@@ -177,6 +182,7 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
   // Step 4: Plan each issue
   if (outputFormat === 'text') {
     console.log(chalk.cyan('\n→ Planning workflows...'));
+    process.stdout.write(''); // Force flush
   }
 
   const results: PlanResult[] = [];
@@ -184,6 +190,7 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
   for (const issue of issuesWithWorkflows) {
     if (outputFormat === 'text') {
       console.log(chalk.gray(`\n[${results.length + 1}/${issuesWithWorkflows.length}] Issue #${issue.number}: ${issue.title}`));
+      process.stdout.write(''); // Force flush
     }
 
     try {
@@ -341,6 +348,7 @@ async function planSingleIssue(
   // Generate plan via Anthropic API
   if (outputFormat === 'text') {
     console.log(chalk.gray('  → Generating plan...'));
+    process.stdout.write(''); // Force flush
   }
 
   const plan = await anthropicClient.generatePlan({
@@ -356,6 +364,7 @@ async function planSingleIssue(
   if (!options.noBranch) {
     if (outputFormat === 'text') {
       console.log(chalk.gray(`  → Creating branch: ${branch}...`));
+      process.stdout.write(''); // Force flush
     }
     await repoClient.createBranch(branch);
   }
@@ -365,6 +374,7 @@ async function planSingleIssue(
   if (!options.noWorktree) {
     if (outputFormat === 'text') {
       console.log(chalk.gray(`  → Creating worktree: ${worktree}...`));
+      process.stdout.write(''); // Force flush
     }
     const worktreeResult = await repoClient.createWorktree({
       workId: issue.number.toString(),

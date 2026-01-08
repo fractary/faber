@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.7] - 2026-01-08
+
+### Fixed
+
+- **Output Buffering**: Added debug logging to diagnose CLI output buffering issues
+- **Unbuffered stdout**: Added setBlocking() call attempt to force unbuffered terminal output
+- **Plan Command Output**: Added debug statements to trace execution flow
+
 ## [1.3.6] - 2026-01-08
 
 ### Fixed
