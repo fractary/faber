@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.8] - 2026-01-08
+
+### Fixed
+
+- **Worktree Branch Conflict**: Fixed plan command creating branches that conflict with worktree creation. Now skips separate branch creation when creating worktrees, since `git worktree add` creates the branch automatically without checking it out in the main repository.
+  - Changed branch creation to only run when `--no-worktree` is specified
+  - Fixes error: "fatal: 'feature/N' is already used by worktree"
+
 ## [1.3.7] - 2026-01-08
 
 ### Fixed

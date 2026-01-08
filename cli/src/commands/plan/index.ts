@@ -360,8 +360,8 @@ async function planSingleIssue(
 
   const planId = plan.plan_id;
 
-  // Create branch
-  if (!options.noBranch) {
+  // Create branch (only if not creating worktree, since worktree creation handles branch creation)
+  if (!options.noBranch && options.noWorktree) {
     if (outputFormat === 'text') {
       console.log(chalk.gray(`  → Creating branch: ${branch}...`));
       process.stdout.write(''); // Force flush
@@ -369,7 +369,7 @@ async function planSingleIssue(
     await repoClient.createBranch(branch);
   }
 
-  // Create worktree
+  // Create worktree (this will also create the branch automatically)
   let worktreePath = worktree;
   if (!options.noWorktree) {
     if (outputFormat === 'text') {
