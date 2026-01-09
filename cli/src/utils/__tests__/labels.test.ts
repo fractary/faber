@@ -2,6 +2,21 @@
  * Unit tests for labels utilities
  */
 
+// Mock chalk to avoid ESM import issues in Jest
+jest.mock('chalk', () => {
+  const mockChalk = {
+    yellow: (str: string) => str,
+    green: (str: string) => str,
+    red: (str: string) => str,
+    gray: (str: string) => str,
+    cyan: (str: string) => str,
+  };
+  return {
+    __esModule: true,
+    default: mockChalk,
+  };
+});
+
 import {
   generatePriorityLabels,
   DEFAULT_PRIORITY_LABELS,
