@@ -6,7 +6,7 @@ import {
   generatePriorityLabels,
   DEFAULT_PRIORITY_LABELS,
   PriorityLabel,
-} from '../labels.js';
+} from '../labels';
 
 describe('generatePriorityLabels', () => {
   it('should generate labels with default prefix', () => {
@@ -81,7 +81,7 @@ describe('Label validation', () => {
   it('should reject empty prefix in createPriorityLabels', async () => {
     // This is tested via the integration with createPriorityLabels
     // We test that the validation function exists and works
-    const { createPriorityLabels } = await import('../labels.js');
+    const { createPriorityLabels } = await import('../labels');
 
     const result = await createPriorityLabels('', true);
 
@@ -91,7 +91,7 @@ describe('Label validation', () => {
   });
 
   it('should reject prefix with special characters', async () => {
-    const { createPriorityLabels } = await import('../labels.js');
+    const { createPriorityLabels } = await import('../labels');
 
     const result = await createPriorityLabels('priority@#$', true);
 

@@ -2,7 +2,7 @@
  * Unit tests for sorting utilities
  */
 
-import { sortIssues, Issue, SortOptions } from '../sorting.js';
+import { sortIssues, Issue, SortOptions } from '../sorting';
 
 // Helper to create mock issues
 function createMockIssue(overrides: Partial<Issue>): Issue {
