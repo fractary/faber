@@ -326,7 +326,7 @@ faber plan --work-label "status:backlog" --order-by created --order-direction as
 ```
 
 **Key features:**
-- **Priority ordering**: Use `priority-1`, `priority-2` labels (lower = higher priority)
+- **Priority ordering**: Use `priority-1` through `priority-10` labels (lower = higher priority, recommend 1-4)
 - **Date ordering**: Sort by `created` or `updated` date
 - **Limit results**: Plan manageable batches with `--limit`
 - **Flexible filtering**: Combine with any label filters

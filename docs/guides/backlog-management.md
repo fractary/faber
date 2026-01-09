@@ -35,12 +35,13 @@ No manual setup required! The system handles label creation for you.
 
 ### Label Format
 
-Use `priority-N` labels where lower N = higher priority:
+Use `priority-N` labels where lower N = higher priority (supports 1-10, recommend 1-4):
 
 - `priority-1` - Highest priority (Critical)
 - `priority-2` - High priority (Important)
 - `priority-3` - Medium priority (Standard)
 - `priority-4` - Low priority (Nice to have)
+- `priority-5` through `priority-10` - Additional levels (optional, for fine-grained prioritization)
 
 ### Using Priority Labels
 

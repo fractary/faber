@@ -60,7 +60,7 @@ export function generatePriorityLabels(prefix: string): PriorityLabel[] {
 export async function labelExists(labelName: string): Promise<boolean> {
   try {
     const { stdout } = await execFileAsync('gh', ['label', 'list', '--json', 'name', '--jq', '.[].name']);
-    const labels = stdout.trim().split('\n');
+    const labels = stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
     return labels.includes(labelName);
   } catch (error) {
     // If gh command fails, assume label doesn't exist
@@ -115,7 +115,7 @@ export async function createPriorityLabels(
   let existingLabels: string[] = [];
   try {
     const { stdout } = await execFileAsync('gh', ['label', 'list', '--json', 'name', '--jq', '.[].name']);
-    existingLabels = stdout.trim().split('\n').filter(l => l.length > 0);
+    existingLabels = stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
   } catch (error) {
     // If we can't fetch labels, proceed cautiously
     if (!quiet) {

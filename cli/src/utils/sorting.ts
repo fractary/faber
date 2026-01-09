@@ -4,6 +4,8 @@
  * Provides sorting and priority extraction for backlog management
  */
 
+import chalk from 'chalk';
+
 export interface SortOptions {
   orderBy: 'priority' | 'created' | 'updated';
   direction: 'asc' | 'desc';
@@ -46,7 +48,7 @@ function extractPriority(labels: string[], prefix: string, issueNumber?: number)
   // Warn if multiple priority labels found
   if (priorityLabels.length > 1) {
     const issueRef = issueNumber ? `Issue #${issueNumber}` : 'An issue';
-    console.warn(`⚠️  ${issueRef} has multiple priority labels: ${priorityLabels.join(', ')}. Using first match: ${priorityLabels[0]}`);
+    console.log(chalk.yellow(`⚠️  ${issueRef} has multiple priority labels: ${priorityLabels.join(', ')}. Using first match: ${priorityLabels[0]}`));
   }
 
   // Extract numeric part: "priority-1" → "1"
@@ -61,7 +63,7 @@ function extractPriority(labels: string[], prefix: string, issueNumber?: number)
   // We allow up to 10 to be flexible, but typical range is 1-4
   if (isNaN(numeric) || numeric < 1 || numeric > 10) {
     const issueRef = issueNumber ? `Issue #${issueNumber}` : 'An issue';
-    console.warn(`⚠️  ${issueRef} has invalid priority value: ${priorityLabels[0]}. Priority should be between 1-10.`);
+    console.log(chalk.yellow(`⚠️  ${issueRef} has invalid priority value: ${priorityLabels[0]}. Priority should be between 1-10.`));
     return 999;
   }
 
@@ -70,9 +72,24 @@ function extractPriority(labels: string[], prefix: string, issueNumber?: number)
 
 /**
  * Sort issues according to strategy
+ *
  * @param issues - Array of issues to sort
  * @param options - Sort options including orderBy, direction, and priority config
  * @returns Sorted array of issues
+ *
+ * @remarks
+ * Priority sorting has inverted direction semantics compared to date sorting:
+ *
+ * **Priority Sorting:**
+ * - `direction: 'desc'` (default) = Highest priority first = priority-1, priority-2, priority-3, ...
+ * - `direction: 'asc'` = Lowest priority first = priority-4, priority-3, priority-2, priority-1
+ *
+ * This is because "descending priority" means "descending importance" (highest first),
+ * which corresponds to ascending numeric values (1 < 2 < 3).
+ *
+ * **Date Sorting:**
+ * - `direction: 'desc'` = Newest first (standard descending chronological order)
+ * - `direction: 'asc'` = Oldest first (standard ascending chronological order)
  */
 export function sortIssues(issues: Issue[], options: SortOptions): Issue[] {
   const sorted = [...issues];

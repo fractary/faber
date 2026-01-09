@@ -87,7 +87,6 @@ export function createPlanCommand(): Command {
  * Main execution logic for plan command
  */
 async function executePlanCommand(options: PlanOptions): Promise<void> {
-  console.error('[DEBUG] Starting executePlanCommand');
   const outputFormat = options.json ? 'json' : options.output || 'text';
 
   // Validate arguments
@@ -124,13 +123,9 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
   }
 
   // Initialize clients
-  console.error('[DEBUG] Loading config...');
   const config = await ConfigManager.load();
-  console.error('[DEBUG] Creating RepoClient...');
   const repoClient = await RepoClient.create(config);
-  console.error('[DEBUG] Creating AnthropicClient...');
   const anthropicClient = new AnthropicClient(config);
-  console.error('[DEBUG] Clients initialized');
 
   if (outputFormat === 'text') {
     console.log(chalk.blue('FABER CLI - Workflow Planning'));
