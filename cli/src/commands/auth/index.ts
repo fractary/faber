@@ -52,6 +52,76 @@ export function createAuthSetupCommand(): Command {
 }
 
 /**
+ * Manual configuration for existing GitHub App
+ */
+async function manualAppConfiguration(
+  configPath: string,
+  org: string,
+  repo: string
+): Promise<void> {
+  const os = await import('os');
+  const path = await import('path');
+
+  console.log(chalk.bold('━'.repeat(60)));
+  console.log(chalk.bold('📋 Manual GitHub App Configuration'));
+  console.log(chalk.bold('━'.repeat(60)));
+  console.log();
+
+  console.log('You will need the following information from your GitHub App:');
+  console.log('  • App ID (from app settings page)');
+  console.log('  • Installation ID (from installations page URL)');
+  console.log('  • Private key file (.pem)\n');
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const appId = await rl.question('App ID: ');
+  const installationId = await rl.question('Installation ID: ');
+  const privateKeyPath = await rl.question('Private key path (e.g., ~/.github/faber-app.pem): ');
+  rl.close();
+
+  if (!appId || !installationId || !privateKeyPath) {
+    console.error(chalk.red('\n❌ All fields are required\n'));
+    process.exit(1);
+  }
+
+  // Expand tilde in path
+  const expandedKeyPath = privateKeyPath.replace(/^~/, os.homedir());
+
+  // Verify private key exists
+  try {
+    await fs.access(expandedKeyPath);
+  } catch (error) {
+    console.error(chalk.red(`\n❌ Private key file not found: ${expandedKeyPath}\n`));
+    process.exit(1);
+  }
+
+  // Create config
+  const config = {
+    github: {
+      organization: org,
+      project: repo,
+      app: {
+        id: appId,
+        installation_id: installationId,
+        private_key_path: privateKeyPath,
+      },
+    },
+  };
+
+  // Save config
+  const configDir = path.dirname(configPath);
+  await fs.mkdir(configDir, { recursive: true });
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+
+  console.log(chalk.green(`\n✓ Configuration saved to ${configPath}\n`));
+  console.log('Test the configuration with:');
+  console.log(chalk.cyan(`  fractary-faber work issue fetch 1\n`));
+}
+
+/**
  * Run the setup flow
  */
 async function runSetup(options: SetupOptions): Promise<void> {
@@ -114,6 +184,26 @@ async function runSetup(options: SetupOptions): Promise<void> {
       return;
     }
     console.log();
+  }
+
+  // Ask user if they want to create new or configure existing app
+  const rl0 = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  console.log(chalk.bold('Choose setup method:'));
+  console.log('  1. Create a new GitHub App (guided)');
+  console.log('  2. Configure an existing GitHub App (manual)\n');
+
+  const method = await rl0.question('Enter 1 or 2: ');
+  rl0.close();
+  console.log();
+
+  if (method === '2') {
+    // Manual configuration for existing app
+    await manualAppConfiguration(configPath, org, repo);
+    return;
   }
 
   // Step 3: Generate manifest
@@ -204,7 +294,8 @@ async function runSetup(options: SetupOptions): Promise<void> {
   console.log('  1. Review the app permissions');
   console.log('  2. Click the green "Create GitHub App →" button');
   console.log('  3. GitHub will ask you to confirm - click "Create GitHub App" again');
-  console.log('  4. After creation, look at the browser URL bar\n');
+  console.log('  4. After creation, GitHub will redirect to example.com');
+  console.log(chalk.yellow('     (This is expected! The code you need will be in the URL)\n'));
 
   const rl1 = readline.createInterface({
     input: process.stdin,
@@ -220,7 +311,10 @@ async function runSetup(options: SetupOptions): Promise<void> {
   console.log(chalk.bold('📋 STEP 2: Copy the code from the redirect URL'));
   console.log(chalk.bold('━'.repeat(60)));
   console.log();
-  console.log('After creating the app, GitHub will redirect you to a URL like:');
+  console.log('After creating the app, GitHub will redirect to example.com');
+  console.log(chalk.yellow('(Don\'t worry - example.com is just a placeholder!)'));
+  console.log();
+  console.log('The URL will look like:');
   console.log(
     chalk.gray('https://github.com/settings/apps/your-app?code=XXXXXXXXXXXXX')
   );
@@ -296,18 +390,78 @@ async function runSetup(options: SetupOptions): Promise<void> {
       org
     );
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(chalk.red('\n❌ Error: ' + error.message + '\n'));
-    } else {
-      console.error(chalk.red('\n❌ Unknown error occurred\n'));
+    // App created but not installed yet - guide user through installation
+    console.log(chalk.yellow('\n⚠️  App created but not yet installed on your organization\n'));
+
+    console.log(chalk.bold('━'.repeat(60)));
+    console.log(chalk.bold('📋 STEP 3: Install the App on Your Organization'));
+    console.log(chalk.bold('━'.repeat(60)));
+    console.log();
+
+    const installUrl = `https://github.com/apps/${conversionResponse.slug}/installations/new`;
+    console.log('The app needs to be installed on your GitHub organization/repositories.');
+    console.log('Opening installation page in your browser...\n');
+
+    // Convert to Windows path if WSL
+    const os = await import('os');
+    const isWsl = process.platform === 'linux' && os.release().toLowerCase().includes('microsoft');
+
+    // Try to open installation URL
+    const { execFile } = await import('child_process');
+    const { promisify } = await import('util');
+    const execFileAsync = promisify(execFile);
+
+    console.log(chalk.cyan(`Installation URL: ${installUrl}\n`));
+
+    try {
+      if (process.platform === 'darwin') {
+        await execFileAsync('open', [installUrl]);
+      } else if (process.platform === 'win32') {
+        await execFileAsync('cmd', ['/c', 'start', '', installUrl]);
+      } else if (!isWsl) {
+        await execFileAsync('xdg-open', [installUrl]);
+      } else {
+        // WSL - can't auto-open, show instructions
+        console.log(chalk.yellow('💡 Copy the URL above and open it in your Windows browser\n'));
+      }
+    } catch (openError) {
+      console.log(chalk.yellow('💡 Copy the URL above and open it in your browser\n'));
     }
-    console.log('The app was created but could not find the installation.');
-    console.log(
-      `Please install the app on your organization: ${chalk.cyan(
-        `https://github.com/apps/${conversionResponse.slug}/installations/new`
-      )}`
-    );
-    process.exit(1);
+
+    console.log('In your browser:');
+    console.log('  1. Select which repositories to give access to:');
+    console.log('     - "All repositories" (easiest) OR');
+    console.log(`     - "Only select repositories" → choose "${repo}"`);
+    console.log('  2. Click the green "Install" button\n');
+
+    const rl2 = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    await rl2.question('Press Enter after you have installed the app...');
+    rl2.close();
+
+    // Try fetching installation ID again
+    console.log(chalk.gray('\nVerifying installation...'));
+
+    try {
+      installationId = await getInstallationId(
+        conversionResponse.id.toString(),
+        conversionResponse.pem,
+        org
+      );
+      console.log(chalk.green(`✓ Installation verified! Installation ID: ${chalk.cyan(installationId)}\n`));
+    } catch (retryError) {
+      console.error(chalk.red('\n❌ Still unable to find installation.\n'));
+      console.log('Please ensure you:');
+      console.log('  1. Clicked "Install" on the installation page');
+      console.log('  2. Selected at least one repository');
+      console.log(`  3. Installed on the "${org}" organization\n`);
+      console.log(`Visit: ${chalk.cyan(installUrl)}`);
+      console.log('\nAfter installing, run this command again to complete setup.\n');
+      process.exit(1);
+    }
   }
 
   console.log(chalk.green(`✓ Installation ID: ${chalk.cyan(installationId)}\n`));
