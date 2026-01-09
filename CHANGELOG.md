@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-01-09
+
+### Added
+
+- **Manual App Configuration**: Added option to configure existing GitHub Apps without creating new ones
+  - Choose between "Create new app" or "Configure existing app" at start
+  - Manual mode prompts for App ID, Installation ID, and private key path
+  - Validates private key file exists before saving configuration
+  - Perfect for users who already created the app and just need to configure it
+
+### Improved
+
+- **Auth Setup UX**: Major improvements to `fractary-faber auth setup` flow:
+  - Explains that example.com redirect is expected and shows where to find the code
+  - Automatically opens installation URL when app creation succeeds but installation is missing
+  - Guides users through installation step-by-step with clear instructions
+  - Verifies installation automatically after user completes it
+  - Single-flow experience - no need to re-run the command
+  - Better messaging throughout the entire process
+
 ## [1.4.1] - 2026-01-08
 
 ### Fixed
