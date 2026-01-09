@@ -333,10 +333,14 @@ async function assignWorkflows(
     }
 
     if (!workflow) {
-      // Extract from issue labels
-      const workflowLabel = issue.labels.find(label => label.startsWith('workflow:'));
+      // Extract from issue labels - support both 'workflow:' and 'faber-workflow:' prefixes
+      const workflowLabel = issue.labels.find(label =>
+        label.startsWith('workflow:') || label.startsWith('faber-workflow:')
+      );
       if (workflowLabel) {
-        workflow = workflowLabel.replace('workflow:', '');
+        workflow = workflowLabel
+          .replace(/^workflow:/, '')
+          .replace(/^faber-workflow:/, '');
         // Validate extracted workflow name
         validateWorkflowName(workflow);
       }

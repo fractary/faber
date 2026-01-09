@@ -1,6 +1,6 @@
 {
   "name": "@fractary/faber-cli",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "FABER CLI - Command-line interface for FABER development toolkit",
   "main": "dist/index.js",
   "bin": {

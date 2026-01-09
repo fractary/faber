@@ -79,9 +79,27 @@ export class ConfigManager {
     }
 
     if (!config.workflow?.config_path) {
+      // Try new location first, fall back to legacy location for backward compatibility
+      const newPath = path.join(process.cwd(), '.fractary', 'faber', 'workflows');
+      const legacyPath = path.join(process.cwd(), '.fractary', 'plugins', 'faber', 'workflows');
+
+      let workflowPath = newPath;
+      try {
+        await fs.access(newPath);
+      } catch {
+        // New path doesn't exist, try legacy path
+        try {
+          await fs.access(legacyPath);
+          workflowPath = legacyPath;
+        } catch {
+          // Neither exists, use new path as default (will be created if needed)
+          workflowPath = newPath;
+        }
+      }
+
       config.workflow = {
         ...config.workflow,
-        config_path: path.join(process.cwd(), 'plugins', 'faber', 'config', 'workflows'),
+        config_path: workflowPath,
       };
     }
 
