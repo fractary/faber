@@ -157,9 +157,29 @@ async function runSetup(options: SetupOptions): Promise<void> {
     process.exit(1);
   }
 
-  console.log('Opening GitHub App creation page in your browser...\n');
+  // Convert WSL path to Windows path if needed
+  let displayPath = htmlPath;
+  if (isWsl && htmlPath.startsWith('/mnt/')) {
+    // Convert /mnt/c/... to C:\...
+    const match = htmlPath.match(/^\/mnt\/([a-z])(\/.*)/);
+    if (match) {
+      const driveLetter = match[1].toUpperCase();
+      const windowsPath = match[2].replace(/\//g, '\\');
+      displayPath = `${driveLetter}:${windowsPath}`;
+    }
+  }
 
-  // Open HTML file in default browser (safe - we control the path)
+  console.log(chalk.bold('📄 Manifest file created!\n'));
+  console.log(chalk.cyan('Open this file in your browser (copy the full path):\n'));
+  console.log(chalk.bold(`  ${displayPath}\n`));
+
+  if (isWsl) {
+    console.log(chalk.gray('💡 Tip: From Windows, you can also open it with:'));
+    console.log(chalk.gray(`   - Press Win+R, paste the path above, press Enter`));
+    console.log(chalk.gray(`   - Or open File Explorer and paste the path\n`));
+  }
+
+  // Try to open automatically, but don't block if it fails
   const { execFile } = await import('child_process');
   const { promisify } = await import('util');
   const execFileAsync = promisify(execFile);
@@ -167,16 +187,17 @@ async function runSetup(options: SetupOptions): Promise<void> {
   try {
     if (process.platform === 'darwin') {
       await execFileAsync('open', [htmlPath]);
+      console.log(chalk.gray('(Opened in default browser)\n'));
     } else if (process.platform === 'win32') {
-      // Windows requires cmd /c start for file associations
       await execFileAsync('cmd', ['/c', 'start', '', htmlPath]);
-    } else {
-      // Linux/Unix
+      console.log(chalk.gray('(Opened in default browser)\n'));
+    } else if (!isWsl) {
+      // Only try xdg-open on native Linux, not WSL
       await execFileAsync('xdg-open', [htmlPath]);
+      console.log(chalk.gray('(Opened in default browser)\n'));
     }
   } catch (error) {
-    console.log(chalk.yellow('\n⚠️  Could not open browser automatically.'));
-    console.log(chalk.yellow(`Please open this file manually:\n  ${htmlPath}\n`));
+    // Silently fail - we already printed the path above
   }
 
   console.log(chalk.bold('In your browser:'));

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-01-08
+
+### Fixed
+
+- **WSL Auth Setup**: Fixed `fractary-faber auth setup` command on WSL to display Windows-formatted paths (e.g., `C:\GitHub\...`) instead of WSL paths (e.g., `/mnt/c/GitHub/...`). The command now:
+  - Converts WSL paths to Windows format for easy copy-paste
+  - Shows clear instructions for opening the manifest file in Windows browsers
+  - Skips xdg-open on WSL to prevent opening in WSL Firefox where users aren't authenticated
+  - Makes the GitHub App setup flow work seamlessly on WSL environments
+
 ## [1.3.16] - 2026-01-08
 
 ### Added
