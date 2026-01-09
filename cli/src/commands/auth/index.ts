@@ -77,13 +77,27 @@ async function manualAppConfiguration(
     output: process.stdout,
   });
 
-  const appId = await rl.question('App ID: ');
-  const installationId = await rl.question('Installation ID: ');
+  const appIdInput = await rl.question('App ID: ');
+  const installationIdInput = await rl.question('Installation ID: ');
   const privateKeyPath = await rl.question('Private key path (e.g., ~/.github/faber-app.pem): ');
   rl.close();
 
-  if (!appId || !installationId || !privateKeyPath) {
+  if (!appIdInput || !installationIdInput || !privateKeyPath) {
     console.error(chalk.red('\n❌ All fields are required\n'));
+    process.exit(1);
+  }
+
+  // Validate App ID is a positive integer
+  const appId = parseInt(appIdInput, 10);
+  if (isNaN(appId) || appId <= 0) {
+    console.error(chalk.red('\n❌ App ID must be a positive integer\n'));
+    process.exit(1);
+  }
+
+  // Validate Installation ID is a positive integer
+  const installationId = parseInt(installationIdInput, 10);
+  if (isNaN(installationId) || installationId <= 0) {
+    console.error(chalk.red('\n❌ Installation ID must be a positive integer\n'));
     process.exit(1);
   }
 
@@ -104,8 +118,8 @@ async function manualAppConfiguration(
       organization: org,
       project: repo,
       app: {
-        id: appId,
-        installation_id: installationId,
+        id: appId.toString(),
+        installation_id: installationId.toString(),
         private_key_path: privateKeyPath,
       },
     },
@@ -196,7 +210,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   console.log('  1. Create a new GitHub App (guided)');
   console.log('  2. Configure an existing GitHub App (manual)\n');
 
-  const method = await rl0.question('Enter 1 or 2: ');
+  const method = (await rl0.question('Enter 1 or 2: ')).trim();
   rl0.close();
   console.log();
 
