@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-01-09
+
+### Fixed
+
+- **Workflow Label Detection**: Now supports both `workflow:` and `faber-workflow:` label prefixes
+  - Fixes issue where `faber-workflow:dataset-loader-deploy` labels were not recognized
+  - Extracts workflow name correctly from either prefix format
+
+- **Workflow Config Location**: Updated default workflow configuration paths
+  - New default: `.fractary/faber/workflows/` (aligned with non-plugin architecture)
+  - Legacy support: `.fractary/plugins/faber/workflows/` (backward compatible)
+  - Automatically detects and uses existing workflow directories
+  - Migration path from old "plugins" structure to new flat structure
+
 ## [1.4.3] - 2026-01-09
 
 ### Added
