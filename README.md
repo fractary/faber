@@ -310,6 +310,29 @@ fractary-faber logs capture <workflow-id>
 fractary-faber logs read <session-id>
 ```
 
+### Backlog Management
+
+Plan workflows for prioritized backlogs:
+
+```bash
+# Plan top 5 priorities
+faber plan --work-label "status:backlog" --order-by priority --limit 5
+
+# Plan most recently updated issues
+faber plan --work-label "status:backlog" --order-by updated --limit 10
+
+# Plan oldest issues first (FIFO)
+faber plan --work-label "status:backlog" --order-by created --order-direction asc --limit 3
+```
+
+**Key features:**
+- **Priority ordering**: Use `priority-1` through `priority-10` labels (lower = higher priority, recommend 1-4)
+- **Date ordering**: Sort by `created` or `updated` date
+- **Limit results**: Plan manageable batches with `--limit`
+- **Flexible filtering**: Combine with any label filters
+
+See [Backlog Management Guide](docs/guides/backlog-management.md) for complete documentation.
+
 ## Configuration
 
 Configuration is stored in `.fractary/plugins/{module}/config.json`:

@@ -30,6 +30,10 @@ interface PlanOptions {
   skipConfirm?: boolean;
   output?: string;
   json?: boolean;
+  // Backlog management options
+  limit?: number;
+  orderBy?: string;
+  orderDirection?: string;
 }
 
 interface Issue {
@@ -41,6 +45,8 @@ interface Issue {
   url: string;
   state: string;
   workflow?: string; // Extracted workflow label
+  createdAt?: string; // Issue creation date
+  updatedAt?: string; // Issue last update date
 }
 
 interface PlanResult {
@@ -65,6 +71,9 @@ export function createPlanCommand(): Command {
     .option('--skip-confirm', 'Skip confirmation prompt (use with caution)')
     .option('--output <format>', 'Output format: text|json|yaml', 'text')
     .option('--json', 'Output as JSON (shorthand for --output json)')
+    .option('--limit <n>', 'Maximum number of issues to plan', parseInt)
+    .option('--order-by <strategy>', 'Order issues by: priority|created|updated (default: none)', 'none')
+    .option('--order-direction <dir>', 'Order direction: asc|desc (default: desc)', 'desc')
     .action(async (options: PlanOptions) => {
       try {
         await executePlanCommand(options);
@@ -78,7 +87,6 @@ export function createPlanCommand(): Command {
  * Main execution logic for plan command
  */
 async function executePlanCommand(options: PlanOptions): Promise<void> {
-  console.error('[DEBUG] Starting executePlanCommand');
   const outputFormat = options.json ? 'json' : options.output || 'text';
 
   // Validate arguments
@@ -90,14 +98,34 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
     throw new Error('Cannot use both --work-id and --work-label at the same time');
   }
 
+  // Validate backlog management options
+  if (options.limit !== undefined) {
+    if (!Number.isInteger(options.limit) || options.limit <= 0) {
+      throw new Error('--limit must be a positive integer');
+    }
+    if (options.limit > 100) {
+      throw new Error('--limit cannot exceed 100');
+    }
+  }
+
+  if (options.orderBy && options.orderBy !== 'none') {
+    const validOrderBy = ['priority', 'created', 'updated'];
+    if (!validOrderBy.includes(options.orderBy)) {
+      throw new Error(`--order-by must be one of: ${validOrderBy.join(', ')}, or 'none'`);
+    }
+  }
+
+  if (options.orderDirection) {
+    const validDirections = ['asc', 'desc'];
+    if (!validDirections.includes(options.orderDirection)) {
+      throw new Error(`--order-direction must be one of: ${validDirections.join(', ')}`);
+    }
+  }
+
   // Initialize clients
-  console.error('[DEBUG] Loading config...');
   const config = await ConfigManager.load();
-  console.error('[DEBUG] Creating RepoClient...');
   const repoClient = await RepoClient.create(config);
-  console.error('[DEBUG] Creating AnthropicClient...');
   const anthropicClient = new AnthropicClient(config);
-  console.error('[DEBUG] Clients initialized');
 
   if (outputFormat === 'text') {
     console.log(chalk.blue('FABER CLI - Workflow Planning'));
@@ -156,6 +184,50 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
       console.log(JSON.stringify({ status: 'success', issues: [], message: 'No issues found' }, null, 2));
     }
     return;
+  }
+
+  // Auto-create priority labels if using priority ordering and labels don't exist
+  if (options.orderBy === 'priority') {
+    const { ensurePriorityLabels } = await import('../../utils/labels.js');
+    const priorityLabelPrefix = config.backlog_management?.priority_config?.label_prefix || 'priority';
+
+    // Try to ensure labels exist (quiet mode - won't spam console)
+    const labelsEnsured = await ensurePriorityLabels(priorityLabelPrefix, true);
+
+    if (outputFormat === 'text' && labelsEnsured) {
+      console.log(chalk.gray(`\n→ Priority labels are ready (using prefix: ${priorityLabelPrefix})`));
+    }
+  }
+
+  // Apply ordering if requested
+  if (options.orderBy && options.orderBy !== 'none') {
+    const { sortIssues } = await import('../../utils/sorting.js');
+
+    // Load priority label prefix from config (with fallback)
+    const priorityLabelPrefix = config.backlog_management?.priority_config?.label_prefix || 'priority';
+
+    const originalCount = issues.length;
+    issues = sortIssues(issues, {
+      orderBy: options.orderBy as 'priority' | 'created' | 'updated',
+      direction: (options.orderDirection || 'desc') as 'asc' | 'desc',
+      priorityConfig: {
+        labelPrefix: priorityLabelPrefix,
+      }
+    });
+
+    if (outputFormat === 'text') {
+      console.log(chalk.blue(`\n→ Sorted ${originalCount} issue(s) by ${options.orderBy} (${options.orderDirection || 'desc'})`));
+    }
+  }
+
+  // Apply limit if specified
+  if (options.limit && issues.length > options.limit) {
+    const totalFound = issues.length;
+    issues = issues.slice(0, options.limit);
+
+    if (outputFormat === 'text') {
+      console.log(chalk.yellow(`→ Limiting to top ${options.limit} issue(s) (found ${totalFound})`));
+    }
   }
 
   // Step 2: Extract workflows from labels or prompt user
