@@ -121,7 +121,7 @@ const FaberConfigSchema = z.object({
   artifacts: z.object({
     specs: ArtifactConfigSchema.default({ use_codex: false, local_path: '/specs' }),
     logs: ArtifactConfigSchema.default({ use_codex: false, local_path: '.fractary/logs' }),
-    state: ArtifactConfigSchema.default({ use_codex: false, local_path: '.fractary/plugins/faber' }),
+    state: ArtifactConfigSchema.default({ use_codex: false, local_path: '.fractary/faber' }),
   }),
   workflow: WorkflowConfigSchema.default({
     autonomy: 'guarded',
@@ -142,7 +142,8 @@ const FaberConfigSchema = z.object({
 
 const CONFIG_FILENAME_YAML = 'config.yaml';
 const CONFIG_FILENAME_JSON = 'config.json';
-const FABER_CONFIG_DIR = '.fractary/plugins/faber';
+const FABER_CONFIG_DIR = '.fractary/faber';
+const LEGACY_FABER_CONFIG_DIR = '.fractary/plugins/faber';
 const WORK_CONFIG_DIR = '.fractary/plugins/work';
 const REPO_CONFIG_DIR = '.fractary/plugins/repo';
 
@@ -203,6 +204,34 @@ export function loadConfigFile<T>(configDir: string, root: string): T | null {
       return JSON.parse(content) as T;
     } catch {
       return null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Load config file with fallback to legacy location
+ * Tries new location first, then falls back to legacy location if provided
+ */
+function loadConfigFileWithFallback<T>(
+  configDir: string,
+  legacyConfigDir: string | null,
+  root: string
+): T | null {
+  // Try new location first
+  const config = loadConfigFile<T>(configDir, root);
+  if (config) return config;
+
+  // Try legacy location if provided
+  if (legacyConfigDir) {
+    const legacyConfig = loadConfigFile<T>(legacyConfigDir, root);
+    if (legacyConfig) {
+      console.warn(
+        `[DEPRECATED] Config found at legacy location: ${legacyConfigDir}\n` +
+          `Run 'fractary-faber init' to migrate to: ${configDir}`
+      );
+      return legacyConfig;
     }
   }
 
@@ -400,7 +429,11 @@ export function loadFaberConfig(
   options?: LoadConfigOptions
 ): FaberConfig | null {
   const root = projectRoot || findProjectRoot();
-  const config = loadConfigFile<Record<string, unknown>>(FABER_CONFIG_DIR, root);
+  const config = loadConfigFileWithFallback<Record<string, unknown>>(
+    FABER_CONFIG_DIR,
+    LEGACY_FABER_CONFIG_DIR,
+    root
+  );
 
   if (!config) {
     // Try to construct from individual plugin configs
@@ -415,7 +448,7 @@ export function loadFaberConfig(
         artifacts: {
           specs: { use_codex: false, local_path: '/specs' },
           logs: { use_codex: false, local_path: '.fractary/logs' },
-          state: { use_codex: false, local_path: '.fractary/plugins/faber' },
+          state: { use_codex: false, local_path: '.fractary/faber' },
         },
         workflow: {
           autonomy: 'guarded',
@@ -553,7 +586,7 @@ export function initFaberConfig(
     artifacts: config.artifacts || {
       specs: { use_codex: false, local_path: '/specs' },
       logs: { use_codex: false, local_path: '.fractary/logs' },
-      state: { use_codex: false, local_path: '.fractary/plugins/faber' },
+      state: { use_codex: false, local_path: '.fractary/faber' },
     },
     workflow: config.workflow || getDefaultWorkflowConfig(),
   });
@@ -648,7 +681,7 @@ export function loadStateConfig(projectRoot?: string): StateConfig {
     // If it's the schema default (.fractary/plugins/faber), use new default instead
     if (configPath === '.fractary/plugins/faber') {
       return {
-        localPath: path.join(root, '.faber', 'state'),
+        localPath: path.join(root, '.fractary', 'faber'),
       };
     }
     return {
@@ -658,7 +691,7 @@ export function loadStateConfig(projectRoot?: string): StateConfig {
 
   // No FABER config found - return defaults (state is optional)
   return {
-    localPath: path.join(root, '.faber', 'state'),
+    localPath: path.join(root, '.fractary', 'faber'),
   };
 }
 

@@ -70,7 +70,7 @@ describe('ConfigInitializer', () => {
       });
       expect(config.artifacts.state).toEqual({
         use_codex: false,
-        local_path: '.fractary/plugins/faber',
+        local_path: '.fractary/faber',
       });
     });
 
@@ -156,7 +156,7 @@ describe('ConfigInitializer', () => {
       const config = ConfigInitializer.generateDefaultConfig();
       ConfigInitializer.writeConfig(config);
 
-      const expectedPath = path.join(testDir, '.fractary', 'plugins', 'faber', 'config.yaml');
+      const expectedPath = path.join(testDir, '.fractary', 'faber', 'config.yaml');
       expect(fs.existsSync(expectedPath)).toBe(true);
 
       // Restore original cwd
@@ -263,7 +263,7 @@ describe('ConfigInitializer', () => {
       const configPath = ConfigInitializer.initializeProject();
 
       expect(fs.existsSync(configPath)).toBe(true);
-      expect(configPath).toBe(path.join(testDir, '.fractary', 'plugins', 'faber', 'config.yaml'));
+      expect(configPath).toBe(path.join(testDir, '.fractary', 'faber', 'config.yaml'));
 
       // Restore original cwd
       process.cwd = originalCwd;
@@ -362,7 +362,78 @@ describe('ConfigInitializer', () => {
       const configPath = ConfigInitializer.initializeProject(customRoot);
 
       expect(fs.existsSync(configPath)).toBe(true);
-      expect(configPath).toBe(path.join(customRoot, '.fractary', 'plugins', 'faber', 'config.yaml'));
+      expect(configPath).toBe(path.join(customRoot, '.fractary', 'faber', 'config.yaml'));
+    });
+  });
+
+  describe('Migration', () => {
+    it('should migrate YAML config from old to new location', () => {
+      const oldPath = path.join(testDir, '.fractary', 'plugins', 'faber', 'config.yaml');
+      const config = ConfigInitializer.generateDefaultConfig();
+      config.repo.owner = 'test-owner';
+      ConfigInitializer.writeConfig(config, oldPath);
+
+      const result = ConfigInitializer.migrateConfig(testDir);
+
+      expect(result.migrated).toBe(true);
+      expect(result.oldPath).toBe(oldPath);
+      expect(result.newPath).toContain('.fractary/faber/config.yaml');
+      expect(fs.existsSync(oldPath)).toBe(false);
+      expect(fs.existsSync(result.newPath!)).toBe(true);
+
+      const newConfig = ConfigInitializer.readConfig(result.newPath!);
+      expect(newConfig?.repo.owner).toBe('test-owner');
+    });
+
+    it('should migrate JSON config to YAML format', () => {
+      const oldPath = path.join(testDir, '.fractary', 'plugins', 'faber', 'config.json');
+      fs.mkdirSync(path.dirname(oldPath), { recursive: true });
+      const config = ConfigInitializer.generateDefaultConfig();
+      fs.writeFileSync(oldPath, JSON.stringify(config, null, 2), 'utf-8');
+
+      const result = ConfigInitializer.migrateConfig(testDir);
+
+      expect(result.migrated).toBe(true);
+      expect(result.newPath).toContain('.yaml');
+
+      const content = fs.readFileSync(result.newPath!, 'utf-8');
+      expect(content).toContain('schema_version:');
+    });
+
+    it('should not migrate if old config does not exist', () => {
+      const result = ConfigInitializer.migrateConfig(testDir);
+      expect(result.migrated).toBe(false);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should error if both configs exist', () => {
+      const oldPath = path.join(testDir, '.fractary', 'plugins', 'faber', 'config.yaml');
+      const newPath = path.join(testDir, '.fractary', 'faber', 'config.yaml');
+      const config = ConfigInitializer.generateDefaultConfig();
+      ConfigInitializer.writeConfig(config, oldPath);
+      ConfigInitializer.writeConfig(config, newPath);
+
+      const result = ConfigInitializer.migrateConfig(testDir);
+
+      expect(result.migrated).toBe(false);
+      expect(result.error).toContain('both old and new locations');
+    });
+  });
+
+  describe('initializeProject with migration', () => {
+    it('should auto-migrate old config on init', () => {
+      const oldPath = path.join(testDir, '.fractary', 'plugins', 'faber', 'config.yaml');
+      const config = ConfigInitializer.generateDefaultConfig();
+      config.repo.owner = 'migrated-owner';
+      ConfigInitializer.writeConfig(config, oldPath);
+
+      const resultPath = ConfigInitializer.initializeProject(testDir);
+
+      expect(resultPath).toContain('.fractary/faber/config.yaml');
+      expect(fs.existsSync(oldPath)).toBe(false);
+
+      const newConfig = ConfigInitializer.readConfig(resultPath);
+      expect(newConfig?.repo.owner).toBe('migrated-owner');
     });
   });
 });

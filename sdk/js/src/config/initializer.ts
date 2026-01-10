@@ -11,6 +11,16 @@ import * as yaml from 'js-yaml';
 import { FaberConfig } from '../types.js';
 
 /**
+ * Result of a configuration migration operation
+ */
+export interface MigrationResult {
+  migrated: boolean;
+  oldPath?: string;
+  newPath?: string;
+  error?: string;
+}
+
+/**
  * ConfigInitializer class for generating and managing FABER configuration
  */
 export class ConfigInitializer {
@@ -22,7 +32,12 @@ export class ConfigInitializer {
   /**
    * Default configuration path relative to project root
    */
-  private static readonly DEFAULT_CONFIG_PATH = '.fractary/plugins/faber';
+  private static readonly DEFAULT_CONFIG_PATH = '.fractary/faber';
+
+  /**
+   * Legacy configuration path for backward compatibility
+   */
+  private static readonly LEGACY_CONFIG_PATH = '.fractary/plugins/faber';
 
   /**
    * Generate a complete FaberConfig with sensible defaults
@@ -55,7 +70,7 @@ export class ConfigInitializer {
         },
         state: {
           use_codex: false,
-          local_path: '.fractary/plugins/faber',
+          local_path: '.fractary/faber',
         },
       },
 
@@ -122,15 +137,27 @@ export class ConfigInitializer {
   static configExists(configPath?: string): boolean {
     const fullPath = configPath || this.getDefaultConfigPath();
 
-    // Check both YAML (preferred) and JSON (legacy) formats
+    // Check new location (YAML and JSON)
     if (fs.existsSync(fullPath)) {
       return true;
     }
 
-    // Check legacy JSON format
     const jsonPath = fullPath.replace(/\.yaml$/, '.json');
     if (fs.existsSync(jsonPath)) {
       return true;
+    }
+
+    // Check legacy location (only if using default path)
+    if (!configPath) {
+      const root = process.cwd();
+      const legacyYamlPath = path.join(root, this.LEGACY_CONFIG_PATH, this.CONFIG_FILENAME);
+      if (fs.existsSync(legacyYamlPath)) {
+        return true;
+      }
+      const legacyJsonPath = legacyYamlPath.replace('.yaml', '.json');
+      if (fs.existsSync(legacyJsonPath)) {
+        return true;
+      }
     }
 
     return false;
@@ -177,9 +204,78 @@ export class ConfigInitializer {
    * @param projectRoot - Optional project root directory
    * @returns Full path to default config file
    */
-  private static getDefaultConfigPath(projectRoot?: string): string {
+  static getDefaultConfigPath(projectRoot?: string): string {
     const root = projectRoot || process.cwd();
     return path.join(root, this.DEFAULT_CONFIG_PATH, this.CONFIG_FILENAME);
+  }
+
+  /**
+   * Migrate configuration from legacy location to new location
+   *
+   * @param projectRoot - Optional project root directory
+   * @returns MigrationResult object with migration status and paths
+   */
+  static migrateConfig(projectRoot?: string): MigrationResult {
+    const root = projectRoot || process.cwd();
+    const oldConfigDir = path.join(root, this.LEGACY_CONFIG_PATH);
+    const newConfigDir = path.join(root, this.DEFAULT_CONFIG_PATH);
+
+    // Find source config (YAML preferred, then JSON)
+    const oldYamlPath = path.join(oldConfigDir, this.CONFIG_FILENAME);
+    const oldJsonPath = oldYamlPath.replace('.yaml', '.json');
+    const newYamlPath = path.join(newConfigDir, this.CONFIG_FILENAME);
+
+    let sourceFile: string | null = null;
+    if (fs.existsSync(oldYamlPath)) {
+      sourceFile = oldYamlPath;
+    } else if (fs.existsSync(oldJsonPath)) {
+      sourceFile = oldJsonPath;
+    }
+
+    if (!sourceFile) {
+      return { migrated: false }; // Nothing to migrate
+    }
+
+    // Check if new config already exists
+    if (fs.existsSync(newYamlPath)) {
+      return {
+        migrated: false,
+        error: 'Config exists at both old and new locations. Please manually merge and delete old config.',
+      };
+    }
+
+    try {
+      // Read old config
+      const config = this.readConfig(sourceFile);
+      if (!config) {
+        return { migrated: false, error: 'Failed to read old config' };
+      }
+
+      // Write to new location (always YAML)
+      this.writeConfig(config, newYamlPath);
+
+      // Delete old config files
+      if (fs.existsSync(oldYamlPath)) fs.unlinkSync(oldYamlPath);
+      if (fs.existsSync(oldJsonPath)) fs.unlinkSync(oldJsonPath);
+
+      // Try to remove old directory if empty
+      try {
+        fs.rmdirSync(oldConfigDir);
+      } catch {
+        // Directory not empty, that's fine
+      }
+
+      return {
+        migrated: true,
+        oldPath: sourceFile,
+        newPath: newYamlPath,
+      };
+    } catch (error) {
+      return {
+        migrated: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   /**
@@ -198,6 +294,27 @@ export class ConfigInitializer {
       repoPlatform?: 'github' | 'gitlab' | 'bitbucket';
     }
   ): string {
+    // 1. Attempt migration first
+    const migrationResult = this.migrateConfig(projectRoot);
+
+    if (migrationResult.migrated) {
+      console.log(`✓ Migrated config from ${migrationResult.oldPath}`);
+      console.log(`  to ${migrationResult.newPath}`);
+      return migrationResult.newPath!;
+    }
+
+    if (migrationResult.error) {
+      console.warn(`Migration warning: ${migrationResult.error}`);
+    }
+
+    // 2. Check if config exists at new location
+    const configPath = this.getDefaultConfigPath(projectRoot);
+    if (this.configExists(configPath)) {
+      console.log(`Config already exists at ${configPath}`);
+      return configPath;
+    }
+
+    // 3. Generate and write new config (existing logic)
     const config = this.generateDefaultConfig();
 
     // Apply optional overrides
@@ -216,7 +333,6 @@ export class ConfigInitializer {
       }
     }
 
-    const configPath = this.getDefaultConfigPath(projectRoot);
     this.writeConfig(config, configPath);
 
     return configPath;
