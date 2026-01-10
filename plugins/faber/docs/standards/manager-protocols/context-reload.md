@@ -10,9 +10,9 @@ Protocol for reloading critical workflow artifacts on-demand to recover from con
 - **Automatic (via hooks)**:
   - SessionStart Hook after context compaction (`session_start` trigger)
   - SessionStart Hook when resuming workflow (`session_start` trigger)
-  - PreCompact Hook before context compaction (saves session via `/fractary-faber:session-end`)
-  - SessionEnd Hook on normal exit (saves session via `/fractary-faber:session-end`)
-- **Manual**: User runs `/fractary-faber:prime-context` (manual trigger)
+  - PreCompact Hook before context compaction (saves session via `/fractary-faber:session-save`)
+  - SessionEnd Hook on normal exit (saves session via `/fractary-faber:session-save`)
+- **Manual**: User runs `/fractary-faber:session-load` (manual trigger)
 - **Workflow pre_step**: Frame phase automatic reload (session_start trigger) [optional, hooks preferred]
 - **Phase transition**: When specific artifacts needed for next phase (phase_transition trigger)
 
@@ -71,7 +71,7 @@ ELSE
   IF active_runs.length == 0 THEN
     ERROR: "No active workflow found"
     SUGGEST: "Use /fractary-faber:workflow-run to start a new workflow"
-    SUGGEST: "Or specify run ID: /fractary-faber:prime-context --run-id {id}"
+    SUGGEST: "Or specify run ID: /fractary-faber:session-load --run-id {id}"
     EXIT 1
 
   ELSE IF active_runs.length == 1 THEN
@@ -658,7 +658,7 @@ To ensure correct implementation, validate:
 ### PreCompact Hook
 
 **Trigger**: Before context compaction
-**Action**: `/fractary-faber:session-end --reason compaction`
+**Action**: `/fractary-faber:session-save --reason compaction`
 **Purpose**: Save session metadata before context is lost
 
 ```json
@@ -670,7 +670,7 @@ To ensure correct implementation, validate:
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-end --reason compaction",
+            "command": "/fractary-faber:session-save --reason compaction",
             "timeout": 60
           }
         ]
@@ -683,7 +683,7 @@ To ensure correct implementation, validate:
 ### SessionStart Hook
 
 **Triggers**: After compaction (`compact` matcher) or workflow resume (`resume` matcher)
-**Action**: `/fractary-faber:prime-context --trigger session_start`
+**Action**: `/fractary-faber:session-load --trigger session_start`
 **Purpose**: Restore critical artifacts when new session begins
 
 ```json
@@ -695,7 +695,7 @@ To ensure correct implementation, validate:
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:prime-context --trigger session_start"
+            "command": "/fractary-faber:session-load --trigger session_start"
           }
         ]
       },
@@ -704,7 +704,7 @@ To ensure correct implementation, validate:
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:prime-context --trigger session_start"
+            "command": "/fractary-faber:session-load --trigger session_start"
           }
         ]
       }
@@ -716,7 +716,7 @@ To ensure correct implementation, validate:
 ### SessionEnd Hook
 
 **Trigger**: On session termination (logout, clear, exit)
-**Action**: `/fractary-faber:session-end --reason normal`
+**Action**: `/fractary-faber:session-save --reason normal`
 **Purpose**: Save final session state
 
 ```json
@@ -727,7 +727,7 @@ To ensure correct implementation, validate:
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-end --reason normal"
+            "command": "/fractary-faber:session-save --reason normal"
           }
         ]
       }
@@ -754,7 +754,7 @@ See **[HOOKS-SETUP.md](../HOOKS-SETUP.md)** for complete setup instructions.
   - SessionStart Hook (after compaction or resume)
   - Workflow pre_steps [optional, hooks preferred]
 - **Manual**:
-  - `/fractary-faber:prime-context` command
+  - `/fractary-faber:session-load` command
   - Phase transition handlers with `reload_triggers: ["phase_transition:X->Y"]`
 
 ### Calls
@@ -777,12 +777,11 @@ See **[HOOKS-SETUP.md](../HOOKS-SETUP.md)** for complete setup instructions.
 - **Hook Setup**: [HOOKS-SETUP.md](../HOOKS-SETUP.md) - Step-by-step hook configuration guide
 - **Context Reconstitution**: `context-reconstitution.md` - Initial context loading at workflow start
 - **Commands**:
-  - `plugins/faber/commands/prime-context.md` - Context reload command
-  - `plugins/faber/commands/session-end.md` - Session end command
+  - `plugins/faber/commands/session-load.md` - Context reload command
+  - `plugins/faber/commands/session-save.md` - Session save command
 - **Skill**: `plugins/faber/skills/context-manager/SKILL.md` - Context manager skill definition
 - **Algorithms**:
-  - `plugins/faber/skills/context-manager/workflow/prime-context.md` - Context reload implementation
-  - `plugins/faber/skills/context-manager/workflow/session-end.md` - Session end implementation
+  - `plugins/faber/agents/session-manager.md` - Session management agent
 - **Schemas**:
   - `plugins/faber/config/workflow.schema.json` - Artifact configuration schema
   - `plugins/faber/config/state.schema.json` - Session and metadata schema

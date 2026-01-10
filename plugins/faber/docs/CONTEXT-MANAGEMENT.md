@@ -15,7 +15,7 @@ FABER's context management system ensures that critical artifacts (state files, 
 
 - 📦 **Configurable artifacts** - Each workflow declares what context is critical
 - 🔄 **Auto-reload on session start** - Critical artifacts automatically restored when resuming
-- 🎯 **Manual reload command** - `/fractary-faber:prime-context` for on-demand context restoration
+- 🎯 **Manual reload command** - `/fractary-faber:session-load` for on-demand context restoration
 - 🌍 **Cross-environment portability** - Path templates enable workflows to move between machines
 - 📊 **Session tracking** - Know which sessions and environments contributed to each workflow run
 - ⚡ **Smart reloading** - Skip recently loaded artifacts to avoid redundant work
@@ -72,7 +72,7 @@ See **[HOOKS-SETUP.md](./HOOKS-SETUP.md)** for complete step-by-step setup instr
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-end --reason compaction",
+            "command": "/fractary-faber:session-save --reason compaction",
             "timeout": 60
           }
         ]
@@ -84,7 +84,7 @@ See **[HOOKS-SETUP.md](./HOOKS-SETUP.md)** for complete step-by-step setup instr
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:prime-context --trigger session_start"
+            "command": "/fractary-faber:session-load --trigger session_start"
           }
         ]
       },
@@ -93,7 +93,7 @@ See **[HOOKS-SETUP.md](./HOOKS-SETUP.md)** for complete step-by-step setup instr
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:prime-context --trigger session_start"
+            "command": "/fractary-faber:session-load --trigger session_start"
           }
         ]
       }
@@ -103,7 +103,7 @@ See **[HOOKS-SETUP.md](./HOOKS-SETUP.md)** for complete step-by-step setup instr
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-end --reason normal"
+            "command": "/fractary-faber:session-save --reason normal"
           }
         ]
       }
@@ -233,7 +233,7 @@ Add automatic context reload to your workflow's Frame phase:
           "id": "auto-reload-context",
           "name": "Reload Context",
           "description": "Automatically reload critical artifacts on session start",
-          "prompt": "/fractary-faber:prime-context"
+          "prompt": "/fractary-faber:session-load"
         }
       ]
     }
@@ -246,7 +246,7 @@ Add automatic context reload to your workflow's Frame phase:
 If you notice context has been lost during execution:
 
 ```bash
-/fractary-faber:prime-context
+/fractary-faber:session-load
 ```
 
 ## Configuring Critical Artifacts
@@ -430,7 +430,7 @@ Reload triggers control when artifacts are loaded:
 | Trigger | When It Fires | Use For |
 |---------|---------------|---------|
 | `session_start` | New Claude session begins | Core artifacts needed immediately |
-| `manual` | User runs `/fractary-faber:prime-context` | User-initiated reload |
+| `manual` | User runs `/fractary-faber:session-load` | User-initiated reload |
 | `phase_start:X` | Before phase X starts | Phase-specific artifacts |
 | `phase_transition:X->Y` | Moving from phase X to Y | Context needed for next phase |
 | `compaction_detected` | Context compaction detected (future) | Auto-recovery from compaction |
@@ -457,13 +457,13 @@ Reload triggers control when artifacts are loaded:
 
 ## Using the Prime Context Command
 
-The `/fractary-faber:prime-context` command manually reloads critical artifacts.
+The `/fractary-faber:session-load` command manually reloads critical artifacts.
 
 ### Basic Usage
 
 ```bash
 # Auto-detect active workflow and reload all critical artifacts
-/fractary-faber:prime-context
+/fractary-faber:session-load
 ```
 
 ### Command Options
@@ -479,27 +479,27 @@ The `/fractary-faber:prime-context` command manually reloads critical artifacts.
 
 **Auto-detect and reload all artifacts**:
 ```bash
-/fractary-faber:prime-context
+/fractary-faber:session-load
 ```
 
 **Reload specific workflow run**:
 ```bash
-/fractary-faber:prime-context --run-id fractary-faber-258-20260104
+/fractary-faber:session-load --run-id fractary-faber-258-20260104
 ```
 
 **Reload only specific artifacts** (faster):
 ```bash
-/fractary-faber:prime-context --artifacts workflow-state,specification
+/fractary-faber:session-load --artifacts workflow-state,specification
 ```
 
 **Force reload all artifacts**:
 ```bash
-/fractary-faber:prime-context --force
+/fractary-faber:session-load --force
 ```
 
 **Dry-run to preview what would be loaded**:
 ```bash
-/fractary-faber:prime-context --dry-run
+/fractary-faber:session-load --dry-run
 ```
 
 ## Session Tracking
@@ -592,7 +592,7 @@ Context metadata tracks what artifacts are currently in context:
 # Context was compacted, critical artifacts lost
 # Manually reload context
 
-/fractary-faber:prime-context
+/fractary-faber:session-load
 # ✓ Reloads workflow state, spec, protocol, and any other critical artifacts
 ```
 
@@ -611,7 +611,7 @@ cd /path/to/project
 git pull
 
 # Reload context for specific run
-/fractary-faber:prime-context --run-id fractary-faber-258-20260104
+/fractary-faber:session-load --run-id fractary-faber-258-20260104
 
 # ✓ Loads all artifacts, records environment change in session history
 # ✓ Can now continue workflow seamlessly
@@ -629,7 +629,7 @@ git pull
 /fractary-faber:run --resume fractary-faber-258-20260104
 
 # OR manually reload if needed
-/fractary-faber:prime-context
+/fractary-faber:session-load
 ```
 
 ### Use Case 4: Quick Targeted Reload
@@ -639,7 +639,7 @@ git pull
 **Solution**:
 ```bash
 # Only reload specification, skip other artifacts
-/fractary-faber:prime-context --artifacts specification --force
+/fractary-faber:session-load --artifacts specification --force
 
 # ✓ Fast reload of just the spec file
 ```
@@ -651,7 +651,7 @@ git pull
 **Solution**:
 ```bash
 # Dry-run to see what artifacts are loaded
-/fractary-faber:prime-context --dry-run
+/fractary-faber:session-load --dry-run
 
 # Shows:
 # - Which artifacts are in context
@@ -673,7 +673,7 @@ git pull
       "pre_steps": [
         {
           "id": "auto-reload-context",
-          "prompt": "/fractary-faber:prime-context"
+          "prompt": "/fractary-faber:session-load"
         }
       ]
     }
@@ -746,10 +746,10 @@ For faster reloads, specify exactly what you need:
 
 ```bash
 # ✅ Fast - Only loads what you need
-/fractary-faber:prime-context --artifacts workflow-state,specification
+/fractary-faber:session-load --artifacts workflow-state,specification
 
 # ⚠️ Slower - Loads everything
-/fractary-faber:prime-context
+/fractary-faber:session-load
 ```
 
 ### 7. Use Force Reload Sparingly
@@ -759,10 +759,10 @@ Only use `--force` when you know artifacts have changed:
 ```bash
 # ✅ Good - Force reload after manual state edit
 # (edited state.json to fix issue)
-/fractary-faber:prime-context --force
+/fractary-faber:session-load --force
 
 # ❌ Wasteful - Force reload for no reason
-/fractary-faber:prime-context --force
+/fractary-faber:session-load --force
 ```
 
 ### 8. Leverage Dry-Run for Debugging
@@ -770,7 +770,7 @@ Only use `--force` when you know artifacts have changed:
 Preview what would be loaded before loading:
 
 ```bash
-/fractary-faber:prime-context --dry-run
+/fractary-faber:session-load --dry-run
 ```
 
 This helps debug context issues without actually loading artifacts.
@@ -795,7 +795,7 @@ This helps debug context issues without actually loading artifacts.
 ls .fractary/runs/
 
 # 2. If runs exist, specify run ID explicitly
-/fractary-faber:prime-context --run-id fractary-faber-258-20260104
+/fractary-faber:session-load --run-id fractary-faber-258-20260104
 
 # 3. If no runs exist, start new workflow
 /fractary-faber:run {work_id}
@@ -874,7 +874,7 @@ Which workflow? [1-2]:
 **Solution**: Select the workflow you want to reload context for, or specify run ID explicitly:
 
 ```bash
-/fractary-faber:prime-context --run-id fractary-faber-259-20260105
+/fractary-faber:session-load --run-id fractary-faber-259-20260105
 ```
 
 ### Problem: Artifact Too Large Warning
@@ -1031,12 +1031,11 @@ When extending workflows, artifacts are inherited and can be overridden:
 
 - **Hook Setup Guide**: [HOOKS-SETUP.md](./HOOKS-SETUP.md) - Step-by-step hook configuration for automatic context management
 - **Command References**:
-  - `plugins/faber/commands/prime-context.md` - Manual context reload command
-  - `plugins/faber/commands/session-end.md` - Session end command
+  - `plugins/faber/commands/session-load.md` - Manual context reload command
+  - `plugins/faber/commands/session-save.md` - Session save command
 - **Skill Documentation**: `plugins/faber/skills/context-manager/SKILL.md`
 - **Algorithm Details**:
-  - `plugins/faber/skills/context-manager/workflow/prime-context.md` - Context reload algorithm
-  - `plugins/faber/skills/context-manager/workflow/session-end.md` - Session end algorithm
+  - `plugins/faber/agents/session-manager.md` - Session management agent
 - **Schemas**:
   - `plugins/faber/config/workflow.schema.json` - Workflow configuration schema
   - `plugins/faber/config/state.schema.json` - State file schema

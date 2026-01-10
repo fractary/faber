@@ -11,7 +11,7 @@
           "id": "auto-reload-context",
           "name": "Reload Context",
           "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
+          "prompt": "/fractary-faber:session-load"
         },
         {
           "id": "core-fetch-issue",

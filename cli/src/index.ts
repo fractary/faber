@@ -41,9 +41,9 @@ export function createFaberCLI(): Command {
   // Global options
   program.option('--debug', 'Enable debug output');
 
-  // Workflow commands (top-level) - NEW NAMES
-  program.addCommand(createInitCommand());        // workflow-init
-  program.addCommand(createPlanCommand());         // plan - NEW
+  // Workflow commands (top-level)
+  program.addCommand(createInitCommand());        // init
+  program.addCommand(createPlanCommand());         // plan
   program.addCommand(createRunCommand());          // workflow-run
   program.addCommand(createStatusCommand());       // workflow-status
   program.addCommand(createResumeCommand());       // workflow-resume
@@ -57,13 +57,12 @@ export function createFaberCLI(): Command {
   };
 
   program
-    .command('init')
-    .description('(DEPRECATED: Use workflow-init)')
-    .option('--preset <name>', 'Use a preset configuration', 'default')
+    .command('workflow-init')
+    .description('(DEPRECATED: Use init)')
     .option('--force', 'Overwrite existing configuration')
     .option('--json', 'Output as JSON')
     .action((options) => {
-      showDeprecationWarning('init', 'workflow-init');
+      showDeprecationWarning('workflow-init', 'init');
       const initCmd = createInitCommand();
       initCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
         typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []

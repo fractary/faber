@@ -20,7 +20,7 @@ import { ConfigValidationError } from '../errors.js';
 
 describe('Config Loading Functions', () => {
   const testDir = path.join(__dirname, '__test-config-loading__');
-  const faberConfigPath = path.join(testDir, '.fractary', 'plugins', 'faber', 'config.yaml');
+  const faberConfigPath = path.join(testDir, '.fractary', 'faber', 'config.yaml');
   const workConfigPath = path.join(testDir, '.fractary', 'plugins', 'work', 'config.json');
   const repoConfigPath = path.join(testDir, '.fractary', 'plugins', 'repo', 'config.json');
 
@@ -107,7 +107,7 @@ describe('Config Loading Functions', () => {
       } catch (error) {
         if (error instanceof ConfigValidationError) {
           expect(error.message).toContain('Expected config at:');
-          expect(error.message).toContain('.fractary/plugins/faber');
+          expect(error.message).toContain('.fractary/faber');
         } else {
           fail('Wrong error type');
         }
@@ -305,7 +305,7 @@ describe('Config Loading Functions', () => {
       const config = loadStateConfig(testDir);
 
       expect(config).not.toBeNull();
-      expect(config.localPath).toBe(path.join(testDir, '.faber', 'state'));
+      expect(config.localPath).toBe(path.join(testDir, '.fractary', 'faber'));
     });
 
     it('should return state config from FABER config when it exists', () => {
@@ -325,7 +325,7 @@ describe('Config Loading Functions', () => {
 
       const config = loadStateConfig(testDir);
 
-      expect(config.localPath).toBe(path.join(testDir, '.faber', 'state'));
+      expect(config.localPath).toBe(path.join(testDir, '.fractary', 'faber'));
     });
   });
 
@@ -411,27 +411,48 @@ describe('Config Loading Functions', () => {
       }
     });
 
-    it('should fall back to CLAUDE_WORK_CWD when no .fractary or .git found', () => {
-      // Create a test directory without .fractary or .git
-      const emptyDir = path.join(testDir, 'empty');
+    it('should traverse up to find .git even from subdirectories', () => {
+      // Create a deeply nested directory without its own .fractary or .git
+      const emptyDir = path.join(testDir, 'empty', 'nested', 'deep');
       fs.mkdirSync(emptyDir, { recursive: true });
 
-      // Set CLAUDE_WORK_CWD
-      const originalCwd = process.env['CLAUDE_WORK_CWD'];
-      process.env['CLAUDE_WORK_CWD'] = testDir;
+      // findProjectRoot should traverse up and find the faber repo's .git
+      const result = findProjectRoot(emptyDir);
 
-      try {
-        // findProjectRoot should fall back to CLAUDE_WORK_CWD
-        const result = findProjectRoot(emptyDir);
-        expect(result).toBe(testDir);
-      } finally {
-        // Restore original CLAUDE_WORK_CWD
-        if (originalCwd === undefined) {
-          delete process.env['CLAUDE_WORK_CWD'];
-        } else {
-          process.env['CLAUDE_WORK_CWD'] = originalCwd;
-        }
-      }
+      // Should find a .git directory somewhere in the parent path
+      // (In test environment, this will be the faber repo's root)
+      expect(fs.existsSync(path.join(result, '.git'))).toBe(true);
+      expect(result).not.toBe(emptyDir); // Should have traversed up
+    });
+  });
+
+  describe('Backward Compatibility', () => {
+    it('should load config from legacy location', () => {
+      const oldPath = path.join(testDir, '.fractary', 'plugins', 'faber', 'config.yaml');
+      const config = ConfigInitializer.generateDefaultConfig();
+      config.repo.owner = 'legacy-owner';
+      ConfigInitializer.writeConfig(config, oldPath);
+
+      const loaded = loadFaberConfig(testDir);
+
+      expect(loaded).not.toBeNull();
+      expect(loaded?.repo.owner).toBe('legacy-owner');
+    });
+
+    it('should prefer new location over legacy', () => {
+      const oldPath = path.join(testDir, '.fractary', 'plugins', 'faber', 'config.yaml');
+      const newPath = path.join(testDir, '.fractary', 'faber', 'config.yaml');
+
+      const oldConfig = ConfigInitializer.generateDefaultConfig();
+      oldConfig.repo.owner = 'old-owner';
+      ConfigInitializer.writeConfig(oldConfig, oldPath);
+
+      const newConfig = ConfigInitializer.generateDefaultConfig();
+      newConfig.repo.owner = 'new-owner';
+      ConfigInitializer.writeConfig(newConfig, newPath);
+
+      const loaded = loadFaberConfig(testDir);
+      expect(loaded?.repo.owner).toBe('new-owner');
     });
   });
 });

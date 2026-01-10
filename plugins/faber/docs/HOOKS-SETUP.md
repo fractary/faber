@@ -37,7 +37,7 @@ Configure hooks in your project's `.claude/settings.json` file. This keeps hook 
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-end --reason compaction",
+            "command": "/fractary-faber:session-save --reason compaction",
             "timeout": 60
           }
         ]
@@ -49,7 +49,7 @@ Configure hooks in your project's `.claude/settings.json` file. This keeps hook 
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:prime-context --trigger session_start"
+            "command": "/fractary-faber:session-load --trigger session_start"
           }
         ]
       },
@@ -58,7 +58,7 @@ Configure hooks in your project's `.claude/settings.json` file. This keeps hook 
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:prime-context --trigger session_start"
+            "command": "/fractary-faber:session-load --trigger session_start"
           }
         ]
       }
@@ -68,7 +68,7 @@ Configure hooks in your project's `.claude/settings.json` file. This keeps hook 
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-end --reason normal"
+            "command": "/fractary-faber:session-save --reason normal"
           }
         ]
       }
@@ -193,7 +193,7 @@ cat .claude/settings.json | jq '.hooks'
 
 **Trigger**: Before context compaction occurs (when context window fills up)
 
-**Action**: Calls `/fractary-faber:session-end --reason compaction`
+**Action**: Calls `/fractary-faber:session-save --reason compaction`
 
 **What it does**:
 1. Reads `.fractary/faber/.active-run-id` to detect active workflow
@@ -215,7 +215,7 @@ cat .claude/settings.json | jq '.hooks'
 - **compact matcher**: After context compaction
 - **resume matcher**: When resuming a previous session
 
-**Action**: Calls `/fractary-faber:prime-context --trigger session_start`
+**Action**: Calls `/fractary-faber:session-load --trigger session_start`
 
 **What it does**:
 1. Reads `.fractary/faber/.active-run-id` to detect active workflow
@@ -231,13 +231,13 @@ cat .claude/settings.json | jq '.hooks'
 
 **No timeout**: Runs until complete (typically 10-30 seconds)
 
-**Failure handling**: If hook fails, you can manually run `/fractary-faber:prime-context` to restore context
+**Failure handling**: If hook fails, you can manually run `/fractary-faber:session-load` to restore context
 
 ### SessionEnd Hook
 
 **Trigger**: When Claude Code session ends (logout, clear, exit)
 
-**Action**: Calls `/fractary-faber:session-end --reason normal`
+**Action**: Calls `/fractary-faber:session-save --reason normal`
 
 **What it does**: Same as PreCompact hook, but with `reason: "normal"` instead of `"compaction"`
 
@@ -296,7 +296,7 @@ cat .fractary/runs/$(cat .fractary/faber/.active-run-id)/state.json | jq '.sessi
 ```
 
 **Fix**:
-- Manually run `/fractary-faber:prime-context --force` to reload context
+- Manually run `/fractary-faber:session-load --force` to reload context
 - Check workflow config has `critical_artifacts` defined
 - Verify artifact paths are correct in workflow config
 
@@ -317,12 +317,12 @@ If hooks fail or aren't configured, you can manually trigger the commands:
 
 **After context compaction**:
 ```bash
-/fractary-faber:prime-context
+/fractary-faber:session-load
 ```
 
 **Before exiting session**:
 ```bash
-/fractary-faber:session-end
+/fractary-faber:session-save
 ```
 
 **Check which workflow is active**:
@@ -340,7 +340,7 @@ cat .fractary/faber/.active-run-id
 
 4. **Monitor state file size**: Large state files (>1MB) slow down hooks. Archive old sessions periodically.
 
-5. **Don't edit state.json manually**: If you must edit, run `/fractary-faber:session-end` first to save current session
+5. **Don't edit state.json manually**: If you must edit, run `/fractary-faber:session-save` first to save current session
 
 6. **One workflow per worktree**: Use git worktrees for concurrent workflows to avoid conflicts
 
@@ -397,7 +397,7 @@ Tracks what artifacts are currently in context:
 
 - **Spec**: `specs/SPEC-00027-faber-context-management.md` - Full context management specification
 - **Commands**:
-  - `plugins/faber/commands/prime-context.md` - Context reload command
-  - `plugins/faber/commands/session-end.md` - Session end command
+  - `plugins/faber/commands/session-load.md` - Context reload command
+  - `plugins/faber/commands/session-save.md` - Session save command
 - **Protocols**: `plugins/faber/docs/standards/manager-protocols/context-reload.md` - Context management protocol
 - **Claude Code Hooks**: See Claude Code documentation for hook system details

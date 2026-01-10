@@ -503,7 +503,7 @@ console.log(`Tracking file: ${activeRunIdPath}`);
 - **PreCompact hook**: Knows which workflow to save session for before compaction
 - **SessionStart hook**: Knows which workflow to restore context for after compaction
 - **SessionEnd hook**: Knows which workflow to save final session state for
-- **Manual commands**: `/fractary-faber:prime-context` and `/fractary-faber:session-end` can auto-detect active workflow
+- **Manual commands**: `/fractary-faber:session-load` and `/fractary-faber:session-save` can auto-detect active workflow
 
 **One workflow per worktree:**
 FABER enforces one active workflow per worktree to avoid conflicts. Users needing concurrent workflows should use git worktrees.

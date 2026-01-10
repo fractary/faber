@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING**: Config path migrated from `.fractary/plugins/faber/config.yaml` to `.fractary/faber/config.yaml`
+  - Running `fractary-faber init` will automatically migrate existing configs
+  - Legacy path still supported for backward compatibility (with deprecation warning)
+  - Old config is deleted after successful migration
+  - Aligns with non-plugin architecture (CLI, SDK, MCP)
+
+- **BREAKING**: Command renamed from `workflow-init` to `init` for consistency
+  - New command: `fractary-faber init` (simplified, lightweight)
+  - Old command: `fractary-faber workflow-init` (deprecated, shows warning)
+  - Init command reduced from 231 lines to 89 lines
+  - All config logic centralized in SDK's `ConfigInitializer` class
+  - Created `faber-initializer` agent for future enhancement
+  - Removed duplicate config generation logic from CLI
+  - CLI now delegates all operations to SDK methods
+
+- **BREAKING**: Session commands renamed for clarity and consistency
+  - `prime-context` → `session-load` (clearer purpose: loading session artifacts)
+  - `session-end` → `session-save` (clearer purpose: saving session metadata)
+  - All documentation and hook configurations updated to use new names
+  - Commands now delegate to unified `session-manager` agent
+
+- **BREAKING**: Workflow commands renamed with `workflow-` prefix for consistency
+  - `audit` → `workflow-audit` (validates workflow configuration)
+  - `status` → `workflow-status` (displays workflow status)
+  - `debugger` → `workflow-debugger` (diagnoses workflow issues)
+  - Naming now consistent: operations on workflows use `workflow-` prefix
+
+### Added
+
+- **Command-Agent Pattern**: All commands now follow lightweight wrapper pattern
+  - Commands reduced to ~12-18 lines (96% code reduction)
+  - All implementation logic extracted to reusable agents
+  - Created 4 new agents:
+    - `session-manager` - Manages session artifacts and metadata
+    - `workflow-audit` - Validates workflow configuration
+    - `workflow-status` - Displays workflow status and progress
+    - `workflow-debugger` - Diagnoses issues and proposes solutions
+  - Benefits:
+    - Agents are reusable across different contexts
+    - Commands are maintainable and consistent
+    - Clear separation of concerns (I/O vs logic)
+    - Easier to test and debug
+
 ## [1.4.4] - 2026-01-09
 
 ### Fixed
