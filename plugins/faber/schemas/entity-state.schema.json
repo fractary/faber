@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fractary.com/schemas/faber/entity-state.json",
+  "title": "FABER Entity State Schema",
+  "description": "Schema for entity state tracking in FABER workflows",
+  "type": "object",
+  "required": ["organization", "project", "entity_type", "entity_id", "status", "created_at", "updated_at", "step_status", "version"],
+  "additionalProperties": false,
+  "properties": {
+    "organization": {
+      "type": "string",
+      "description": "Organization name from fractary-core:repo plugin",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "project": {
+      "type": "string",
+      "description": "Project name from git repository or config",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "entity_type": {
+      "type": "string",
+      "description": "Type of entity (e.g., 'blog-post', 'dataset', 'api-module')",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "entity_id": {
+      "type": "string",
+      "description": "Unique identifier within entity_type",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "status": {
+      "type": "string",
+      "description": "Aggregate status across all workflows",
+      "enum": ["pending", "in_progress", "completed", "failed", "archived"]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When entity state was first created (ISO 8601)"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp (ISO 8601)"
+    },
+    "step_status": {
+      "type": "object",
+      "description": "Current status of each step (merged across all workflows)",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["step_id", "execution_status", "last_executed_at"],
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "description": "Step identifier (unique within workflow)"
+          },
+          "step_action": {
+            "type": "string",
+            "description": "Step action for grouping (optional, middle level)"
+          },
+          "step_type": {
+            "type": "string",
+            "description": "Broad step category (optional, highest level)"
+          },
+          "execution_status": {
+            "type": "string",
+            "description": "Lifecycle state of step execution",
+            "enum": ["started", "in_progress", "completed", "failed", "skipped"]
+          },
+          "outcome_status": {
+            "type": "string",
+            "description": "Result quality of step execution",
+            "enum": ["success", "failure", "warning", "partial"]
+          },
+          "phase": {
+            "type": "string",
+            "description": "Which phase the step was last executed in",
+            "enum": ["frame", "architect", "build", "evaluate", "release"]
+          },
+          "last_executed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When step was last executed (ISO 8601)"
+          },
+          "last_executed_by": {
+            "type": "object",
+            "description": "Which workflow/run last modified this step",
+            "required": ["workflow_id", "run_id"],
+            "properties": {
+              "workflow_id": {
+                "type": "string"
+              },
+              "run_id": {
+                "type": "string"
+              },
+              "work_id": {
+                "type": "string"
+              }
+            }
+          },
+          "execution_count": {
+            "type": "integer",
+            "description": "How many times step has been executed on this entity",
+            "minimum": 0
+          },
+          "retry_count": {
+            "type": "integer",
+            "description": "How many times step was retried",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "properties": {
+      "type": "object",
+      "description": "Custom entity-specific properties (extensible key-value)",
+      "additionalProperties": true
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "Output artifacts associated with this entity",
+      "items": {
+        "type": "object",
+        "required": ["type", "path", "created_at"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["file", "url", "endpoint", "database_table", "s3_object"],
+            "description": "Artifact type"
+          },
+          "path": {
+            "type": "string",
+            "description": "Location (file path, URL, endpoint, table name, etc.)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When artifact was created"
+          },
+          "created_by_step": {
+            "type": "string",
+            "description": "Step that created this artifact"
+          },
+          "created_by_run": {
+            "type": "string",
+            "description": "Run ID that created this artifact"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional artifact metadata",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "description": "Tags for categorization and filtering",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "uniqueItems": true
+    },
+    "version": {
+      "type": "integer",
+      "description": "Optimistic concurrency control version number",
+      "minimum": 1
+    },
+    "sync_metadata": {
+      "type": "object",
+      "description": "Metadata for external sync (e.g., to Helm system)",
+      "properties": {
+        "last_synced_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When entity was last synced externally"
+        },
+        "sync_enabled": {
+          "type": "boolean",
+          "description": "Whether external sync is enabled"
+        },
+        "sync_target": {
+          "type": ["string", "null"],
+          "description": "External sync target (e.g., 'helm', 'dynamodb')"
+        }
+      }
+    }
+  }
+}

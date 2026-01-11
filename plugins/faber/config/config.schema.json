@@ -215,6 +215,9 @@
         },
         "autonomy": {
           "$ref": "#/definitions/autonomy"
+        },
+        "entity": {
+          "$ref": "#/definitions/entity_config"
         }
       }
     },
@@ -347,6 +350,16 @@
           "type": "string",
           "pattern": "^[a-z][a-z0-9-]*$",
           "description": "Unique step identifier (must be unique across merged workflow)"
+        },
+        "step_action": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Step action for grouping similar steps across phases (e.g., 'github-commit'). Used for entity-level step tracking."
+        },
+        "step_type": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Broad step category for grouping (e.g., 'repo-actions'). Used for entity-level step tracking."
         },
         "name": {
           "type": "string",
@@ -638,6 +651,50 @@
             "type": "string"
           },
           "description": "Map work types (bug, feature, patch, chore, etc.) to workflow IDs. Used when fallback_to_classification is true."
+        }
+      }
+    },
+    "entity_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Entity-level state tracking configuration. Enables tracking entity state across multiple workflow runs.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable entity-level state tracking for this workflow"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Entity type (e.g., 'blog-post', 'dataset', 'api'). Must be lowercase with hyphens."
+        },
+        "id_field": {
+          "type": "string",
+          "default": "work_id",
+          "description": "Field name to use for entity ID. Default: 'work_id'. Can use custom field from workflow context."
+        },
+        "auto_sync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically update entity state on step completion and phase completion"
+        },
+        "sync_on_phases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["frame", "architect", "build", "evaluate", "release"]
+          },
+          "default": ["architect", "build", "release"],
+          "description": "Phases that trigger entity state updates. Default: ['architect', 'build', 'release']"
+        },
+        "artifact_mapping": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["file", "url", "data"]
+          },
+          "description": "Map workflow state fields to artifact types. Example: {'spec_path': 'file', 'pr_url': 'url'}"
         }
       }
     },

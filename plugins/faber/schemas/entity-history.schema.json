@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fractary.com/schemas/faber/entity-history.json",
+  "title": "FABER Entity History Schema",
+  "description": "Schema for entity history file (step_history and workflow_summary)",
+  "type": "object",
+  "required": ["entity_type", "entity_id", "organization", "project", "step_history", "workflow_summary"],
+  "additionalProperties": false,
+  "properties": {
+    "entity_type": {
+      "type": "string",
+      "description": "Type of entity",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "entity_id": {
+      "type": "string",
+      "description": "Unique identifier within entity_type"
+    },
+    "organization": {
+      "type": "string",
+      "description": "Organization name"
+    },
+    "project": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "step_history": {
+      "type": "array",
+      "description": "Complete audit trail of all step executions (append-only)",
+      "items": {
+        "type": "object",
+        "required": ["step_id", "execution_status", "phase", "executed_at", "workflow_id", "run_id"],
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "description": "Step identifier (unique within workflow)"
+          },
+          "step_action": {
+            "type": "string",
+            "description": "Step action for grouping (optional)"
+          },
+          "step_type": {
+            "type": "string",
+            "description": "Broad step category (optional)"
+          },
+          "execution_status": {
+            "type": "string",
+            "description": "Lifecycle state of step execution",
+            "enum": ["started", "in_progress", "completed", "failed", "skipped"]
+          },
+          "outcome_status": {
+            "type": "string",
+            "description": "Result quality of step execution",
+            "enum": ["success", "failure", "warning", "partial"]
+          },
+          "phase": {
+            "type": "string",
+            "description": "Which phase the step was executed in",
+            "enum": ["frame", "architect", "build", "evaluate", "release"]
+          },
+          "executed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When step was executed (ISO 8601)"
+          },
+          "workflow_id": {
+            "type": "string",
+            "description": "Workflow that executed this step"
+          },
+          "run_id": {
+            "type": "string",
+            "description": "Run ID that executed this step"
+          },
+          "work_id": {
+            "type": "string",
+            "description": "Work item ID (optional)"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Claude session ID"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "description": "Step execution duration in milliseconds",
+            "minimum": 0
+          },
+          "retry_count": {
+            "type": "integer",
+            "description": "How many times step was retried",
+            "minimum": 0
+          },
+          "retry_reason": {
+            "type": "string",
+            "description": "Reason for retry (if retried)"
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message (if failed)"
+          }
+        }
+      }
+    },
+    "workflow_summary": {
+      "type": "array",
+      "description": "High-level view of workflows that operated on entity",
+      "items": {
+        "type": "object",
+        "required": ["workflow_id", "run_id", "started_at", "outcome"],
+        "properties": {
+          "workflow_id": {
+            "type": "string",
+            "description": "Workflow identifier"
+          },
+          "run_id": {
+            "type": "string",
+            "description": "Run identifier"
+          },
+          "work_id": {
+            "type": "string",
+            "description": "Work item ID (optional)"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When workflow started"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When workflow completed"
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Workflow outcome",
+            "enum": ["completed", "failed", "partial", "cancelled"]
+          },
+          "steps_executed": {
+            "type": "array",
+            "description": "Steps executed by this workflow",
+            "items": {
+              "type": "object",
+              "required": ["step_id"],
+              "properties": {
+                "step_id": {
+                  "type": "string"
+                },
+                "step_action": {
+                  "type": "string"
+                },
+                "step_type": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
