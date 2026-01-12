@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Entity-Level State Tracking**: New comprehensive system for tracking entity state across FABER workflows
+  - **New Skill**: `entity-state` skill with 9 operations for entity lifecycle management
+  - **Entity State Files**: Track current status, step execution, properties, and artifacts per entity
+  - **History Tracking**: Separate history files for step execution audit trail and workflow summaries
+  - **Step Hierarchy**: Three-level step system (step_id → step_action → step_type) for cross-workflow consistency
+  - **Status Tracking**: Dual status system (execution_status for lifecycle, outcome_status for result quality)
+  - **Query Operations**: Fast queries by type, status, step action, and recent updates
+  - **Concurrent Updates**: Thread-safe operations with file locking and atomic writes
+  - **Organization/Project Support**: Track entities across organizations and projects
+  - **Helper Functions**: 9+ utility functions for faber-manager integration
+  - **Comprehensive Tests**: 36 integration tests covering security, concurrency, and functionality
+  - **Documentation**: Complete SKILL.md, architectural specs, and step hierarchy guidelines
+  - Enables cross-workflow entity tracking, downstream polling, and centralized management (future Helm integration)
+
 ### Changed
 
 - **BREAKING**: Config path migrated from `.fractary/plugins/faber/config.yaml` to `.fractary/faber/config.yaml`

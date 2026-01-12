@@ -10,6 +10,19 @@ source "$SCRIPT_DIR/lib/entity-validation.sh"
 source "$SCRIPT_DIR/lib/entity-lock.sh"
 source "$SCRIPT_DIR/lib/index-update.sh"
 
+# Trap handler for cleanup on exit
+cleanup_on_exit() {
+  # Release lock if acquired
+  if [ "$LOCK_ACQUIRED" = true ]; then
+    release_entity_lock
+  fi
+  # Clean up temp files
+  if [ -n "${ENTITY_FILE:-}" ]; then
+    rm -f "${ENTITY_FILE}.tmp" "${HISTORY_FILE}.tmp" 2>/dev/null || true
+  fi
+}
+trap cleanup_on_exit EXIT INT TERM
+
 # Parse arguments
 ENTITY_TYPE=""
 ENTITY_ID=""

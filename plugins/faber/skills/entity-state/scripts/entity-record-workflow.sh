@@ -11,6 +11,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/entity-validation.sh"
 source "$SCRIPT_DIR/lib/entity-lock.sh"
 
+# Trap handler for cleanup on exit
+cleanup_on_exit() {
+  # Release lock if acquired
+  if [ "$LOCK_ACQUIRED" = true ]; then
+    release_entity_lock
+  fi
+  # Clean up temp files
+  if [ -n "${HISTORY_FILE:-}" ]; then
+    rm -f "${HISTORY_FILE}.tmp" 2>/dev/null || true
+  fi
+}
+trap cleanup_on_exit EXIT INT TERM
+
 # Parse arguments
 ENTITY_TYPE=""
 ENTITY_ID=""
