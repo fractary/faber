@@ -4,8 +4,9 @@
 
 set -euo pipefail
 
-# Source index library
+# Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/entity-validation.sh"
 source "$SCRIPT_DIR/lib/index-update.sh"
 
 # Parse arguments
@@ -39,6 +40,11 @@ done
 if [ -z "$STEP_ACTION" ]; then
   echo "ERROR: Missing required argument: --step-action" >&2
   exit 1
+fi
+
+# Validate execution_status if provided
+if [ -n "$EXECUTION_STATUS" ]; then
+  validate_execution_status "$EXECUTION_STATUS" || exit 1
 fi
 
 # Query by step action

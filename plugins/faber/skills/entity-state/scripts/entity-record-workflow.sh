@@ -8,6 +8,7 @@ set -euo pipefail
 
 # Source locking library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/entity-validation.sh"
 source "$SCRIPT_DIR/lib/entity-lock.sh"
 
 # Parse arguments
@@ -42,6 +43,10 @@ if [ -z "$ENTITY_TYPE" ] || [ -z "$ENTITY_ID" ] || [ -z "$WORKFLOW_ID" ] || \
   echo "ERROR: Missing required arguments" >&2
   exit 1
 fi
+
+# Validate formats using validation library
+validate_entity_type "$ENTITY_TYPE" || exit 1
+validate_entity_id "$ENTITY_ID" || exit 1
 
 # Compute file path
 HISTORY_FILE=".fractary/faber/entities/${ENTITY_TYPE}/${ENTITY_ID}-history.json"

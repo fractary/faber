@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Source validation library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/entity-validation.sh"
+
 # Parse arguments
 ENTITY_TYPE=""
 FILTER_STATUS=""
@@ -26,6 +30,17 @@ done
 if [ -z "$ENTITY_TYPE" ]; then
   echo "ERROR: Missing required argument: --type" >&2
   exit 1
+fi
+
+# Validate formats using validation library
+validate_entity_type "$ENTITY_TYPE" || exit 1
+
+# Validate filter values if provided
+if [ -n "$FILTER_STATUS" ]; then
+  validate_status "$FILTER_STATUS" || exit 1
+fi
+if [ -n "$FILTER_EXECUTION_STATUS" ]; then
+  validate_execution_status "$FILTER_EXECUTION_STATUS" || exit 1
 fi
 
 # Compute entity directory

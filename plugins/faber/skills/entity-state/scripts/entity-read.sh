@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Source validation library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/entity-validation.sh"
+
 # Parse arguments
 ENTITY_TYPE=""
 ENTITY_ID=""
@@ -41,6 +45,10 @@ if [ -z "$ENTITY_TYPE" ] || [ -z "$ENTITY_ID" ]; then
   echo "Usage: entity-read.sh --type <entity_type> --id <entity_id> [--query <jq_query>] [--include-history]" >&2
   exit 1
 fi
+
+# Validate formats using validation library
+validate_entity_type "$ENTITY_TYPE" || exit 1
+validate_entity_id "$ENTITY_ID" || exit 1
 
 # Compute file paths
 ENTITY_FILE=".fractary/faber/entities/${ENTITY_TYPE}/${ENTITY_ID}.json"

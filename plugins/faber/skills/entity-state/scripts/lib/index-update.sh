@@ -6,6 +6,60 @@ set -euo pipefail
 
 # Index directory
 INDEX_DIR=".fractary/faber/entities/_indices"
+INDEX_LOCK_FILE=""
+INDEX_LOCK_ACQUIRED=false
+
+# Trap to release lock on exit
+release_index_lock_on_exit() {
+  if [ "$INDEX_LOCK_ACQUIRED" = true ]; then
+    release_index_lock
+  fi
+}
+trap release_index_lock_on_exit EXIT INT TERM
+
+# Acquire index lock (shorter timeout than entity lock - 5 seconds)
+acquire_index_lock() {
+  local lock_file="$INDEX_DIR/.index.lock"
+  INDEX_LOCK_FILE="$lock_file"
+
+  local start_time=$(date +%s)
+  local timeout=5
+
+  while true; do
+    if mkdir "$lock_file" 2>/dev/null; then
+      echo "$$" > "$lock_file/pid"
+      date -Iseconds > "$lock_file/time" 2>/dev/null || date > "$lock_file/time"
+      INDEX_LOCK_ACQUIRED=true
+      return 0
+    fi
+
+    # Check if lock is stale
+    if [ -f "$lock_file/pid" ]; then
+      local lock_pid=$(cat "$lock_file/pid" 2>/dev/null || echo "")
+      if [ -n "$lock_pid" ] && ! ps -p "$lock_pid" > /dev/null 2>&1; then
+        # Process dead, remove stale lock
+        rm -rf "$lock_file" 2>/dev/null || true
+        continue
+      fi
+    fi
+
+    # Check timeout
+    if [ $(( $(date +%s) - start_time )) -ge $timeout ]; then
+      echo "WARNING: Index lock timeout after ${timeout}s, proceeding anyway" >&2
+      return 1
+    fi
+
+    sleep 0.1
+  done
+}
+
+# Release index lock
+release_index_lock() {
+  if [ "$INDEX_LOCK_ACQUIRED" = true ] && [ -n "$INDEX_LOCK_FILE" ]; then
+    rm -rf "$INDEX_LOCK_FILE" 2>/dev/null || true
+    INDEX_LOCK_ACQUIRED=false
+  fi
+}
 
 # Ensure index directory exists
 ensure_index_dir() {
@@ -20,6 +74,30 @@ init_index_if_missing() {
   fi
 }
 
+# Atomic write helper for index files
+# Usage: atomic_index_write <index_file> <content>
+atomic_index_write() {
+  local index_file="$1"
+  local content="$2"
+  local temp_file="${index_file}.tmp.$$"
+
+  # Write to temp file
+  if ! echo "$content" > "$temp_file"; then
+    echo "ERROR: Failed to write temp index file: $temp_file" >&2
+    rm -f "$temp_file" 2>/dev/null || true
+    return 1
+  fi
+
+  # Atomic move
+  if ! mv "$temp_file" "$index_file"; then
+    echo "ERROR: Failed to atomically update index file: $index_file" >&2
+    rm -f "$temp_file" 2>/dev/null || true
+    return 1
+  fi
+
+  return 0
+}
+
 # Update by-status index
 # Adds entity_id to the list for a given status
 update_status_index() {
@@ -32,25 +110,38 @@ update_status_index() {
   local index_file="$INDEX_DIR/by-status.json"
   init_index_if_missing "$index_file"
 
+  # Acquire lock
+  acquire_index_lock || echo "WARNING: Proceeding without index lock" >&2
+
   # Create entity key
   local entity_key="${entity_type}/${entity_id}"
 
+  # Read current index
+  local current=$(cat "$index_file")
+
   # If old_status provided, remove from old status list
   if [ -n "$old_status" ] && [ "$old_status" != "$status" ]; then
-    local updated=$(cat "$index_file" | jq \
+    current=$(echo "$current" | jq \
       --arg old_status "$old_status" \
       --arg entity_key "$entity_key" \
       'if .[$old_status] then .[$old_status] = (.[$old_status] | map(select(. != $entity_key))) else . end')
-    echo "$updated" > "$index_file"
   fi
 
   # Add to new status list
-  local updated=$(cat "$index_file" | jq \
+  local updated=$(echo "$current" | jq \
     --arg status "$status" \
     --arg entity_key "$entity_key" \
     '.[$status] = ((.[$status] // []) + [$entity_key] | unique)')
 
-  echo "$updated" > "$index_file"
+  # Atomic write
+  atomic_index_write "$index_file" "$updated" || {
+    echo "WARNING: Failed to update status index for ${entity_type}/${entity_id}" >&2
+    release_index_lock
+    return 1
+  }
+
+  release_index_lock
+  return 0
 }
 
 # Update by-type index

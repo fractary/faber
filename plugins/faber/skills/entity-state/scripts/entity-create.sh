@@ -4,8 +4,9 @@
 
 set -euo pipefail
 
-# Source locking library and index update library
+# Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/entity-validation.sh"
 source "$SCRIPT_DIR/lib/entity-lock.sh"
 source "$SCRIPT_DIR/lib/index-update.sh"
 
@@ -59,16 +60,11 @@ if [ -z "$ENTITY_TYPE" ] || [ -z "$ENTITY_ID" ] || [ -z "$ORGANIZATION" ] || [ -
   exit 1
 fi
 
-# Validate entity_type and entity_id format
-if ! [[ "$ENTITY_TYPE" =~ ^[a-z][a-z0-9-]*$ ]]; then
-  echo "ERROR: Invalid entity_type format: $ENTITY_TYPE (must match ^[a-z][a-z0-9-]*$)" >&2
-  exit 1
-fi
-
-if ! [[ "$ORGANIZATION" =~ ^[a-z0-9][a-z0-9-]*[a-z0-9]$ ]]; then
-  echo "ERROR: Invalid organization format: $ORGANIZATION" >&2
-  exit 1
-fi
+# Validate formats using validation library
+validate_entity_type "$ENTITY_TYPE" || exit 1
+validate_entity_id "$ENTITY_ID" || exit 1
+validate_organization "$ORGANIZATION" || exit 1
+validate_project "$PROJECT" || exit 1
 
 # Compute file paths
 ENTITY_DIR=".fractary/faber/entities/${ENTITY_TYPE}"

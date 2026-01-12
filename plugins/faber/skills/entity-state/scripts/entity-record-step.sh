@@ -7,8 +7,9 @@
 
 set -euo pipefail
 
-# Source locking library and index update library
+# Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/entity-validation.sh"
 source "$SCRIPT_DIR/lib/entity-lock.sh"
 source "$SCRIPT_DIR/lib/index-update.sh"
 
@@ -60,18 +61,15 @@ if [ -z "$ENTITY_TYPE" ] || [ -z "$ENTITY_ID" ] || [ -z "$STEP_ID" ] || \
   exit 1
 fi
 
-# Validate execution_status
-case "$EXECUTION_STATUS" in
-  started|in_progress|completed|failed|skipped) ;;
-  *) echo "ERROR: Invalid execution_status: $EXECUTION_STATUS" >&2; exit 1 ;;
-esac
+# Validate formats using validation library
+validate_entity_type "$ENTITY_TYPE" || exit 1
+validate_entity_id "$ENTITY_ID" || exit 1
+validate_execution_status "$EXECUTION_STATUS" || exit 1
+validate_phase "$PHASE" || exit 1
 
 # Validate outcome_status if provided
 if [ -n "$OUTCOME_STATUS" ]; then
-  case "$OUTCOME_STATUS" in
-    success|failure|warning|partial) ;;
-    *) echo "ERROR: Invalid outcome_status: $OUTCOME_STATUS" >&2; exit 1 ;;
-  esac
+  validate_outcome_status "$OUTCOME_STATUS" || exit 1
 fi
 
 # Compute file paths

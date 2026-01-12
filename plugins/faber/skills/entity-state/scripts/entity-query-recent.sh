@@ -4,8 +4,9 @@
 
 set -euo pipefail
 
-# Source index library
+# Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/entity-validation.sh"
 source "$SCRIPT_DIR/lib/index-update.sh"
 
 # Parse arguments
@@ -34,6 +35,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+# Validate filter type if provided
+if [ -n "$FILTER_TYPE" ]; then
+  validate_entity_type "$FILTER_TYPE" || exit 1
+fi
 
 # Query recent updates
 RESULTS=$(query_recent_updates "$SINCE" "$LIMIT")

@@ -4,8 +4,9 @@
 
 set -euo pipefail
 
-# Source locking library and index update library
+# Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/entity-validation.sh"
 source "$SCRIPT_DIR/lib/entity-lock.sh"
 source "$SCRIPT_DIR/lib/index-update.sh"
 
@@ -60,6 +61,15 @@ if [ -z "$ENTITY_TYPE" ] || [ -z "$ENTITY_ID" ]; then
   echo "ERROR: Missing required arguments" >&2
   echo "Usage: entity-update.sh --type <entity_type> --id <entity_id> [--status <status>] [--properties <json>] [--artifacts <json>]" >&2
   exit 1
+fi
+
+# Validate formats using validation library
+validate_entity_type "$ENTITY_TYPE" || exit 1
+validate_entity_id "$ENTITY_ID" || exit 1
+
+# Validate status if provided
+if [ -n "$NEW_STATUS" ]; then
+  validate_status "$NEW_STATUS" || exit 1
 fi
 
 # Compute file path
