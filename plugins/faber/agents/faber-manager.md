@@ -609,6 +609,70 @@ This validation catches the failure mode from Issue #327 where inheritance was i
 
 ---
 
+## Step 1.5: Entity Context Extraction (If Entity Tracking Enabled)
+
+**Check if entity tracking is enabled for this workflow:**
+
+```
+IF resolved_workflow.entity.enabled == true THEN
+  # Extract entity configuration
+  entity_config = resolved_workflow.entity
+  entity_type = entity_config.type
+  entity_id_field = entity_config.id_field ?? "work_id"
+
+  # Extract entity ID from workflow context
+  # Default: use work_id, but config can specify custom field
+  entity_id = context[entity_id_field]
+
+  IF entity_id is empty THEN
+    LOG "⚠️ Entity tracking enabled but {entity_id_field} not provided. Entity state will not be tracked."
+    entity_tracking_active = false
+  ELSE
+    entity_tracking_active = true
+
+    # Get organization from fractary-core:repo plugin (fallback to git remote)
+    organization = get_organization_from_repo_plugin() ?? extract_org_from_git_remote()
+
+    # Get project from git repository name or config
+    project = get_project_name_from_git() ?? extract_project_from_run_id(run_id)
+
+    # Check if entity already exists
+    Bash: plugins/faber/skills/entity-state/scripts/entity-read.sh \
+      --type "{entity_type}" \
+      --id "{entity_id}"
+
+    IF entity does not exist THEN
+      # Create new entity
+      Bash: plugins/faber/skills/entity-state/scripts/entity-create.sh \
+        --type "{entity_type}" \
+        --id "{entity_id}" \
+        --org "{organization}" \
+        --project "{project}"
+
+      LOG "✓ Created entity: {entity_type}/{entity_id}"
+    ELSE
+      LOG "✓ Entity exists: {entity_type}/{entity_id}"
+    END
+
+    # Store entity context for later use
+    entity_context = {
+      type: entity_type,
+      id: entity_id,
+      organization: organization,
+      project: project,
+      config: entity_config
+    }
+  END
+ELSE
+  entity_tracking_active = false
+  LOG "ℹ Entity tracking not enabled for this workflow"
+END
+```
+
+**Note**: Entity tracking is opt-in via workflow configuration. If disabled, workflow execution proceeds normally without entity state updates.
+
+---
+
 ## Step 2: Load State and Emit Workflow Start Event
 
 Use the faber-state skill with run_id:
@@ -1532,6 +1596,37 @@ Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
   --data '{"result_status": "{result.status}"}'
 ```
 
+**Record step execution in entity state (if entity tracking active):**
+```
+IF entity_tracking_active == true THEN
+  # Map result status to execution_status and outcome_status
+  execution_status = result.status  # "completed" or "failed"
+  outcome_status = map_result_to_outcome(result)  # "success", "failure", "warning", "partial"
+
+  # Extract step hierarchy from step definition
+  step_action = current_step.step_action ?? ""
+  step_type = current_step.step_type ?? ""
+
+  Bash: plugins/faber/skills/entity-state/scripts/entity-record-step.sh \
+    --type "{entity_context.type}" \
+    --id "{entity_context.id}" \
+    --step-id "{step_id}" \
+    --step-action "{step_action}" \
+    --step-type "{step_type}" \
+    --execution-status "{execution_status}" \
+    --outcome-status "{outcome_status}" \
+    --phase "{phase}" \
+    --workflow-id "{resolved_workflow.id}" \
+    --run-id "{run_id}" \
+    --work-id "{work_id}" \
+    --session-id "{claude_session_id}" \
+    --duration-ms "{step_duration_ms}" \
+    --retry-count "0"
+
+  LOG "✓ Recorded step execution in entity state: {entity_context.type}/{entity_context.id}"
+END
+```
+
 **🔄 MANDATORY LOOP CONTINUATION:**
 
 After completing a step successfully, you MUST check if there are more steps:
@@ -1625,6 +1720,51 @@ END
 ```
 
 **Why this is mandatory**: Stakeholders monitoring issues need visibility into workflow progress. Silent workflows without comments make it impossible to track automated work. See Critical Rule #11.
+
+**Update entity status on phase completion (if entity tracking active):**
+
+```
+IF entity_tracking_active == true AND entity_config.auto_sync == true THEN
+  # Check if this phase is in sync_on_phases list
+  IF phase IN entity_config.sync_on_phases THEN
+    # Determine overall entity status based on aggregate step statuses
+    # Read current entity state
+    current_entity_state = Bash: plugins/faber/skills/entity-state/scripts/entity-read.sh \
+      --type "{entity_context.type}" \
+      --id "{entity_context.id}"
+
+    # Calculate overall status:
+    # - If any step is in_progress → entity status = "in_progress"
+    # - If all steps completed → entity status = "completed"
+    # - If any critical step failed → entity status = "failed"
+    # - If no steps executed → entity status = "pending"
+
+    new_entity_status = calculate_entity_status(current_entity_state.step_status)
+
+    # Update entity status
+    Bash: plugins/faber/skills/entity-state/scripts/entity-update.sh \
+      --type "{entity_context.type}" \
+      --id "{entity_context.id}" \
+      --status "{new_entity_status}"
+
+    LOG "✓ Updated entity status to {new_entity_status}: {entity_context.type}/{entity_context.id}"
+
+    # Extract and record artifacts if artifact_mapping is configured
+    IF entity_config.artifact_mapping is defined THEN
+      artifacts_json = extract_artifacts_from_state(state, entity_config.artifact_mapping)
+
+      IF artifacts_json is not empty THEN
+        Bash: plugins/faber/skills/entity-state/scripts/entity-update.sh \
+          --type "{entity_context.type}" \
+          --id "{entity_context.id}" \
+          --artifacts "{artifacts_json}"
+
+        LOG "✓ Recorded {artifacts_json.length} artifacts in entity state"
+      END
+    END
+  END
+END
+```
 
 **Autonomy Gate Notification (informational only):**
 
@@ -1823,6 +1963,46 @@ Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
 ```
 Bash: plugins/faber/skills/run-manager/scripts/consolidate-events.sh \
   --run-id "{run_id}"
+```
+
+**Record workflow completion in entity history (if entity tracking active):**
+
+```
+IF entity_tracking_active == true THEN
+  # Get workflow start and end timestamps from state
+  workflow_started_at = state.created_at
+  workflow_completed_at = current_timestamp()
+
+  # Collect all steps executed by this workflow
+  steps_executed = collect_steps_from_phases(state.phases)
+  steps_json = json_array_of_steps(steps_executed)  # Format: [{step_id, step_action, step_type}, ...]
+
+  # Determine workflow outcome
+  workflow_outcome = state.workflow_status  # "completed" or "failed"
+
+  # Record in workflow_summary
+  Bash: plugins/faber/skills/entity-state/scripts/entity-record-workflow.sh \
+    --type "{entity_context.type}" \
+    --id "{entity_context.id}" \
+    --workflow-id "{resolved_workflow.id}" \
+    --run-id "{run_id}" \
+    --work-id "{work_id}" \
+    --started-at "{workflow_started_at}" \
+    --completed-at "{workflow_completed_at}" \
+    --outcome "{workflow_outcome}" \
+    --steps "{steps_json}"
+
+  LOG "✓ Recorded workflow completion in entity history: {entity_context.type}/{entity_context.id}"
+
+  # Final entity status update
+  final_entity_status = calculate_final_entity_status(workflow_outcome)
+  Bash: plugins/faber/skills/entity-state/scripts/entity-update.sh \
+    --type "{entity_context.type}" \
+    --id "{entity_context.id}" \
+    --status "{final_entity_status}"
+
+  LOG "✓ Final entity status: {final_entity_status}"
+END
 ```
 
 **Post workflow completion comment to issue (if work_id provided):**
