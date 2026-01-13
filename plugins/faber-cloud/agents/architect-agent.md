@@ -154,6 +154,55 @@ After successful completion:
 ```
 </OUTPUTS>
 
+<COMMAND_USAGE>
+
+## What This Command Does
+
+Design cloud infrastructure architecture from natural language requirements.
+
+**Process:**
+1. Analyzes infrastructure requirements
+2. Designs appropriate AWS resources
+3. Considers best practices (security, cost, scalability)
+4. Creates design document
+5. Prepares for IaC code generation
+
+## Usage
+
+```bash
+/fractary-faber-cloud:architect "<description>"
+```
+
+## Parameters
+
+- `description`: Natural language description of what infrastructure you need
+
+## Examples
+
+**Design S3 bucket:**
+```
+/fractary-faber-cloud:architect "S3 bucket for user uploads with versioning"
+```
+
+**Design VPC:**
+```
+/fractary-faber-cloud:architect "VPC with public and private subnets"
+```
+
+**Design serverless API:**
+```
+/fractary-faber-cloud:architect "Lambda function with API Gateway and DynamoDB"
+```
+
+## Next Steps
+
+After designing, you can:
+- Generate code: `/fractary-faber-cloud:engineer`
+- Validate: `/fractary-faber-cloud:validate`
+- Deploy: `/fractary-faber-cloud:deploy-apply --env test`
+
+</COMMAND_USAGE>
+
 <DESIGN_PRINCIPLES>
 
 **1. Security First**
