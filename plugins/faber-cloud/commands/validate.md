@@ -1,99 +1,25 @@
 ---
 name: fractary-faber-cloud:validate
-description: Validate Terraform configuration syntax and structure
+description: Validate Terraform configuration syntax and structure - delegates to validate-agent
+allowed-tools: Task(fractary-faber-cloud:validate-agent)
 model: claude-haiku-4-5
-examples:
-  - /fractary-faber-cloud:validate
-  - /fractary-faber-cloud:validate --env test
 argument-hint: "[--env <environment>]"
+tags: [faber-cloud, validation, terraform, syntax-check]
+examples:
+  - trigger: "/fractary-faber-cloud:validate"
+    action: "Validate Terraform configuration in test environment"
+  - trigger: "/fractary-faber-cloud:validate --env prod"
+    action: "Validate Terraform configuration in prod environment"
 ---
 
-# Validate Command
+# fractary-faber-cloud:validate
 
-
-<ARGUMENT_SYNTAX>
-## Command Argument Syntax
-
-This command follows the standard space-separated syntax:
-- **Format**: `--flag value` (NOT `--flag=value`)
-- **Multi-word values**: MUST be enclosed in double quotes
-- **Boolean flags**: No value needed, just include the flag
-
-### Examples
-
-```bash
-# Correct ✅
-/fractary-faber-cloud:validate --env test
-
-# Incorrect ❌
-/fractary-faber-cloud:validate --env=test
-```
-</ARGUMENT_SYNTAX>
-
-Validate Terraform configuration syntax and structure.
-
-## Usage
-
-```bash
-/fractary-faber-cloud:validate [--env <environment>]
-```
-
-## Parameters
-
-- `--env`: Environment to validate (test, prod). Defaults to test.
-
-## What This Does
-
-1. Runs `terraform validate` on configuration
-2. Checks syntax errors
-3. Validates resource references
-4. Checks provider configuration
-5. Reports any issues found
-
-## Examples
-
-**Validate test configuration:**
-```
-/fractary-faber-cloud:validate --env test
-```
-
-**Validate production configuration:**
-```
-/fractary-faber-cloud:validate --env prod
-```
-
-**Validate with default environment:**
-```
-/fractary-faber-cloud:validate
-```
-
-## When to Use
-
-Run validation:
-- After generating IaC code (engineer phase)
-- Before running tests
-- Before deploying
-- After making manual changes to Terraform files
-
-## Next Steps
-
-After validation passes:
-- Test security: `/fractary-faber-cloud:test --env test`
-- Preview changes: `/fractary-faber-cloud:preview --env test`
-- Deploy: `/fractary-faber-cloud:deploy --env test`
-
-## Invocation
-
-This command immediately invokes the dedicated **validate-agent** using the Task tool.
-
-**Execution Pattern:**
+Use **Task** tool with `validate-agent` to validate Terraform configuration with provided arguments.
 
 ```
-Parse Arguments (--env)
-    ↓
-Invoke validate-agent (via Task tool)
-    ↓
-Return agent's output
+Task(
+  subagent_type="fractary-faber-cloud:validate-agent",
+  description="Validate Terraform configuration syntax and structure",
+  prompt="Validate infrastructure configuration: $ARGUMENTS"
+)
 ```
-
-The validate-agent handles Terraform configuration validation and returns validation results.
