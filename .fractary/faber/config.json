@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fractary/claude-plugins/main/plugins/faber/config/config.schema.json",
+  "schema_version": "2.0",
+  "_comment": "IMPORTANT: Workflows are now in separate files. See workflows/ directory for templates.",
+  "workflows": [
+    {
+      "id": "default",
+      "file": "plugins/faber/config/workflows/default.json",
+      "description": "Standard FABER workflow (Frame → Architect → Build → Evaluate → Release)"
+    },
+    {
+      "id": "bug",
+      "file": "plugins/faber/config/workflows/bug.json",
+      "description": "Optimized workflow for bug fixes with emphasis on validation and regression testing"
+    },
+    {
+      "id": "feature",
+      "file": "plugins/faber/config/workflows/feature.json",
+      "description": "Comprehensive workflow for new features with full design and testing"
+    }
+  ],
+  "workflow_inference": {
+    "_comment": "Multi-tier workflow selection: 1) workflow: label prefix, 2) label_mapping, 3) work type classification, 4) default",
+    "enabled": true,
+    "label_mapping": {
+      "bug": "fractary-faber:bug",
+      "defect": "fractary-faber:bug",
+      "regression": "fractary-faber:bug",
+      "hotfix": "fractary-faber:bug",
+      "urgent": "fractary-faber:bug",
+      "feature": "fractary-faber:feature",
+      "enhancement": "fractary-faber:feature",
+      "new-feature": "fractary-faber:feature",
+      "chore": "fractary-faber:default",
+      "maintenance": "fractary-faber:default",
+      "dependencies": "fractary-faber:default"
+    },
+    "fallback_to_classification": true,
+    "work_type_mapping": {
+      "bug": "fractary-faber:bug",
+      "feature": "fractary-faber:feature",
+      "patch": "fractary-faber:bug",
+      "chore": "fractary-faber:default",
+      "infrastructure": "fractary-faber:default",
+      "api": "fractary-faber:feature"
+    }
+  },
+  "integrations": {
+    "work_plugin": "fractary-work",
+    "repo_plugin": "fractary-repo",
+    "spec_plugin": "fractary-spec",
+    "logs_plugin": "fractary-logs"
+  },
+  "logging": {
+    "use_logs_plugin": true,
+    "log_type": "workflow",
+    "log_level": "info",
+    "log_phases": true,
+    "log_sub_steps": true,
+    "log_hooks": true
+  },
+  "safety": {
+    "protected_paths": [
+      "secrets/**",
+      "infra/prod/**",
+      ".env*",
+      "credentials/**"
+    ],
+    "require_confirm_for": [
+      "deploy",
+      "merge_to_main",
+      "tag_release"
+    ]
+  }
+}
