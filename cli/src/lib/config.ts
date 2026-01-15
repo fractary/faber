@@ -1,13 +1,16 @@
 /**
  * Configuration Manager
  *
- * Loads FABER CLI configuration and respects Claude Code settings
+ * Loads FABER CLI configuration from unified .fractary/config.yaml
+ * and respects Claude Code settings
  */
 
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import path from 'path';
 import os from 'os';
-import type { FaberConfig, ClaudeConfig } from '../types/config.js';
+import type { FaberConfig, UnifiedConfig, AnthropicConfig, GitHubConfig } from '../types/config.js';
+import { loadYamlConfig, oldSettingsExists, getOldSettingsPath } from './yaml-config.js';
 
 /**
  * Configuration Manager
@@ -20,44 +23,58 @@ export class ConfigManager {
   }
 
   /**
-   * Load configuration
+   * Load configuration from unified .fractary/config.yaml
+   * Returns a FaberConfig structure with all necessary settings
    */
-  static async load(): Promise<FaberConfig> {
-    const config: FaberConfig = {};
-
-    // Load from environment variables
-    config.anthropic = {
-      api_key: process.env.ANTHROPIC_API_KEY,
-    };
-
-    config.github = {
-      token: process.env.GITHUB_TOKEN,
-    };
-
-    // Load from FABER config file - search upwards from current directory
-    try {
-      const faberConfigPath = await ConfigManager.findConfigFile('.fractary', 'settings.json');
-      if (faberConfigPath) {
-        const faberConfigContent = await fs.readFile(faberConfigPath, 'utf-8');
-        const faberConfig = JSON.parse(faberConfigContent);
-
-        // Merge with config
-        if (faberConfig.anthropic) {
-          config.anthropic = { ...config.anthropic, ...faberConfig.anthropic };
-        }
-        if (faberConfig.github) {
-          config.github = { ...config.github, ...faberConfig.github };
-        }
-        if (faberConfig.worktree) {
-          config.worktree = { ...config.worktree, ...faberConfig.worktree };
-        }
-        if (faberConfig.workflow) {
-          config.workflow = { ...config.workflow, ...faberConfig.workflow };
-        }
-      }
-    } catch (error) {
-      // FABER config not found, use defaults
+  static async load(): Promise<FaberConfig & { anthropic?: AnthropicConfig; github?: GitHubConfig }> {
+    // Check if old settings.json exists and show error
+    if (oldSettingsExists()) {
+      const oldPath = getOldSettingsPath();
+      throw new Error(
+        `Found old configuration at ${oldPath}\n\n` +
+        `This version requires .fractary/config.yaml format.\n` +
+        `Run: fractary-faber migrate\n\n` +
+        `This will convert your settings to the new unified config format.`
+      );
     }
+
+    // Load unified config from YAML
+    const unifiedConfig = loadYamlConfig({ warnMissingEnvVars: true });
+
+    if (!unifiedConfig) {
+      throw new Error(
+        'No .fractary/config.yaml found.\n' +
+        'Run `fractary-core:init` first to initialize shared configuration.'
+      );
+    }
+
+    // Extract anthropic config (from top level)
+    let anthropic: AnthropicConfig = {
+      api_key: process.env.ANTHROPIC_API_KEY || unifiedConfig.anthropic?.api_key,
+      model: unifiedConfig.anthropic?.model,
+      max_tokens: unifiedConfig.anthropic?.max_tokens,
+    };
+
+    // Extract github config (from top level)
+    let github: GitHubConfig = {
+      token: process.env.GITHUB_TOKEN || unifiedConfig.github?.token,
+      organization: unifiedConfig.github?.organization,
+      project: unifiedConfig.github?.project,
+      repo: unifiedConfig.github?.repo,
+      app: unifiedConfig.github?.app,
+    };
+
+    // Extract FABER-specific config
+    const faberConfig = unifiedConfig.faber || {};
+
+    // Build the result config (keeping anthropic and github for backward compatibility)
+    const config: FaberConfig & { anthropic?: AnthropicConfig; github?: GitHubConfig } = {
+      anthropic,
+      github,
+      worktree: faberConfig.worktree,
+      workflow: faberConfig.workflow,
+      backlog_management: faberConfig.backlog_management,
+    };
 
     // Read Claude Code configuration for worktree location
     if (!config.worktree?.location || config.worktree?.inherit_from_claude !== false) {

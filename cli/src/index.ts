@@ -15,6 +15,7 @@ import { createRepoCommand } from './commands/repo/index.js';
 import { createSpecCommand } from './commands/spec/index.js';
 import { createLogsCommand } from './commands/logs/index.js';
 import { createInitCommand } from './commands/init.js';
+import { createMigrateCommand } from './commands/migrate.js';
 import { createPlanCommand } from './commands/plan/index.js';
 import { createAuthCommand } from './commands/auth/index.js';
 
@@ -43,6 +44,7 @@ export function createFaberCLI(): Command {
 
   // Workflow commands (top-level)
   program.addCommand(createInitCommand());        // init
+  program.addCommand(createMigrateCommand());     // migrate
   program.addCommand(createPlanCommand());         // plan
   program.addCommand(createRunCommand());          // workflow-run
   program.addCommand(createStatusCommand());       // workflow-status

@@ -14,7 +14,7 @@ import {
   isGitHubAppConfigured,
 } from './sdk-config-adapter.js';
 import { sdkIssueToCLIIssue, sdkWorktreeToCLIWorktreeResult } from './sdk-type-adapter.js';
-import type { FaberConfig } from '../types/config.js';
+import type { LoadedFaberConfig } from '../types/config.js';
 import os from 'os';
 
 interface Issue {
@@ -51,7 +51,7 @@ interface IssueUpdateOptions {
  * from the @fractary/core SDK. Supports both PAT and GitHub App authentication.
  */
 export class RepoClient {
-  private config: FaberConfig;
+  private config: LoadedFaberConfig;
   private workManager!: WorkManager;
   private repoManager!: RepoManager;
   private organization: string;
@@ -66,7 +66,7 @@ export class RepoClient {
    * @param config - FABER CLI configuration
    * @returns Promise resolving to RepoClient instance
    */
-  static async create(config: FaberConfig): Promise<RepoClient> {
+  static async create(config: LoadedFaberConfig): Promise<RepoClient> {
     // Use async config methods for GitHub App support
     const workConfig = await createWorkConfigAsync(config);
     const repoConfig = await createRepoConfigAsync(config);
@@ -92,7 +92,7 @@ export class RepoClient {
    * @param workManager - Optional pre-initialized WorkManager (for async factory)
    * @param repoManager - Optional pre-initialized RepoManager (for async factory)
    */
-  constructor(config: FaberConfig, workManager?: WorkManager, repoManager?: RepoManager) {
+  constructor(config: LoadedFaberConfig, workManager?: WorkManager, repoManager?: RepoManager) {
     this.config = config;
     this.organization = config.github?.organization || 'unknown';
     this.project = config.github?.project || 'unknown';

@@ -17,7 +17,7 @@ import {
   validateSafePath,
   validatePlanId,
 } from '../../utils/validation.js';
-import type { FaberConfig } from '../../types/config.js';
+import type { LoadedFaberConfig } from '../../types/config.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -300,7 +300,7 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
 /**
  * Load available workflow configurations
  */
-async function loadAvailableWorkflows(config: FaberConfig): Promise<string[]> {
+async function loadAvailableWorkflows(config: LoadedFaberConfig): Promise<string[]> {
   const workflowDir = config.workflow?.config_path || './plugins/faber/config/workflows';
   try {
     const files = await fs.readdir(workflowDir);
@@ -381,7 +381,7 @@ async function assignWorkflows(
  */
 async function showConfirmationPrompt(
   issues: Issue[],
-  config: FaberConfig,
+  config: LoadedFaberConfig,
   outputFormat: string
 ): Promise<boolean> {
   if (outputFormat !== 'text') {
@@ -411,7 +411,7 @@ async function showConfirmationPrompt(
  */
 async function planSingleIssue(
   issue: Issue,
-  config: FaberConfig,
+  config: LoadedFaberConfig,
   repoClient: RepoClient,
   anthropicClient: AnthropicClient,
   options: PlanOptions,
@@ -615,7 +615,7 @@ function generatePlanComment(plan: any, workflow: string, worktreePath: string, 
 /**
  * Get repository info from config
  */
-function getRepoInfoFromConfig(config: FaberConfig): { organization: string; project: string } {
+function getRepoInfoFromConfig(config: LoadedFaberConfig): { organization: string; project: string } {
   return {
     organization: config.github?.organization || 'unknown',
     project: config.github?.project || 'unknown',

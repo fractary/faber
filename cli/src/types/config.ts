@@ -2,10 +2,16 @@
  * FABER CLI Configuration Types
  *
  * Type definitions for configuration objects
+ * Version 2.0: Unified configuration with shared authentication
  */
 
+/**
+ * Anthropic API configuration (shared across all tools)
+ */
 export interface AnthropicConfig {
   api_key?: string;
+  model?: string;
+  max_tokens?: number;
 }
 
 /**
@@ -20,6 +26,9 @@ export interface GitHubAppConfig {
   created_at?: string;           // ISO 8601 timestamp of creation
 }
 
+/**
+ * GitHub authentication configuration (shared across all tools)
+ */
 export interface GitHubConfig {
   token?: string;                // PAT (legacy, still supported)
   organization?: string;
@@ -46,7 +55,48 @@ export interface BacklogManagementConfig {
   };
 }
 
+/**
+ * FABER-specific configuration (v2.0: only FABER-specific settings)
+ * Note: anthropic and github are now at the top level of UnifiedConfig
+ */
 export interface FaberConfig {
+  worktree?: WorktreeConfig;
+  workflow?: WorkflowConfig;
+  backlog_management?: BacklogManagementConfig;
+}
+
+/**
+ * Loaded FABER configuration including shared authentication
+ * This is what ConfigManager.load() returns - combines FABER-specific
+ * settings with shared anthropic/github configuration
+ */
+export type LoadedFaberConfig = FaberConfig & {
+  anthropic?: AnthropicConfig;
+  github?: GitHubConfig;
+};
+
+/**
+ * Unified configuration structure (v2.0)
+ * Single source of truth shared across FABER and fractary-core plugins
+ */
+export interface UnifiedConfig {
+  version: string;                    // "2.0"
+  anthropic?: AnthropicConfig;        // Shared API key
+  github?: GitHubConfig;              // Shared GitHub auth
+  faber?: FaberConfig;                // FABER-specific settings
+  work?: any;                         // Pass-through for work plugin
+  repo?: any;                         // Pass-through for repo plugin
+  logs?: any;                         // Pass-through for logs plugin
+  file?: any;                         // Pass-through for file plugin
+  spec?: any;                         // Pass-through for spec plugin
+  docs?: any;                         // Pass-through for docs plugin
+}
+
+/**
+ * Legacy configuration structure (v1.x - deprecated)
+ * Kept for backward compatibility during migration
+ */
+export interface LegacyFaberConfig {
   anthropic?: AnthropicConfig;
   github?: GitHubConfig;
   worktree?: WorktreeConfig;

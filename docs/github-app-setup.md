@@ -160,26 +160,26 @@ chmod 600 ~/.github/faber-app.pem  # Restrict permissions (Unix/Linux/macOS)
 
 ### 3.2 Configure FABER Settings
 
-Create or update `.fractary/settings.json` in your project:
+Create or update `.fractary/config.yaml` in your project:
 
-```json
-{
-  "github": {
-    "organization": "your-org-name",
-    "project": "your-repo-name",
-    "app": {
-      "id": "123456",
-      "installation_id": "12345678",
-      "private_key_path": "~/.github/faber-app.pem"
-    }
-  }
-}
+```yaml
+version: "2.0"
+
+github:
+  organization: your-org-name
+  project: your-repo-name
+  app:
+    id: "123456"
+    installation_id: "12345678"
+    private_key_path: ~/.github/faber-app.pem
 ```
 
 **Required Fields:**
 - `id`: Your GitHub App ID (from Step 1.4)
 - `installation_id`: Installation ID (from Step 2.1)
 - `private_key_path`: Path to the `.pem` file (supports `~` for home directory)
+
+**Note:** If you have an existing `.fractary/settings.json`, run `fractary-faber migrate` to convert to the new format.
 
 ### 3.3 Verify Configuration
 
@@ -196,34 +196,30 @@ If successful, you'll see issue details. If there's an error, see [Troubleshooti
 
 ### File-Based Private Key (Recommended for Local Development)
 
-```json
-{
-  "github": {
-    "organization": "acme-corp",
-    "project": "api-service",
-    "app": {
-      "id": "123456",
-      "installation_id": "12345678",
-      "private_key_path": "~/.github/faber-app.pem"
-    }
-  }
-}
+```yaml
+version: "2.0"
+
+github:
+  organization: acme-corp
+  project: api-service
+  app:
+    id: "123456"
+    installation_id: "12345678"
+    private_key_path: ~/.github/faber-app.pem
 ```
 
 ### Environment Variable Private Key (Recommended for CI/CD)
 
-```json
-{
-  "github": {
-    "organization": "acme-corp",
-    "project": "api-service",
-    "app": {
-      "id": "123456",
-      "installation_id": "12345678",
-      "private_key_env_var": "GITHUB_APP_PRIVATE_KEY"
-    }
-  }
-}
+```yaml
+version: "2.0"
+
+github:
+  organization: acme-corp
+  project: api-service
+  app:
+    id: "123456"
+    installation_id: "12345678"
+    private_key_env_var: GITHUB_APP_PRIVATE_KEY
 ```
 
 Set the environment variable with base64-encoded key:
@@ -244,22 +240,44 @@ $key = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes("C:\path\to\key.
 
 ### Both Methods (Environment Variable Takes Precedence)
 
-```json
-{
-  "github": {
-    "organization": "acme-corp",
-    "project": "api-service",
-    "app": {
-      "id": "123456",
-      "installation_id": "12345678",
-      "private_key_path": "~/.github/faber-app.pem",
-      "private_key_env_var": "GITHUB_APP_PRIVATE_KEY"
-    }
-  }
-}
+```yaml
+version: "2.0"
+
+github:
+  organization: acme-corp
+  project: api-service
+  app:
+    id: "123456"
+    installation_id: "12345678"
+    private_key_path: ~/.github/faber-app.pem
+    private_key_env_var: GITHUB_APP_PRIVATE_KEY
 ```
 
 If both are configured, the environment variable is used first, falling back to the file path if the env var is not set.
+
+### Using Environment Variable Substitution
+
+The config file supports `${VAR}` and `${VAR:-default}` syntax for environment variables:
+
+```yaml
+version: "2.0"
+
+anthropic:
+  api_key: ${ANTHROPIC_API_KEY}
+
+github:
+  organization: ${GITHUB_ORG:-acme-corp}
+  project: ${GITHUB_PROJECT:-api-service}
+  app:
+    id: ${GITHUB_APP_ID}
+    installation_id: ${GITHUB_APP_INSTALLATION_ID}
+    private_key_path: ${GITHUB_APP_KEY_PATH:-~/.github/faber-app.pem}
+```
+
+This allows you to:
+- Keep sensitive values out of config files
+- Use the same config across environments
+- Override values via CI/CD secrets
 
 ## CI/CD Integration
 
@@ -423,7 +441,7 @@ Complete the GitHub App creation and configuration as described in this guide.
 
 ### Step 2: Update Configuration
 
-**Before (PAT):**
+**Before (PAT with old settings.json):**
 ```json
 {
   "github": {
@@ -434,35 +452,31 @@ Complete the GitHub App creation and configuration as described in this guide.
 }
 ```
 
-**After (GitHub App):**
-```json
-{
-  "github": {
-    "organization": "acme-corp",
-    "project": "api-service",
-    "app": {
-      "id": "123456",
-      "installation_id": "12345678",
-      "private_key_path": "~/.github/faber-app.pem"
-    }
-  }
-}
+**After (GitHub App with config.yaml):**
+```yaml
+version: "2.0"
+
+github:
+  organization: acme-corp
+  project: api-service
+  app:
+    id: "123456"
+    installation_id: "12345678"
+    private_key_path: ~/.github/faber-app.pem
 ```
 
 **During Transition (Both Methods):**
-```json
-{
-  "github": {
-    "token": "ghp_xxxxxxxxxxxx",
-    "organization": "acme-corp",
-    "project": "api-service",
-    "app": {
-      "id": "123456",
-      "installation_id": "12345678",
-      "private_key_path": "~/.github/faber-app.pem"
-    }
-  }
-}
+```yaml
+version: "2.0"
+
+github:
+  token: ${GITHUB_TOKEN}  # Use env var, not hardcoded token
+  organization: acme-corp
+  project: api-service
+  app:
+    id: "123456"
+    installation_id: "12345678"
+    private_key_path: ~/.github/faber-app.pem
 ```
 
 **Note:** When both PAT and GitHub App are configured, GitHub App takes precedence.
@@ -480,18 +494,16 @@ fractary-faber work issue fetch 1
 
 Once confirmed working, remove the `token` field from configuration:
 
-```json
-{
-  "github": {
-    "organization": "acme-corp",
-    "project": "api-service",
-    "app": {
-      "id": "123456",
-      "installation_id": "12345678",
-      "private_key_path": "~/.github/faber-app.pem"
-    }
-  }
-}
+```yaml
+version: "2.0"
+
+github:
+  organization: acme-corp
+  project: api-service
+  app:
+    id: "123456"
+    installation_id: "12345678"
+    private_key_path: ~/.github/faber-app.pem
 ```
 
 ### Step 5: Update CI/CD Secrets
@@ -511,8 +523,10 @@ Replace PAT secrets with GitHub App private key in your CI/CD platform.
    ```bash
    # Add to .gitignore
    echo "*.pem" >> .gitignore
-   echo ".fractary/settings.json" >> .gitignore
+   echo ".fractary/config.yaml" >> .gitignore
    ```
+
+   **Note:** While `config.yaml` can use environment variable references (making it safe to commit), it's recommended to keep it in `.gitignore` as a safety measure.
 
 3. **Use separate apps for different environments:**
    - Development: `FABER CLI - Dev`
