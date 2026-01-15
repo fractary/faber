@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:workflow-audit
+name: fractary-faber:workflow-auditor
 description: Validates FABER workflow configuration and reports issues with completeness scoring
 model: claude-sonnet-4-5
 tools: Read, Write, Glob, Bash
@@ -22,45 +22,243 @@ Reports issues with severity levels (ERROR, WARNING, INFO) and calculates a conf
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `workflow-target` | string | No | **First positional argument**. Workflow to audit: workflow ID, file path (*.json), or namespaced (plugin:id). If omitted, shows usage and lists available workflows. |
 | `verbose` | boolean | No | Show detailed validation output. Default: false |
 | `fix` | boolean | No | Auto-fix simple issues. Default: false |
 | `check` | string | No | Check specific aspect: `phases`, `hooks`, `integrations`, or `all` (default) |
 | `config-path` | string | No | Path to config file. Default: `.fractary/faber/config.json` |
 
+**Examples**:
+- No argument: `/fractary-faber:workflow-audit` → Shows usage and lists workflows
+- Workflow ID: `/fractary-faber:workflow-audit default` → Validates "default" workflow from project config
+- Workflow file: `/fractary-faber:workflow-audit ./custom.json` → Validates standalone workflow file
+- Namespaced: `/fractary-faber:workflow-audit fractary-faber:feature` → Validates plugin workflow
+
 ## Algorithm
 
-### Step 1: Locate Configuration File
+### Step 0: Parse Arguments and Determine Audit Mode
 
-**Goal**: Find and verify the configuration file exists
+**Goal**: Parse input arguments and determine what to audit (full config, specific workflow, or show usage)
 
 **Logic**:
 ```
-# Default path priority
-config_paths = [
-  ".fractary/faber/config.json",           # New location (preferred)
-  ".fractary/plugins/faber/config.json"    # Old location (deprecated)
-]
+# Parse arguments from $ARGUMENTS
+args_string = "$ARGUMENTS"
+workflow_target = extract_first_positional_argument(args_string)
+flags = parse_flags(args_string)  # --verbose, --fix, --check, --config-path
 
-# If --config-path parameter provided, use only that path
-if config_path_parameter:
-  config_paths = [config_path_parameter]
+verbose = flags["verbose"] or false
+fix = flags["fix"] or false
+check_aspect = flags["check"] or "all"
+config_path_override = flags["config-path"] or null
 
-# Find first existing config file
-config_file = null
-for path in config_paths:
-  if exists(path):
-    config_file = path
-    break
+# Determine audit mode based on workflow_target format
+if workflow_target is null or workflow_target == "":
+  audit_mode = "no_target"
+  target_description = "Show usage and list available workflows"
+else if workflow_target ends_with ".json":
+  audit_mode = "workflow_file"
+  workflow_file_path = resolve_path(workflow_target)
+  target_description = "Workflow file: {workflow_file_path}"
+else if workflow_target contains ":":
+  audit_mode = "namespaced_workflow"
+  parts = split(workflow_target, ":")
+  namespace = parts[0]
+  workflow_id = parts[1]
+  target_description = "Namespaced workflow: {workflow_target}"
+else:
+  audit_mode = "workflow_id"
+  workflow_id = workflow_target
+  target_description = "Workflow '{workflow_id}' from project config"
 
-if config_file is null:
-  ERROR "Configuration file not found"
-  PRINT "Expected locations:"
-  for path in config_paths:
-    PRINT "  - {path}"
-  EXIT 3
+# Display audit header
+PRINT "🔍 FABER Workflow Audit"
+PRINT "Target: {target_description}"
+PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+PRINT ""
+
+if verbose:
+  PRINT "Mode: {audit_mode}"
+  PRINT "Check aspect: {check_aspect}"
+  PRINT "Auto-fix: {fix}"
+  PRINT ""
 ```
 
-**Output**: Path to configuration file
+**Output**:
+- `audit_mode`: One of `no_target`, `workflow_file`, `namespaced_workflow`, `workflow_id`, `config`
+- `workflow_target`, `workflow_id`, `workflow_file_path`, `namespace` (depending on mode)
+- `verbose`, `fix`, `check_aspect`, `config_path_override` flags
+
+### Step 1: Load Target Configuration/Workflow
+
+**Goal**: Load the target for auditing based on the mode determined in Step 0
+
+**Logic**:
+```
+# Handle based on audit_mode from Step 0
+
+# MODE: no_target - Show usage and list workflows
+if audit_mode == "no_target":
+  # Load default config to list workflows
+  default_config_paths = [
+    ".fractary/faber/config.json",
+    ".fractary/plugins/faber/config.json"
+  ]
+
+  config_file = find_first_existing(default_config_paths)
+
+  if config_file:
+    config = parse_json(read(config_file))
+
+    PRINT "Usage: /fractary-faber:workflow-audit [<workflow>] [OPTIONS]"
+    PRINT ""
+    PRINT "Workflow identifier:"
+    PRINT "  workflow-id          Validate workflow from project config"
+    PRINT "  path/to/file.json    Validate standalone workflow file"
+    PRINT "  plugin:workflow-id   Validate namespaced workflow"
+    PRINT ""
+    PRINT "Options:"
+    PRINT "  --verbose            Show detailed validation output"
+    PRINT "  --fix                Auto-fix simple issues"
+    PRINT "  --check <aspect>     Check specific aspect: phases, hooks, integrations, all"
+    PRINT "  --config-path <path> Override default config path"
+    PRINT ""
+
+    if config.workflows and len(config.workflows) > 0:
+      PRINT "Available workflows in {config_file}:"
+      for workflow in config.workflows:
+        desc = workflow.description or "No description"
+        PRINT "  • {workflow.id} - {desc}"
+    else:
+      PRINT "No workflows found in {config_file}"
+  else:
+    PRINT "Usage: /fractary-faber:workflow-audit [<workflow>] [OPTIONS]"
+    PRINT ""
+    PRINT "No configuration file found at default locations."
+    PRINT "Use --config-path to specify config location."
+
+  EXIT 0
+
+# MODE: workflow_file - Validate standalone JSON file
+else if audit_mode == "workflow_file":
+  if not exists(workflow_file_path):
+    ERROR "Workflow file not found: {workflow_file_path}"
+    EXIT 3
+
+  workflow_content = read(workflow_file_path)
+  workflow = parse_json(workflow_content)
+
+  # Validate it's a workflow (has required fields)
+  if not workflow.id or not workflow.phases:
+    ERROR "File is not a valid workflow (missing required fields: id, phases)"
+    EXIT 4
+
+  workflows = [workflow]
+  config_file = workflow_file_path
+
+# MODE: namespaced_workflow - Load from plugin
+else if audit_mode == "namespaced_workflow":
+  # Resolve namespace to plugin path
+  plugin_root = getenv("CLAUDE_PLUGIN_ROOT") or "~/.claude/plugins/marketplaces/fractary/"
+
+  # Map namespace to workflow directory
+  if namespace == "fractary-faber":
+    workflow_dir = "{plugin_root}/plugins/faber/config/workflows/"
+  else if namespace == "fractary-faber-cloud":
+    workflow_dir = "{plugin_root}/plugins/faber-cloud/config/workflows/"
+  else if namespace == "project":
+    workflow_dir = ".fractary/faber/workflows/"
+  else:
+    # Try generic pattern: namespace → plugins/{namespace}/config/workflows/
+    plugin_name = replace(namespace, "fractary-", "")
+    workflow_dir = "{plugin_root}/plugins/{plugin_name}/config/workflows/"
+
+  workflow_file_path = "{workflow_dir}/{workflow_id}.json"
+
+  if not exists(workflow_file_path):
+    ERROR "Namespaced workflow not found: {workflow_file_path}"
+    PRINT "Namespace: {namespace}"
+    PRINT "Workflow ID: {workflow_id}"
+    PRINT "Searched in: {workflow_dir}"
+    EXIT 3
+
+  workflow = parse_json(read(workflow_file_path))
+  workflows = [workflow]
+  config_file = workflow_file_path
+
+# MODE: workflow_id - Load from project config
+else if audit_mode == "workflow_id":
+  # Determine config paths
+  if config_path_override:
+    config_paths = [config_path_override]
+  else:
+    config_paths = [
+      ".fractary/faber/config.json",
+      ".fractary/plugins/faber/config.json"
+    ]
+
+  config_file = find_first_existing(config_paths)
+
+  if config_file is null:
+    ERROR "Configuration file not found"
+    PRINT "Expected locations:"
+    for path in config_paths:
+      PRINT "  - {path}"
+    EXIT 3
+
+  config = parse_json(read(config_file))
+
+  # Find workflow by ID
+  workflow = null
+  for w in config.workflows:
+    if w.id == workflow_id:
+      workflow = w
+      break
+
+  if workflow is null:
+    ERROR "Workflow '{workflow_id}' not found in config"
+    PRINT ""
+    PRINT "Available workflows:"
+    for w in config.workflows:
+      PRINT "  - {w.id}: {w.description}"
+    EXIT 3
+
+  # If workflow.file specified, load from file
+  if workflow.file:
+    workflow_file_path = resolve_path(workflow.file)
+    if exists(workflow_file_path):
+      workflow = parse_json(read(workflow_file_path))
+
+  workflows = [workflow]
+
+# MODE: config (legacy, explicit --config-path without workflow)
+else:
+  # Original behavior: validate entire config
+  if config_path_override:
+    config_paths = [config_path_override]
+  else:
+    config_paths = [
+      ".fractary/faber/config.json",
+      ".fractary/plugins/faber/config.json"
+    ]
+
+  config_file = find_first_existing(config_paths)
+
+  if config_file is null:
+    ERROR "Configuration file not found"
+    PRINT "Expected locations:"
+    for path in config_paths:
+      PRINT "  - {path}"
+    EXIT 3
+
+  config = parse_json(read(config_file))
+  workflows = config.workflows
+```
+
+**Output**:
+- `workflows`: Array of workflow objects to validate
+- `config_file`: Path to config or workflow file (for reporting)
+- `config`: Full config object (if loaded from project config)
 
 ### Step 2: Parse and Validate JSON
 
@@ -332,6 +530,204 @@ else:
       add_warning("[{workflow.id}] Missing require_approval_for array")
 ```
 
+### Step 6.5: Validate Referenced Agents and Skills
+
+**Goal**: Verify that agents/skills referenced in workflow steps exist and return proper FABER Response Format
+
+**Logic**:
+```
+# Skip if not checking relevant aspects
+if check_aspect not in ["all", "steps", "integrations"]:
+  skip this step
+
+# Initialize results tracking
+agent_skill_validation = {
+  compliant: [],
+  unknown: [],
+  not_found: []
+}
+
+# Step A: Build Agent/Skill Registry
+PRINT "🔍 Discovering agents and skills..."
+
+agent_registry = {}
+
+# Discover plugin agents
+plugin_root = getenv("CLAUDE_PLUGIN_ROOT") or "~/.claude/plugins/marketplaces/fractary/"
+
+agent_files = glob("{plugin_root}/plugins/*/agents/*.md")
+for agent_file in agent_files:
+  content = read(agent_file)
+  # Extract name from frontmatter (YAML between --- markers)
+  agent_name = extract_yaml_field(content, "name")
+  if agent_name:
+    plugin_name = extract_plugin_from_path(agent_file)  # e.g., "faber" from "plugins/faber/agents/"
+
+    agent_registry[agent_name] = {
+      path: agent_file,
+      type: "agent",
+      plugin: plugin_name
+    }
+
+# Discover plugin skills
+skill_files = glob("{plugin_root}/plugins/*/skills/*/SKILL.md")
+for skill_file in skill_files:
+  content = read(skill_file)
+  skill_name = extract_yaml_field(content, "name")
+  if skill_name:
+    plugin_name = extract_plugin_from_path(skill_file)
+
+    agent_registry[skill_name] = {
+      path: skill_file,
+      type: "skill",
+      plugin: plugin_name
+    }
+
+# Discover user agents
+user_agent_patterns = ["~/.claude/agents/*.md", ".claude/agents/*.md"]
+for pattern in user_agent_patterns:
+  agent_files = glob(pattern)
+  for agent_file in agent_files:
+    content = read(agent_file)
+    agent_name = extract_yaml_field(content, "name")
+    if agent_name:
+      agent_registry[agent_name] = {
+        path: agent_file,
+        type: "agent",
+        plugin: "user"
+      }
+
+PRINT "Found {len(agent_registry)} agents/skills in registry"
+if verbose:
+  PRINT "Registry entries:"
+  for name in agent_registry.keys():
+    entry = agent_registry[name]
+    PRINT "  - {name} ({entry.type}, {entry.plugin})"
+
+# Step B: Extract References from Workflow Steps
+PRINT "Extracting agent/skill references from workflow steps..."
+
+referenced = set()
+
+for workflow in workflows:
+  for phase_name in ["frame", "architect", "build", "evaluate", "release"]:
+    if workflow.phases is null or workflow.phases[phase_name] is null:
+      continue
+
+    phase = workflow.phases[phase_name]
+
+    # Collect all steps
+    all_steps = []
+    if phase.pre_steps:
+      all_steps.extend(phase.pre_steps)
+    if phase.steps:
+      all_steps.extend(phase.steps)
+    if phase.post_steps:
+      all_steps.extend(phase.post_steps)
+
+    for step in all_steps:
+      if step.prompt is null:
+        continue
+
+      prompt = step.prompt
+
+      # Extract skill references: Skill(skill="name") or /plugin:skill
+      skill_matches = regex_findall('Skill\\(skill="([^"]+)"\\)', prompt)
+      for match in skill_matches:
+        referenced.add(match)
+
+      slash_matches = regex_findall('/([a-z0-9-]+:[a-z0-9-]+)', prompt)
+      for match in slash_matches:
+        referenced.add(match)
+
+      # Extract agent references: Task(subagent_type="name")
+      agent_matches = regex_findall('Task\\(subagent_type="([^"]+)"\\)', prompt)
+      for match in agent_matches:
+        referenced.add(match)
+
+PRINT "Found {len(referenced)} unique agent/skill references"
+if verbose:
+  PRINT "References:"
+  for ref in referenced:
+    PRINT "  - {ref}"
+
+# Step C: Validate Each Reference
+PRINT "Validating agent/skill response format compliance..."
+
+for ref in referenced:
+  entry = agent_registry.get(ref)
+
+  if entry is null:
+    # Not found in registry
+    agent_skill_validation.not_found.append({
+      name: ref,
+      type: "unknown"
+    })
+    add_warning("[Agent/Skill] Referenced agent/skill not found: {ref}")
+    continue
+
+  # Check documentation for FABER Response Format compliance
+  doc_content = read(entry.path)
+
+  # Look for explicit indicators of FABER Response Format
+  explicit_indicators = [
+    "FABER Response Format",
+    "FABER response format",
+    "skill-response.schema.json",
+    "RESPONSE-FORMAT.md",
+    "standard FABER response"
+  ]
+
+  is_compliant = false
+  for indicator in explicit_indicators:
+    if indicator in doc_content:
+      is_compliant = true
+      break
+
+  if is_compliant:
+    agent_skill_validation.compliant.append({
+      name: ref,
+      type: entry.type,
+      plugin: entry.plugin
+    })
+    add_passed("[Agent/Skill] {ref} documents FABER Response Format")
+  else:
+    # Check for implicit indicators (structured output with required fields)
+    has_outputs = "<OUTPUTS>" in doc_content or "## Output" in doc_content or "## Returns" in doc_content
+    has_status = '"status":' in doc_content or "'status':" in doc_content or "status field" in doc_content
+    has_message = '"message":' in doc_content or "'message':" in doc_content or "message field" in doc_content
+    has_details = '"details":' in doc_content or "details object" in doc_content
+    has_errors = '"errors":' in doc_content or "errors array" in doc_content
+    has_warnings = '"warnings":' in doc_content or "warnings array" in doc_content
+
+    # If has structured output with required fields, consider compliant
+    if has_outputs and has_status and has_message and (has_details or has_errors or has_warnings):
+      is_compliant = true
+      agent_skill_validation.compliant.append({
+        name: ref,
+        type: entry.type,
+        plugin: entry.plugin
+      })
+      add_passed("[Agent/Skill] {ref} has structured output matching FABER format")
+    else:
+      agent_skill_validation.unknown.append({
+        name: ref,
+        type: entry.type,
+        plugin: entry.plugin,
+        has_structured_output: has_outputs and has_status and has_message
+      })
+
+      add_info("[Agent/Skill] {ref} response format compliance unknown")
+      add_suggestion("Document FABER Response Format compliance for {ref}")
+      add_suggestion("Reference: plugins/faber/docs/RESPONSE-FORMAT.md")
+
+# Store for report generation in Step 10
+# (agent_skill_validation variable will be available in Step 10)
+```
+
+**Output**:
+- `agent_skill_validation`: Object with arrays of compliant, unknown, and not_found agents/skills
+
 ### Step 7: Validate Global Configuration
 
 **Goal**: Validate settings that apply to all workflows
@@ -495,6 +891,27 @@ Workflow(s): {workflow_count}
   → {suggestion_1}
   → {suggestion_2}
   ...
+
+📋 Agent/Skill Validation (if performed)
+Total references: {total_refs}
+
+✅ COMPLIANT ({compliant_count})
+  ✓ {agent_1} - Documents FABER Response Format
+  ✓ {agent_2} - Documents FABER Response Format
+  ...
+
+⚠️  UNKNOWN ({unknown_count})
+  ? {agent_3} - Response format not documented or unclear
+  ...
+
+❌ NOT FOUND ({not_found_count})
+  ✗ {agent_4} - Agent/skill not found in plugins or user directories
+  ...
+
+💡 Agent/Skill Suggestions:
+  → Install missing plugins or verify agent/skill names
+  → Add response format documentation to unknown agents/skills
+  → Reference: plugins/faber/docs/RESPONSE-FORMAT.md
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {status_message}
