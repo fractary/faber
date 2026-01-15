@@ -109,3 +109,15 @@ export interface ClaudeConfig {
     directory?: string;
   };
 }
+
+/**
+ * Options for loading YAML configuration
+ */
+export interface ConfigLoadOptions {
+  /** Project root directory (auto-detected if not provided) */
+  projectRoot?: string;
+  /** Warn about missing environment variables (default: true) */
+  warnMissingEnvVars?: boolean;
+  /** Throw error if config file doesn't exist (default: false) */
+  throwIfMissing?: boolean;
+}

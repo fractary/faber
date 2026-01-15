@@ -8,102 +8,114 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
+import Ajv from 'ajv';
+
+// Re-export types from canonical source for backward compatibility
+export type {
+  AnthropicConfig,
+  GitHubAppConfig,
+  GitHubConfig,
+  WorktreeConfig,
+  WorkflowConfig,
+  BacklogManagementConfig,
+  FaberConfig,
+  UnifiedConfig,
+  ConfigLoadOptions,
+} from '../types/config.js';
+
+import type { UnifiedConfig, ConfigLoadOptions } from '../types/config.js';
 
 /**
- * Anthropic API configuration (shared)
+ * JSON Schema for validating UnifiedConfig structure
+ * Validates basic structure while allowing flexibility for plugin-specific sections
  */
-export interface AnthropicConfig {
-  api_key?: string;
-  model?: string;
-  max_tokens?: number;
-}
+const unifiedConfigSchema = {
+  type: 'object',
+  properties: {
+    version: { type: 'string' },
+    anthropic: {
+      type: 'object',
+      properties: {
+        api_key: { type: 'string' },
+        model: { type: 'string' },
+        max_tokens: { type: 'integer', minimum: 1 },
+      },
+      additionalProperties: false,
+    },
+    github: {
+      type: 'object',
+      properties: {
+        token: { type: 'string' },
+        organization: { type: 'string' },
+        project: { type: 'string' },
+        repo: { type: 'string' },
+        app: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            installation_id: { type: 'string' },
+            private_key_path: { type: 'string' },
+            private_key_env_var: { type: 'string' },
+            created_via: { type: 'string', enum: ['manifest-flow', 'manual'] },
+            created_at: { type: 'string' },
+          },
+          required: ['id', 'installation_id'],
+          additionalProperties: false,
+        },
+      },
+      additionalProperties: false,
+    },
+    faber: {
+      type: 'object',
+      properties: {
+        worktree: {
+          type: 'object',
+          properties: {
+            location: { type: 'string' },
+            inherit_from_claude: { type: 'boolean' },
+          },
+          additionalProperties: false,
+        },
+        workflow: {
+          type: 'object',
+          properties: {
+            default: { type: 'string' },
+            config_path: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        backlog_management: {
+          type: 'object',
+          properties: {
+            default_limit: { type: 'integer', minimum: 1 },
+            default_order_by: { type: 'string', enum: ['priority', 'created', 'updated', 'none'] },
+            priority_config: {
+              type: 'object',
+              properties: {
+                label_prefix: { type: 'string' },
+              },
+              additionalProperties: false,
+            },
+          },
+          additionalProperties: false,
+        },
+      },
+      additionalProperties: false,
+    },
+    // Allow pass-through for other plugins
+    work: { type: 'object' },
+    repo: { type: 'object' },
+    logs: { type: 'object' },
+    file: { type: 'object' },
+    spec: { type: 'object' },
+    docs: { type: 'object' },
+  },
+  additionalProperties: true, // Allow unknown top-level keys for future extensibility
+};
 
-/**
- * GitHub App configuration
- */
-export interface GitHubAppConfig {
-  id: string;
-  installation_id: string;
-  private_key_path?: string;
-  private_key_env_var?: string;
-  created_via?: 'manifest-flow' | 'manual';
-  created_at?: string;
-}
-
-/**
- * GitHub authentication configuration (shared)
- */
-export interface GitHubConfig {
-  token?: string;              // PAT (legacy)
-  organization?: string;
-  project?: string;
-  repo?: string;
-  app?: GitHubAppConfig;       // GitHub App (preferred)
-}
-
-/**
- * Worktree configuration
- */
-export interface WorktreeConfig {
-  location?: string;
-  inherit_from_claude?: boolean;
-}
-
-/**
- * Workflow configuration
- */
-export interface WorkflowConfig {
-  default?: string;
-  config_path?: string;
-}
-
-/**
- * Backlog management configuration
- */
-export interface BacklogManagementConfig {
-  default_limit?: number;
-  default_order_by?: 'priority' | 'created' | 'updated' | 'none';
-  priority_config?: {
-    label_prefix?: string;
-  };
-}
-
-/**
- * FABER-specific configuration
- */
-export interface FaberConfig {
-  worktree?: WorktreeConfig;
-  workflow?: WorkflowConfig;
-  backlog_management?: BacklogManagementConfig;
-}
-
-/**
- * Unified configuration structure for FABER and fractary-core plugins
- */
-export interface UnifiedConfig {
-  version: string;                    // "2.0"
-  anthropic?: AnthropicConfig;        // Shared API key
-  github?: GitHubConfig;              // Shared GitHub auth
-  faber?: FaberConfig;                // FABER-specific settings
-  work?: any;                         // Pass-through for work plugin
-  repo?: any;                         // Pass-through for repo plugin
-  logs?: any;                         // Pass-through for logs plugin
-  file?: any;                         // Pass-through for file plugin
-  spec?: any;                         // Pass-through for spec plugin
-  docs?: any;                         // Pass-through for docs plugin
-}
-
-/**
- * Configuration loading options
- */
-export interface ConfigLoadOptions {
-  /** Project root directory (auto-detected if not provided) */
-  projectRoot?: string;
-  /** Warn about missing environment variables (default: true) */
-  warnMissingEnvVars?: boolean;
-  /** Throw error if config file doesn't exist (default: false) */
-  throwIfMissing?: boolean;
-}
+// Initialize Ajv validator
+const ajv = new Ajv({ allErrors: true, strict: false });
+const validateConfig = ajv.compile(unifiedConfigSchema);
 
 /**
  * Load and parse `.fractary/config.yaml` with environment variable substitution
@@ -143,18 +155,29 @@ export function loadYamlConfig(options: ConfigLoadOptions = {}): UnifiedConfig |
   try {
     const content = fs.readFileSync(configPath, 'utf-8');
     const substituted = substituteEnvVars(content, warnMissingEnvVars);
-    const parsed = yaml.load(substituted) as UnifiedConfig;
+    const parsed = yaml.load(substituted);
 
     // Validate basic structure
     if (!parsed || typeof parsed !== 'object') {
       throw new Error('Invalid configuration: must be a YAML object');
     }
 
-    if (!parsed.version) {
+    // Validate against JSON schema
+    const isValid = validateConfig(parsed);
+    if (!isValid && validateConfig.errors) {
+      const errorMessages = validateConfig.errors
+        .map(err => `  - ${err.instancePath || 'root'}: ${err.message}`)
+        .join('\n');
+      throw new Error(`Configuration validation failed:\n${errorMessages}`);
+    }
+
+    const config = parsed as UnifiedConfig;
+
+    if (!config.version) {
       console.warn(`Warning: Configuration missing version field in ${configPath}`);
     }
 
-    return parsed;
+    return config;
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`Failed to load config from ${configPath}: ${error.message}`);
@@ -188,10 +211,9 @@ export function writeYamlConfig(
   const fractaryDir = path.join(root, '.fractary');
   const configPath = path.join(fractaryDir, 'config.yaml');
 
-  // Ensure directory exists
-  if (!fs.existsSync(fractaryDir)) {
-    fs.mkdirSync(fractaryDir, { recursive: true });
-  }
+  // Ensure directory exists (atomic operation - no race condition)
+  // mkdirSync with recursive: true is safe even if directory already exists
+  fs.mkdirSync(fractaryDir, { recursive: true });
 
   // Convert to YAML with proper formatting
   const yamlContent = yaml.dump(config, {
