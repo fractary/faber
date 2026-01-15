@@ -5,17 +5,17 @@
   "workflows": [
     {
       "id": "default",
-      "file": "./workflows/default.json",
+      "file": "plugins/faber/config/workflows/default.json",
       "description": "Standard FABER workflow (Frame → Architect → Build → Evaluate → Release)"
     },
     {
       "id": "bug",
-      "file": "./workflows/bug.json",
+      "file": "plugins/faber/config/workflows/bug.json",
       "description": "Optimized workflow for bug fixes with emphasis on validation and regression testing"
     },
     {
       "id": "feature",
-      "file": "./workflows/feature.json",
+      "file": "plugins/faber/config/workflows/feature.json",
       "description": "Comprehensive workflow for new features with full design and testing"
     }
   ],
