@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:session-manager
+name: session-manager
 description: Manages critical context artifacts and session metadata during FABER workflow execution
 model: claude-sonnet-4-5
 tools: Read, Write, Glob, Bash, Skill
