@@ -5,7 +5,7 @@
  * Supports both PAT and GitHub App authentication methods.
  */
 
-import type { FaberConfig, GitHubAppConfig } from '../types/config.js';
+import type { LoadedFaberConfig, GitHubAppConfig } from '../types/config.js';
 import type { WorkConfig, RepoConfig } from '@fractary/core';
 import {
   GitHubAppAuth,
@@ -24,7 +24,7 @@ let tokenProviderConfig: GitHubAppConfig | string | null = null;
  * @param faberConfig - FABER CLI configuration
  * @returns TokenProvider instance
  */
-function getTokenProvider(faberConfig: FaberConfig): TokenProvider {
+function getTokenProvider(faberConfig: LoadedFaberConfig): TokenProvider {
   const appConfig = faberConfig.github?.app;
   const patToken = faberConfig.github?.token;
 
@@ -78,7 +78,7 @@ function getTokenProvider(faberConfig: FaberConfig): TokenProvider {
  * @param faberConfig - FABER CLI configuration
  * @returns Promise resolving to the current token
  */
-export async function getToken(faberConfig: FaberConfig): Promise<string> {
+export async function getToken(faberConfig: LoadedFaberConfig): Promise<string> {
   const provider = getTokenProvider(faberConfig);
   return provider.getToken();
 }
@@ -90,7 +90,7 @@ export async function getToken(faberConfig: FaberConfig): Promise<string> {
  * @param faberConfig - FABER CLI configuration
  * @returns TokenProvider instance
  */
-export function getTokenProviderInstance(faberConfig: FaberConfig): TokenProvider {
+export function getTokenProviderInstance(faberConfig: LoadedFaberConfig): TokenProvider {
   return getTokenProvider(faberConfig);
 }
 
@@ -100,7 +100,7 @@ export function getTokenProviderInstance(faberConfig: FaberConfig): TokenProvide
  * @param faberConfig - FABER CLI configuration
  * @throws Error if configuration is invalid
  */
-export async function validateGitHubAuth(faberConfig: FaberConfig): Promise<void> {
+export async function validateGitHubAuth(faberConfig: LoadedFaberConfig): Promise<void> {
   const appConfig = faberConfig.github?.app;
 
   if (appConfig?.id && appConfig?.installation_id) {
@@ -124,7 +124,7 @@ export async function validateGitHubAuth(faberConfig: FaberConfig): Promise<void
  * @param faberConfig - FABER CLI configuration
  * @returns true if GitHub App is configured
  */
-export function isGitHubAppConfigured(faberConfig: FaberConfig): boolean {
+export function isGitHubAppConfigured(faberConfig: LoadedFaberConfig): boolean {
   const appConfig = faberConfig.github?.app;
   return !!(appConfig?.id && appConfig?.installation_id);
 }
@@ -136,7 +136,7 @@ export function isGitHubAppConfigured(faberConfig: FaberConfig): boolean {
  * @returns WorkConfig for @fractary/core WorkManager
  * @throws Error if required fields are missing
  */
-export function createWorkConfig(faberConfig: FaberConfig): WorkConfig {
+export function createWorkConfig(faberConfig: LoadedFaberConfig): WorkConfig {
   const owner = faberConfig.github?.organization;
   const repo = faberConfig.github?.project;
 
@@ -182,7 +182,7 @@ export function createWorkConfig(faberConfig: FaberConfig): WorkConfig {
  * @returns Promise resolving to WorkConfig for @fractary/core WorkManager
  * @throws Error if required fields are missing
  */
-export async function createWorkConfigAsync(faberConfig: FaberConfig): Promise<WorkConfig> {
+export async function createWorkConfigAsync(faberConfig: LoadedFaberConfig): Promise<WorkConfig> {
   const owner = faberConfig.github?.organization;
   const repo = faberConfig.github?.project;
 
@@ -209,7 +209,7 @@ export async function createWorkConfigAsync(faberConfig: FaberConfig): Promise<W
  * @returns RepoConfig for @fractary/core RepoManager
  * @throws Error if required fields are missing
  */
-export function createRepoConfig(faberConfig: FaberConfig): RepoConfig {
+export function createRepoConfig(faberConfig: LoadedFaberConfig): RepoConfig {
   const owner = faberConfig.github?.organization;
   const repo = faberConfig.github?.project;
 
@@ -245,7 +245,7 @@ export function createRepoConfig(faberConfig: FaberConfig): RepoConfig {
  * @returns Promise resolving to RepoConfig for @fractary/core RepoManager
  * @throws Error if required fields are missing
  */
-export async function createRepoConfigAsync(faberConfig: FaberConfig): Promise<RepoConfig> {
+export async function createRepoConfigAsync(faberConfig: LoadedFaberConfig): Promise<RepoConfig> {
   const owner = faberConfig.github?.organization;
   const repo = faberConfig.github?.project;
 

@@ -11,7 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Git } from '@fractary/faber';
 import { validateJsonSize } from '../utils/validation.js';
-import type { FaberConfig } from '../types/config.js';
+import type { LoadedFaberConfig } from '../types/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,12 +45,12 @@ interface WorkflowPlan {
  */
 export class AnthropicClient {
   private client: Anthropic;
-  private config: FaberConfig;
+  private config: LoadedFaberConfig;
   private git: Git;
   private ajv: Ajv;
   private planSchema: any;
 
-  constructor(config: FaberConfig) {
+  constructor(config: LoadedFaberConfig) {
     this.config = config;
     this.git = new Git();
     this.ajv = new Ajv({ strict: false }); // Allow additional properties

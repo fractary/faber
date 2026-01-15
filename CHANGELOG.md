@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Migration Command**: New `fractary-faber migrate` command for converting `.fractary/settings.json` to `.fractary/config.yaml`
+  - Supports `--dry-run` to preview changes
+  - Supports `--no-backup` to skip backup creation
+  - Warns about hardcoded secrets and recommends environment variables
+  - Creates backup at `.fractary/settings.json.backup`
+
+- **YAML Config Loader**: New unified configuration system with environment variable substitution
+  - Supports `${VAR}` and `${VAR:-default}` syntax
+  - Security limits on default value length (max 1000 chars)
+  - Validates variable name format (uppercase, underscores only)
+  - Provides clear warnings for missing environment variables
+
 - **Entity-Level State Tracking**: New comprehensive system for tracking entity state across FABER workflows
   - **New Skill**: `entity-state` skill with 9 operations for entity lifecycle management
   - **Entity State Files**: Track current status, step execution, properties, and artifacts per entity
@@ -24,6 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables cross-workflow entity tracking, downstream polling, and centralized management (future Helm integration)
 
 ### Changed
+
+- **BREAKING**: Migrated from `.fractary/settings.json` to unified `.fractary/config.yaml` format ([#55](https://github.com/fractary/faber/issues/55))
+  - Configuration now uses YAML format with environment variable substitution (`${VAR}` and `${VAR:-default}`)
+  - Secrets must be provided via environment variables (no hardcoded tokens)
+  - Shared authentication sections (`github:`, `anthropic:`) at top level, used by all Fractary tools
+  - FABER-specific settings moved under `faber:` section
+  - Automatic migration: `fractary-faber migrate` converts old settings to new format
+  - `fractary-faber init` now only manages the `faber:` section (requires config.yaml to exist)
+  - See [`docs/migration-settings-to-config.md`](docs/migration-settings-to-config.md) for migration guide
 
 - **BREAKING**: Config path migrated from `.fractary/plugins/faber/config.yaml` to `.fractary/faber/config.yaml`
   - Running `fractary-faber init` will automatically migrate existing configs

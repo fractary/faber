@@ -22,6 +22,8 @@ import {
   detectGitHubContext,
   isGitRepository,
 } from '../../utils/github-manifest.js';
+import { loadYamlConfig, writeYamlConfig, getConfigPath } from '../../lib/yaml-config.js';
+import type { UnifiedConfig } from '../../types/config.js';
 
 interface SetupOptions {
   org?: string;
@@ -42,7 +44,7 @@ export function createAuthSetupCommand(): Command {
     .option(
       '--config-path <path>',
       'Path to config file',
-      '.fractary/settings.json'
+      '.fractary/config.yaml'
     )
     .option('--show-manifest', 'Display manifest JSON before setup')
     .option('--no-save', 'Display credentials without saving')
@@ -112,25 +114,27 @@ async function manualAppConfiguration(
     process.exit(1);
   }
 
-  // Create config
-  const config = {
-    github: {
-      organization: org,
-      project: repo,
-      app: {
-        id: appId.toString(),
-        installation_id: installationId.toString(),
-        private_key_path: privateKeyPath,
-      },
-    },
+  // Load existing config or create new one
+  let config: UnifiedConfig = loadYamlConfig() || {
+    version: '2.0',
   };
 
-  // Save config
-  const configDir = path.dirname(configPath);
-  await fs.mkdir(configDir, { recursive: true });
-  await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  // Update GitHub config at top level
+  config.github = config.github || {};
+  config.github.organization = org;
+  config.github.project = repo;
+  config.github.app = {
+    id: appId.toString(),
+    installation_id: installationId.toString(),
+    private_key_path: privateKeyPath,
+    created_via: 'manual',
+    created_at: new Date().toISOString(),
+  };
 
-  console.log(chalk.green(`\n✓ Configuration saved to ${configPath}\n`));
+  // Write config as YAML
+  writeYamlConfig(config);
+
+  console.log(chalk.green(`\n✓ Configuration saved to ${getConfigPath()}\n`));
   console.log('Test the configuration with:');
   console.log(chalk.cyan(`  fractary-faber work issue fetch 1\n`));
 }
@@ -174,8 +178,8 @@ async function runSetup(options: SetupOptions): Promise<void> {
   console.log(`  Repository: ${chalk.cyan(repo)}\n`);
 
   // Step 2: Check if already configured
-  const configPath = options.configPath || '.fractary/settings.json';
-  const existingConfig = await checkExistingConfig(configPath);
+  const configPath = options.configPath || getConfigPath();
+  const existingConfig = await checkExistingConfig();
 
   if (existingConfig) {
     console.log(
@@ -516,24 +520,17 @@ async function runSetup(options: SetupOptions): Promise<void> {
       } else {
         console.error(chalk.red('\n❌ Unknown error updating config\n'));
       }
-      console.log('You can manually update .fractary/settings.json with:');
-      console.log(
-        JSON.stringify(
-          {
-            github: {
-              organization: org,
-              project: repo,
-              app: {
-                id: conversionResponse.id.toString(),
-                installation_id: installationId,
-                private_key_path: `~/.github/faber-${org}.pem`,
-              },
-            },
-          },
-          null,
-          2
-        )
-      );
+      console.log('You can manually update .fractary/config.yaml with:');
+      console.log(chalk.cyan(`
+version: "2.0"
+github:
+  organization: ${org}
+  project: ${repo}
+  app:
+    id: "${conversionResponse.id}"
+    installation_id: "${installationId}"
+    private_key_path: ~/.github/faber-${org}.pem
+`));
       process.exit(1);
     }
 
@@ -575,11 +572,10 @@ async function runSetup(options: SetupOptions): Promise<void> {
 /**
  * Check if configuration already exists
  */
-async function checkExistingConfig(configPath: string): Promise<boolean> {
+async function checkExistingConfig(): Promise<boolean> {
   try {
-    const content = await fs.readFile(configPath, 'utf-8');
-    const config = JSON.parse(content);
-    return !!(config.github?.app);
+    const config = loadYamlConfig();
+    return !!(config?.github?.app);
   } catch {
     return false;
   }
@@ -598,16 +594,12 @@ async function updateConfig(
     repo: string;
   }
 ): Promise<void> {
-  let config: any = {};
+  // Load existing config or create new one
+  let config: UnifiedConfig = loadYamlConfig() || {
+    version: '2.0',
+  };
 
-  try {
-    const content = await fs.readFile(configPath, 'utf-8');
-    config = JSON.parse(content);
-  } catch {
-    // File doesn't exist, start with empty config
-  }
-
-  // Update GitHub config
+  // Update GitHub config at top level
   config.github = config.github || {};
   config.github.organization = appConfig.org;
   config.github.project = appConfig.repo;
@@ -619,15 +611,8 @@ async function updateConfig(
     created_at: new Date().toISOString(),
   };
 
-  // Ensure directory exists
-  const lastSlash = configPath.lastIndexOf('/');
-  if (lastSlash > 0) {
-    const dir = configPath.substring(0, lastSlash);
-    await fs.mkdir(dir, { recursive: true });
-  }
-
-  // Write config
-  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
+  // Write config as YAML
+  writeYamlConfig(config);
 }
 
 /**
