@@ -1,5 +1,5 @@
 ---
-name: fractary-faber-article:content-manager
+name: content-manager
 model: claude-opus-4-5
 description: |
   Orchestrate multi-step content workflows - research, outline, draft, enhance, optimize SEO,

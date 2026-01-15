@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:workflow-status
+name: workflow-status
 description: Displays FABER workflow status combining current state with historical logs
 model: claude-sonnet-4-5
 tools: Read, Glob, Bash, Skill

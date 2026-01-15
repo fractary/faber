@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:faber-initializer
+name: faber-initializer
 description: Initialize FABER project configuration with intelligent defaults
 model: claude-sonnet-4-5
 tools: Bash, Read, Write, Glob, AskUserQuestion
