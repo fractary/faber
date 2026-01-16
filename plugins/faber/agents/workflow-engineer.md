@@ -14,7 +14,7 @@ Creates and updates high-quality, project-specific FABER workflow configurations
 - Understanding the project structure and conventions
 - Gathering requirements through user interaction
 - Generating or modifying workflows that extend the core workflow and follow best practices
-- Validating all changes against FABER best practices
+- Validating all changes against FABER best practices and the workflow schema
 
 ## Input Parameters
 
@@ -32,1003 +32,383 @@ Creates and updates high-quality, project-specific FABER workflow configurations
 
 **Goal**: Extract parameters and determine operation mode
 
-**Logic**:
-```
-args_string = "$ARGUMENTS"
+**Instructions**:
 
-# Extract mode from arguments
-mode = extract_flag_value(args_string, "--mode") or "create"
+1. Parse the input arguments string to extract:
+   - `mode`: Look for `--mode create` or `--mode update`. Default to `create` if not specified.
+   - `workflow_name`: The first positional argument (not starting with `--`)
+   - `context`: Value after `--context` flag
+   - `extends`: Value after `--extends` flag, default to `fractary-faber:core`
+   - `type`: Value after `--type` flag
 
-# For update mode, workflow name is first positional arg
-# For create mode, workflow name is optional first positional arg
-workflow_name = extract_first_positional_argument(args_string)
-context = get_flag_value(args_string, "--context")
-extends = get_flag_value(args_string, "--extends") or "fractary-faber:core"
-workflow_type = get_flag_value(args_string, "--type")
+2. **SECURITY: Validate workflow_name format**. If a workflow name is provided:
+   - It MUST match the pattern: starts with a lowercase letter, followed by only lowercase letters, numbers, or hyphens
+   - Valid examples: `data-pipeline`, `feature`, `my-workflow-v2`
+   - Invalid examples: `../etc/passwd`, `My Workflow`, `workflow.json`, `UPPERCASE`
+   - If the name is invalid, display an error message explaining the naming requirements and exit with code 1
 
-# Display header based on mode
-if mode == "update":
-  PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  PRINT "FABER Workflow Engineer - Update Mode"
-  PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-else:
-  PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  PRINT "FABER Workflow Engineer - Create Mode"
-  PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-PRINT ""
+3. Display the appropriate header based on mode:
+   - For update mode: "FABER Workflow Engineer - Update Mode"
+   - For create mode: "FABER Workflow Engineer - Create Mode"
 
-# Validate mode-specific requirements
-if mode == "update" and (workflow_name is null or workflow_name == ""):
-  ERROR "Update mode requires a workflow name as the first argument"
-  PRINT "Usage: /fractary-faber:workflow-update <workflow-name> --context \"changes to make\""
-  EXIT 1
-```
+4. For update mode, verify that workflow_name was provided. If not, display an error explaining that update mode requires a workflow name and exit with code 1.
 
 ### Step 1: Research Project Structure
 
 **Goal**: Discover existing commands, agents, and skills in the project
 
-**Logic**:
-```
-# Initialize discovery results
-discovered = {
-  commands: [],
-  agents: [],
-  skills: [],
-  workflows: [],
-  project_type: null
-}
+**Instructions**:
 
-# 1. Discover project-specific commands
-project_command_patterns = [
-  ".claude/commands/*.md",
-  ".fractary/commands/*.md"
-]
+1. Use the Glob tool to search for project-specific commands:
+   - Pattern: `.claude/commands/*.md`
+   - Pattern: `.fractary/commands/*.md`
+   - For each file found, use Read to extract the `name` and `description` from the YAML frontmatter
+   - Record each discovered command with its name, description, and file path
 
-for pattern in project_command_patterns:
-  files = glob(pattern)
-  for file in files:
-    content = read(file)
-    name = extract_yaml_field(content, "name")
-    description = extract_yaml_field(content, "description")
-    discovered.commands.append({
-      name: name,
-      description: description,
-      path: file,
-      source: "project"
-    })
+2. Use the Glob tool to search for project-specific agents:
+   - Pattern: `.claude/agents/*.md`
+   - Pattern: `.fractary/agents/*.md`
+   - For each file found, use Read to extract the `name` and `description` from the YAML frontmatter
+   - Record each discovered agent with its name, description, and file path
 
-# 2. Discover project-specific agents
-project_agent_patterns = [
-  ".claude/agents/*.md",
-  ".fractary/agents/*.md"
-]
+3. Use the Glob tool to search for project-specific skills:
+   - Pattern: `.claude/skills/*/SKILL.md`
+   - Pattern: `.fractary/skills/*/SKILL.md`
+   - For each file found, use Read to extract the `name` and `description` from the YAML frontmatter
+   - Record each discovered skill with its name, description, and file path
 
-for pattern in project_agent_patterns:
-  files = glob(pattern)
-  for file in files:
-    content = read(file)
-    name = extract_yaml_field(content, "name")
-    description = extract_yaml_field(content, "description")
-    discovered.agents.append({
-      name: name,
-      description: description,
-      path: file,
-      source: "project"
-    })
+4. Use the Glob tool to search for existing workflows:
+   - Pattern: `.fractary/plugins/faber/workflows/*.json`
+   - Pattern: `.fractary/faber/workflows/*.json`
+   - For each file found, use Read to load the JSON and extract `id`, `description`, and `extends`
+   - Record each discovered workflow with its metadata and file path
 
-# 3. Discover project-specific skills
-project_skill_patterns = [
-  ".claude/skills/*/SKILL.md",
-  ".fractary/skills/*/SKILL.md"
-]
+5. Detect project type by checking for common indicator files:
+   - `package.json` → JavaScript/TypeScript
+   - `Cargo.toml` → Rust
+   - `pyproject.toml` or `requirements.txt` → Python
+   - `go.mod` → Go
+   - `pom.xml` → Java
+   - `Gemfile` → Ruby
 
-for pattern in project_skill_patterns:
-  files = glob(pattern)
-  for file in files:
-    content = read(file)
-    name = extract_yaml_field(content, "name")
-    description = extract_yaml_field(content, "description")
-    discovered.skills.append({
-      name: name,
-      description: description,
-      path: file,
-      source: "project"
-    })
-
-# 4. Discover existing workflows in project
-workflow_patterns = [
-  ".fractary/plugins/faber/workflows/*.json",
-  ".fractary/faber/workflows/*.json"
-]
-
-for pattern in workflow_patterns:
-  files = glob(pattern)
-  for file in files:
-    content = read(file)
-    workflow = parse_json(content)
-    discovered.workflows.append({
-      id: workflow.id,
-      description: workflow.description,
-      extends: workflow.extends,
-      path: file
-    })
-
-# 5. Determine project type from existing files
-project_indicators = {
-  "package.json": "javascript",
-  "Cargo.toml": "rust",
-  "pyproject.toml": "python",
-  "go.mod": "go",
-  "pom.xml": "java",
-  "Gemfile": "ruby"
-}
-
-for indicator, proj_type in project_indicators.items():
-  if exists(indicator):
-    discovered.project_type = proj_type
-    break
-
-PRINT "Project Research Complete"
-PRINT ""
-PRINT "Discovered:"
-PRINT "  - {len(discovered.commands)} project commands"
-PRINT "  - {len(discovered.agents)} project agents"
-PRINT "  - {len(discovered.skills)} project skills"
-PRINT "  - {len(discovered.workflows)} existing workflows"
-if discovered.project_type:
-  PRINT "  - Project type: {discovered.project_type}"
-PRINT ""
-```
+6. Display a summary of discovered items:
+   - Number of project commands found
+   - Number of project agents found
+   - Number of project skills found
+   - Number of existing workflows found
+   - Detected project type (if any)
 
 ### Step 2: Load Reference Workflows
 
 **Goal**: Load core workflow and (for update mode) the target workflow
 
-**Logic**:
-```
-# Locate plugin workflows
-plugin_root = getenv("CLAUDE_MARKETPLACE_ROOT") or "~/.claude/plugins/marketplaces"
-faber_workflows_dir = "{plugin_root}/fractary/plugins/faber/config/workflows"
+**Instructions**:
 
-# Read core workflow as reference
-core_workflow_path = "{faber_workflows_dir}/core.json"
-if exists(core_workflow_path):
-  core_workflow = parse_json(read(core_workflow_path))
-  PRINT "Loaded core workflow as reference"
-else:
-  # Fallback to local plugin path
-  core_workflow_path = "plugins/faber/config/workflows/core.json"
-  if exists(core_workflow_path):
-    core_workflow = parse_json(read(core_workflow_path))
-    PRINT "Loaded core workflow from local plugins"
-  else:
-    WARN "Could not find core workflow reference - will use defaults"
-    core_workflow = null
+1. Attempt to locate and read the core workflow as a reference:
+   - First try: `plugins/faber/config/workflows/core.json`
+   - If not found, the core workflow structure should use the standard 5-phase FABER pattern
 
-# Extract phase names
-core_phases = ["frame", "architect", "build", "evaluate", "release"]
+2. Note the standard FABER phases: `frame`, `architect`, `build`, `evaluate`, `release`
 
-# For UPDATE mode: Load the existing workflow
-existing_workflow = null
-existing_workflow_path = null
+3. **For UPDATE mode only**:
 
-if mode == "update":
-  # Search for workflow by name/ID
-  search_patterns = [
-    ".fractary/faber/workflows/{workflow_name}.json",
-    ".fractary/plugins/faber/workflows/{workflow_name}.json",
-    "{faber_workflows_dir}/{workflow_name}.json"
-  ]
+   a. Search for the existing workflow file in these locations (in order):
+      - `.fractary/faber/workflows/{workflow_name}.json`
+      - `.fractary/plugins/faber/workflows/{workflow_name}.json`
 
-  for pattern in search_patterns:
-    if exists(pattern):
-      existing_workflow_path = pattern
-      existing_workflow = parse_json(read(pattern))
-      break
+   b. **SECURITY: Validate the resolved path**:
+      - Use the Bash tool with `realpath` to resolve the actual path
+      - Verify the resolved path is within the current working directory
+      - If the path would escape the project directory, display a security error and exit with code 1
 
-  if existing_workflow is null:
-    # Try matching by ID in discovered workflows
-    for wf in discovered.workflows:
-      if wf.id == workflow_name or wf.path.endswith("{workflow_name}.json"):
-        existing_workflow_path = wf.path
-        existing_workflow = parse_json(read(wf.path))
-        break
+   c. If the workflow file is found:
+      - Read and parse the JSON content
+      - Display the current workflow configuration: ID, description, autonomy level, and phases with custom steps
+      - Store the original workflow for comparison
 
-  if existing_workflow is null:
-    ERROR "Workflow '{workflow_name}' not found"
-    PRINT ""
-    PRINT "Available workflows:"
-    for wf in discovered.workflows:
-      PRINT "  - {wf.id} ({wf.path})"
-    EXIT 1
+   d. If the workflow is not found:
+      - List all available workflows that were discovered
+      - Display an error message and exit with code 1
 
-  PRINT "Loaded existing workflow: {existing_workflow.id}"
-  PRINT "  Description: {existing_workflow.description}"
-  PRINT "  Extends: {existing_workflow.extends}"
-  PRINT ""
-
-  # Use existing workflow's extends as default
-  extends = existing_workflow.extends or extends
-```
+   e. Use the existing workflow's `extends` value as the default for the extends parameter
 
 ### Step 3: Gather Requirements (Mode-Specific)
 
 **Goal**: Clarify requirements through interactive questions
 
-**Logic**:
-```
-questions = []
+**Instructions**:
 
-if mode == "create":
-  # === CREATE MODE QUESTIONS ===
+**For CREATE mode**:
 
-  # Question 1: Workflow name (if not provided)
-  if workflow_name is null or workflow_name == "":
-    questions.append({
-      question: "What should this workflow be named?",
-      header: "Name",
-      options: [
-        {label: "custom", description: "A general-purpose custom workflow"},
-        {label: "data-pipeline", description: "For data processing and ETL tasks"},
-        {label: "documentation", description: "For documentation updates"},
-        {label: "infrastructure", description: "For infrastructure/deployment changes"}
-      ],
-      multiSelect: false
-    })
+1. If workflow_name was not provided, use AskUserQuestion to ask:
+   - Question: "What should this workflow be named?"
+   - Options: "custom", "data-pipeline", "documentation", "infrastructure"
+   - Allow custom input via "Other"
 
-  # Question 2: Workflow purpose (if context not provided)
-  if context is null or context == "":
-    questions.append({
-      question: "What is the primary purpose of this workflow?",
-      header: "Purpose",
-      options: [
-        {label: "Feature development", description: "Building new features with full spec/test cycles"},
-        {label: "Bug fixes", description: "Quick fixes with focused testing"},
-        {label: "Data processing", description: "ETL pipelines, data transformations"},
-        {label: "Documentation", description: "Writing and updating documentation"}
-      ],
-      multiSelect: false
-    })
+2. If context was not provided, use AskUserQuestion to ask:
+   - Question: "What is the primary purpose of this workflow?"
+   - Options: "Feature development", "Bug fixes", "Data processing", "Documentation"
 
-  # Question 3: Which phases need customization
-  questions.append({
-    question: "Which phases need custom steps for your workflow?",
-    header: "Phases",
-    options: [
-      {label: "Frame", description: "Initial setup and context gathering"},
-      {label: "Architect", description: "Design and specification creation"},
-      {label: "Build", description: "Implementation and development"},
-      {label: "Evaluate", description: "Testing and validation"}
-    ],
-    multiSelect: true
-  })
+3. Use AskUserQuestion to ask which phases need customization:
+   - Question: "Which phases need custom steps for your workflow?"
+   - Options: "Frame", "Architect", "Build", "Evaluate"
+   - Enable multi-select
 
-  # Question 4: Autonomy level
-  questions.append({
-    question: "What autonomy level should this workflow use?",
-    header: "Autonomy",
-    options: [
-      {label: "guarded (Recommended)", description: "Pauses before release for approval"},
-      {label: "assist", description: "Pauses before each phase for confirmation"},
-      {label: "autonomous", description: "Runs without pausing (use carefully)"},
-      {label: "dry-run", description: "Plans but doesn't execute any changes"}
-    ],
-    multiSelect: false
-  })
+4. Use AskUserQuestion to ask about autonomy level:
+   - Question: "What autonomy level should this workflow use?"
+   - Options: "guarded (Recommended)", "assist", "autonomous", "dry-run"
+   - If the response contains "(Recommended)", use "guarded" as the value
 
-else:
-  # === UPDATE MODE QUESTIONS ===
+**For UPDATE mode**:
 
-  # Show current workflow state
-  PRINT "Current Workflow Configuration:"
-  PRINT "  ID: {existing_workflow.id}"
-  PRINT "  Autonomy: {existing_workflow.autonomy.level if existing_workflow.autonomy else 'not set'}"
-  PRINT "  Phases with custom steps:"
-  for phase_name in core_phases:
-    if phase_name in existing_workflow.phases:
-      phase = existing_workflow.phases[phase_name]
-      step_count = len(phase.get('steps', [])) + len(phase.get('pre_steps', [])) + len(phase.get('post_steps', []))
-      if step_count > 0:
-        PRINT "    - {phase_name}: {step_count} step(s)"
-  PRINT ""
+1. Display the current workflow configuration showing:
+   - Workflow ID
+   - Current autonomy level
+   - Phases that have custom steps and their step counts
 
-  # If context provided, ask for confirmation of changes
-  if context and len(context) > 0:
-    questions.append({
-      question: "What type of update would you like to make?",
-      header: "Update Type",
-      options: [
-        {label: "Add steps", description: "Add new steps to existing phases"},
-        {label: "Modify steps", description: "Change existing step configurations"},
-        {label: "Change autonomy", description: "Update autonomy level settings"},
-        {label: "Restructure phases", description: "Enable/disable or reorder phases"}
-      ],
-      multiSelect: true
-    })
-  else:
-    # No context - ask what they want to change
-    questions.append({
-      question: "What would you like to update in this workflow?",
-      header: "Update Type",
-      options: [
-        {label: "Add steps", description: "Add new steps to existing phases"},
-        {label: "Modify steps", description: "Change existing step configurations"},
-        {label: "Change autonomy", description: "Update autonomy level settings"},
-        {label: "Restructure phases", description: "Enable/disable or reorder phases"}
-      ],
-      multiSelect: true
-    })
+2. Use AskUserQuestion to determine the type of update:
+   - Question: "What type of update would you like to make?"
+   - Options: "Add steps", "Modify steps", "Change autonomy", "Restructure phases"
+   - Enable multi-select
 
-  # Ask which phases to modify
-  questions.append({
-    question: "Which phases should be modified?",
-    header: "Phases",
-    options: [
-      {label: "Frame", description: "Initial setup and context gathering"},
-      {label: "Architect", description: "Design and specification creation"},
-      {label: "Build", description: "Implementation and development"},
-      {label: "Evaluate", description: "Testing and validation"}
-    ],
-    multiSelect: true
-  })
-
-# Ask all questions
-if len(questions) > 0:
-  responses = AskUserQuestion(questions=questions)
-
-  if mode == "create":
-    # Process create mode responses
-    if workflow_name is null:
-      workflow_name = responses.name or responses["Name"]
-    if context is null:
-      context = responses.purpose or responses["Purpose"]
-    selected_phases = responses.phases or responses["Phases"] or []
-    autonomy_level = responses.autonomy or responses["Autonomy"]
-
-    # Clean autonomy level
-    if autonomy_level and "(Recommended)" in autonomy_level:
-      autonomy_level = "guarded"
-  else:
-    # Process update mode responses
-    update_types = responses["Update Type"] or []
-    selected_phases = responses.phases or responses["Phases"] or []
-```
+3. Use AskUserQuestion to ask which phases should be modified:
+   - Question: "Which phases should be modified?"
+   - Options: "Frame", "Architect", "Build", "Evaluate"
+   - Enable multi-select
 
 ### Step 4: Ask About Project-Specific Integration
 
 **Goal**: Determine which discovered commands/agents/skills to integrate
 
-**Logic**:
-```
-# Only ask if we discovered project-specific items
-if len(discovered.commands) > 0 or len(discovered.agents) > 0 or len(discovered.skills) > 0:
+**Instructions**:
 
-  integration_questions = []
+Only proceed with this step if project-specific items were discovered in Step 1.
 
-  # Ask about commands to integrate
-  if len(discovered.commands) > 0:
-    command_options = []
-    for cmd in discovered.commands[:4]:  # Limit to 4 options
-      command_options.append({
-        label: cmd.name,
-        description: cmd.description or "No description"
-      })
+1. If commands were discovered, use AskUserQuestion:
+   - Question: "Which project commands should be integrated into the workflow?"
+   - List up to 4 discovered commands as options with their descriptions
+   - Enable multi-select
 
-    integration_questions.append({
-      question: "Which project commands should be integrated into the workflow?",
-      header: "Commands",
-      options: command_options,
-      multiSelect: true
-    })
+2. If agents were discovered, use AskUserQuestion:
+   - Question: "Which project agents should be used in workflow steps?"
+   - List up to 4 discovered agents as options with their descriptions
+   - Enable multi-select
 
-  # Ask about agents to integrate
-  if len(discovered.agents) > 0:
-    agent_options = []
-    for agent in discovered.agents[:4]:
-      agent_options.append({
-        label: agent.name,
-        description: agent.description or "No description"
-      })
+3. If skills were discovered, use AskUserQuestion:
+   - Question: "Which project skills should be called from workflow steps?"
+   - List up to 4 discovered skills as options with their descriptions
+   - Enable multi-select
 
-    integration_questions.append({
-      question: "Which project agents should be used in workflow steps?",
-      header: "Agents",
-      options: agent_options,
-      multiSelect: true
-    })
-
-  # Ask about skills to integrate
-  if len(discovered.skills) > 0:
-    skill_options = []
-    for skill in discovered.skills[:4]:
-      skill_options.append({
-        label: skill.name,
-        description: skill.description or "No description"
-      })
-
-    integration_questions.append({
-      question: "Which project skills should be called from workflow steps?",
-      header: "Skills",
-      options: skill_options,
-      multiSelect: true
-    })
-
-  if len(integration_questions) > 0:
-    integration_responses = AskUserQuestion(questions=integration_questions)
-
-    selected_commands = integration_responses.commands or integration_responses["Commands"] or []
-    selected_agents = integration_responses.agents or integration_responses["Agents"] or []
-    selected_skills = integration_responses.skills or integration_responses["Skills"] or []
-else:
-  selected_commands = []
-  selected_agents = []
-  selected_skills = []
-```
+Record the user's selections for use when generating steps.
 
 ### Step 5: Generate or Update Workflow Structure
 
 **Goal**: Create new workflow or apply updates to existing workflow
 
-**Logic**:
-```
-if mode == "create":
-  # === CREATE MODE: Build new workflow ===
+**Instructions**:
 
-  workflow = {
-    "$schema": "../workflow.schema.json",
-    "id": slugify(workflow_name),
-    "description": context or "Custom workflow for {workflow_name}",
-    "extends": extends,
-    "phases": {},
-    "autonomy": {
-      "level": autonomy_level or "guarded",
-      "description": get_autonomy_description(autonomy_level),
-      "require_approval_for": ["release"]
-    }
-  }
+**For CREATE mode**:
 
-  # Build phases based on selections
-  for phase_name in core_phases:
-    phase_selected = phase_name.capitalize() in selected_phases
+1. Build a new workflow JSON structure with these fields:
+   - `$schema`: Set to `"../workflow.schema.json"`
+   - `id`: Convert workflow_name to lowercase with hyphens (e.g., "Data Pipeline" → "data-pipeline")
+   - `description`: Use the context if provided, otherwise "Custom workflow for {workflow_name}"
+   - `extends`: Use the extends parameter value
+   - `phases`: Initialize as an empty object
+   - `autonomy`: Object with `level`, `description`, and `require_approval_for` fields
 
-    workflow.phases[phase_name] = {
-      "enabled": true,
-      "description": get_phase_description(phase_name),
-      "pre_steps": [],
-      "steps": [],
-      "post_steps": []
-    }
+2. For each of the 5 FABER phases (frame, architect, build, evaluate, release):
+   - Create a phase entry with `enabled: true`, `description`, `pre_steps: []`, `steps: []`, `post_steps: []`
+   - If the user selected this phase for customization, generate appropriate steps (see Step 6)
 
-    # Add custom steps for selected phases
-    if phase_selected:
-      workflow.phases[phase_name].steps = generate_phase_steps(
-        phase_name,
-        context,
-        selected_commands,
-        selected_agents,
-        selected_skills,
-        discovered
-      )
+**For UPDATE mode**:
 
-else:
-  # === UPDATE MODE: Modify existing workflow ===
+1. Create a working copy of the existing workflow (do not modify the original until confirmed)
 
-  workflow = deep_copy(existing_workflow)
+2. Based on the user's selected update types:
 
-  # Apply updates based on user selections
-  if "Add steps" in update_types:
-    for phase_name in selected_phases:
-      phase_key = phase_name.lower()
-      if phase_key not in workflow.phases:
-        workflow.phases[phase_key] = {
-          "enabled": true,
-          "description": get_phase_description(phase_key),
-          "pre_steps": [],
-          "steps": [],
-          "post_steps": []
-        }
+   **If "Add steps" was selected**:
+   - For each phase the user selected for modification, generate new steps based on context and integrations
+   - Append new steps to the existing steps array, but skip any steps whose ID already exists
 
-      # Generate new steps based on context and integrations
-      new_steps = generate_phase_steps(
-        phase_key,
-        context,
-        selected_commands,
-        selected_agents,
-        selected_skills,
-        discovered
-      )
+   **If "Change autonomy" was selected**:
+   - Use AskUserQuestion to get the new autonomy level
+   - Update the workflow's autonomy object with the new level and appropriate description
 
-      # Append to existing steps (avoiding duplicates)
-      existing_step_ids = [s.id for s in workflow.phases[phase_key].get('steps', [])]
-      for step in new_steps:
-        if step.id not in existing_step_ids:
-          workflow.phases[phase_key].steps.append(step)
+   **If "Restructure phases" was selected**:
+   - Use AskUserQuestion to ask which phases should be ENABLED
+   - Update the `enabled` field for each phase accordingly
 
-  if "Change autonomy" in update_types:
-    # Ask for new autonomy level
-    autonomy_response = AskUserQuestion(
-      questions=[{
-        question: "What autonomy level should this workflow use?",
-        header: "Autonomy",
-        options: [
-          {label: "guarded (Recommended)", description: "Pauses before release for approval"},
-          {label: "assist", description: "Pauses before each phase for confirmation"},
-          {label: "autonomous", description: "Runs without pausing (use carefully)"},
-          {label: "dry-run", description: "Plans but doesn't execute any changes"}
-        ],
-        multiSelect: false
-      }]
-    )
+   **If "Modify steps" was selected**:
+   - For each selected phase that has existing steps:
+     - Display the list of existing steps (name and ID)
+     - Use AskUserQuestion to ask what action to take: "Keep all", "Remove steps", or "Reorder"
+     - If "Remove steps", ask which specific steps to remove and filter them out
 
-    new_autonomy = autonomy_response["Autonomy"]
-    if "(Recommended)" in new_autonomy:
-      new_autonomy = "guarded"
-
-    workflow.autonomy = {
-      "level": new_autonomy,
-      "description": get_autonomy_description(new_autonomy),
-      "require_approval_for": workflow.autonomy.get('require_approval_for', ["release"])
-    }
-
-  if "Restructure phases" in update_types:
-    # Ask which phases to enable/disable
-    phase_response = AskUserQuestion(
-      questions=[{
-        question: "Which phases should be ENABLED in this workflow?",
-        header: "Enable",
-        options: [
-          {label: "Frame", description: "Initial setup and context gathering"},
-          {label: "Architect", description: "Design and specification creation"},
-          {label: "Build", description: "Implementation and development"},
-          {label: "Evaluate", description: "Testing and validation"}
-        ],
-        multiSelect: true
-      }]
-    )
-
-    enabled_phases = phase_response["Enable"] or []
-    for phase_name in core_phases:
-      if phase_name not in workflow.phases:
-        workflow.phases[phase_name] = {"enabled": false, "steps": []}
-      workflow.phases[phase_name].enabled = phase_name.capitalize() in enabled_phases
-
-  if "Modify steps" in update_types:
-    # For each selected phase, show existing steps and allow modification
-    for phase_name in selected_phases:
-      phase_key = phase_name.lower()
-      if phase_key in workflow.phases and len(workflow.phases[phase_key].get('steps', [])) > 0:
-        PRINT ""
-        PRINT "Existing steps in {phase_name} phase:"
-        for i, step in enumerate(workflow.phases[phase_key].steps):
-          PRINT "  {i+1}. {step.name} (ID: {step.id})"
-
-        modify_response = AskUserQuestion(
-          questions=[{
-            question: "What would you like to do with {phase_name} steps?",
-            header: "Action",
-            options: [
-              {label: "Keep all", description: "Keep all existing steps unchanged"},
-              {label: "Remove steps", description: "Remove specific steps"},
-              {label: "Reorder", description: "Change step execution order"}
-            ],
-            multiSelect: false
-          }]
-        )
-
-        # Process modification response
-        action = modify_response["Action"]
-        if action == "Remove steps":
-          # Ask which steps to remove
-          step_options = []
-          for step in workflow.phases[phase_key].steps[:4]:
-            step_options.append({
-              label: step.id,
-              description: step.name
-            })
-
-          if len(step_options) > 0:
-            remove_response = AskUserQuestion(
-              questions=[{
-                question: "Which steps should be removed?",
-                header: "Remove",
-                options: step_options,
-                multiSelect: true
-              }]
-            )
-
-            steps_to_remove = remove_response["Remove"] or []
-            workflow.phases[phase_key].steps = [
-              s for s in workflow.phases[phase_key].steps
-              if s.id not in steps_to_remove
-            ]
-
-  # Update description if context provided
-  if context and len(context) > 0:
-    if mode == "update":
-      workflow.description = "{existing_workflow.description} (Updated: {context})"
-```
+3. If context was provided for an update, append it to the workflow description
 
 ### Step 6: Generate Phase Steps
 
 **Goal**: Create appropriate steps for each customized phase
 
-**Helper Function - generate_phase_steps**:
-```
-def generate_phase_steps(phase_name, context, commands, agents, skills, discovered):
-  steps = []
-  context_lower = (context or "").lower()
+**Instructions**:
 
-  # Frame phase steps
-  if phase_name == "frame":
-    # Add context-specific frame steps
-    if "data" in context_lower or "etl" in context_lower:
-      steps.append({
-        "id": "validate-data-sources",
-        "name": "Validate Data Sources",
-        "description": "Verify data sources are accessible and valid",
-        "prompt": "Check that all data sources referenced in the work item are accessible. Validate data format and schema compatibility."
-      })
+When generating steps for a phase, consider the context provided and the selected integrations.
 
-    if "api" in context_lower or "endpoint" in context_lower:
-      steps.append({
-        "id": "review-api-contracts",
-        "name": "Review API Contracts",
-        "description": "Review existing API contracts and dependencies",
-        "prompt": "Review the existing API contracts that will be affected. Document breaking changes and versioning requirements."
-      })
+**For the Frame phase**, consider adding:
+- If context mentions "data" or "ETL": Add a "Validate Data Sources" step
+- If context mentions "API" or "endpoint": Add a "Review API Contracts" step
+- For each selected command with "setup" or "init" in its name: Add a step to run that command
 
-    # Add command-based steps
-    for cmd in commands:
-      if "setup" in cmd.name.lower() or "init" in cmd.name.lower():
-        steps.append({
-          "id": "run-{slugify(cmd.name)}",
-          "name": "Run {cmd.name}",
-          "description": cmd.description,
-          "command": "/{cmd.name}"
-        })
+**For the Architect phase**, typically add:
+- A "Create Design Specification" step with a prompt for creating technical specifications
+- For each selected agent with "design", "architect", or "spec" in its name: Add a step to invoke that agent
 
-  # Architect phase steps
-  if phase_name == "architect":
-    steps.append({
-      "id": "create-design-spec",
-      "name": "Create Design Specification",
-      "description": "Create technical specification for the work",
-      "prompt": "Create a detailed technical specification based on the work item requirements. Include:\n1. Overview of the solution approach\n2. Key components and their interactions\n3. Data structures and schemas\n4. API contracts if applicable\n5. Testing strategy"
-    })
+**For the Build phase**, typically add:
+- An "Implement Solution" step with guidance on following project patterns
+- For each selected skill with "build", "generate", or "create" in its name: Add a step using that skill
+- For each selected command with "build" or "compile" in its name: Add a step to run that command
 
-    # Add agent-based steps
-    for agent in agents:
-      if "design" in agent.name.lower() or "architect" in agent.name.lower() or "spec" in agent.name.lower():
-        steps.append({
-          "id": "invoke-{slugify(agent.name)}",
-          "name": "Invoke {agent.name}",
-          "description": agent.description,
-          "agent": "project:{agent.name}"
-        })
+**For the Evaluate phase**, typically add:
+- A "Run Test Suite" step for executing tests
+- A "Validate Requirements" step for checking acceptance criteria
+- For each selected command with "test", "lint", or "check" in its name: Add a step to run that command
 
-  # Build phase steps
-  if phase_name == "build":
-    steps.append({
-      "id": "implement-solution",
-      "name": "Implement Solution",
-      "description": "Implement the solution following the specification",
-      "prompt": "Implement the solution according to the specification:\n1. Follow existing project patterns and conventions\n2. Create atomic commits for each logical unit\n3. Write tests alongside implementation\n4. Ensure code quality and documentation"
-    })
+**For the Release phase**, typically add:
+- A "Prepare Release" step for versioning and changelog updates
 
-    # Add skill-based steps
-    for skill in skills:
-      if "build" in skill.name.lower() or "generate" in skill.name.lower() or "create" in skill.name.lower():
-        steps.append({
-          "id": "run-{slugify(skill.name)}",
-          "name": "Run {skill.name} skill",
-          "description": skill.description,
-          "skill": "project:{skill.name}"
-        })
-
-    # Add command-based steps for build
-    for cmd in commands:
-      if "build" in cmd.name.lower() or "compile" in cmd.name.lower():
-        steps.append({
-          "id": "run-{slugify(cmd.name)}",
-          "name": "Run {cmd.name}",
-          "description": cmd.description,
-          "command": "/{cmd.name}"
-        })
-
-  # Evaluate phase steps
-  if phase_name == "evaluate":
-    steps.append({
-      "id": "run-tests",
-      "name": "Run Test Suite",
-      "description": "Execute all relevant tests",
-      "prompt": "Run the test suite and verify all tests pass:\n1. Unit tests\n2. Integration tests\n3. Any project-specific validation"
-    })
-
-    steps.append({
-      "id": "validate-requirements",
-      "name": "Validate Requirements",
-      "description": "Verify all requirements from the specification are met",
-      "prompt": "Review the specification and verify each requirement is satisfied:\n1. Check all acceptance criteria\n2. Validate edge cases\n3. Ensure documentation is complete"
-    })
-
-    # Add test-related commands
-    for cmd in commands:
-      if "test" in cmd.name.lower() or "lint" in cmd.name.lower() or "check" in cmd.name.lower():
-        steps.append({
-          "id": "run-{slugify(cmd.name)}",
-          "name": "Run {cmd.name}",
-          "description": cmd.description,
-          "command": "/{cmd.name}"
-        })
-
-  # Release phase steps
-  if phase_name == "release":
-    steps.append({
-      "id": "prepare-release",
-      "name": "Prepare Release",
-      "description": "Prepare artifacts for release",
-      "prompt": "Prepare the release:\n1. Update version numbers if applicable\n2. Generate changelog entries\n3. Create release notes\n4. Tag the release commit"
-    })
-
-  return steps
-
-def get_phase_description(phase_name):
-  descriptions = {
-    "frame": "Setup and context gathering",
-    "architect": "Design and planning",
-    "build": "Implementation",
-    "evaluate": "Testing and validation",
-    "release": "Release and deployment"
-  }
-  return descriptions.get(phase_name, "Custom phase")
-
-def get_autonomy_description(level):
-  descriptions = {
-    "guarded": "Executes with approval required before release phase",
-    "assist": "Pauses before each phase for user confirmation",
-    "autonomous": "Executes without pausing for confirmation",
-    "dry-run": "Plans execution without making changes"
-  }
-  return descriptions.get(level, "Custom autonomy level")
-
-def slugify(text):
-  return text.lower().replace(" ", "-").replace("_", "-")
-```
+**Step structure**: Each step must have:
+- `id`: Unique identifier in kebab-case (e.g., "validate-data-sources")
+- `name`: Human-readable name
+- `description`: What the step does
+- `prompt` or `command` or `skill` or `agent`: The action to perform
 
 ### Step 7: Validate Workflow Structure
 
 **Goal**: Ensure the workflow is valid and follows best practices
 
-**Logic**:
-```
-# Validation checks
-validation_errors = []
-validation_warnings = []
+**Instructions**:
 
-# Check required fields
-if not workflow.id:
-  validation_errors.append("Missing workflow ID")
+1. **Validate required fields**:
+   - Workflow must have an `id` field
+   - Workflow must have a `phases` object
 
-if not workflow.phases:
-  validation_errors.append("Missing phases definition")
+2. **Validate extends field**:
+   - If `extends` is missing, add a warning that the workflow won't inherit core steps
 
-# Check extends field
-if not workflow.extends:
-  validation_warnings.append("No parent workflow specified - workflow won't inherit core steps")
+3. **Validate phases**:
+   - For each expected phase (frame, architect, build, evaluate, release):
+     - If missing, add a warning that it will be inherited from the parent
+     - If present but missing `enabled` field, default it to `true`
 
-# Check all phases exist
-for phase_name in core_phases:
-  if phase_name not in workflow.phases:
-    validation_warnings.append("Phase '{phase_name}' not defined (will inherit from parent)")
-  else:
-    phase = workflow.phases[phase_name]
-    if "enabled" not in phase:
-      phase.enabled = true
+4. **Validate autonomy**:
+   - If autonomy is missing or has no level, set defaults:
+     - `level`: "guarded"
+     - `require_approval_for`: ["release"]
+   - Add a warning if autonomy was not specified
 
-# Check autonomy
-if not workflow.autonomy or not workflow.autonomy.level:
-  workflow.autonomy = {
-    "level": "guarded",
-    "require_approval_for": ["release"]
-  }
-  validation_warnings.append("Autonomy not specified - defaulting to 'guarded'")
+5. **Validate step IDs for uniqueness**:
+   - Collect all step IDs from all phases (pre_steps, steps, post_steps)
+   - Check for duplicates and report each duplicate as an error
+   - **Also check against parent workflow**: If extends is specified, load the parent workflow and verify no step IDs conflict with inherited steps
 
-# Check for duplicate step IDs
-all_step_ids = []
-for phase_name, phase in workflow.phases.items():
-  for step in (phase.get('pre_steps') or []) + (phase.get('steps') or []) + (phase.get('post_steps') or []):
-    if step.id in all_step_ids:
-      validation_errors.append("Duplicate step ID: {step.id}")
-    all_step_ids.append(step.id)
+6. **Validate step structure**:
+   - Each step must have an `id` field - report as error if missing
+   - Each step should have a `name` field - report as warning if missing
 
-# Check step structure
-for phase_name, phase in workflow.phases.items():
-  for step in (phase.get('steps') or []):
-    if not step.get('id'):
-      validation_errors.append("Step in {phase_name} missing required 'id' field")
-    if not step.get('name'):
-      validation_warnings.append("Step '{step.id}' in {phase_name} missing 'name' field")
+7. **Validate against JSON schema** (if available):
+   - Attempt to read `plugins/faber/config/workflow.schema.json`
+   - If the schema exists, verify the workflow structure matches the schema requirements
+   - Report any schema validation errors
 
-# Report validation results
-PRINT ""
-if len(validation_errors) > 0:
-  PRINT "Validation Errors:"
-  for error in validation_errors:
-    PRINT "  - {error}"
-  ERROR "Cannot save workflow due to validation errors"
-  EXIT 2
-
-if len(validation_warnings) > 0:
-  PRINT "Validation Warnings:"
-  for warning in validation_warnings:
-    PRINT "  - {warning}"
-  PRINT ""
-else:
-  PRINT "Validation passed with no warnings"
-  PRINT ""
-```
+8. **Report validation results**:
+   - If there are errors, display them and exit with code 2
+   - If there are only warnings, display them and continue
+   - If validation passed with no warnings, indicate success
 
 ### Step 8: Preview and Confirm
 
 **Goal**: Show workflow preview and get user confirmation
 
-**Logic**:
-```
-# Generate workflow JSON
-workflow_json = serialize_json(workflow, indent=2)
+**Instructions**:
 
-# Display preview
-PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-PRINT "Workflow Preview"
-PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-PRINT ""
-PRINT "ID: {workflow.id}"
-PRINT "Description: {workflow.description}"
-PRINT "Extends: {workflow.extends}"
-PRINT "Autonomy: {workflow.autonomy.level}"
-PRINT ""
-PRINT "Phases:"
-for phase_name in core_phases:
-  if phase_name in workflow.phases:
-    phase = workflow.phases[phase_name]
-    enabled = phase.get('enabled', true)
-    step_count = len(phase.get('pre_steps') or []) + len(phase.get('steps') or []) + len(phase.get('post_steps') or [])
-    status = "enabled" if enabled else "disabled"
-    if step_count > 0:
-      PRINT "  {phase_name} ({status}): {step_count} custom step(s)"
-    else:
-      PRINT "  {phase_name} ({status}): inherits from {workflow.extends}"
+1. Convert the workflow object to formatted JSON (with 2-space indentation)
 
-if mode == "update":
-  PRINT ""
-  PRINT "Changes from original:"
-  # Show diff summary
-  PRINT "  (Review full JSON to see detailed changes)"
+2. Display a preview summary:
+   - Workflow ID
+   - Description
+   - Extends (parent workflow)
+   - Autonomy level
+   - For each phase: show if enabled/disabled and count of custom steps
 
-PRINT ""
+3. For update mode, indicate what changed from the original
 
-# Determine output path
-output_dir = ".fractary/faber/workflows"
-output_path = "{output_dir}/{workflow.id}.json"
+4. Determine the output path:
+   - **SECURITY: Validate path is safe**:
+     - The output directory must be `.fractary/faber/workflows/`
+     - The filename must be `{workflow_id}.json` where workflow_id passes the naming validation
+     - Use Bash with `realpath` to verify the final path stays within the project directory
+   - For create mode: `.fractary/faber/workflows/{workflow_id}.json`
+   - For update mode: Use the original file path
 
-if mode == "update" and existing_workflow_path:
-  output_path = existing_workflow_path
+5. Use AskUserQuestion to confirm:
+   - Question: "How would you like to proceed with this workflow?"
+   - Options: "Save workflow", "Show full JSON", "Cancel"
 
-# Ask for confirmation
-action_verb = "updated" if mode == "update" else "created"
-confirm_response = AskUserQuestion(
-  questions=[{
-    question: "How would you like to proceed with this workflow?",
-    header: "Confirm",
-    options: [
-      {label: "Save workflow", description: "Save to {output_path}"},
-      {label: "Show full JSON", description: "Display complete workflow before saving"},
-      {label: "Cancel", description: "Discard changes and exit"}
-    ],
-    multiSelect: false
-  }]
-)
+6. If "Show full JSON" is selected:
+   - Display the complete JSON
+   - Use AskUserQuestion again: "Save this workflow?"
+   - Options: "Yes, save it", "No, cancel"
 
-confirm_action = confirm_response["Confirm"]
-
-if confirm_action == "Show full JSON":
-  PRINT ""
-  PRINT "Full Workflow JSON:"
-  PRINT "```json"
-  PRINT workflow_json
-  PRINT "```"
-  PRINT ""
-
-  # Ask again after showing JSON
-  final_response = AskUserQuestion(
-    questions=[{
-      question: "Save this workflow?",
-      header: "Save",
-      options: [
-        {label: "Yes, save it", description: "Save to {output_path}"},
-        {label: "No, cancel", description: "Discard and exit"}
-      ],
-      multiSelect: false
-    }]
-  )
-
-  if "No" in final_response["Save"] or "cancel" in final_response["Save"].lower():
-    PRINT "Workflow {mode} cancelled."
-    EXIT 0
-
-if confirm_action == "Cancel":
-  PRINT "Workflow {mode} cancelled."
-  EXIT 0
-```
+7. If "Cancel" is selected at any point, display a cancellation message and exit with code 0
 
 ### Step 9: Save Workflow File
 
 **Goal**: Write the workflow to the project's workflow directory
 
-**Logic**:
-```
-# Ensure directory exists
-mkdir -p {dirname(output_path)}
+**Instructions**:
 
-# Write workflow file
-write(output_path, workflow_json)
+1. Ensure the output directory exists:
+   - Use Bash to run `mkdir -p .fractary/faber/workflows`
 
-action_verb = "Updated" if mode == "update" else "Created"
-PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-PRINT "Workflow {action_verb} Successfully"
-PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-PRINT ""
-PRINT "File: {output_path}"
-PRINT ""
+2. **SECURITY: Final path validation**:
+   - Compute the absolute path of the output file
+   - Verify it is within the current working directory
+   - If validation fails, display a security error and exit with code 3
 
-if mode == "create":
-  PRINT "To use this workflow:"
-  PRINT "  1. Add to config: .fractary/plugins/faber/config.json"
-  PRINT "     Add to 'workflows' array:"
-  PRINT "     {\"id\": \"{workflow.id}\", \"file\": \"./workflows/{workflow.id}.json\"}"
-  PRINT ""
-  PRINT "  2. Run with workflow:"
-  PRINT "     /fractary-faber:run --work-id <id> --workflow {workflow.id}"
-  PRINT ""
-  PRINT "  3. Or set as default in config:"
-  PRINT "     \"default_workflow\": \"project:{workflow.id}\""
-else:
-  PRINT "The workflow has been updated in place."
-  PRINT ""
-  PRINT "Run with:"
-  PRINT "  /fractary-faber:run --work-id <id> --workflow {workflow.id}"
+3. Use the Write tool to save the workflow JSON to the output path
 
-PRINT ""
+4. Display a success message with:
+   - The file path where the workflow was saved
+   - For create mode: Instructions on how to use the workflow
+     - How to add it to the config file
+     - How to run it with `/fractary-faber:run`
+     - How to set it as default
+   - For update mode: Confirmation that the workflow was updated in place
 
-# Offer to validate
-validate_response = AskUserQuestion(
-  questions=[{
-    question: "Would you like to validate the workflow against best practices?",
-    header: "Validate",
-    options: [
-      {label: "Yes, run audit (Recommended)", description: "Run /fractary-faber:workflow-audit on the workflow"},
-      {label: "No, I'm done", description: "Exit without validation"}
-    ],
-    multiSelect: false
-  }]
-)
+5. Use AskUserQuestion to offer validation:
+   - Question: "Would you like to validate the workflow against best practices?"
+   - Options: "Yes, run audit (Recommended)", "No, I'm done"
 
-if "Yes" in validate_response["Validate"] or "audit" in validate_response["Validate"].lower():
-  PRINT ""
-  PRINT "Running workflow audit..."
-  PRINT "Run: /fractary-faber:workflow-audit {output_path}"
-```
+6. If validation is requested, display the command to run:
+   - `/fractary-faber:workflow-audit {output_path}`
 
 ## Exit Codes
 
 | Code | Meaning | Description |
 |------|---------|-------------|
-| 0 | Success | Workflow created/updated successfully |
-| 1 | Not Found | Workflow not found (update mode) or missing required argument |
+| 0 | Success | Workflow created/updated successfully, or user cancelled |
+| 1 | Input Error | Invalid workflow name, workflow not found, or missing required argument |
 | 2 | Validation Error | Generated workflow failed validation |
-| 3 | Write Error | Could not write workflow file |
-| 4 | User Cancelled | User cancelled operation |
+| 3 | Security Error | Path traversal or unsafe file write attempted |
+
+## Security Considerations
+
+1. **Workflow Name Validation**: All workflow names must match `^[a-z][a-z0-9-]*$` to prevent path traversal attacks
+
+2. **Path Validation**: Before reading or writing any workflow file, validate that the resolved path is within the project directory
+
+3. **No Code Execution**: The agent only reads/writes JSON configuration files; it does not execute arbitrary code from workflows
 
 ## Best Practices Applied
 
@@ -1036,7 +416,7 @@ The workflow engineer ensures all workflows follow these best practices:
 
 1. **Extends Core**: All workflows extend `fractary-faber:core` by default
 2. **Phase Structure**: Uses the 5-phase FABER structure (frame, architect, build, evaluate, release)
-3. **Unique Step IDs**: All step IDs are unique and follow naming conventions
+3. **Unique Step IDs**: All step IDs are unique and don't conflict with inherited steps
 4. **Autonomy Configuration**: Proper autonomy settings with `require_approval_for` array
 5. **Schema Reference**: Includes `$schema` reference for validation
 6. **Descriptive Metadata**: Includes description for workflow and each phase
