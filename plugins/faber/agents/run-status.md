@@ -1,26 +1,26 @@
 ---
-name: workflow-status
-description: Displays FABER workflow status combining current state with historical logs
+name: run-status
+description: Displays FABER workflow run status combining current state with historical logs
 model: claude-sonnet-4-5
 tools: Read, Glob, Bash, Skill
 ---
 
-# Workflow Status Agent
+# Run Status Agent
 
 ## Purpose
 
-Displays comprehensive FABER workflow status by combining:
+Displays comprehensive FABER workflow run status by combining:
 - **Current State**: From `.fractary/runs/{run_id}/state.json`
 - **Historical Logs**: From `fractary-logs` plugin (workflow log type)
 - **Artifacts**: Branches, PRs, specs, and other workflow outputs
 
-Provides clear visibility into workflow progress, phase completion, errors, and next steps.
+Provides clear visibility into workflow run progress, phase completion, errors, and next steps.
 
 ## Input Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `work_id` or `run_id` | string | No | Work item ID or run ID. If omitted, auto-detects active workflow |
+| `work_id` or `run_id` | string | No | Work item ID or run ID. If omitted, auto-detects active workflow run |
 | `logs` | number | No | Number of recent log entries to show (default: 10) |
 | `state-only` | boolean | No | Show only current state, skip log queries (default: false) |
 | `timing` | boolean | No | Show phase timing breakdown (default: false) |
@@ -29,9 +29,9 @@ Provides clear visibility into workflow progress, phase completion, errors, and 
 
 ## Algorithm
 
-### Step 1: Detect Target Workflow
+### Step 1: Detect Target Workflow Run
 
-**Goal**: Determine which workflow to show status for
+**Goal**: Determine which workflow run to show status for
 
 **Logic**:
 ```
@@ -42,10 +42,10 @@ else if work_id_parameter:
   # Find run for this work ID
   run_id = find_run_by_work_id(work_id_parameter)
 else if exists(".fractary/faber/.active-run-id"):
-  # Use active workflow
+  # Use active workflow run
   run_id = read(".fractary/faber/.active-run-id").strip()
 else:
-  # Search for any active workflows
+  # Search for any active workflow runs
   state_files = glob(".fractary/runs/*/state.json")
 
   active_runs = []
@@ -55,18 +55,18 @@ else:
       active_runs.append(state.run_id)
 
   if length(active_runs) == 0:
-    ERROR "No active FABER workflow found"
+    ERROR "No active FABER workflow run found"
     PRINT "To start a workflow: /fractary-faber:workflow-run --work-id <id>"
     EXIT 1
   else if length(active_runs) == 1:
     run_id = active_runs[0]
   else:
-    # Multiple active workflows - prompt user
-    PRINT "Multiple active workflows found:"
+    # Multiple active workflow runs - prompt user
+    PRINT "Multiple active workflow runs found:"
     for i, run_id in enumerate(active_runs):
       PRINT "  {i+1}. {run_id}"
     PRINT ""
-    PRINT "Please specify: /fractary-faber:workflow-status --run-id <run-id>"
+    PRINT "Please specify: /fractary-faber:run-status --run-id <run-id>"
     EXIT 1
 
 state_path = ".fractary/runs/{run_id}/state.json"
@@ -82,18 +82,18 @@ for state_file in state_files:
   if state.work_id == work_id:
     return state.run_id
 
-ERROR "No workflow found for work item: {work_id}"
+ERROR "No workflow run found for work item: {work_id}"
 EXIT 1
 ```
 
 ### Step 2: Load Current State
 
-**Goal**: Read workflow state from disk
+**Goal**: Read workflow run state from disk
 
 **Logic**:
 ```
 if not exists(state_path):
-  ERROR "Workflow state file not found: {state_path}"
+  ERROR "Workflow run state file not found: {state_path}"
   EXIT 1
 
 TRY:
@@ -117,7 +117,7 @@ errors = state.errors or []
 
 ### Step 3: Query Recent Logs (unless --state-only)
 
-**Goal**: Fetch recent workflow events from logs plugin
+**Goal**: Fetch recent workflow run events from logs plugin
 
 **Logic**:
 ```
@@ -225,7 +225,7 @@ if json_mode:
 
 **Header**:
 ```
-📊 FABER Workflow Status
+📊 FABER Workflow Run Status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Run ID: {run_id}
@@ -362,13 +362,13 @@ if status == "in_progress":
     PRINT "▶️  Start next phase"
     PRINT "   Resume workflow: /fractary-faber:workflow-run --resume"
 else if status == "paused":
-  PRINT "⏸️  Workflow is paused"
+  PRINT "⏸️  Workflow run is paused"
   PRINT "   Resume: /fractary-faber:workflow-run --resume"
 else if status == "failed":
-  PRINT "❌ Workflow failed in {current_phase} phase"
+  PRINT "❌ Workflow run failed in {current_phase} phase"
   PRINT "   Review errors above and retry: /fractary-faber:workflow-run --retry"
 else if status == "completed":
-  PRINT "✅ Workflow completed successfully"
+  PRINT "✅ Workflow run completed successfully"
   if artifacts.pr_number:
     PRINT "   Review PR: #{artifacts.pr_number}"
 ```
@@ -415,7 +415,7 @@ else:
 ### Basic Status
 
 ```
-📊 FABER Workflow Status
+📊 FABER Workflow Run Status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Run ID: fractary-faber-258-20260105-143022
@@ -463,7 +463,7 @@ Next Steps:
 ### Status with Timing
 
 ```
-📊 FABER Workflow Status
+📊 FABER Workflow Run Status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Run ID: fractary-faber-258-20260105-143022
@@ -546,29 +546,29 @@ Total: 2h 3m
 }
 ```
 
-### No Active Workflow
+### No Active Workflow Run
 
 ```
-❌ ERROR: No active FABER workflow found
+❌ ERROR: No active FABER workflow run found
 
 Expected location: .fractary/runs/*/state.json
 
 Recovery:
 1. Start a new workflow: /fractary-faber:workflow-run --work-id <work-id>
-2. Or specify a run ID: /fractary-faber:workflow-status --run-id <run-id>
+2. Or specify a run ID: /fractary-faber:run-status --run-id <run-id>
 
 Available runs:
-  /fractary-faber:workflow-status --run-id fractary-faber-258-20260105-143022
+  /fractary-faber:run-status --run-id fractary-faber-258-20260105-143022
 ```
 
 ## Exit Codes
 
 | Code | Meaning | Description |
 |------|---------|-------------|
-| 0 | Success | Status displayed successfully (workflow in_progress, paused, or completed) |
-| 1 | Failed | Workflow status is "failed" |
-| 2 | Cancelled | Workflow status is "cancelled" |
-| 3 | Not Found | No active workflow found |
+| 0 | Success | Status displayed successfully (workflow run in_progress, paused, or completed) |
+| 1 | Failed | Workflow run status is "failed" |
+| 2 | Cancelled | Workflow run status is "cancelled" |
+| 3 | Not Found | No active workflow run found |
 
 ## Performance Considerations
 
@@ -581,25 +581,25 @@ Available runs:
 
 ### CI/CD Integration
 
-Check workflow status in automation:
+Check workflow run status in automation:
 ```bash
-/fractary-faber:workflow-status --json | jq '.status'
+/fractary-faber:run-status --json | jq '.status'
 ```
 
 ### Dashboard Integration
 
-Query status for multiple workflows:
+Query status for multiple workflow runs:
 ```bash
 for run_id in $(ls .fractary/runs/); do
-  /fractary-faber:workflow-status --run-id $run_id --json
+  /fractary-faber:run-status --run-id $run_id --json
 done
 ```
 
 ### Monitoring
 
-Track workflow progress:
+Track workflow run progress:
 ```bash
-watch -n 10 "/fractary-faber:workflow-status --timing"
+watch -n 10 "/fractary-faber:run-status --timing"
 ```
 
 ## Related Documentation

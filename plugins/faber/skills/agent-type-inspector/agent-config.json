@@ -23,7 +23,7 @@
       "Providing a snapshot view of current state"
     ],
     "examples": [
-      "workflow-status",
+      "run-status",
       "service-inspector",
       "deployment-status"
     ]

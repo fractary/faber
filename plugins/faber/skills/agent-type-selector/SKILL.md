@@ -179,7 +179,7 @@ Direct the user to the appropriate agent-type-* skill for:
 - Reports current state at a point in time
 - Focuses on a single entity
 - **Typical tools**: Read, Glob, Bash, Skill
-- **Example**: `workflow-status` - Displays single workflow status
+- **Example**: `run-status` - Displays single workflow run status
 
 ## auditor
 **Purpose**: Aggregates across multiple entities for dashboard views

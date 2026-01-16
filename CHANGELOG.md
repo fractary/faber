@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Renamed**: `workflow-status` command and agent renamed to `run-status`
+  - Clarifies that the command reports on workflow **run/execution** status, not workflow definition status
+  - Command: `/fractary-faber:workflow-status` → `/fractary-faber:run-status`
+  - Agent: `workflow-status` → `run-status`
+  - Updated all documentation references
+
 ## [1.5.1] - 2026-01-16
 
 ### Version Bumps
