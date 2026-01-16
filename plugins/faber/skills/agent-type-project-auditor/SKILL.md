@@ -156,11 +156,11 @@ Support filtering options:
 
 <EXAMPLES>
 
-## Example 1: workflow-auditor
+## Example 1: workflow-inspector
 
-The `workflow-auditor` agent validates all FABER workflows:
+The `workflow-inspector` agent validates all FABER workflows:
 
-**Location**: `plugins/faber/agents/workflow-auditor.md`
+**Location**: `plugins/faber/agents/workflow-inspector.md`
 
 **Key features:**
 - Validates ALL workflow configurations

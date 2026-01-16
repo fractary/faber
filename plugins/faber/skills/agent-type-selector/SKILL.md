@@ -212,7 +212,7 @@ Direct the user to the appropriate agent-type-* skill for:
 - Creates summary dashboards
 - Aggregates health and status information
 - **Typical tools**: Read, Glob, Grep, Bash, Skill
-- **Example**: `workflow-auditor` - Validates across all workflows
+- **Example**: `workflow-inspector` - Validates across all workflows
 
 </TYPE_DETAILS>
 

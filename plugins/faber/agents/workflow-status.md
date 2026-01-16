@@ -606,7 +606,7 @@ watch -n 10 "/fractary-faber:workflow-status --timing"
 
 - **Commands**:
   - `commands/workflow-run.md` - Start/resume workflows
-  - `commands/workflow-audit.md` - Validate configuration
+  - `commands/workflow-inspect.md` - Validate configuration
 - **State Management**:
   - `docs/STATE-MANAGEMENT.md` - State file structure
   - `config/schema/state.schema.json` - State schema

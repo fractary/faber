@@ -767,12 +767,12 @@ Includes additional checks based on the provided context about security validati
 
 - Run before merging new agents
 - Include in CI/CD pipeline
-- Use with workflow-audit for complete project validation
+- Use with workflow-inspect for complete project validation
 
 ## See Also
 
 - `/fractary-faber:agent-create` - Create new agents
-- `/fractary-faber:workflow-audit` - Audit workflow configuration (project-wide status)
+- `/fractary-faber:workflow-inspect` - Audit workflow configuration (project-wide status)
 - `plugins/faber/docs/FABER-AGENT-BEST-PRACTICES.md` - Complete best practices guide
 
 </NOTES>

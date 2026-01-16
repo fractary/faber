@@ -1,6 +1,6 @@
-# Workflow Auditor Integration Tests
+# Workflow Inspector Integration Tests
 
-This document defines integration test scenarios for the workflow-auditor agent enhancements.
+This document defines integration test scenarios for the workflow-inspector agent enhancements.
 
 ## Test Categories
 
@@ -14,7 +14,7 @@ This document defines integration test scenarios for the workflow-auditor agent 
 
 ## Test 1: No Argument Mode - Show Usage and List Workflows
 
-**Scenario**: User runs workflow-audit with no arguments
+**Scenario**: User runs workflow-inspect with no arguments
 
 **Setup**:
 ```bash
@@ -30,14 +30,14 @@ ls .fractary/faber/config.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit
+/fractary-faber:workflow-inspect
 
 # Expected output:
 # 🔍 FABER Workflow Audit
 # Target: Show usage and list available workflows
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# Usage: /fractary-faber:workflow-audit [<workflow>] [OPTIONS]
+# Usage: /fractary-faber:workflow-inspect [<workflow>] [OPTIONS]
 #
 # Workflow identifier:
 #   workflow-id          Validate workflow from project config
@@ -73,7 +73,7 @@ grep -q '"id": "default"' .fractary/faber/config.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit default
+/fractary-faber:workflow-inspect default
 
 # Expected output includes:
 # 🔍 FABER Workflow Audit
@@ -120,7 +120,7 @@ ls plugins/faber/config/workflows/feature.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit plugins/faber/config/workflows/feature.json
+/fractary-faber:workflow-inspect plugins/faber/config/workflows/feature.json
 
 # Expected output:
 # 🔍 FABER Workflow Audit
@@ -152,7 +152,7 @@ ls plugins/faber/config/workflows/default.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit fractary-faber:default
+/fractary-faber:workflow-inspect fractary-faber:default
 
 # Expected output:
 # 🔍 FABER Workflow Audit
@@ -183,7 +183,7 @@ ls .fractary/faber/config.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit nonexistent
+/fractary-faber:workflow-inspect nonexistent
 
 # Expected output:
 # ❌ ERROR: Workflow 'nonexistent' not found in config
@@ -208,7 +208,7 @@ ls .fractary/faber/config.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit ./nonexistent.json
+/fractary-faber:workflow-inspect ./nonexistent.json
 
 # Expected output:
 # ❌ ERROR: Workflow file not found: ./nonexistent.json
@@ -234,7 +234,7 @@ echo '{"invalid": json}' > /tmp/invalid-workflow.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit /tmp/invalid-workflow.json
+/fractary-faber:workflow-inspect /tmp/invalid-workflow.json
 
 # Expected output:
 # ❌ ERROR: File is not a valid workflow (missing required fields: id, phases)
@@ -264,13 +264,13 @@ ls plugins/faber/skills/*/SKILL.md | wc -l  # Should be > 0
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit default --verbose
+/fractary-faber:workflow-inspect default --verbose
 
 # Expected output includes:
 # 🔍 Discovering agents and skills...
 # Found N agents/skills in registry
 # Registry entries:
-#   - fractary-faber:workflow-auditor (agent, faber)
+#   - fractary-faber:workflow-inspector (agent, faber)
 #   - fractary-faber:faber-planner (agent, faber)
 #   - fractary-spec:spec-create (skill, spec)
 #   ...
@@ -299,7 +299,7 @@ cat plugins/faber/config/workflows/default.json | grep -E "(Skill|Task|/)"
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit default --verbose
+/fractary-faber:workflow-inspect default --verbose
 
 # Expected output includes:
 # Extracting agent/skill references from workflow steps...
@@ -344,7 +344,7 @@ EOF
 ```bash
 # Create workflow referencing test agent
 # Run audit
-/fractary-faber:workflow-audit test-workflow --verbose
+/fractary-faber:workflow-inspect test-workflow --verbose
 
 # Expected output includes:
 # ✅ COMPLIANT (1)
@@ -384,7 +384,7 @@ EOF
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit test-workflow --verbose
+/fractary-faber:workflow-inspect test-workflow --verbose
 
 # Expected output includes:
 # ⚠️  UNKNOWN (1)
@@ -422,7 +422,7 @@ rm -rf .claude/agents/test-unknown.md
 **Verification**:
 ```bash
 # Audit workflow that references "fractary-typo:missing"
-/fractary-faber:workflow-audit workflow-with-typo
+/fractary-faber:workflow-inspect workflow-with-typo
 
 # Expected output includes:
 # ❌ NOT FOUND (1)
@@ -475,7 +475,7 @@ EOF
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit test-workflow --verbose
+/fractary-faber:workflow-inspect test-workflow --verbose
 
 # Expected output includes:
 # ✅ COMPLIANT (1)
@@ -502,7 +502,7 @@ rm -rf .claude/agents/test-implicit.md
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit default --verbose
+/fractary-faber:workflow-inspect default --verbose
 
 # Expected output includes:
 # Mode: workflow_id
@@ -512,7 +512,7 @@ rm -rf .claude/agents/test-implicit.md
 # 🔍 Discovering agents and skills...
 # Found 50 agents/skills in registry
 # Registry entries:
-#   - fractary-faber:workflow-auditor (agent, faber)
+#   - fractary-faber:workflow-inspector (agent, faber)
 #   [... full list ...]
 #
 # Extracting agent/skill references from workflow steps...
@@ -537,7 +537,7 @@ rm -rf .claude/agents/test-implicit.md
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit default --check steps
+/fractary-faber:workflow-inspect default --check steps
 
 # Expected output:
 # - Should include agent/skill validation
@@ -565,7 +565,7 @@ rm -rf .claude/agents/test-implicit.md
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit default --fix
+/fractary-faber:workflow-inspect default --fix
 
 # Expected output includes:
 # ✓ Auto-fixed N issues
@@ -583,7 +583,7 @@ rm -rf .claude/agents/test-implicit.md
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit default
+/fractary-faber:workflow-inspect default
 echo $?
 
 # Expected: 0
@@ -601,7 +601,7 @@ echo $?
 **Verification**:
 ```bash
 # Audit workflow with warnings (e.g., missing descriptions)
-/fractary-faber:workflow-audit workflow-with-warnings
+/fractary-faber:workflow-inspect workflow-with-warnings
 echo $?
 
 # Expected: 1
@@ -619,7 +619,7 @@ echo $?
 **Verification**:
 ```bash
 # Audit workflow with errors (e.g., missing required phase)
-/fractary-faber:workflow-audit workflow-with-errors
+/fractary-faber:workflow-inspect workflow-with-errors
 echo $?
 
 # Expected: 2
@@ -636,7 +636,7 @@ echo $?
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-audit nonexistent
+/fractary-faber:workflow-inspect nonexistent
 echo $?
 
 # Expected: 3
@@ -670,13 +670,13 @@ Run each test scenario individually following the verification steps.
 
 ```bash
 # Run all tests
-./plugins/faber/tests/integration/run-workflow-auditor-tests.sh
+./plugins/faber/tests/integration/run-workflow-inspector-tests.sh
 
 # Run specific category
-./plugins/faber/tests/integration/run-workflow-auditor-tests.sh argument-parsing
+./plugins/faber/tests/integration/run-workflow-inspector-tests.sh argument-parsing
 
 # Run specific test
-./plugins/faber/tests/integration/run-workflow-auditor-tests.sh test-1
+./plugins/faber/tests/integration/run-workflow-inspector-tests.sh test-1
 ```
 
 ## Success Criteria

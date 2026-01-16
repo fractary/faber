@@ -177,4 +177,4 @@ highlight_warnings(filter(entities, has_warning))
 
 See these auditor agents for reference:
 
-- `plugins/faber/agents/workflow-auditor.md` - Workflow validation auditor
+- `plugins/faber/agents/workflow-inspector.md` - Workflow validation inspector
