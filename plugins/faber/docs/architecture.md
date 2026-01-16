@@ -30,7 +30,7 @@ FABER is a **tool-agnostic SDLC workflow framework** built on a 3-layer architec
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    User Interface                        │
-│     /fractary-faber:config, /fractary-faber:run, /fractary-faber:status     │
+│     /fractary-faber:configure, /fractary-faber:run, /fractary-faber:status     │
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────┐
@@ -202,7 +202,7 @@ Additional benefits:
 ```
 User
   └─ /fractary-faber:* (Commands)
-      ├─ /fractary-faber:config (Command)
+      ├─ /fractary-faber:configure (Command)
       │   └─ Auto-detects project settings
       ├─ /fractary-faber:run (Command)
       │   └─ faber-director (Skill - Lightweight Router)

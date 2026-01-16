@@ -53,7 +53,7 @@ if [ -f "$CONFIG_FILE" ]; then
     fi
 else
     echo -e "  ${YELLOW}⚠${NC} Config file not found: $CONFIG_FILE"
-    echo "      Run: /fractary-faber:config"
+    echo "      Run: /fractary-faber:configure"
 fi
 
 # Check state

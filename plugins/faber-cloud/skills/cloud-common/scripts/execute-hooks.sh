@@ -406,7 +406,7 @@ main() {
     log_warning "Using deprecated faber-cloud.json - please rename to config.json"
   elif [ -f ".fractary/plugins/devops/devops.json" ]; then
     config_file=".fractary/plugins/devops/devops.json"
-    log_warning "Using legacy devops.json - please run /fractary-faber-cloud:config to migrate"
+    log_warning "Using legacy devops.json - please run /fractary-faber-cloud:configure to migrate"
   else
     log_info "No configuration file found - no hooks to execute"
     exit 0

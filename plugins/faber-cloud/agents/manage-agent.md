@@ -489,7 +489,7 @@ esac
 </OUTPUTS>
 
 <RELATED_COMMANDS>
-- `/fractary-faber-cloud:config` - Initialize faber-cloud configuration
+- `/fractary-faber-cloud:configure` - Initialize faber-cloud configuration
 - `/fractary-faber-cloud:architect` - Design infrastructure architecture
 - `/fractary-faber-cloud:engineer` - Generate Infrastructure as Code
 - `/fractary-faber-cloud:deploy-plan` - Preview deployment changes

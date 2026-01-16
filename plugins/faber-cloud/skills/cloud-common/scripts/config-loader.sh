@@ -95,7 +95,7 @@ migrate_config_if_needed() {
     # Check for devops.json (legacy)
     if [[ -f "$LEGACY_CONFIG_FILE" ]]; then
         log_warning "Legacy config found: devops.json"
-        log_info "Please run: /fractary-faber-cloud:config to migrate configuration"
+        log_info "Please run: /fractary-faber-cloud:configure to migrate configuration"
         log_info "Or manually rename: devops.json → config.json"
         return 1
     fi
@@ -111,7 +111,7 @@ check_config_exists() {
 
     if [[ ! -f "$CONFIG_FILE" ]]; then
         log_error "Configuration file not found: $CONFIG_FILE"
-        log_info "Run /fractary-faber-cloud:config to create configuration"
+        log_info "Run /fractary-faber-cloud:configure to create configuration"
         return 1
     fi
     return 0

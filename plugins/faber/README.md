@@ -30,7 +30,7 @@ FABER is a **tool-agnostic workflow framework** that automates the complete soft
 
 ```bash
 cd your-project
-/fractary-faber:config
+/fractary-faber:configure
 ```
 
 This auto-detects your project settings and creates `.fractary/plugins/faber/config.json`.
@@ -115,7 +115,7 @@ Claude Code will automatically discover the plugin.
 **Option 1: Auto-Initialize** (Recommended)
 
 ```bash
-/fractary-faber:config
+/fractary-faber:configure
 ```
 
 Creates `.fractary/plugins/faber/config.json` with default workflow configuration.
@@ -218,7 +218,7 @@ faber plan --work-id 123 --json
 
 ```bash
 # Initialize FABER in a project
-/fractary-faber:config
+/fractary-faber:configure
 
 # Execute workflow with work-id (recommended)
 /fractary-faber:workflow-run 123
@@ -358,7 +358,7 @@ Layer 3: Scripts (Deterministic Operations)
 
 #### Commands (User Interface)
 - `faber plan` - Plan workflows (CLI - v3.4.0+)
-- `/fractary-faber:config` - Initialize FABER in a project
+- `/fractary-faber:configure` - Initialize FABER in a project
 - `/fractary-faber:workflow-run` - Execute pre-planned workflow
 - `/fractary-faber:status` - Show workflow status
 - `/fractary-faber:audit` - Validate configuration
@@ -503,7 +503,7 @@ cat .faber/sessions/abc12345.json | jq .
 ### Common Issues
 
 #### "Configuration file not found"
-**Solution**: Run `/fractary-faber:config` or copy a preset
+**Solution**: Run `/fractary-faber:configure` or copy a preset
 
 #### "Authentication failed"
 **Solution**: Configure platform authentication

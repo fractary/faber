@@ -131,7 +131,7 @@ Maps to the `infrastructure-teardown` workflow for safe infrastructure destructi
 
 ## Installation
 
-These templates are automatically installed when you run `/fractary-faber-cloud:config` in a project.
+These templates are automatically installed when you run `/fractary-faber-cloud:configure` in a project.
 
 **Files created:**
 ```
@@ -149,7 +149,7 @@ These templates are automatically installed when you run `/fractary-faber-cloud:
 
 ## Usage
 
-After running `/fractary-faber-cloud:config`, users can:
+After running `/fractary-faber-cloud:configure`, users can:
 
 1. **Create an issue** using GitHub's issue template selector
    - Go to: GitHub → Issues → New Issue

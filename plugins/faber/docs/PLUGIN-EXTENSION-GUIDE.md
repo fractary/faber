@@ -322,7 +322,7 @@ The init command **copies workflow templates** and **adds references** to the co
 **Example**: `commands/init.md`
 
 ```markdown
-# /fractary-faber-cloud:config
+# /fractary-faber-cloud:configure
 
 Initialize cloud infrastructure workflow for FABER.
 
@@ -339,23 +339,23 @@ Initialize cloud infrastructure workflow for FABER.
 
 ## Prerequisites
 
-- Core FABER must be initialized first: `/fractary-faber:config`
+- Core FABER must be initialized first: `/fractary-faber:configure`
 
 ## Usage
 
 ```bash
 # Add cloud workflow to existing FABER config
-/fractary-faber-cloud:config
+/fractary-faber-cloud:configure
 
 # Specify environment (optional)
-/fractary-faber-cloud:config --env production
-/fractary-faber-cloud:config --env staging
+/fractary-faber-cloud:configure --env production
+/fractary-faber-cloud:configure --env staging
 ```
 
 ## Implementation (Template-Copy Pattern)
 
 This command should:
-1. Check if core FABER config exists (require `/fractary-faber:config` first)
+1. Check if core FABER config exists (require `/fractary-faber:configure` first)
 2. Create `.fractary/plugins/faber/workflows/` directory if needed
 3. Copy workflow template:
    - From: `plugins/faber-cloud/config/workflows/cloud.json`
@@ -388,7 +388,7 @@ The "cloud" workflow will be available:
 
 ## See Also
 
-- Core FABER: `/fractary-faber:config`
+- Core FABER: `/fractary-faber:configure`
 - Workflow selection: `/fractary-faber:run --help`
 ```
 
@@ -572,11 +572,11 @@ Your init command should copy the appropriate template:
 
 ```bash
 # Copy AWS template
-/fractary-faber-cloud:config --provider aws
+/fractary-faber-cloud:configure --provider aws
 # Copies: cloud-aws.yml → .github/ISSUE_TEMPLATE/cloud-aws.yml
 
 # Copy GCP template
-/fractary-faber-cloud:config --provider gcp
+/fractary-faber-cloud:configure --provider gcp
 # Copies: cloud-gcp.yml → .github/ISSUE_TEMPLATE/cloud-gcp.yml
 ```
 
@@ -646,7 +646,7 @@ Maps to the `cloud` workflow for general infrastructure changes.
 
 ## Usage
 
-After running `/fractary-faber-cloud:config`, users can:
+After running `/fractary-faber-cloud:configure`, users can:
 
 1. Go to GitHub → Issues → New Issue
 2. Select "Cloud Infrastructure Change" template
@@ -666,7 +666,7 @@ function initFaberCloudWorkflow() {
   // 1. Check prerequisites
   const coreConfigPath = '.fractary/plugins/faber/config.json'
   if (!exists(coreConfigPath)) {
-    error("Core FABER not initialized. Run /fractary-faber:config first")
+    error("Core FABER not initialized. Run /fractary-faber:configure first")
     return
   }
 
@@ -693,7 +693,7 @@ function initFaberCloudWorkflow() {
   // 5. CRITICAL: Verify default workflow reference exists
   const defaultWorkflow = config.workflows.find(w => w.id === 'default')
   if (!defaultWorkflow) {
-    error("Default workflow not found. This should never happen. Re-run /fractary-faber:config")
+    error("Default workflow not found. This should never happen. Re-run /fractary-faber:configure")
     return
   }
 
@@ -756,8 +756,8 @@ When testing your plugin integration, verify both workflow and issue template in
 
 ```bash
 # Test integration
-1. /fractary-faber:config                    # Core FABER
-2. /fractary-faber-cloud:config              # Your plugin
+1. /fractary-faber:configure                    # Core FABER
+2. /fractary-faber-cloud:configure              # Your plugin
 
 # Verify files created
 3. ls .fractary/plugins/faber/workflows/   # Should show cloud.json
@@ -808,8 +808,8 @@ A plugin can provide multiple workflows:
 
 Let users choose:
 ```bash
-/fractary-faber-cloud:config --provider aws
-/fractary-faber-cloud:config --provider gcp
+/fractary-faber-cloud:configure --provider aws
+/fractary-faber-cloud:configure --provider gcp
 ```
 
 ### 3. Respect Core FABER Structure
@@ -871,12 +871,12 @@ Show users how to customize your workflows:
 
 1. Initialize core FABER:
    ```bash
-   /fractary-faber:config
+   /fractary-faber:configure
    ```
 
 2. Initialize your plugin:
    ```bash
-   /fractary-faber-cloud:config
+   /fractary-faber-cloud:configure
    ```
 
 3. Verify config:

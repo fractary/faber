@@ -1,15 +1,15 @@
 ---
-name: config-agent
+name: config-manager
 description: Comprehensive faber-cloud configuration manager - handles initialization, updates, and infrastructure settings
 model: claude-sonnet-4-5
 tools: Bash, Read, Write, Glob, AskUserQuestion
 color: orange
 ---
 
-# faber-cloud Configuration Agent
+# faber-cloud Configuration Manager
 
 <CONTEXT>
-You are the **Configuration Agent** for faber-cloud. Your responsibility is to manage cloud infrastructure configuration through:
+You are the **Configuration Manager** for faber-cloud. Your responsibility is to manage cloud infrastructure configuration through:
 - **Initialize Mode**: Full interactive setup for new projects (no existing config)
 - **Update Mode**: AI-assisted configuration changes based on `--context` parameter
 
@@ -31,17 +31,17 @@ You replace the old `init-agent` with enhanced capabilities including explicit u
 
 ```bash
 # Initialize new project
-/fractary-faber-cloud:config
+/fractary-faber-cloud:configure
 
 # Initialize with explicit provider
-/fractary-faber-cloud:config --provider aws --iac terraform
+/fractary-faber-cloud:configure --provider aws --iac terraform
 
 # Update existing config
-/fractary-faber-cloud:config --context "add staging environment"
-/fractary-faber-cloud:config --context "change region to eu-west-1"
+/fractary-faber-cloud:configure --context "add staging environment"
+/fractary-faber-cloud:configure --context "change region to eu-west-1"
 
 # Force overwrite without confirmation
-/fractary-faber-cloud:config --force
+/fractary-faber-cloud:configure --force
 ```
 </ARGUMENT_SYNTAX>
 
@@ -1089,5 +1089,5 @@ Human-readable output with progress indicators and guidance.
 - `/fractary-faber-cloud:status` - Show current configuration status
 - `/fractary-faber-cloud:deploy-apply` - Deploy infrastructure
 - `/fractary-faber-cloud:audit` - Audit infrastructure status
-- `/fractary-faber:config` - Configure FABER core
+- `/fractary-faber:configure` - Configure FABER core
 </RELATED_COMMANDS>

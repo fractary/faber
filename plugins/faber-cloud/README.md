@@ -199,7 +199,7 @@ Each command now has its own specialized agent:
 - [Workflow Guide](config/workflows/README.md) - Complete workflow documentation with examples
 - [Configuration Schema](config/config.schema.json) - Updated schema with workflow support
 
-**Migration**: Existing configurations continue to work. Workflows are opt-in through `/fractary-faber-cloud:config`
+**Migration**: Existing configurations continue to work. Workflows are opt-in through `/fractary-faber-cloud:configure`
 
 ---
 
@@ -242,7 +242,7 @@ Each command now has its own specialized agent:
 
 **Command Name Changes (v2.2.0 - SPEC-00013):**
 - `/fractary-faber-cloud:design` → `/fractary-faber-cloud:architect`
-- `/fractary-faber-cloud:configure` → `/fractary-faber-cloud:engineer`
+- `/fractary-faber-cloud:configureure` → `/fractary-faber-cloud:engineer`
 - `/fractary-faber-cloud:deploy-execute` → `/fractary-faber-cloud:deploy-apply`
 - `/fractary-faber-cloud:deploy-destroy` → `/fractary-faber-cloud:teardown`
 - `/fractary-faber-cloud:resources` → `/fractary-faber-cloud:list`
@@ -327,7 +327,7 @@ See [Migration from Custom Agents](docs/guides/MIGRATION-FROM-CUSTOM-AGENTS.md) 
 
 ```bash
 # In your project directory
-/fractary-faber-cloud:config --provider aws --iac terraform
+/fractary-faber-cloud:configure --provider aws --iac terraform
 ```
 
 This creates `.fractary/plugins/faber-cloud/config.json` with your project configuration.
@@ -406,7 +406,7 @@ Individual infrastructure operations:
 
 ```bash
 # Initialize plugin configuration
-/fractary-faber-cloud:config --provider=aws --iac=terraform
+/fractary-faber-cloud:configure --provider=aws --iac=terraform
 
 # Adopt existing infrastructure (v2.3.0)
 /fractary-faber-cloud:adopt
@@ -490,13 +490,13 @@ See [helm-cloud documentation](../helm-cloud/docs/README.md) for details.
 
 ### Configuration Command
 
-#### /fractary-faber-cloud:config
+#### /fractary-faber-cloud:configure
 
 Initialize plugin configuration:
 
 ```bash
-/fractary-faber-cloud:config --provider=aws --iac=terraform
-/fractary-faber-cloud:config --provider=aws --iac=terraform --env=test
+/fractary-faber-cloud:configure --provider=aws --iac=terraform
+/fractary-faber-cloud:configure --provider=aws --iac=terraform --env=test
 ```
 
 ## Architecture (v3.0)

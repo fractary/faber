@@ -437,7 +437,7 @@ The plugin is configured via `.fractary/plugins/faber-cloud/devops.json`.
 ### Initialize Configuration
 
 ```bash
-/fractary-faber-cloud:config --provider aws --iac terraform
+/fractary-faber-cloud:configure --provider aws --iac terraform
 ```
 
 ### Configuration Structure

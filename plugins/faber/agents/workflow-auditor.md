@@ -369,7 +369,7 @@ else if not is_array(config.workflows):
   EXIT 2
 else if length(config.workflows) == 0:
   add_error("At least one workflow must be defined")
-  add_suggestion("Run /fractary-faber:config to create default workflow")
+  add_suggestion("Run /fractary-faber:configure to create default workflow")
   EXIT 2
 else:
   add_passed("Workflows array exists and has {length(config.workflows)} workflow(s)")
@@ -966,7 +966,7 @@ Expected locations:
   - .fractary/plugins/faber/config.json (deprecated)
 
 Recovery:
-1. Initialize FABER configuration: /fractary-faber:config
+1. Initialize FABER configuration: /fractary-faber:configure
 2. Or specify custom path: /fractary-faber:workflow-audit --config-path <path>
 ```
 

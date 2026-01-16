@@ -26,7 +26,7 @@ Working infra-manager with AWS + Terraform support
 - `devops-common` skill with config-loader
 - Configuration schema and template
 - Pattern substitution system
-- `/fractary-faber-cloud:config` command
+- `/fractary-faber-cloud:configure` command
 
 **3. infra-manager Agent**
 - Agent with command routing
@@ -61,12 +61,12 @@ Working infra-manager with AWS + Terraform support
 - Console URL generation
 
 **8. Commands**
-- `/fractary-faber-cloud:config`
+- `/fractary-faber-cloud:configure`
 - `/fractary-faber-cloud:infra-manage`
 
 ### Success Criteria
 
-✅ Can initialize new project with `/fractary-faber-cloud:config`
+✅ Can initialize new project with `/fractary-faber-cloud:configure`
 ✅ Can design infrastructure with `architect` command
 ✅ Can implement designs with `engineer` command
 ✅ Can validate terraform with `validate-config` command

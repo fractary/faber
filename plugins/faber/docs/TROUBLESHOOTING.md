@@ -29,7 +29,7 @@ plugins/faber/skills/core/scripts/diagnostics.sh --verbose
 
 **Solution:**
 ```bash
-/fractary-faber:config
+/fractary-faber:configure
 ```
 
 This creates `.fractary/plugins/faber/config.json` with default settings.

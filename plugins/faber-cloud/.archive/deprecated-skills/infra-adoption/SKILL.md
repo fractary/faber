@@ -68,7 +68,7 @@ Output: {output_dir}
 1. Discover your existing infrastructure (Terraform, AWS, etc.)
 2. Generate configuration automatically
 3. Create `.fractary/plugins/faber-cloud/config.json`
-4. You do NOT need to run `/fractary-faber-cloud:config` first
+4. You do NOT need to run `/fractary-faber-cloud:configure` first
 
 Check project directory exists and is a valid project:
 - Has .git directory (version controlled)

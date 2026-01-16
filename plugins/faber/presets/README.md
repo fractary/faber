@@ -80,7 +80,7 @@ This directory contains pre-configured FABER workflow presets for common use cas
 
 1. **Run init command** to auto-detect settings:
    ```bash
-   /fractary-faber:config
+   /fractary-faber:configure
    ```
 2. **Compare with preset** to see what's different:
    ```bash
@@ -205,7 +205,7 @@ After creating or modifying your config, validate it:
 ## Troubleshooting
 
 ### "Configuration file not found"
-Run `/fractary-faber:config` or copy a preset
+Run `/fractary-faber:configure` or copy a preset
 
 ### "Authentication failed"
 Configure platform authentication:
