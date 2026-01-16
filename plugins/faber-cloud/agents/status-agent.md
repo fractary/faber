@@ -565,7 +565,7 @@ terraform state list | cut -d. -f1 | sort | uniq -c
 - Then: Re-run status to verify
 
 ### If Configuration Missing
-- Run: `/fractary-faber-cloud:init`
+- Run: `/fractary-faber-cloud:config`
 - Follow initialization wizard
 - Then: Re-run status to verify
 

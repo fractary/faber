@@ -234,7 +234,7 @@ if [ ${#PRIORITY_RECOMMENDATIONS[@]} -gt 3 ]; then
     echo "     cp plugins/faber/config/templates/standard.json $CONFIG_FILE"
     echo ""
     echo "  2. Or run the initialization wizard:"
-    echo "     /fractary-faber:init"
+    echo "     /fractary-faber:config"
     echo ""
 fi
 

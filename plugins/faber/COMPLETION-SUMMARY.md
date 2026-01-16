@@ -250,7 +250,7 @@ fractary-faber/
 ```bash
 # 1. Initialize FABER in your project
 cd your-project
-/fractary-faber:init
+/fractary-faber:config
 
 # 2. Configure authentication
 gh auth login
@@ -421,7 +421,7 @@ Scripts and agents are ready, implementations needed:
 
 ### Developer Experience
 
-✅ Simple commands (/fractary-faber:init, /fractary-faber:run, /fractary-faber:status)
+✅ Simple commands (/fractary-faber:config, /fractary-faber:run, /fractary-faber:status)
 
 ✅ Multiple input formats
 
@@ -493,7 +493,7 @@ Based on the original specification:
 
 ### User Experience ✅
 
-- [x] Simple commands (/fractary-faber:init, /fractary-faber:run, /fractary-faber:status)
+- [x] Simple commands (/fractary-faber:config, /fractary-faber:run, /fractary-faber:status)
 - [x] Auto-detection of project settings
 - [x] Configuration presets
 - [x] Clear status indicators

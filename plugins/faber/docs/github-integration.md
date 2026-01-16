@@ -165,7 +165,7 @@ Create `.fractary/plugins/faber/config.json` in your repository:
 **Quick setup:**
 ```bash
 # Initialize FABER configuration
-/fractary-faber:init
+/fractary-faber:config
 
 # Commit configuration
 git add .fractary/plugins/faber/
@@ -399,7 +399,7 @@ permissions:
 
 **Solution:**
 ```bash
-/fractary-faber:init
+/fractary-faber:config
 git add .fractary/plugins/faber/
 git commit -m "Add FABER configuration"
 git push

@@ -18,7 +18,7 @@ Before you begin, ensure you have:
 In your project directory, initialize the plugin:
 
 ```bash
-/fractary-faber-cloud:init --provider aws --iac terraform
+/fractary-faber-cloud:config --provider aws --iac terraform
 ```
 
 This creates `.fractary/plugins/faber-cloud/devops.json` with your project configuration.

@@ -8,8 +8,8 @@ Complete reference for `.faber.config.toml` configuration file.
 # Copy example configuration
 cp plugins/fractary-faber/config/faber.example.toml .faber.config.toml
 
-# Or use init command (/fractary-faber:init) command
-/fractary-faber:init
+# Or use init command (/fractary-faber:config) command
+/fractary-faber:config
 ```
 
 ## Configuration Sections

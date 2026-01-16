@@ -2209,7 +2209,7 @@ Phase hook execution - will be removed in v3.0.
 <ERROR_HANDLING>
 
 ## Configuration Errors
-- **Missing config**: Log error, suggest `/fractary-faber:init`
+- **Missing config**: Log error, suggest `/fractary-faber:config`
 - **Invalid JSON**: Report parse error with line number
 - **Missing fields**: Report specific missing fields
 

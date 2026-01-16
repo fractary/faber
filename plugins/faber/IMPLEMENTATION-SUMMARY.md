@@ -87,7 +87,7 @@ This document summarizes the implementation of the FABER (Frame → Architect �
   - Comprehensive error handling and recovery
 
 **Commands** (4 files, ~1,300 lines):
-- `commands/fractary-faber:init.md` (~300 lines)
+- `commands/fractary-faber:config.md` (~300 lines)
   - Auto-detects project metadata
   - Auto-detects work tracking, source control, file storage
   - Creates `.faber.config.toml` with smart defaults
@@ -177,7 +177,7 @@ User
   ↓
 /faber (Main Command)
   ↓ Routes to
-/fractary-faber:init, /fractary-faber:run, /fractary-faber:status
+/fractary-faber:config, /fractary-faber:run, /fractary-faber:status
   ↓ Invokes
 director (Agent)
   ↓ Orchestrates
@@ -256,7 +256,7 @@ Return Results
 - Retry limits
 
 ### ✅ User Experience
-- Auto-detection (init command (/fractary-faber:init))
+- Auto-detection (init command (/fractary-faber:config))
 - Multiple input formats
 - Clear status indicators
 - Freeform query support
@@ -269,7 +269,7 @@ Return Results
 **Recommended Test Plan**:
 
 1. **Configuration Testing**:
-   - Test init command (/fractary-faber:init) auto-detection
+   - Test init command (/fractary-faber:config) auto-detection
    - Test all 3 presets
    - Test manual configuration
 
@@ -357,7 +357,7 @@ Return Results
 ## Next Steps
 
 ### Priority 1: Testing & Validation
-1. Test init command (/fractary-faber:init) with real projects
+1. Test init command (/fractary-faber:config) with real projects
 2. Test run command (/fractary-faber:run) end-to-end workflow
 3. Test status command with real sessions
 4. Fix bugs and edge cases
