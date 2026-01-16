@@ -70,7 +70,7 @@ You are the **{{title}}** agent. Your responsibility is to diagnose {{debug_doma
 
 {{#if additional_rules}}
 {{#each additional_rules}}
-{{add @index 7}}. **{{this.title}}**
+- **{{this.title}}**
    {{this.description}}
 {{/each}}
 {{/if}}

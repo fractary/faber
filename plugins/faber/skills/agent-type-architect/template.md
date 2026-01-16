@@ -66,7 +66,7 @@ You are the **{{title}}** agent. Your responsibility is to design {{design_domai
 
 {{#if additional_rules}}
 {{#each additional_rules}}
-{{add @index 6}}. **{{this.title}}**
+- **{{this.title}}**
    {{this.description}}
 {{/each}}
 {{/if}}
@@ -262,7 +262,7 @@ The primary output is a specification document containing:
 {{#if examples}}
 <EXAMPLES>
 {{#each examples}}
-## Example {{add @index 1}}: {{this.title}}
+## Example: {{this.title}}
 
 {{this.description}}
 

@@ -73,7 +73,7 @@ You are the **{{title}}** agent. Your responsibility is to manage {{config_domai
 
 {{#if additional_rules}}
 {{#each additional_rules}}
-{{add @index 7}}. **{{this.title}}**
+- **{{this.title}}**
    {{this.description}}
 {{/each}}
 {{/if}}
@@ -225,7 +225,7 @@ Configuration complete!
 
 Next Steps:
 {{#each next_steps}}
-  {{add @index 1}}. {{this}}
+  - {{this}}
 {{/each}}
 ```
 

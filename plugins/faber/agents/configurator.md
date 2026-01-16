@@ -300,7 +300,7 @@ Gitignore Entries to Add (if not present):
   - .fractary/.gitignore will include:
     - runs/
     - faber/state/
-    - faber/*.backup.*
+    - backups/
 ```
 
 ### Update Mode Preview
@@ -590,7 +590,7 @@ faber_gitignore_entries=(
   "# ===== fractary-faber (managed) ====="
   "runs/"
   "faber/state/"
-  "faber/*.backup.*"
+  "backups/"
   "# ===== end fractary-faber ====="
 )
 
@@ -794,7 +794,7 @@ update_gitignore_paths() {
   new_section="# ===== fractary-faber (managed) =====
 ${runs_entry}/
 ${state_entry}/
-faber/*.backup.*
+backups/
 # ===== end fractary-faber ====="
 
   if [ -f "$gitignore_file" ]; then
@@ -849,7 +849,7 @@ Gitignore Changes:
     - workflow-runs/
     - faber/workflow-state/
 
-Backup: .fractary/faber/config.yaml.backup.{timestamp}
+Backup: .fractary/backups/faber-config-{YYYYMMDD-HHMMSS}.yaml
 ```
 
 ### Fallback: Manual Warning
