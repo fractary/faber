@@ -155,7 +155,7 @@ const REPO_CONFIG_DIR = '.fractary/plugins/repo';
  * Find the project root by looking for .fractary or .git directory
  */
 export function findProjectRoot(startDir?: string): string {
-  let dir = startDir || process.cwd();
+  const dir = startDir || process.cwd();
 
   // First, try to find .fractary or .git from current directory
   // This ensures worktrees use their own configuration

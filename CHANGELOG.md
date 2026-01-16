@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-01-16
+
+### Version Bumps
+
+This release includes version updates across the FABER ecosystem:
+
+| Component | Version | Change |
+|-----------|---------|--------|
+| SDK (@fractary/faber) | 2.1.2 | Patch |
+| CLI (@fractary/faber-cli) | 1.5.0 | Minor |
+| MCP Server (@fractary/faber-mcp) | 1.1.1 | Patch |
+| faber plugin | 3.6.0 | Minor |
+| faber-cloud plugin | 3.1.0 | Minor |
+| Marketplace | 2.1.0 | Minor |
+
 ### Added
 
 - **Migration Command**: New `fractary-faber migrate` command for converting `.fractary/settings.json` to `.fractary/config.yaml`
@@ -34,6 +49,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Comprehensive Tests**: 36 integration tests covering security, concurrency, and functionality
   - **Documentation**: Complete SKILL.md, architectural specs, and step hierarchy guidelines
   - Enables cross-workflow entity tracking, downstream polling, and centralized management (future Helm integration)
+
+- **Command-Agent Pattern**: All commands now follow lightweight wrapper pattern
+  - Commands reduced to ~12-18 lines (96% code reduction)
+  - All implementation logic extracted to reusable agents
+  - Created 4 new agents:
+    - `session-manager` - Manages session artifacts and metadata
+    - `workflow-audit` - Validates workflow configuration
+    - `workflow-status` - Displays workflow status and progress
+    - `workflow-debugger` - Diagnoses issues and proposes solutions
+  - Benefits:
+    - Agents are reusable across different contexts
+    - Commands are maintainable and consistent
+    - Clear separation of concerns (I/O vs logic)
+    - Easier to test and debug
+
+- **8 Agent Type Skills** (faber plugin): New specialized agent skills with selector
+  - Agent type skills for different FABER workflow contexts
+  - Agent selector for intelligent routing
+
+- **Workflow Validation Command**: New `/workflow-audit` command
+  - Validates workflow configuration files
+  - Checks for common configuration errors
+
+- **Comprehensive /config Commands**: Replaced /init with full configuration management
+  - `/config show` - Display current configuration
+  - `/config validate` - Validate configuration syntax
+  - `/config migrate` - Migrate legacy configurations
+
+- **Command-Agent Pattern for faber-cloud** (faber-cloud plugin): Complete refactor
+  - All 15 commands converted to command-agent pattern
+  - Consistent agent naming and organization
 
 ### Changed
 
@@ -73,21 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `debugger` → `workflow-debugger` (diagnoses workflow issues)
   - Naming now consistent: operations on workflows use `workflow-` prefix
 
-### Added
+### Fixed
 
-- **Command-Agent Pattern**: All commands now follow lightweight wrapper pattern
-  - Commands reduced to ~12-18 lines (96% code reduction)
-  - All implementation logic extracted to reusable agents
-  - Created 4 new agents:
-    - `session-manager` - Manages session artifacts and metadata
-    - `workflow-audit` - Validates workflow configuration
-    - `workflow-status` - Displays workflow status and progress
-    - `workflow-debugger` - Diagnoses issues and proposes solutions
-  - Benefits:
-    - Agents are reusable across different contexts
-    - Commands are maintainable and consistent
-    - Clear separation of concerns (I/O vs logic)
-    - Easier to test and debug
+- **Lint Errors**: Fixed `prefer-const` and `no-unnecessary-type-assertion` lint errors in SDK
 
 ## [1.4.4] - 2026-01-09
 
@@ -275,6 +309,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Specification management
 - Logging capabilities
 
-[Unreleased]: https://github.com/fractary/faber/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/fractary/faber/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/fractary/faber/compare/v1.4.4...v1.5.0
+[1.4.4]: https://github.com/fractary/faber/compare/v1.4.3...v1.4.4
+[1.4.3]: https://github.com/fractary/faber/compare/v1.4.1...v1.4.3
+[1.4.1]: https://github.com/fractary/faber/compare/v1.3.16...v1.4.1
+[1.3.16]: https://github.com/fractary/faber/compare/v1.3.15...v1.3.16
+[1.3.15]: https://github.com/fractary/faber/compare/v1.3.14...v1.3.15
+[1.3.14]: https://github.com/fractary/faber/compare/v1.3.13...v1.3.14
+[1.3.13]: https://github.com/fractary/faber/compare/v1.3.12...v1.3.13
+[1.3.12]: https://github.com/fractary/faber/compare/v1.3.11...v1.3.12
+[1.3.11]: https://github.com/fractary/faber/compare/v1.3.10...v1.3.11
+[1.3.10]: https://github.com/fractary/faber/compare/v1.3.9...v1.3.10
+[1.3.9]: https://github.com/fractary/faber/compare/v1.3.8...v1.3.9
+[1.3.8]: https://github.com/fractary/faber/compare/v1.3.7...v1.3.8
+[1.3.7]: https://github.com/fractary/faber/compare/v1.3.6...v1.3.7
+[1.3.6]: https://github.com/fractary/faber/compare/v1.3.5...v1.3.6
+[1.3.5]: https://github.com/fractary/faber/compare/v1.3.4...v1.3.5
+[1.3.4]: https://github.com/fractary/faber/compare/v1.3.2...v1.3.4
 [1.3.2]: https://github.com/fractary/faber/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/fractary/faber/compare/v1.3.0...v1.3.1
