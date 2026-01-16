@@ -2,6 +2,7 @@
   "$schema": "../workflow.schema.json",
   "id": "bug",
   "description": "Optimized workflow for bug fixes with emphasis on root cause analysis, minimal scope, and regression testing",
+  "asset_type": "bug-fix",
   "extends": "fractary-faber:core",
   "phases": {
     "frame": {

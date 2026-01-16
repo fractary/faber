@@ -56,6 +56,39 @@ FABER v2.2 introduces **workflow inheritance**, allowing you to extend existing 
 
 See [MIGRATION-v2.2.md](./MIGRATION-v2.2.md) for complete inheritance documentation.
 
+### Asset Types
+
+Each workflow operates on a specific type of **asset** - the thing being created, modified, or managed. The `asset_type` field in a workflow definition declares what kind of deliverable the workflow produces.
+
+**Why asset types matter:**
+- **Semantic clarity**: Different workflows produce different types of deliverables
+- **Project flexibility**: A single project may have multiple workflows for different asset types
+- **Entity tracking**: Asset types help categorize and organize workflow outputs
+
+**Built-in software development asset types:**
+| Workflow | Asset Type | Description |
+|----------|------------|-------------|
+| default | `code-change` | General code modifications |
+| feature | `software-feature` | New feature implementations |
+| bug | `bug-fix` | Bug fix implementations |
+
+**Example workflow with asset_type:**
+```json
+{
+  "id": "data-pipeline",
+  "asset_type": "dataset",
+  "description": "Workflow for processing and publishing datasets",
+  "extends": "fractary-faber:core",
+  "phases": { ... }
+}
+```
+
+**Common asset types by domain:**
+- **Software**: `code-change`, `software-feature`, `bug-fix`, `api-module`
+- **Content**: `blog-post`, `article`, `documentation`
+- **Data**: `dataset`, `catalog`, `collection`
+- **Media**: `video`, `image-set`, `podcast-episode`
+
 ### The 5 Phases
 
 ```

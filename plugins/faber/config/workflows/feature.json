@@ -2,6 +2,7 @@
   "$schema": "../workflow.schema.json",
   "id": "feature",
   "description": "Comprehensive workflow for new features with full design, testing, and documentation requirements",
+  "asset_type": "software-feature",
   "extends": "fractary-faber:core",
   "phases": {
     "frame": {
