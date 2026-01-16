@@ -16,7 +16,7 @@ This guide helps you integrate FABER into your existing project by mapping your 
 
 **DO NOT create wrapper agents or commands for FABER**. The FABER plugin already provides:
 - ✅ Complete workflow orchestration via `faber-manager` agent
-- ✅ Ready-to-use commands (`/fractary-faber:init`, `/fractary-faber:run`, etc.)
+- ✅ Ready-to-use commands (`/fractary-faber:config`, `/fractary-faber:run`, etc.)
 - ✅ Full integration with work, repo, spec, and logs plugins
 
 **Use FABER commands directly:**
@@ -72,7 +72,7 @@ Map your workflow steps to FABER's 5 phases:
 
 ```bash
 # Generate base configuration
-/fractary-faber:init
+/fractary-faber:config
 
 # This creates:
 # - .fractary/plugins/faber/config.json (main config with workflow references)

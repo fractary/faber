@@ -291,7 +291,7 @@ A unified, intelligent DevOps plugin that:
 
 ```bash
 # Initialize configuration
-/fractary-faber-cloud:init --provider aws --iac terraform
+/fractary-faber-cloud:config --provider aws --iac terraform
 
 # Infrastructure Management
 /fractary-faber-cloud:infra-manage deploy --env test
@@ -400,7 +400,7 @@ This plugin is successful when:
 3. ✅ Permission errors are auto-resolved with audit trails
 4. ✅ Recurring issues are prevented through learning
 5. ✅ Works across multiple cloud providers and IaC tools
-6. ✅ New projects can be set up in minutes with `/fractary-faber-cloud:init`
+6. ✅ New projects can be set up in minutes with `/fractary-faber-cloud:config`
 7. ✅ Deployment state is always clear and accessible
 8. ✅ Production deployments are safe with mandatory confirmations
 9. ✅ Plugin patterns are reusable for other domains (engineering, marketing, etc.)

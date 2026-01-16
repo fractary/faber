@@ -25,7 +25,7 @@ Phase 1 delivers a **working infrastructure lifecycle management system** with A
   - AWS profile separation enforcement
   - Resource naming patterns
 - **Configuration template** - `devops.json.template`
-- **Init command** - `/fractary-faber-cloud:init`
+- **Init command** - `/fractary-faber-cloud:config`
 
 ### 3. Management Layer ✅
 - **infra-manager agent** - Infrastructure lifecycle orchestrator
@@ -105,7 +105,7 @@ Phase 1 delivers a **working infrastructure lifecycle management system** with A
 
 ```bash
 # 1. Initialize project
-/fractary-faber-cloud:init --provider aws --iac terraform
+/fractary-faber-cloud:config --provider aws --iac terraform
 
 # 2. Design infrastructure
 /fractary-faber-cloud:infra-manage architect --feature="S3 bucket for user uploads"
@@ -233,7 +233,7 @@ plugins/fractary-faber-cloud/
 
 ## Phase 1 Success Criteria - ALL MET ✅
 
-✅ Can initialize new project with `/fractary-faber-cloud:init`
+✅ Can initialize new project with `/fractary-faber-cloud:config`
 ✅ Can design infrastructure with `architect` command
 ✅ Can implement designs with `engineer` command
 ✅ Can validate terraform with `validate-config` command

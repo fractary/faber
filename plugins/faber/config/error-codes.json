@@ -3,7 +3,7 @@
     "message": "Configuration file not found",
     "severity": "error",
     "category": "configuration",
-    "recovery": "Run /fractary-faber:init to create default configuration"
+    "recovery": "Run /fractary-faber:config to create default configuration"
   },
   "FABER-002": {
     "message": "Invalid JSON in configuration file",

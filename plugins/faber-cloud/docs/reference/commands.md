@@ -530,13 +530,13 @@ Audit costs, security, or compliance.
 
 ## Configuration Command
 
-### /fractary-faber-cloud:init
+### /fractary-faber-cloud:config
 
 **Description:** Initialize plugin configuration
 
 **Syntax:**
 ```bash
-/fractary-faber-cloud:init --provider=<provider> --iac=<tool> [options]
+/fractary-faber-cloud:config --provider=<provider> --iac=<tool> [options]
 ```
 
 **Options:**
@@ -546,8 +546,8 @@ Audit costs, security, or compliance.
 
 **Examples:**
 ```bash
-/fractary-faber-cloud:init --provider=aws --iac=terraform
-/fractary-faber-cloud:init --provider=aws --iac=terraform --env=test
+/fractary-faber-cloud:config --provider=aws --iac=terraform
+/fractary-faber-cloud:config --provider=aws --iac=terraform --env=test
 ```
 
 **Creates:**

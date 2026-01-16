@@ -85,7 +85,7 @@ AWS_PROFILE=$(get_aws_profile "test")
 
 Template for generating `.fractary/plugins/faber-cloud/config.json`:
 - Placeholders: `{{PROJECT_NAME}}`, `{{NAMESPACE}}`, etc.
-- Used by `/fractary-faber-cloud:init` command
+- Used by `/fractary-faber-cloud:config` command
 - Includes sensible defaults
 - Template filename remains `faber-cloud.json.template` for compatibility, generates `config.json`
 

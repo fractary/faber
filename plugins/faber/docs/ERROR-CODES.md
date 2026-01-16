@@ -55,7 +55,7 @@ The FABER configuration file `.fractary/plugins/faber/config.json` does not exis
 
 **Recovery:**
 ```bash
-/fractary-faber:init
+/fractary-faber:config
 ```
 
 This will create a default configuration from the standard template.

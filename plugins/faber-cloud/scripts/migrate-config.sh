@@ -30,7 +30,7 @@ elif [ -f "$LEGACY_FILE" ]; then
   SOURCE_NAME="devops.json"
 else
   echo "ℹ️  No legacy config found (devops.json or faber-cloud.json)."
-  echo "   Run /fractary-faber-cloud:init to create configuration."
+  echo "   Run /fractary-faber-cloud:config to create configuration."
   exit 0
 fi
 

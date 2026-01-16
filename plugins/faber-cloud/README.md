@@ -199,7 +199,7 @@ Each command now has its own specialized agent:
 - [Workflow Guide](config/workflows/README.md) - Complete workflow documentation with examples
 - [Configuration Schema](config/config.schema.json) - Updated schema with workflow support
 
-**Migration**: Existing configurations continue to work. Workflows are opt-in through `/fractary-faber-cloud:init`
+**Migration**: Existing configurations continue to work. Workflows are opt-in through `/fractary-faber-cloud:config`
 
 ---
 
@@ -327,7 +327,7 @@ See [Migration from Custom Agents](docs/guides/MIGRATION-FROM-CUSTOM-AGENTS.md) 
 
 ```bash
 # In your project directory
-/fractary-faber-cloud:init --provider aws --iac terraform
+/fractary-faber-cloud:config --provider aws --iac terraform
 ```
 
 This creates `.fractary/plugins/faber-cloud/config.json` with your project configuration.
@@ -406,7 +406,7 @@ Individual infrastructure operations:
 
 ```bash
 # Initialize plugin configuration
-/fractary-faber-cloud:init --provider=aws --iac=terraform
+/fractary-faber-cloud:config --provider=aws --iac=terraform
 
 # Adopt existing infrastructure (v2.3.0)
 /fractary-faber-cloud:adopt
@@ -490,13 +490,13 @@ See [helm-cloud documentation](../helm-cloud/docs/README.md) for details.
 
 ### Configuration Command
 
-#### /fractary-faber-cloud:init
+#### /fractary-faber-cloud:config
 
 Initialize plugin configuration:
 
 ```bash
-/fractary-faber-cloud:init --provider=aws --iac=terraform
-/fractary-faber-cloud:init --provider=aws --iac=terraform --env=test
+/fractary-faber-cloud:config --provider=aws --iac=terraform
+/fractary-faber-cloud:config --provider=aws --iac=terraform --env=test
 ```
 
 ## Architecture (v3.0)

@@ -118,7 +118,7 @@ The migration is transparent to command users.
 ```bash
 # Argument syntax
 /fractary-faber-cloud:deploy-apply --env=test
-/fractary-faber-cloud:init --provider=aws --iac=terraform
+/fractary-faber-cloud:config --provider=aws --iac=terraform
 /fractary-faber-cloud:deploy-plan --env=prod
 
 # Confirmation flag
@@ -132,7 +132,7 @@ The migration is transparent to command users.
 ```bash
 # Argument syntax
 /fractary-faber-cloud:deploy-apply --env test
-/fractary-faber-cloud:init --provider aws --iac terraform
+/fractary-faber-cloud:config --provider aws --iac terraform
 /fractary-faber-cloud:deploy-plan --env prod
 
 # Confirmation flag
@@ -164,7 +164,7 @@ Examples:
 All commands now use space-separated syntax:
 - `/fractary-faber-cloud:deploy-apply`
 - `/fractary-faber-cloud:deploy-plan`
-- `/fractary-faber-cloud:init`
+- `/fractary-faber-cloud:config`
 - `/fractary-faber-cloud:configure`
 - `/fractary-faber-cloud:validate`
 - `/fractary-faber-cloud:test`
