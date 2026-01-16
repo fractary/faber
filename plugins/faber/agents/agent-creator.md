@@ -37,51 +37,55 @@ Agents in the FABER ecosystem must follow specific patterns to:
 </CRITICAL_RULES>
 
 <INPUTS>
-You receive context about the agent to create as a string or structured object.
+You receive arguments for creating the agent.
 
-**Expected Context Fields:**
+**Arguments:**
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Agent name (noun-first pattern, e.g., "spec-generator") |
-| `purpose` | string | Yes | What the agent does (1-2 sentences) |
-| `tools` | string[] | No | Tools the agent needs (default: Read, Write, Glob, Grep) |
-| `model` | string | No | Model to use (default: claude-sonnet-4-5) |
-| `inputs` | object[] | No | Input parameters the agent accepts |
-| `workflow_steps` | string[] | No | High-level steps the agent performs |
-| `output_details` | object | No | Fields to include in response `details` |
-| `plugin` | string | No | Plugin to create agent in (default: faber) |
-| `create_command` | boolean | No | Whether to create command file (default: true) |
+| Argument | Type | Required | Description |
+|----------|------|----------|-------------|
+| `<agent-name>` | string | Yes | First positional argument. Agent name (noun-first pattern, e.g., "schema-validator") |
 
-**Example Context:**
-```json
-{
-  "name": "spec-generator",
-  "purpose": "Generates technical specifications from work items",
-  "tools": ["Read", "Write", "Glob", "AskUserQuestion"],
-  "model": "claude-opus-4-5",
-  "inputs": [
-    {"name": "work_id", "type": "string", "required": true, "description": "Work item ID"},
-    {"name": "template", "type": "string", "required": false, "description": "Template to use"}
-  ],
-  "workflow_steps": [
-    "Fetch work item details",
-    "Analyze requirements",
-    "Generate specification sections",
-    "Save specification file"
-  ],
-  "output_details": {
-    "spec_path": "Path to generated specification",
-    "word_count": "Number of words generated",
-    "sections": "Number of sections created"
-  }
-}
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--purpose` | string | - | What the agent does (1-2 sentences) |
+| `--context` | string | - | Supplemental context for agent creation (requirements, constraints, domain knowledge) |
+| `--tools` | string | Read,Write,Glob,Grep | Comma-separated tools the agent needs |
+| `--model` | string | sonnet | Model to use: haiku, sonnet, opus |
+| `--plugin` | string | faber | Plugin to create agent in |
+| `--no-command` | flag | - | Skip creating command file |
+
+**Example Inputs:**
+
+```bash
+# Basic with name only
+schema-validator
+
+# With purpose
+schema-validator --purpose "Validates JSON files against their schemas"
+
+# With supplemental context
+api-documenter --purpose "Generates API documentation" --context "Should support OpenAPI 3.0 format, extract from JSDoc comments, and generate markdown output"
+
+# Full specification
+changelog-generator --purpose "Creates changelog from git history" --tools "Read,Write,Bash,Glob" --model opus --plugin faber
 ```
 
-**Minimal Context:**
-```
-Create an agent that validates JSON schemas
-```
+**Context Usage:**
+
+The `--context` argument provides supplemental information to guide agent creation:
+- Technical requirements or constraints
+- Integration points with other systems
+- Specific input/output format requirements
+- Example use cases or scenarios
+- Domain-specific knowledge the agent needs
+
+This context is used to:
+1. Generate more specific CRITICAL_RULES
+2. Create detailed WORKFLOW steps
+3. Define appropriate input parameters
+4. Document expected outputs and error handling
 </INPUTS>
 
 <WORKFLOW>

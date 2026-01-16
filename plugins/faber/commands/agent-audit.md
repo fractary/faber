@@ -3,7 +3,7 @@ name: fractary-faber:agent-audit
 description: Audit FABER agents for best practices compliance - delegates to fractary-faber:agent-auditor agent
 allowed-tools: Task(fractary-faber:agent-auditor)
 model: claude-haiku-4-5
-argument-hint: '[<agent>] [--all] [--plugin <plugin>] [--verbose] [--fix] [--check <aspect>]'
+argument-hint: '<agent> [--context "<context>"] [--all] [--plugin <plugin>] [--verbose] [--fix] [--check <aspect>]'
 ---
 
 # Agent Audit Command
@@ -22,6 +22,7 @@ Use **Task** tool with `fractary-faber:agent-auditor` agent to audit FABER agent
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `--context` | string | - | Supplemental context for the audit (specific concerns, standards to check) |
 | `--all` | flag | - | Audit all agents |
 | `--plugin` | string | all | Scope to specific plugin |
 | `--verbose` | flag | false | Show detailed check results |
@@ -41,6 +42,9 @@ Use **Task** tool with `fractary-faber:agent-auditor` agent to audit FABER agent
 # Audit agent by path
 /fractary-faber:agent-audit plugins/faber/agents/workflow-auditor.md
 
+# Audit with supplemental context about specific concerns
+/fractary-faber:agent-audit faber-planner --context "Focus on response format compliance and error handling patterns"
+
 # Audit all agents in faber plugin
 /fractary-faber:agent-audit --all --plugin faber
 
@@ -55,7 +59,18 @@ Use **Task** tool with `fractary-faber:agent-auditor` agent to audit FABER agent
 
 # JSON output for CI integration
 /fractary-faber:agent-audit --all --format json
+
+# Audit with custom standards context
+/fractary-faber:agent-audit my-agent --context "This agent must also comply with our internal security guidelines requiring input validation"
 ```
+
+## Context Usage
+
+The `--context` argument provides supplemental guidance for the audit:
+- Specific compliance concerns to focus on
+- Additional standards beyond FABER defaults
+- Domain-specific requirements to validate
+- Known issues to investigate
 
 ## Audit Checks
 

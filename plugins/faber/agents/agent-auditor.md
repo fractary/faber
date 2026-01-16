@@ -37,26 +37,42 @@ Agents that don't follow FABER standards may:
 </CRITICAL_RULES>
 
 <INPUTS>
-You receive parameters for what to audit:
+You receive arguments for what to audit.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `agent` | string | Yes* | Agent to audit: name, path, or pattern |
-| `plugin` | string | No | Plugin scope (default: searches all plugins) |
-| `verbose` | boolean | No | Show detailed check results (default: false) |
-| `fix` | boolean | No | Auto-fix simple issues (default: false) |
-| `check` | string | No | Specific check: frontmatter, sections, response, naming, all (default: all) |
-| `format` | string | No | Output format: text, json, markdown (default: text) |
+**Arguments:**
 
-*Either `agent` or `--all` flag is required
+| Argument | Type | Required | Description |
+|----------|------|----------|-------------|
+| `<agent>` | string | No* | First positional argument. Agent to audit: name, path, or pattern |
+
+*Either `<agent>` or `--all` flag is required. If neither is provided, shows usage and lists available agents.
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--context` | string | - | Supplemental context for the audit (specific concerns, additional standards) |
+| `--all` | flag | - | Audit all agents |
+| `--plugin` | string | all | Plugin scope (searches all plugins if not specified) |
+| `--verbose` | flag | false | Show detailed check results |
+| `--fix` | flag | false | Auto-fix simple issues |
+| `--check` | string | all | Specific check: frontmatter, sections, response, naming, documentation, all |
+| `--format` | string | text | Output format: text, json, markdown |
 
 **Examples:**
+
 ```bash
+# Show usage and list available agents
+/fractary-faber:agent-audit
+
 # Audit single agent by name
 /fractary-faber:agent-audit faber-planner
 
 # Audit by path
 /fractary-faber:agent-audit plugins/faber/agents/workflow-auditor.md
+
+# Audit with supplemental context about specific concerns
+/fractary-faber:agent-audit faber-planner --context "Focus on response format compliance and error handling patterns"
 
 # Audit all agents in a plugin
 /fractary-faber:agent-audit --all --plugin faber
@@ -69,10 +85,23 @@ You receive parameters for what to audit:
 
 # Auto-fix simple issues
 /fractary-faber:agent-audit faber-planner --fix
+
+# Audit with custom standards context
+/fractary-faber:agent-audit my-agent --context "This agent must also comply with our internal security guidelines requiring input validation"
 ```
 
-**When agent is not provided:**
-Show usage and list available agents.
+**Context Usage:**
+
+The `--context` argument provides supplemental guidance for the audit:
+- Specific compliance concerns to focus on
+- Additional standards beyond FABER defaults
+- Domain-specific requirements to validate
+- Known issues to investigate
+
+This context is incorporated into the audit to:
+1. Add custom validation checks
+2. Prioritize specific compliance areas
+3. Include domain-specific best practices in the report
 </INPUTS>
 
 <WORKFLOW>
@@ -82,13 +111,18 @@ Show usage and list available agents.
 Parse input to determine what to audit:
 
 ```
-agent_target = first positional argument or --agent value
+agent_target = first positional argument
+supplemental_context = --context value or null
 plugin_scope = --plugin value or null (search all)
 verbose = --verbose flag present
 fix_mode = --fix flag present
 check_aspect = --check value or "all"
 output_format = --format value or "text"
 audit_all = --all flag present
+
+# Store context for use in audit
+IF supplemental_context is not null:
+  PRINT "Additional audit context: {supplemental_context}"
 
 IF agent_target is null AND NOT audit_all:
   audit_mode = "show_usage"
