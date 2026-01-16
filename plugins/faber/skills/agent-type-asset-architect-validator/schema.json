@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Architect Validator Agent Schema",
+  "description": "JSON Schema for validating architect validator agent frontmatter and structure",
+  "properties": {
+    "frontmatter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*-validator$",
+          "description": "Agent name must end with -validator"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Clear description of what specifications it validates"
+        },
+        "model": {
+          "type": "string",
+          "enum": ["claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5"],
+          "default": "claude-sonnet-4-5",
+          "description": "LLM model to use"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["Read", "Glob", "Grep"]
+          },
+          "description": "Tools for static analysis (no Bash needed)"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^(red|orange|yellow|green|blue|purple|pink|gray|cyan)$",
+          "description": "Optional color for visual identification"
+        }
+      },
+      "required": ["name", "description", "model", "tools"]
+    },
+    "sections": {
+      "type": "object",
+      "properties": {
+        "context": {
+          "type": "boolean",
+          "const": true,
+          "description": "CONTEXT section is required"
+        },
+        "validates": {
+          "type": "boolean",
+          "const": true,
+          "description": "VALIDATES section is required - must specify asset-architect"
+        },
+        "required_sections": {
+          "type": "boolean",
+          "const": true,
+          "description": "REQUIRED_SECTIONS section is required"
+        },
+        "quality_checks": {
+          "type": "boolean",
+          "const": true,
+          "description": "QUALITY_CHECKS section is required"
+        },
+        "scoring": {
+          "type": "boolean",
+          "const": true,
+          "description": "SCORING section is required"
+        }
+      },
+      "required": ["context", "validates", "required_sections", "quality_checks", "scoring"]
+    },
+    "validates": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "type": "string",
+          "const": "asset-architect",
+          "description": "Must validate asset-architect output"
+        },
+        "artifact": {
+          "type": "string",
+          "description": "Description of specification type being validated"
+        }
+      },
+      "required": ["agent", "artifact"]
+    }
+  },
+  "required": ["frontmatter", "sections", "validates"]
+}
