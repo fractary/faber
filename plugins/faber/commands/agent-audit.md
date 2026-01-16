@@ -3,7 +3,7 @@ name: fractary-faber:agent-audit
 description: Audit FABER agents for best practices compliance - delegates to fractary-faber:agent-auditor agent
 allowed-tools: Task(fractary-faber:agent-auditor)
 model: claude-haiku-4-5
-argument-hint: '<agent> [--context "<context>"] [--all] [--plugin <plugin>] [--verbose] [--fix] [--check <aspect>]'
+argument-hint: '<agent> [--context "<context>"] [--all] [--plugin <plugin>] [--verbose] [--check <aspect>]'
 ---
 
 # Agent Audit Command
@@ -26,7 +26,6 @@ Use **Task** tool with `fractary-faber:agent-auditor` agent to audit FABER agent
 | `--all` | flag | - | Audit all agents |
 | `--plugin` | string | all | Scope to specific plugin |
 | `--verbose` | flag | false | Show detailed check results |
-| `--fix` | flag | false | Auto-fix simple issues |
 | `--check` | string | all | Specific check: frontmatter, sections, response, naming, documentation, all |
 | `--format` | string | text | Output format: text, json, markdown |
 
@@ -53,9 +52,6 @@ Use **Task** tool with `fractary-faber:agent-auditor` agent to audit FABER agent
 
 # Check only response format compliance
 /fractary-faber:agent-audit faber-planner --check response
-
-# Auto-fix simple issues
-/fractary-faber:agent-audit faber-planner --fix
 
 # JSON output for CI integration
 /fractary-faber:agent-audit --all --format json
