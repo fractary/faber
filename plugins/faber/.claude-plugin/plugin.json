@@ -8,7 +8,7 @@
     "./agents/faber-planner.md",
     "./agents/workflow-engineer.md",
     "./agents/agent-engineer.md",
-    "./agents/agent-auditor.md"
+    "./agents/agent-inspector.md"
   ],
   "skills": "./skills/"
 }
