@@ -163,11 +163,11 @@ Support multiple output formats:
 
 <EXAMPLES>
 
-## Example 1: config-manager (FABER)
+## Example 1: configurator (FABER)
 
-The `config-manager` agent is the canonical configurator example:
+The `configurator` agent is the canonical configurator example:
 
-**Location**: `plugins/faber/agents/config-manager.md`
+**Location**: `plugins/faber/agents/configurator.md`
 
 **Key features:**
 - Initialize mode for new projects

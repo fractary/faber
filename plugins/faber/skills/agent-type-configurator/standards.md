@@ -251,5 +251,5 @@ Test these scenarios:
 
 See these configurator agents for reference:
 
-- `plugins/faber/agents/config-manager.md` - Full-featured FABER configurator
+- `plugins/faber/agents/configurator.md` - Full-featured FABER configurator
 - Plugin initializers in various fractary plugins

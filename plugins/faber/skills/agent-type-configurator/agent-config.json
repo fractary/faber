@@ -25,7 +25,7 @@
       "Operations requiring backup and rollback support"
     ],
     "examples": [
-      "config-manager",
+      "configurator",
       "plugin-initializer",
       "settings-wizard"
     ]

@@ -146,7 +146,7 @@ Direct the user to the appropriate agent-type-* skill for:
 - Validates configuration before applying
 - Offers preview, backup, and rollback capabilities
 - **Typical tools**: Bash, Read, Write, Glob, AskUserQuestion
-- **Example**: `config-manager` - FABER configuration management
+- **Example**: `configurator` - FABER configuration management
 
 ## debugger
 **Purpose**: Troubleshoots problems and records solutions
