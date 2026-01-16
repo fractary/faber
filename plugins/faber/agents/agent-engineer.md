@@ -148,7 +148,33 @@ model = --model value or "sonnet"
 plugin = --plugin value or "faber"
 create_command = NOT --no-command flag
 
-# Resolve paths
+# SECURITY: Validate agent name to prevent path traversal
+# Agent names must be lowercase alphanumeric with hyphens only
+valid_name_pattern = "^[a-z][a-z0-9-]*$"
+IF NOT regex_match(valid_name_pattern, agent_name):
+  RETURN failure(
+    "Invalid agent name: '{agent_name}'",
+    errors=[
+      "Agent name must start with lowercase letter",
+      "Agent name can only contain lowercase letters, numbers, and hyphens",
+      "Agent name cannot contain: slashes, dots, underscores, or special characters"
+    ],
+    error_analysis="Invalid characters in agent name could cause security issues or file system errors",
+    suggested_fixes=[
+      "Use format: noun-verb (e.g., 'schema-validator', 'spec-generator')",
+      "Remove any special characters, dots, or slashes",
+      "Convert to lowercase and replace underscores with hyphens"
+    ]
+  )
+
+# Validate plugin name as well
+IF NOT regex_match("^[a-z][a-z0-9-]*$", plugin):
+  RETURN failure(
+    "Invalid plugin name: '{plugin}'",
+    suggested_fixes=["Use lowercase alphanumeric plugin name with hyphens"]
+  )
+
+# Resolve paths (now safe after validation)
 agent_path = "plugins/{plugin}/agents/{agent_name}.md"
 command_path = "plugins/{plugin}/commands/{agent_name}.md"
 
@@ -252,14 +278,55 @@ IF mode == "update":
   IF supplemental_context:
     PRINT "Analyzing requested changes..."
 
-    # Determine which sections need modification based on context
-    # Examples:
-    # - "Add input validation" → modify WORKFLOW, possibly CRITICAL_RULES
-    # - "Support new output format" → modify OUTPUTS, WORKFLOW
-    # - "Fix error handling" → modify ERROR_HANDLING, WORKFLOW
-    # - "Add new parameter" → modify INPUTS, WORKFLOW
+    # Determine which sections need modification based on context keywords
+    # This uses keyword matching to identify affected sections
+    affected_sections = []
+    context_lower = supplemental_context.lower()
 
-    affected_sections = analyze_context_for_sections(supplemental_context)
+    # WORKFLOW section indicators
+    workflow_keywords = ["step", "workflow", "process", "fix", "improve", "add support",
+                         "implement", "change how", "modify the", "update the logic",
+                         "parallel", "async", "validation", "handle"]
+    IF any(keyword IN context_lower for keyword IN workflow_keywords):
+      affected_sections.append("WORKFLOW")
+
+    # INPUTS section indicators
+    input_keywords = ["parameter", "argument", "input", "option", "flag", "accept",
+                      "new field", "add field", "remove field"]
+    IF any(keyword IN context_lower for keyword IN input_keywords):
+      affected_sections.append("INPUTS")
+
+    # OUTPUTS section indicators
+    output_keywords = ["output", "response", "return", "result", "format"]
+    IF any(keyword IN context_lower for keyword IN output_keywords):
+      affected_sections.append("OUTPUTS")
+
+    # CRITICAL_RULES section indicators
+    rules_keywords = ["rule", "must", "never", "always", "require", "constraint",
+                      "security", "validation", "enforce"]
+    IF any(keyword IN context_lower for keyword IN rules_keywords):
+      affected_sections.append("CRITICAL_RULES")
+
+    # ERROR_HANDLING section indicators
+    error_keywords = ["error", "exception", "fail", "catch", "handle error"]
+    IF any(keyword IN context_lower for keyword IN error_keywords):
+      affected_sections.append("ERROR_HANDLING")
+
+    # CONTEXT section indicators
+    context_keywords = ["purpose", "description", "role", "responsibility", "context"]
+    IF any(keyword IN context_lower for keyword IN context_keywords):
+      affected_sections.append("CONTEXT")
+
+    # EXAMPLES section indicators
+    example_keywords = ["example", "usage", "demonstrate", "show how"]
+    IF any(keyword IN context_lower for keyword IN example_keywords):
+      affected_sections.append("EXAMPLES")
+
+    # Default: if no specific sections identified, assume WORKFLOW needs updating
+    IF length(affected_sections) == 0:
+      affected_sections = ["WORKFLOW"]
+
+    PRINT "Sections to update: {affected_sections}"
 
     FOR section IN affected_sections:
       changes.sections[section] = {
@@ -269,6 +336,34 @@ IF mode == "update":
 ```
 
 ## Step 4: Generate/Update Agent Content
+
+### Color Selection Algorithm
+
+Determine agent color based on purpose keywords:
+
+```
+FUNCTION select_color(purpose, agent_name):
+  purpose_lower = (purpose or "").lower()
+  name_lower = agent_name.lower()
+
+  # Green: Validation, testing, auditing, checking
+  IF any(word IN purpose_lower or word IN name_lower
+         for word IN ["valid", "test", "audit", "check", "verify", "lint", "scan"]):
+    RETURN "green"
+
+  # Orange: Planning, analysis, design, architecture
+  IF any(word IN purpose_lower or word IN name_lower
+         for word IN ["plan", "analyz", "design", "architect", "review", "assess"]):
+    RETURN "orange"
+
+  # Purple: Deployment, integration, release, publish
+  IF any(word IN purpose_lower or word IN name_lower
+         for word IN ["deploy", "integrat", "release", "publish", "migrate", "sync"]):
+    RETURN "purple"
+
+  # Blue (default): Creation, generation, building
+  RETURN "blue"
+```
 
 ### For Create Mode:
 
@@ -280,7 +375,7 @@ name: {agent_name}
 description: {purpose}
 model: claude-{model}-4-5
 tools: {tools}
-color: {color based on purpose}
+color: {select_color(purpose, agent_name)}
 ---
 
 # {Agent Name Title Case}
@@ -322,26 +417,80 @@ Merge changes with existing content:
 
 ```
 updated_content = existing_content
+timestamp = current_timestamp_iso()
 
-# Update frontmatter
+# Create timestamped backup
+backup_path = agent_path + ".backup." + timestamp
+Write(backup_path, existing_content)
+
+# Update frontmatter fields
+updated_frontmatter = existing_frontmatter.copy()
 FOR key, value IN changes.frontmatter:
   updated_frontmatter[key] = value
 
-# Update sections
+# Update sections based on guidance
 FOR section, change IN changes.sections:
   IF change.action == "modify":
-    # Intelligently modify section based on guidance
-    updated_section = modify_section(
-      existing_sections[section],
-      change.guidance
-    )
-    updated_content = replace_section(updated_content, section, updated_section)
-  ELSE IF change.action == "add":
-    updated_content = add_section(updated_content, section, change.content)
+    existing_section_content = existing_sections[section]
 
-# Rebuild file with updated frontmatter and content
-final_content = rebuild_agent_file(updated_frontmatter, updated_content)
+    # Section modification approach:
+    # 1. Read the existing section content
+    # 2. Understand what the guidance is asking for
+    # 3. Intelligently merge/update the content
+    #
+    # For WORKFLOW sections:
+    #   - If adding a step: insert new step at appropriate position
+    #   - If modifying a step: find and update that step
+    #   - If fixing logic: update the pseudocode/description
+    #
+    # For INPUTS sections:
+    #   - If adding parameter: add new row to parameters table
+    #   - If modifying parameter: update existing row
+    #
+    # For CRITICAL_RULES sections:
+    #   - If adding rule: append new numbered rule
+    #   - If modifying rule: update existing rule text
+    #
+    # The actual modification is performed by Claude interpreting
+    # the guidance and applying appropriate changes to preserve
+    # the existing structure while incorporating the requested updates.
+
+    updated_section = apply_guided_modification(
+      section_name=section,
+      existing_content=existing_section_content,
+      modification_guidance=change.guidance
+    )
+
+    # Replace section in document
+    # Find <SECTION>...</SECTION> or ## Section heading and replace content
+    section_start_pattern = "<{section}>" or "## {section}"
+    section_end_pattern = "</{section}>" or next_section_marker
+    updated_content = replace_between(
+      updated_content,
+      section_start_pattern,
+      section_end_pattern,
+      updated_section
+    )
+
+  ELSE IF change.action == "add":
+    # Insert new section before </NOTES> or at end of file
+    updated_content = insert_section(updated_content, section, change.content)
+
+# Rebuild file: combine updated frontmatter + updated content
+final_content = format_frontmatter(updated_frontmatter) + "\n" + updated_content
 ```
+
+**Section Modification Guidelines:**
+
+| Section | Modification Approach |
+|---------|----------------------|
+| WORKFLOW | Preserve step numbering; insert/modify steps contextually |
+| INPUTS | Add/update rows in parameter table; preserve format |
+| OUTPUTS | Update response examples; maintain JSON structure |
+| CRITICAL_RULES | Add/modify numbered rules; keep formatting |
+| ERROR_HANDLING | Add rows to error table; preserve columns |
+| CONTEXT | Append or modify paragraphs; preserve structure |
+| EXAMPLES | Add new examples; preserve code block format |
 
 ## Step 5: Generate/Update Command File
 

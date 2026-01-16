@@ -435,11 +435,34 @@ FOR agent_path IN agents_to_audit:
     # Check noun-first pattern
     # Noun-first: spec-generator, branch-creator, schema-validator
     # Verb-first (wrong): generate-spec, create-branch, validate-schema
-    verb_first_patterns = ["^(generate|create|validate|check|run|execute|build|deploy|audit|test)-"]
-    is_verb_first = regex_match(verb_first_patterns, agent_name)
+    verb_first_pattern = "^(generate|create|validate|check|run|execute|build|deploy|audit|test)-"
+    is_verb_first = regex_match(verb_first_pattern, agent_name)
 
     IF is_verb_first:
-      suggested_name = convert_to_noun_first(agent_name)
+      # Convert verb-first to noun-first:
+      # "generate-spec" -> "spec-generator"
+      # "validate-schema" -> "schema-validator"
+      # "create-branch" -> "branch-creator"
+      parts = split(agent_name, "-", limit=2)  # ["generate", "spec"]
+      verb = parts[0]
+      noun = parts[1] if length(parts) > 1 else "item"
+
+      # Map verbs to noun suffixes
+      verb_to_suffix = {
+        "generate": "generator",
+        "create": "creator",
+        "validate": "validator",
+        "check": "checker",
+        "run": "runner",
+        "execute": "executor",
+        "build": "builder",
+        "deploy": "deployer",
+        "audit": "auditor",
+        "test": "tester"
+      }
+      suffix = verb_to_suffix.get(verb, verb + "er")
+      suggested_name = "{noun}-{suffix}"
+
       add_warning(agent_results, "name-pattern",
         "Name '{agent_name}' uses verb-first pattern",
         fix="Rename to noun-first pattern: '{suggested_name}'")
@@ -509,34 +532,82 @@ FOR agent_path IN agents_to_audit:
 ```
 IF fix_mode:
   fixes_applied = 0
+  timestamp = current_timestamp_iso()  # e.g., "20260116-143022"
+
+  # Define which issue IDs are auto-fixable
+  auto_fixable_issues = {
+    "fm-color": {
+      action: "add_frontmatter_field",
+      field: "color",
+      value: "blue"  # Default; can be refined based on agent purpose
+    },
+    "name-lowercase": {
+      action: "update_frontmatter_field",
+      field: "name",
+      transform: "lowercase"
+    },
+    "name-underscore": {
+      action: "update_frontmatter_field",
+      field: "name",
+      transform: "replace_underscores_with_hyphens"
+    }
+  }
 
   FOR agent_path, results IN audit_results.per_agent:
     content = read(agent_path)
     modified = false
-
-    # Auto-fixable issues:
-    # - Add missing color field
-    # - Convert name to lowercase
-    # - Add missing optional fields with defaults
+    agent_fixes = []
 
     FOR issue IN results.warnings + results.info:
-      IF issue.auto_fixable:
-        content = apply_fix(content, issue)
-        modified = true
+      IF issue.id IN auto_fixable_issues:
+        fix_config = auto_fixable_issues[issue.id]
+
+        IF fix_config.action == "add_frontmatter_field":
+          # Insert field before closing --- of frontmatter
+          content = insert_frontmatter_field(content, fix_config.field, fix_config.value)
+          agent_fixes.append("Added {fix_config.field}: {fix_config.value}")
+          modified = true
+
+        ELSE IF fix_config.action == "update_frontmatter_field":
+          current_value = get_frontmatter_field(content, fix_config.field)
+          IF fix_config.transform == "lowercase":
+            new_value = current_value.lower()
+          ELSE IF fix_config.transform == "replace_underscores_with_hyphens":
+            new_value = current_value.replace("_", "-")
+          content = update_frontmatter_field(content, fix_config.field, new_value)
+          agent_fixes.append("Updated {fix_config.field}: {current_value} -> {new_value}")
+          modified = true
+
         fixes_applied += 1
 
     IF modified:
-      # Create backup
-      backup_path = agent_path + ".backup"
+      # Create timestamped backup to prevent overwriting previous backups
+      backup_path = agent_path + ".backup." + timestamp
       copy(agent_path, backup_path)
 
       # Write fixed content
       write(agent_path, content)
-      PRINT "  Fixed {fixes_applied} issues in {agent_path}"
+      PRINT "  Fixed {length(agent_fixes)} issues in {agent_path}"
+      FOR fix_desc IN agent_fixes:
+        PRINT "    - {fix_desc}"
       PRINT "  Backup: {backup_path}"
 
   audit_results.fixes_applied = fixes_applied
 ```
+
+**Auto-Fixable Issues:**
+
+| Issue ID | Fix Applied |
+|----------|-------------|
+| `fm-color` | Adds `color: blue` to frontmatter |
+| `name-lowercase` | Converts name to lowercase |
+| `name-underscore` | Replaces underscores with hyphens |
+
+**Non-Auto-Fixable Issues** (require manual intervention):
+- Missing required sections (CONTEXT, WORKFLOW, etc.)
+- Response format documentation
+- Verb-first naming patterns (requires semantic understanding)
+- Missing description or purpose
 
 ## Step 5: Generate Report
 
