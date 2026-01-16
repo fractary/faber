@@ -1,12 +1,12 @@
 ---
 name: fractary-faber:workflow-create
-description: Create or update a FABER workflow - delegates to fractary-faber:workflow-creator agent
-allowed-tools: Task(fractary-faber:workflow-creator)
+description: Create a new FABER workflow - delegates to fractary-faber:workflow-engineer agent
+allowed-tools: Task(fractary-faber:workflow-engineer)
 model: claude-haiku-4-5
 argument-hint: '[<workflow-name>] [--context <description>] [--extends <parent-workflow>] [--type <workflow-type>]'
 ---
 
-Use **Task** tool with `fractary-faber:workflow-creator` agent to create or update a workflow configuration.
+Use **Task** tool with `fractary-faber:workflow-engineer` agent to create a new workflow configuration.
 
 **Arguments**:
 - `workflow-name` - Name for the new workflow (e.g., `data-pipeline`, `documentation`)
@@ -21,8 +21,8 @@ Use **Task** tool with `fractary-faber:workflow-creator` agent to create or upda
 
 ```
 Task(
-  subagent_type="fractary-faber:workflow-creator",
-  description="Create or update FABER workflow configuration",
-  prompt="Create workflow: $ARGUMENTS"
+  subagent_type="fractary-faber:workflow-engineer",
+  description="Create new FABER workflow configuration",
+  prompt="Create workflow: $ARGUMENTS --mode create"
 )
 ```

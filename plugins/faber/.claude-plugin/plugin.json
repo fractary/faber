@@ -6,7 +6,7 @@
   "agents": [
     "./agents/faber-manager.md",
     "./agents/faber-planner.md",
-    "./agents/workflow-creator.md"
+    "./agents/workflow-engineer.md"
   ],
   "skills": "./skills/"
 }
