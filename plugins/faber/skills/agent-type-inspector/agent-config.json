@@ -1,0 +1,87 @@
+{
+  "agent_type": "inspector",
+  "recommended_model": "claude-sonnet-4-5",
+  "common_tools": [
+    "Read",
+    "Glob",
+    "Bash",
+    "Skill"
+  ],
+  "required_tools": [
+    "Read"
+  ],
+  "typical_complexity": "low",
+  "faber_phase_affinity": ["any"],
+  "requires_user_interaction": false,
+  "maintains_state": false,
+  "documentation": {
+    "description": "Inspector agents report on the status of a single entity at a point in time. They provide snapshot views by gathering information from state, logs, and artifacts.",
+    "when_to_use": [
+      "Reporting status of a single workflow, service, or entity",
+      "Gathering point-in-time state information",
+      "Reading logs and status documents",
+      "Providing a snapshot view of current state"
+    ],
+    "examples": [
+      "workflow-status",
+      "service-inspector",
+      "deployment-status"
+    ]
+  },
+  "required_sections": [
+    "CONTEXT",
+    "CRITICAL_RULES",
+    "IMPLEMENTATION",
+    "OUTPUTS"
+  ],
+  "recommended_sections": [
+    "INPUTS",
+    "STATUS_VALUES",
+    "ARTIFACTS"
+  ],
+  "critical_rules": [
+    {
+      "id": "single-entity",
+      "title": "Single Entity Focus",
+      "description": "Report on ONE entity at a time. Leave cross-entity views to Auditors."
+    },
+    {
+      "id": "point-in-time",
+      "title": "Point-in-Time Snapshot",
+      "description": "Report CURRENT state. Note the timestamp of the snapshot."
+    },
+    {
+      "id": "comprehensive-sources",
+      "title": "Comprehensive Sources",
+      "description": "Gather from state files, logs, and artifacts."
+    },
+    {
+      "id": "clear-status",
+      "title": "Clear Status Indicators",
+      "description": "Use consistent status values with visual indicators."
+    },
+    {
+      "id": "actionable",
+      "title": "Actionable Information",
+      "description": "Include next steps and commands to continue."
+    },
+    {
+      "id": "non-modifying",
+      "title": "Non-Modifying",
+      "description": "ONLY read, never modify. No side effects."
+    }
+  ],
+  "implementation_steps": [
+    "Identify target entity",
+    "Load current state",
+    "Query recent logs",
+    "Check artifacts",
+    "Generate status report"
+  ],
+  "exit_codes": [
+    { "code": 0, "meaning": "Status retrieved" },
+    { "code": 1, "meaning": "Entity failed status" },
+    { "code": 2, "meaning": "Entity cancelled" },
+    { "code": 3, "meaning": "Entity not found" }
+  ]
+}

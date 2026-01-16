@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:configure
 description: Configure FABER - initialization, updates, and management
-allowed-tools: Task(fractary-faber:config-manager)
+allowed-tools: Task(fractary-faber:configurator)
 model: claude-haiku-4-5
 argument-hint: '[--context "description of changes"] [--force] [--json]'
 tags: [faber, configuration, setup, management]
@@ -16,11 +16,11 @@ examples:
 
 # fractary-faber:configure
 
-Use **Task** tool with `config-manager` agent to configure FABER with provided arguments.
+Use **Task** tool with `configurator` agent to configure FABER with provided arguments.
 
 ```
 Task(
-  subagent_type="fractary-faber:config-manager",
+  subagent_type="fractary-faber:configurator",
   description="Configure FABER project",
   prompt="Configure FABER: $ARGUMENTS"
 )

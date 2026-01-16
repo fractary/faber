@@ -1,0 +1,91 @@
+{
+  "agent_type": "auditor",
+  "recommended_model": "claude-sonnet-4-5",
+  "common_tools": [
+    "Read",
+    "Glob",
+    "Grep",
+    "Bash",
+    "Skill"
+  ],
+  "required_tools": [
+    "Read",
+    "Glob"
+  ],
+  "typical_complexity": "medium",
+  "faber_phase_affinity": ["evaluate", "release"],
+  "requires_user_interaction": false,
+  "maintains_state": false,
+  "documentation": {
+    "description": "Auditor agents aggregate information across multiple entities to create dashboard views. They complement Inspector agents by providing the big picture.",
+    "when_to_use": [
+      "Aggregating status across multiple entities",
+      "Creating dashboard views",
+      "Health checks across a system",
+      "Summary reports spanning multiple components",
+      "System-wide compliance checking"
+    ],
+    "examples": [
+      "workflow-auditor",
+      "system-health-auditor",
+      "compliance-auditor"
+    ]
+  },
+  "required_sections": [
+    "CONTEXT",
+    "CRITICAL_RULES",
+    "IMPLEMENTATION",
+    "OUTPUTS"
+  ],
+  "recommended_sections": [
+    "INPUTS",
+    "METRICS",
+    "GROUPINGS"
+  ],
+  "critical_rules": [
+    {
+      "id": "cross-entity",
+      "title": "Cross-Entity Scope",
+      "description": "Aggregate across MULTIPLE entities. Leave single-entity details to Inspectors."
+    },
+    {
+      "id": "summary-focus",
+      "title": "Summary Focus",
+      "description": "Emphasize aggregate metrics. Show distributions and highlight outliers."
+    },
+    {
+      "id": "efficient-discovery",
+      "title": "Efficient Discovery",
+      "description": "Efficiently find all entities. Handle large numbers with filtering/pagination."
+    },
+    {
+      "id": "consistent-metrics",
+      "title": "Consistent Metrics",
+      "description": "Use same metrics across all entities. Enable meaningful comparison."
+    },
+    {
+      "id": "actionable-insights",
+      "title": "Actionable Insights",
+      "description": "Highlight issues needing attention. Provide recommendations."
+    },
+    {
+      "id": "non-modifying",
+      "title": "Non-Modifying",
+      "description": "ONLY read, never modify. Safe for regular execution."
+    }
+  ],
+  "implementation_steps": [
+    "Discover all relevant entities",
+    "Gather data from each entity",
+    "Aggregate and summarize",
+    "Calculate metrics and scores",
+    "Generate dashboard report",
+    "Highlight issues and provide recommendations"
+  ],
+  "exit_codes": [
+    { "code": 0, "meaning": "Audit complete, all healthy" },
+    { "code": 1, "meaning": "Audit complete, warnings present" },
+    { "code": 2, "meaning": "Audit complete, critical issues" },
+    { "code": 3, "meaning": "Audit failed" }
+  ]
+}

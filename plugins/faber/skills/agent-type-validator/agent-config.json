@@ -1,0 +1,89 @@
+{
+  "agent_type": "validator",
+  "recommended_model": "claude-sonnet-4-5",
+  "common_tools": [
+    "Read",
+    "Glob",
+    "Grep",
+    "Bash"
+  ],
+  "required_tools": [
+    "Read"
+  ],
+  "typical_complexity": "medium",
+  "faber_phase_affinity": ["evaluate"],
+  "requires_user_interaction": false,
+  "maintains_state": false,
+  "documentation": {
+    "description": "Validator agents perform pre-deployment static analysis to ensure artifacts meet quality standards. They check schemas, run linting, and verify compliance.",
+    "when_to_use": [
+      "Schema validation (JSON, YAML)",
+      "Linting and code quality checks",
+      "Standards compliance verification",
+      "Configuration validation",
+      "Pre-deployment quality gates"
+    ],
+    "examples": [
+      "workflow-auditor",
+      "config-validator",
+      "schema-checker"
+    ]
+  },
+  "required_sections": [
+    "CONTEXT",
+    "CRITICAL_RULES",
+    "IMPLEMENTATION",
+    "OUTPUTS"
+  ],
+  "recommended_sections": [
+    "INPUTS",
+    "VALIDATION_RULES",
+    "SCORING"
+  ],
+  "critical_rules": [
+    {
+      "id": "static-only",
+      "title": "Static Analysis Only",
+      "description": "ONLY perform static analysis. Check files WITHOUT running code."
+    },
+    {
+      "id": "pre-deployment",
+      "title": "Pre-Deployment Focus",
+      "description": "Run BEFORE deployment. Catch issues early and gate releases."
+    },
+    {
+      "id": "severity-levels",
+      "title": "Clear Severity Levels",
+      "description": "Use ERROR (must fix), WARNING (should fix), INFO (suggestion)."
+    },
+    {
+      "id": "actionable-feedback",
+      "title": "Actionable Feedback",
+      "description": "Every issue MUST have a suggested fix with exact location."
+    },
+    {
+      "id": "comprehensive",
+      "title": "Comprehensive Coverage",
+      "description": "Check ALL aspects. Don't skip checks on partial failures."
+    },
+    {
+      "id": "consistent-scoring",
+      "title": "Consistent Scoring",
+      "description": "Use weighted scoring. Be consistent across runs."
+    }
+  ],
+  "implementation_steps": [
+    "Discover targets to validate",
+    "Load validation rules/schemas",
+    "Run validation checks",
+    "Calculate completeness score",
+    "Generate report with issues",
+    "Suggest fixes for failures"
+  ],
+  "exit_codes": [
+    { "code": 0, "meaning": "All checks passed" },
+    { "code": 1, "meaning": "Warnings present" },
+    { "code": 2, "meaning": "Errors present" },
+    { "code": 3, "meaning": "Target not found" }
+  ]
+}

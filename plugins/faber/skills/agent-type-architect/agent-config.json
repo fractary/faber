@@ -1,0 +1,100 @@
+{
+  "agent_type": "architect",
+  "recommended_model": "claude-sonnet-4-5",
+  "common_tools": [
+    "Read",
+    "Write",
+    "Glob",
+    "Grep",
+    "WebFetch",
+    "WebSearch"
+  ],
+  "required_tools": [],
+  "typical_complexity": "high",
+  "faber_phase_affinity": ["architect"],
+  "requires_user_interaction": false,
+  "maintains_state": false,
+  "documentation": {
+    "description": "Architect agents design implementation approaches and produce specifications that guide the build phase. They analyze requirements, explore solutions, and document decisions.",
+    "when_to_use": [
+      "Creating design documents or technical specifications",
+      "Making architectural decisions (technology, patterns, approaches)",
+      "Generating implementation plans from requirements",
+      "Analyzing trade-offs between different approaches",
+      "Breaking down complex problems into implementable components"
+    ],
+    "examples": [
+      "faber-planner",
+      "feature-architect",
+      "api-designer"
+    ]
+  },
+  "required_sections": [
+    "CONTEXT",
+    "CRITICAL_RULES",
+    "IMPLEMENTATION",
+    "OUTPUTS"
+  ],
+  "recommended_sections": [
+    "INPUTS",
+    "EXAMPLES",
+    "DECISION_FRAMEWORK",
+    "COMPLETION_CRITERIA"
+  ],
+  "critical_rules": [
+    {
+      "id": "understand-before-designing",
+      "title": "Understand Before Designing",
+      "description": "ALWAYS read relevant existing code before proposing changes. ALWAYS clarify ambiguous requirements."
+    },
+    {
+      "id": "explore-alternatives",
+      "title": "Explore Alternatives",
+      "description": "ALWAYS consider at least 2-3 approaches for non-trivial problems. Document why alternatives were rejected."
+    },
+    {
+      "id": "actionable-specifications",
+      "title": "Produce Actionable Specifications",
+      "description": "Specifications MUST be detailed enough for engineers to implement. Include acceptance criteria and dependencies."
+    },
+    {
+      "id": "document-decisions",
+      "title": "Document Decisions",
+      "description": "Record the rationale for key decisions. Note assumptions, constraints, and flag risks."
+    },
+    {
+      "id": "stay-in-design-mode",
+      "title": "Stay in Design Mode",
+      "description": "NEVER implement code. Focus on WHAT and WHY, not HOW. Produce specifications, not implementations."
+    }
+  ],
+  "implementation_steps": [
+    "Gather context from requirements and codebase",
+    "Analyze requirements and identify constraints",
+    "Explore solution alternatives",
+    "Evaluate trade-offs between approaches",
+    "Generate detailed specification",
+    "Document decisions with rationale"
+  ],
+  "output_format": {
+    "type": "specification",
+    "required_sections": [
+      "overview",
+      "requirements",
+      "design",
+      "implementation_steps",
+      "acceptance_criteria"
+    ],
+    "recommended_sections": [
+      "alternatives_considered",
+      "risks_and_mitigations",
+      "decisions",
+      "dependencies"
+    ]
+  },
+  "exit_codes": [
+    { "code": 0, "meaning": "Specification generated successfully" },
+    { "code": 1, "meaning": "Missing required context" },
+    { "code": 2, "meaning": "Ambiguous requirements (clarification needed)" }
+  ]
+}
