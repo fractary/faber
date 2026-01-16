@@ -8,7 +8,7 @@ description: |
   - Score or grade agent implementations
 model: claude-sonnet-4-5
 tools: Read, Glob, Grep
-color: green
+color: orange
 ---
 
 # Agent Auditor

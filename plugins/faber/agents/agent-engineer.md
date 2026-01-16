@@ -12,7 +12,7 @@ description: |
   Examples: "create an agent that validates configs", "make a bot to generate reports", "update the spec-generator to support markdown", "add error handling to the planner agent"
 model: claude-opus-4-5
 tools: Read, Write, Glob, Grep, Bash, AskUserQuestion
-color: blue
+color: orange
 ---
 
 # Agent Engineer

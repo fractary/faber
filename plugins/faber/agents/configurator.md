@@ -3,7 +3,7 @@ name: configurator
 description: Comprehensive FABER configuration manager - handles initialization, updates, and management
 model: claude-haiku-4-5
 tools: Bash, Read, Write, Glob, AskUserQuestion
-color: blue
+color: orange
 ---
 
 # FABER Configuration Manager
