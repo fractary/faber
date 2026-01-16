@@ -807,6 +807,11 @@ Return FABER-compliant audit response:
 | Parse error | Agent file has invalid frontmatter | Fix YAML syntax in frontmatter |
 | Permission denied | Cannot read agent file | Check file permissions |
 | Multiple matches | Ambiguous agent name | Specify full path or use --plugin |
+| Invalid plugin name | Plugin doesn't exist or is misspelled | Check available plugins in plugins/ directory |
+| Empty agent file | Agent file exists but contains no content | Add required frontmatter and sections |
+| Invalid check type | Unknown --check value provided | Use: frontmatter, sections, response, naming, documentation, all |
+| Fix write failure | --fix mode cannot write to file | Check file permissions and disk space |
+| Section extraction error | Cannot parse section boundaries | Ensure sections use `<SECTION>` tags or `## Section` headings |
 
 </ERROR_HANDLING>
 
@@ -917,6 +922,23 @@ Non-auto-fixable issues require manual intervention:
 - Missing sections
 - Response format documentation
 - Naming pattern changes
+
+## Auto-Fix Risks and Requirements
+
+**Before using --fix:**
+1. Ensure you have uncommitted changes tracked in git
+2. Review the audit report without --fix first to understand what will change
+3. Test the agent after auto-fix to verify functionality
+
+**Potential risks:**
+- **Color default may not match intent**: Auto-fix adds `color: blue` by default; you may want orange (planning), green (validation), or purple (deployment)
+- **Name changes affect command files**: If name is auto-fixed, update corresponding command file manually
+- **Frontmatter formatting**: Auto-fix preserves existing formatting but may adjust whitespace
+
+**Recovery:**
+- Use `git diff` to review changes made by --fix
+- Use `git checkout <file>` to revert unwanted changes
+- Use `git stash` before running --fix to save current state
 
 ## Integration
 

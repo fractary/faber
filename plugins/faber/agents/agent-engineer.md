@@ -172,6 +172,32 @@ IF NOT regex_match("^[a-z][a-z0-9-]*$", plugin):
     suggested_fixes=["Use lowercase alphanumeric plugin name with hyphens"]
   )
 
+# Validate model if provided
+valid_models = ["haiku", "sonnet", "opus"]
+IF model NOT IN valid_models:
+  RETURN failure(
+    "Invalid model: '{model}'",
+    errors=["Model must be one of: haiku, sonnet, opus"],
+    suggested_fixes=["Use --model haiku, --model sonnet, or --model opus"]
+  )
+
+# Validate tools format (comma-separated valid tool names)
+valid_tools = ["Read", "Write", "Glob", "Grep", "Bash", "Edit", "WebFetch",
+               "WebSearch", "AskUserQuestion", "Task", "TodoWrite", "NotebookEdit"]
+IF tools:
+  tool_list = split(tools, ",")
+  FOR tool IN tool_list:
+    tool_trimmed = trim(tool)
+    IF tool_trimmed NOT IN valid_tools:
+      RETURN failure(
+        "Invalid tool: '{tool_trimmed}'",
+        errors=["Unknown tool name in --tools list"],
+        suggested_fixes=[
+          "Valid tools: Read, Write, Glob, Grep, Bash, Edit, WebFetch, WebSearch, AskUserQuestion, Task, TodoWrite, NotebookEdit",
+          "Use comma-separated list: --tools 'Read,Write,Glob'"
+        ]
+      )
+
 # Resolve paths (now safe after validation)
 agent_path = "plugins/{plugin}/agents/{agent_name}.md"
 command_path = "plugins/{plugin}/commands/{agent_name}.md"
@@ -633,10 +659,14 @@ IF create_command:
 | Agent not found (update) | Cannot update non-existent agent | Check spelling or use --mode create |
 | Agent exists (create) | Would overwrite without confirmation | Confirm overwrite or use --mode update |
 | Missing purpose (create) | Cannot generate meaningful agent | Provide --purpose or describe in --context |
-| Invalid name format | Name doesn't follow noun-first pattern | Use noun-verb format (e.g., schema-validator) |
+| Invalid agent name | Name contains invalid characters | Use lowercase letters, numbers, hyphens only (e.g., schema-validator) |
+| Invalid plugin name | Plugin name contains invalid characters | Use lowercase alphanumeric with hyphens |
+| Invalid model | Model not recognized | Use: haiku, sonnet, or opus |
+| Invalid tool name | Tool not in allowed list | Check tool spelling; valid: Read, Write, Glob, Grep, Bash, Edit, etc. |
 | Parse error | Existing agent has malformed structure | Fix manually or use git to restore |
 | Write permission denied | Cannot write to target directory | Check permissions on plugins directory |
 | Invalid plugin | Specified plugin doesn't exist | Use existing plugin or create plugin first |
+| Section modification failed | Could not apply context changes to section | Be more specific in --context about what to change |
 
 </ERROR_HANDLING>
 
