@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Engineer Validator Agent Schema",
+  "description": "JSON Schema for validating engineer validator agent frontmatter and structure",
+  "properties": {
+    "frontmatter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*-validator$",
+          "description": "Agent name must end with -validator"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Clear description of what implementations it validates"
+        },
+        "model": {
+          "type": "string",
+          "enum": ["claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5"],
+          "default": "claude-sonnet-4-5",
+          "description": "LLM model to use"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["Bash", "Read", "Glob", "Grep"]
+          },
+          "description": "Tools for static and dynamic analysis (Bash required for tests)"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^(red|orange|yellow|green|blue|purple|pink|gray|cyan)$",
+          "description": "Optional color for visual identification"
+        }
+      },
+      "required": ["name", "description", "model", "tools"]
+    },
+    "sections": {
+      "type": "object",
+      "properties": {
+        "context": {
+          "type": "boolean",
+          "const": true,
+          "description": "CONTEXT section is required"
+        },
+        "validates": {
+          "type": "boolean",
+          "const": true,
+          "description": "VALIDATES section is required - must specify asset-engineer"
+        },
+        "implementation": {
+          "type": "boolean",
+          "const": true,
+          "description": "IMPLEMENTATION section is required with static and dynamic steps"
+        },
+        "thresholds": {
+          "type": "boolean",
+          "const": true,
+          "description": "THRESHOLDS section is required for pass/fail criteria"
+        }
+      },
+      "required": ["context", "validates", "implementation", "thresholds"]
+    },
+    "validates": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "type": "string",
+          "const": "asset-engineer",
+          "description": "Must validate asset-engineer output"
+        },
+        "artifact": {
+          "type": "string",
+          "description": "Description of implementation type being validated"
+        }
+      },
+      "required": ["agent", "artifact"]
+    },
+    "validation_modes": {
+      "type": "object",
+      "properties": {
+        "static": {
+          "type": "boolean",
+          "const": true,
+          "description": "Static analysis (linting, type checking) is required"
+        },
+        "dynamic": {
+          "type": "boolean",
+          "const": true,
+          "description": "Dynamic analysis (test execution) is required"
+        }
+      },
+      "required": ["static", "dynamic"]
+    }
+  },
+  "required": ["frontmatter", "sections", "validates", "validation_modes"]
+}
