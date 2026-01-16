@@ -1,14 +1,14 @@
 ---
 name: fractary-faber:agent-create
-description: Create a new FABER-compliant agent and command - delegates to fractary-faber:agent-creator agent
-allowed-tools: Task(fractary-faber:agent-creator)
+description: Create a new FABER-compliant agent and command - delegates to fractary-faber:agent-engineer agent
+allowed-tools: Task(fractary-faber:agent-engineer)
 model: claude-haiku-4-5
 argument-hint: '<agent-name> [--purpose "<purpose>"] [--context "<context>"] [--tools <tools>] [--model <model>] [--plugin <plugin>]'
 ---
 
 # Agent Create Command
 
-Use **Task** tool with `fractary-faber:agent-creator` agent to create a new FABER-compliant agent with provided arguments.
+Use **Task** tool with `fractary-faber:agent-engineer` agent in **create mode** to create a new FABER-compliant agent.
 
 ## Arguments
 
@@ -21,7 +21,7 @@ Use **Task** tool with `fractary-faber:agent-creator` agent to create a new FABE
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--purpose` | string | - | What the agent does (1-2 sentences) |
-| `--context` | string | - | Supplemental context for agent creation (requirements, constraints, examples) |
+| `--context` | string | - | Supplemental context for agent creation (requirements, constraints) |
 | `--tools` | string | Read,Write,Glob,Grep | Comma-separated tools (e.g., "Read,Write,Glob") |
 | `--model` | string | sonnet | Model to use: haiku, sonnet, opus |
 | `--plugin` | string | faber | Plugin to create agent in |
@@ -55,19 +55,13 @@ The `--context` argument provides supplemental information to guide agent creati
 - Example use cases or scenarios
 - Domain-specific knowledge the agent needs
 
-```bash
-/fractary-faber:agent-create test-generator \
-  --purpose "Generates unit tests for source files" \
-  --context "Should support Jest and Vitest frameworks. Generate tests that cover edge cases. Follow AAA pattern (Arrange, Act, Assert). Include both positive and negative test cases."
-```
-
 ## Invocation
 
 ```
 Task(
-  subagent_type="fractary-faber:agent-creator",
+  subagent_type="fractary-faber:agent-engineer",
   description="Create new FABER agent",
-  prompt="Create agent: $ARGUMENTS"
+  prompt="Create agent: $ARGUMENTS --mode create"
 )
 ```
 
@@ -81,6 +75,7 @@ Returns paths to created files and instructions for next steps.
 
 ## See Also
 
-- `/fractary-faber:agent-audit` - Audit existing agents for best practices
+- `/fractary-faber:agent-update` - Update existing agents
+- `/fractary-faber:agent-audit` - Audit agents for best practices
 - `plugins/faber/docs/FABER-AGENT-BEST-PRACTICES.md` - Agent standards
 - `plugins/faber/docs/RESPONSE-FORMAT.md` - Response format specification
