@@ -12,7 +12,6 @@
     "./agents/deploy-plan-agent.md",
     "./agents/direct-agent.md",
     "./agents/engineer-agent.md",
-    "./agents/init-agent.md",
     "./agents/list-agent.md",
     "./agents/manage-agent.md",
     "./agents/status-agent.md",
