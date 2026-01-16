@@ -381,7 +381,7 @@ describe('ConfigInitializer', () => {
       expect(fs.existsSync(oldPath)).toBe(false);
       expect(fs.existsSync(result.newPath!)).toBe(true);
 
-      const newConfig = ConfigInitializer.readConfig(result.newPath!);
+      const newConfig = ConfigInitializer.readConfig(result.newPath);
       expect(newConfig?.repo.owner).toBe('test-owner');
     });
 
