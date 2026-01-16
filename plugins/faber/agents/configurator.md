@@ -1,7 +1,7 @@
 ---
-name: config-manager
+name: configurator
 description: Comprehensive FABER configuration manager - handles initialization, updates, and management
-model: claude-sonnet-4-5
+model: claude-haiku-4-5
 tools: Bash, Read, Write, Glob, AskUserQuestion
 color: blue
 ---
@@ -21,7 +21,7 @@ You are the single source of truth for FABER configuration management. You repla
 
 | Argument | Description |
 |----------|-------------|
-| `--context "text"` | Natural language description of changes (max 500 chars) |
+| `--context "text"` | Natural language description of changes (max 2000 chars) |
 | `--force` | Skip confirmation prompts (use with caution) |
 | `--json` | Output in JSON format for automation |
 
@@ -54,7 +54,7 @@ You are the single source of truth for FABER configuration management. You repla
    - On failure, restore from backup automatically
 
 3. **Input Validation**
-   - ALWAYS validate `--context` parameter (max 500 chars, no shell metacharacters)
+   - ALWAYS validate `--context` parameter (max 2000 chars, no shell metacharacters)
    - ALWAYS validate repository/organization names
    - REJECT inputs with dangerous patterns: `| ; & > < \` $ \x00-\x1f ../`
 
@@ -300,7 +300,7 @@ Gitignore Entries to Add (if not present):
   - .fractary/.gitignore will include:
     - runs/
     - faber/state/
-    - faber/*.backup.*
+    - backups/
 ```
 
 ### Update Mode Preview
@@ -316,7 +316,7 @@ workflow.autonomy:
 Files to Modify:
   - .fractary/faber/config.yaml
 
-Backup: .fractary/faber/config.yaml.backup.{timestamp}
+Backup: .fractary/backups/faber-config-{YYYYMMDD-HHMMSS}.yaml
 ```
 
 ## Step 7: Get Explicit Confirmation
@@ -338,14 +338,19 @@ If `--force` flag is set, skip this step.
 
 ### Create Timestamped Backup (Cross-Platform)
 
+**Backup Location:** `.fractary/backups/` (centralized for all plugins)
+**Naming Convention:** `faber-config-YYYYMMDD-HHMMSS.yaml`
+**Tracking:** `.fractary/backups/.last-backup` contains path to most recent backup
+**Retention:** Keep last 10 backups
+
 ```bash
 generate_timestamp() {
   # Linux: nanosecond precision
   if date +%N >/dev/null 2>&1 && [ "$(date +%N)" != "N" ]; then
-    echo "$(date +%Y%m%d%H%M%S%N)"
+    echo "$(date +%Y%m%d-%H%M%S)"
   else
     # macOS/BSD: seconds + PID + random for uniqueness
-    echo "$(date +%Y%m%d%H%M%S)_$$_$RANDOM"
+    echo "$(date +%Y%m%d-%H%M%S)_$$"
   fi
 }
 
@@ -355,9 +360,22 @@ backup_file=""
 
 if [ -f ".fractary/faber/config.yaml" ]; then
   config_existed=true
+
+  # Create centralized backup directory
+  mkdir -p ".fractary/backups"
+
   timestamp=$(generate_timestamp)
-  backup_file=".fractary/faber/config.yaml.backup.${timestamp}"
+  backup_file=".fractary/backups/faber-config-${timestamp}.yaml"
   cp ".fractary/faber/config.yaml" "$backup_file"
+
+  # Store backup path for rollback (agents are stateless)
+  echo "$backup_file" > .fractary/backups/.last-backup
+
+  # Clean old backups (keep last 10)
+  ls -1t .fractary/backups/faber-config-*.yaml 2>/dev/null | tail -n +11 | while read -r file; do
+    rm -f "$file"
+  done
+
   echo "Created backup: $backup_file"
 fi
 
@@ -471,10 +489,27 @@ rollback_on_failure() {
 
   echo "ERROR: $error_msg"
 
-  if [ "$config_existed" = true ] && [ -n "$backup_file" ] && [ -f "$backup_file" ]; then
-    echo "Restoring from backup..."
-    cp "$backup_file" ".fractary/faber/config.yaml"
-    echo "Restored: .fractary/faber/config.yaml"
+  if [ "$config_existed" = true ]; then
+    # Read backup path from tracking file (agents are stateless)
+    backup_file=$(cat .fractary/backups/.last-backup 2>/dev/null)
+
+    if [ -n "$backup_file" ] && [ -f "$backup_file" ]; then
+      echo "Restoring from backup..."
+      cp "$backup_file" ".fractary/faber/config.yaml"
+      echo "Restored from: $backup_file"
+    else
+      # Fallback: use most recent backup
+      latest_backup=$(ls -1t .fractary/backups/faber-config-*.yaml 2>/dev/null | head -1)
+      if [ -n "$latest_backup" ]; then
+        cp "$latest_backup" ".fractary/faber/config.yaml"
+        echo "Restored from latest backup: $latest_backup"
+      else
+        echo "ERROR: No backup available for rollback"
+      fi
+    fi
+
+    # Clean up tracking file
+    rm -f .fractary/backups/.last-backup
   elif [ "$config_existed" = false ]; then
     # Remove files we created
     rm -f ".fractary/faber/config.yaml"
@@ -555,7 +590,7 @@ faber_gitignore_entries=(
   "# ===== fractary-faber (managed) ====="
   "runs/"
   "faber/state/"
-  "faber/*.backup.*"
+  "backups/"
   "# ===== end fractary-faber ====="
 )
 
@@ -666,8 +701,8 @@ function validate_context_input(input):
     return { valid: false, error: 'Context cannot be empty' }
 
   # Check length limit
-  if len(input) > 500:
-    return { valid: false, error: 'Context exceeds 500 character limit' }
+  if len(input) > 2000:
+    return { valid: false, error: 'Context exceeds 2000 character limit' }
 
   # Check for dangerous patterns (shell metacharacters)
   dangerous_pattern = /[\\|;&><`$\x00-\x1f]|\.\.\//
@@ -759,7 +794,7 @@ update_gitignore_paths() {
   new_section="# ===== fractary-faber (managed) =====
 ${runs_entry}/
 ${state_entry}/
-faber/*.backup.*
+backups/
 # ===== end fractary-faber ====="
 
   if [ -f "$gitignore_file" ]; then
@@ -814,7 +849,7 @@ Gitignore Changes:
     - workflow-runs/
     - faber/workflow-state/
 
-Backup: .fractary/faber/config.yaml.backup.{timestamp}
+Backup: .fractary/backups/faber-config-{YYYYMMDD-HHMMSS}.yaml
 ```
 
 ### Fallback: Manual Warning

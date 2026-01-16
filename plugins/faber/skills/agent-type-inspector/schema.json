@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Inspector Agent Schema",
+  "description": "JSON Schema for validating inspector agent frontmatter and structure",
+  "properties": {
+    "frontmatter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "model": {
+          "type": "string",
+          "enum": ["claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5"],
+          "default": "claude-sonnet-4-5"
+        },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["name", "description", "model", "tools"]
+    },
+    "sections": {
+      "type": "object",
+      "properties": {
+        "context": { "type": "boolean", "const": true },
+        "critical_rules": { "type": "boolean", "const": true },
+        "implementation": { "type": "boolean", "const": true },
+        "outputs": { "type": "boolean", "const": true }
+      },
+      "required": ["context", "critical_rules", "implementation", "outputs"]
+    }
+  },
+  "required": ["frontmatter", "sections"]
+}
