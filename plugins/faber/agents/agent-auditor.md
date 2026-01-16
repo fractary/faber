@@ -532,7 +532,6 @@ FOR agent_path IN agents_to_audit:
 ```
 IF fix_mode:
   fixes_applied = 0
-  timestamp = current_timestamp_iso()  # e.g., "20260116-143022"
 
   # Define which issue IDs are auto-fixable
   auto_fixable_issues = {
@@ -581,16 +580,11 @@ IF fix_mode:
         fixes_applied += 1
 
     IF modified:
-      # Create timestamped backup to prevent overwriting previous backups
-      backup_path = agent_path + ".backup." + timestamp
-      copy(agent_path, backup_path)
-
-      # Write fixed content
+      # Write fixed content (git provides version control)
       write(agent_path, content)
       PRINT "  Fixed {length(agent_fixes)} issues in {agent_path}"
       FOR fix_desc IN agent_fixes:
         PRINT "    - {fix_desc}"
-      PRINT "  Backup: {backup_path}"
 
   audit_results.fixes_applied = fixes_applied
 ```

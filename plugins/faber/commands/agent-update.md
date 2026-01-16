@@ -71,11 +71,10 @@ The `--context` argument describes what changes to make:
 --context "Refactor Step 4 to use parallel file processing for better performance with large codebases."
 ```
 
-## Backup and Safety
+## Safety
 
-- Creates automatic backup at `{agent-path}.backup` before modifying
 - Preserves existing content not explicitly changed
-- Can restore from backup if update causes issues
+- Use git to track changes and revert if needed
 
 ## Invocation
 
@@ -92,7 +91,6 @@ Task(
 On success, returns:
 - Path to updated agent file
 - List of changes made
-- Path to backup file
 
 ```json
 {
@@ -100,8 +98,7 @@ On success, returns:
   "message": "Agent 'faber-planner' updated successfully",
   "details": {
     "agent_path": "plugins/faber/agents/faber-planner.md",
-    "changes_made": ["Updated WORKFLOW section", "Added new CRITICAL_RULE"],
-    "backup_path": "plugins/faber/agents/faber-planner.md.backup"
+    "changes_made": ["Updated WORKFLOW section", "Added new CRITICAL_RULE"]
   }
 }
 ```

@@ -62,7 +62,6 @@ Agents in the FABER ecosystem must follow specific patterns to:
 6. **NO EXECUTION** - Only generate/modify files, do NOT execute or test them
 7. **ASK WHEN UNCLEAR** - If context is ambiguous, use AskUserQuestion to clarify before proceeding
 8. **PRESERVE ON UPDATE** - When updating, preserve existing content not explicitly changed
-9. **BACKUP BEFORE UPDATE** - Create backup of existing files before modifying (for update mode)
 </CRITICAL_RULES>
 
 <INPUTS>
@@ -97,7 +96,6 @@ You receive arguments for engineering the agent.
 - Reads existing agent file first
 - Applies modifications based on `--context` and other options
 - Preserves existing content not explicitly changed
-- Creates backup before modifying
 - Fails if agent doesn't exist
 
 **Example Inputs:**
@@ -248,11 +246,6 @@ IF mode == "update":
     "EXAMPLES": extract_section(existing_content, "EXAMPLES"),
     "NOTES": extract_section(existing_content, "NOTES")
   }
-
-  # Create backup
-  backup_path = agent_path + ".backup"
-  Write(backup_path, existing_content)
-  PRINT "Backup created: {backup_path}"
 ```
 
 ## Step 3: Determine Changes (Update Mode)
@@ -417,11 +410,6 @@ Merge changes with existing content:
 
 ```
 updated_content = existing_content
-timestamp = current_timestamp_iso()
-
-# Create timestamped backup
-backup_path = agent_path + ".backup." + timestamp
-Write(backup_path, existing_content)
 
 # Update frontmatter fields
 updated_frontmatter = existing_frontmatter.copy()
@@ -549,8 +537,7 @@ IF create_command:
     "command_path": "{command_path}",
     "agent_name": "{agent_name}",
     "command_name": "fractary-{plugin}:{agent_name}",
-    "changes_made": ["{list of changes for update mode}"],
-    "backup_path": "{backup_path for update mode}"
+    "changes_made": ["{list of changes for update mode}"]
   }
 }
 ```
@@ -591,8 +578,7 @@ IF create_command:
       "Updated model from sonnet to opus",
       "Added parallel execution support to WORKFLOW",
       "Updated CRITICAL_RULES with concurrency guidelines"
-    ],
-    "backup_path": "plugins/faber/agents/faber-planner.md.backup"
+    ]
   }
 }
 ```
@@ -615,8 +601,7 @@ IF create_command:
   "details": {
     "mode": "update",
     "agent_path": "plugins/faber/agents/faber-planner.md",
-    "changes_made": ["Updated WORKFLOW", "Updated INPUTS"],
-    "backup_path": "plugins/faber/agents/faber-planner.md.backup"
+    "changes_made": ["Updated WORKFLOW", "Updated INPUTS"]
   }
 }
 ```
@@ -649,7 +634,7 @@ IF create_command:
 | Agent exists (create) | Would overwrite without confirmation | Confirm overwrite or use --mode update |
 | Missing purpose (create) | Cannot generate meaningful agent | Provide --purpose or describe in --context |
 | Invalid name format | Name doesn't follow noun-first pattern | Use noun-verb format (e.g., schema-validator) |
-| Parse error | Existing agent has malformed structure | Fix manually or restore from backup |
+| Parse error | Existing agent has malformed structure | Fix manually or use git to restore |
 | Write permission denied | Cannot write to target directory | Check permissions on plugins directory |
 | Invalid plugin | Specified plugin doesn't exist | Use existing plugin or create plugin first |
 
@@ -676,7 +661,6 @@ faber-planner --mode update --context "Add support for conditional step executio
 
 **Output:**
 - Reads existing `faber-planner.md`
-- Creates backup at `faber-planner.md.backup`
 - Updates WORKFLOW section with conditional execution logic
 - Updates INPUTS to document new condition parameters
 - Updates CRITICAL_RULES with condition handling requirements
@@ -691,7 +675,6 @@ workflow-auditor --mode update --model opus --tools "Read,Write,Glob,Grep,Bash,A
 **Output:**
 - Updates frontmatter model and tools
 - Preserves all existing sections unchanged
-- Creates backup before modification
 
 </EXAMPLES>
 
@@ -724,8 +707,8 @@ All generated/updated agents follow these FABER standards:
 ## Update Best Practices
 
 When updating agents:
-1. Always review the backup after update
-2. Test the updated agent before removing backup
+1. Use git to track changes and revert if needed
+2. Test the updated agent after making changes
 3. Use specific context describing exact changes needed
 4. For major restructuring, consider create + manual merge
 
