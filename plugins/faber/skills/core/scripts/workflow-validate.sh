@@ -117,6 +117,12 @@ else
     echo -e "${GREEN}✓${NC} Description: $DESCRIPTION"
 fi
 
+# Check asset_type (optional but informational)
+ASSET_TYPE=$(echo "$WORKFLOW" | jq -r '.asset_type // empty')
+if [ -n "$ASSET_TYPE" ]; then
+    echo -e "${GREEN}✓${NC} Asset type: $ASSET_TYPE"
+fi
+
 # Check phases
 PHASES=$(echo "$WORKFLOW" | jq -r '.phases // empty')
 if [ -z "$PHASES" ] || [ "$PHASES" = "null" ]; then

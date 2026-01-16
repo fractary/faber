@@ -21,6 +21,11 @@
       "type": "string",
       "description": "Human-readable workflow description"
     },
+    "asset_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The type of asset this workflow operates on (e.g., 'software-feature', 'blog-post', 'dataset', 'video', 'catalog'). Identifies what kind of thing the workflow creates, modifies, or manages. Projects may have multiple workflows operating on different asset types."
+    },
     "extends": {
       "type": "string",
       "description": "Parent workflow to extend. Use namespaced format: 'fractary-faber:default' for core workflows, or unnamespaced for project workflows. Parent pre_steps execute before child steps, parent post_steps execute after."

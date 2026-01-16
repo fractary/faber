@@ -26,6 +26,7 @@ Workflows are now stored as separate JSON files instead of being embedded in the
 **General-purpose workflow** for various development tasks.
 
 - **Extends**: core.json
+- **Asset Type**: `code-change`
 - **Phases**: Frame → Architect → Build → Evaluate → Release
 - **Use case**: General development, maintenance, chores, refactoring
 - **Autonomy**: Guarded (pauses before release)
@@ -36,6 +37,7 @@ Workflows are now stored as separate JSON files instead of being embedded in the
 **Optimized workflow** for bug fixes and regression prevention.
 
 - **Extends**: core.json
+- **Asset Type**: `bug-fix`
 - **Phases**: Frame → Architect → Build → Evaluate → Release
 - **Use case**: Bug fixes, defects, regressions, urgent issues
 - **Autonomy**: Guarded (pauses before release)
@@ -51,6 +53,7 @@ Workflows are now stored as separate JSON files instead of being embedded in the
 **Comprehensive workflow** for new feature development.
 
 - **Extends**: core.json
+- **Asset Type**: `software-feature`
 - **Phases**: Frame → Architect → Build → Evaluate → Release
 - **Use case**: New features, enhancements, significant changes
 - **Autonomy**: Guarded (pauses before release)
@@ -72,6 +75,7 @@ Each workflow file follows the workflow.schema.json structure:
   "$schema": "../workflow.schema.json",
   "id": "workflow-name",
   "description": "Human-readable description",
+  "asset_type": "software-feature",
   "phases": {
     "frame": { ... },
     "architect": { ... },
@@ -83,6 +87,26 @@ Each workflow file follows the workflow.schema.json structure:
   "autonomy": { ... }
 }
 ```
+
+### Asset Type
+
+The `asset_type` field identifies what type of thing the workflow operates on or produces. This is important because:
+
+- **Semantic clarity**: Different workflows may produce different types of deliverables (features, bug fixes, datasets, articles, videos)
+- **Project flexibility**: A single project may have multiple workflows operating on different asset types
+- **Entity tracking**: When entity state tracking is enabled, the asset type helps categorize and organize workflow outputs
+
+**Common asset types for software development:**
+- `code-change` - General code modifications
+- `software-feature` - New feature implementations
+- `bug-fix` - Bug fix implementations
+
+**Asset types for other domains:**
+- `blog-post` - Content creation workflows
+- `dataset` - Data pipeline workflows
+- `video` - Media production workflows
+- `catalog` - Collection management workflows
+- `api-module` - API development workflows
 
 ## Using Workflows
 

@@ -2,6 +2,7 @@
   "$schema": "../workflow.schema.json",
   "id": "default",
   "description": "Default FABER workflow for software development - extends core with spec generation and implementation",
+  "asset_type": "code-change",
   "extends": "fractary-faber:core",
   "phases": {
     "frame": {
