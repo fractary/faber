@@ -106,5 +106,5 @@ On success, returns:
 ## See Also
 
 - `/fractary-faber:agent-create` - Create new agents
-- `/fractary-faber:agent-audit` - Audit agents for best practices
+- `/fractary-faber:agent-inspect` - Inspect agents for best practices
 - `plugins/faber/docs/FABER-AGENT-BEST-PRACTICES.md` - Agent standards

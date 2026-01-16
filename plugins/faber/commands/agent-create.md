@@ -76,6 +76,6 @@ Returns paths to created files and instructions for next steps.
 ## See Also
 
 - `/fractary-faber:agent-update` - Update existing agents
-- `/fractary-faber:agent-audit` - Audit agents for best practices
+- `/fractary-faber:agent-inspect` - Inspect agents for best practices
 - `plugins/faber/docs/FABER-AGENT-BEST-PRACTICES.md` - Agent standards
 - `plugins/faber/docs/RESPONSE-FORMAT.md` - Response format specification

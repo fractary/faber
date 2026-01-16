@@ -748,6 +748,6 @@ After create/update:
 1. Agent is immediately available via Task tool
 2. Command is available as `/fractary-{plugin}:{name}`
 3. Update plugin.json to include agent in agents array (for discoverability)
-4. Run `/fractary-faber:agent-audit {name}` to verify compliance
+4. Run `/fractary-faber:agent-inspect {name}` to verify compliance
 
 </NOTES>
