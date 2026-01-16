@@ -33,7 +33,7 @@ cd your-project
 /fractary-faber:configure
 ```
 
-This auto-detects your project settings and creates `.fractary/plugins/faber/config.json`.
+This auto-detects your project settings and creates the `faber:` section in `.fractary/config.yaml`.
 
 ### 2. Configure Authentication
 

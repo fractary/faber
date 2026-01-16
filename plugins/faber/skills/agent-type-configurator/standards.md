@@ -107,12 +107,12 @@ Example:
 ```
 ERROR: Invalid configuration syntax
 
-File: .fractary/faber/config.yaml
+File: .fractary/config.yaml (faber: section)
 Error: Unexpected mapping at line 42
 
 Recovery:
 1. Check for syntax errors (missing colons, quotes)
-2. Validate YAML with: yamllint config.yaml
+2. Validate YAML with: yamllint .fractary/config.yaml
 3. Restore from backup if available
 ```
 
@@ -185,11 +185,10 @@ if not validate(config):
 # BAD: Hardcoded path
 config_path = "/home/user/.config/app/config.yaml"
 
-# GOOD: Configurable with defaults
-config_paths = [
-    ".fractary/faber/config.yaml",
-    ".fractary/plugins/faber/config.yaml"
-]
+# GOOD: Use unified config location
+unified_config = ".fractary/config.yaml"  # All plugins share this file
+# FABER settings go in the 'faber:' section
+# Workflows go in '.fractary/faber/workflows/'
 ```
 
 ## Security Considerations

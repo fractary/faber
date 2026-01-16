@@ -162,7 +162,7 @@
           },
           "examples": [
             {
-              "project": ".fractary/plugins/faber/workflows",
+              "project": ".fractary/faber/workflows",
               "fractary-faber": "~/.claude/plugins/marketplaces/fractary/plugins/faber/workflows"
             }
           ]

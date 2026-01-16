@@ -108,24 +108,22 @@ if context is not null:
 ## Step 1: Check for Existing Configuration
 
 ```bash
-# Check all possible config locations
-config_paths=(
-  ".fractary/faber/config.yaml"
-  ".fractary/faber/config.json"
-  ".fractary/plugins/faber/config.yaml"
-  ".fractary/plugins/faber/config.json"
-)
+# Check for unified config (primary location)
+# FABER config is stored in the 'faber:' section of .fractary/config.yaml
+unified_config=".fractary/config.yaml"
 
-existing_config=""
-for path in "${config_paths[@]}"; do
-  if [ -f "$path" ]; then
-    existing_config="$path"
-    break
+config_exists=false
+faber_section_exists=false
+
+if [ -f "$unified_config" ]; then
+  # Check if faber section exists in unified config
+  if python3 -c "import yaml; c=yaml.safe_load(open('$unified_config')); exit(0 if c and 'faber' in c else 1)" 2>/dev/null; then
+    faber_section_exists=true
+    config_exists=true
   fi
-done
+fi
 
-if [ -n "$existing_config" ]; then
-  config_exists=true
+if [ "$config_exists" = true ]; then
   # Determine mode based on --context presence
   if [ -n "$context" ]; then
     mode="update"
@@ -133,7 +131,6 @@ if [ -n "$existing_config" ]; then
     mode="overwrite_prompt"
   fi
 else
-  config_exists=false
   mode="initialize"
 fi
 ```
@@ -158,9 +155,9 @@ Execute Steps 3-9 for full interactive setup.
 
 ```
 AskUserQuestion:
-  question: "Configuration already exists at {existing_config}. What would you like to do?"
+  question: "FABER configuration already exists in .fractary/config.yaml (faber: section). What would you like to do?"
   options:
-    - "View current config": Show config and exit
+    - "View current config": Show faber config and exit
     - "Reinitialize": Start fresh setup (backup old config)
     - "Exit": Cancel operation
 ```
@@ -254,19 +251,23 @@ AskUserQuestion:
 ## Step 5: Build Proposed Configuration
 
 ```yaml
-# Build configuration from confirmed values
-proposed_config:
-  schema_version: "2.0"
-  repo:
-    owner: "{confirmed_owner}"
-    repo: "{confirmed_repo}"
-    platforms:
-      work: "{confirmed_work_platform}"
-      repo: "github"
-    default_branch: "{confirmed_default_branch}"
+# Build configuration for 'faber:' section in .fractary/config.yaml
+# This structure will be merged into the unified config file
+proposed_faber_config:
   workflow:
+    config_path: ".fractary/faber/workflows"
     autonomy: "{confirmed_autonomy}"
-  # ... additional settings
+  workflows:
+    - id: default
+      description: "Default FABER workflow"
+      file: "./workflows/default.yaml"
+  logging:
+    use_logs_plugin: true
+    log_type: "workflow"
+    log_level: "info"
+  state:
+    runs_dir: ".fractary/runs"
+    state_dir: ".fractary/faber/state"
 ```
 
 ## Step 6: Display Preview
@@ -281,7 +282,8 @@ Work Platform: {work_platform}
 Repo Platform: github
 Default Branch: {default_branch}
 
-Workflow Settings:
+FABER Workflow Settings (faber: section in .fractary/config.yaml):
+  - Workflow Path: .fractary/faber/workflows/
   - Autonomy: {autonomy}
   - Phase: frame (enabled)
   - Phase: architect (enabled, refineSpec: true)
@@ -294,7 +296,7 @@ State Management:
   - State directory: .fractary/faber/state/
 
 Files to Create/Update:
-  - .fractary/faber/config.yaml (faber configuration)
+  - .fractary/config.yaml (faber: section will be added/updated)
 
 Gitignore Entries to Add (if not present):
   - .fractary/.gitignore will include:
@@ -309,12 +311,12 @@ Gitignore Entries to Add (if not present):
 Proposed Changes
 ----------------
 
-workflow.autonomy:
+faber.workflow.autonomy:
   Current: guarded
   New:     autonomous
 
 Files to Modify:
-  - .fractary/faber/config.yaml
+  - .fractary/config.yaml (faber: section)
 
 Backup: .fractary/backups/faber-config-{YYYYMMDD-HHMMSS}.yaml
 ```
@@ -339,7 +341,7 @@ If `--force` flag is set, skip this step.
 ### Create Timestamped Backup (Cross-Platform)
 
 **Backup Location:** `.fractary/backups/` (centralized for all plugins)
-**Naming Convention:** `faber-config-YYYYMMDD-HHMMSS.yaml`
+**Naming Convention:** `config-YYYYMMDD-HHMMSS.yaml` (full unified config backup)
 **Tracking:** `.fractary/backups/.last-backup` contains path to most recent backup
 **Retention:** Keep last 10 backups
 
@@ -357,127 +359,125 @@ generate_timestamp() {
 # Track pre-existing state for rollback
 config_existed=false
 backup_file=""
+unified_config=".fractary/config.yaml"
 
-if [ -f ".fractary/faber/config.yaml" ]; then
+if [ -f "$unified_config" ]; then
   config_existed=true
 
   # Create centralized backup directory
   mkdir -p ".fractary/backups"
 
   timestamp=$(generate_timestamp)
-  backup_file=".fractary/backups/faber-config-${timestamp}.yaml"
-  cp ".fractary/faber/config.yaml" "$backup_file"
+  backup_file=".fractary/backups/config-${timestamp}.yaml"
+  cp "$unified_config" "$backup_file"
 
   # Store backup path for rollback (agents are stateless)
   echo "$backup_file" > .fractary/backups/.last-backup
 
   # Clean old backups (keep last 10)
-  ls -1t .fractary/backups/faber-config-*.yaml 2>/dev/null | tail -n +11 | while read -r file; do
+  ls -1t .fractary/backups/config-*.yaml 2>/dev/null | tail -n +11 | while read -r file; do
     rm -f "$file"
   done
 
   echo "Created backup: $backup_file"
 fi
 
-# Create directory if needed
-mkdir -p ".fractary/faber"
+# Create .fractary directory if needed
+mkdir -p ".fractary"
+# Create workflows directory for project-specific workflows
+mkdir -p ".fractary/faber/workflows"
 ```
 
-### Write Configuration (Surgical Edit)
+### Write Configuration (Surgical Edit to Unified Config)
 
-The configuration is written to `.fractary/faber/config.yaml` - this is faber's dedicated config file.
-For the shared `.fractary/config.yaml`, we only add/update faber-specific sections.
-
-```bash
-# Write faber-specific configuration to dedicated file
-# This file is owned entirely by faber
-cat > .fractary/faber/config.yaml << 'EOF'
-# FABER Configuration
-# Generated by /fractary-faber:configure
-
-schema_version: "2.0"
-
-repo:
-  owner: "{owner}"
-  repo: "{repo}"
-  platforms:
-    work: "{work_platform}"
-    repo: "github"
-  default_branch: "{default_branch}"
-
-workflow:
-  autonomy: "{autonomy}"
-
-workflows:
-  - id: default
-    description: "Default FABER workflow"
-    file: "./workflows/default.yaml"
-
-logging:
-  use_logs_plugin: true
-  log_type: "workflow"
-  log_level: "info"
-
-# Run/state management directories (should be in .gitignore)
-state:
-  runs_dir: ".fractary/runs"
-  state_dir: ".fractary/faber/state"
-EOF
-```
-
-### Merge into Shared Config (If Needed)
-
-If `.fractary/config.yaml` exists (shared config used by multiple plugins), only update faber-specific sections:
+The configuration is written to the `faber:` section in `.fractary/config.yaml`.
+This is the unified config file used by all fractary plugins.
+**IMPORTANT**: Do NOT create `.fractary/faber/config.yaml` - that path is DEPRECATED.
 
 ```bash
-shared_config=".fractary/config.yaml"
+unified_config=".fractary/config.yaml"
 
-if [ -f "$shared_config" ]; then
-  # Read existing shared config
-  # Only update the 'faber' section, preserve all other sections
-
-  # Use Python/yq for safe YAML merging (preserves structure)
-  if command -v python3 >/dev/null 2>&1; then
-    python3 << 'PYEOF'
+# Use Python for safe YAML merging (preserves structure and comments)
+if command -v python3 >/dev/null 2>&1; then
+  python3 << 'PYEOF'
 import yaml
 import sys
 
-shared_config_path = ".fractary/config.yaml"
-faber_config_path = ".fractary/faber/config.yaml"
+unified_config_path = ".fractary/config.yaml"
 
-# Load existing shared config
+# Load existing unified config or create empty
 try:
-    with open(shared_config_path, 'r') as f:
-        shared = yaml.safe_load(f) or {}
+    with open(unified_config_path, 'r') as f:
+        config = yaml.safe_load(f) or {}
 except FileNotFoundError:
-    shared = {}
+    config = {}
 
-# Load faber config
-with open(faber_config_path, 'r') as f:
-    faber = yaml.safe_load(f)
-
-# Only update 'faber' key in shared config (surgical edit)
-# This preserves all other plugin sections (work, repo, logs, etc.)
-if 'plugins' not in shared:
-    shared['plugins'] = {}
-
-shared['plugins']['faber'] = {
-    'config_path': '.fractary/faber/config.yaml',
-    'enabled': True
+# Build faber section with explicit workflow path
+faber_config = {
+    'workflow': {
+        'config_path': '.fractary/faber/workflows',
+        'autonomy': '{autonomy}'  # Will be replaced by agent
+    },
+    'workflows': [
+        {
+            'id': 'default',
+            'description': 'Default FABER workflow',
+            'file': './workflows/default.yaml'
+        }
+    ],
+    'logging': {
+        'use_logs_plugin': True,
+        'log_type': 'workflow',
+        'log_level': 'info'
+    },
+    'state': {
+        'runs_dir': '.fractary/runs',
+        'state_dir': '.fractary/faber/state'
+    }
 }
 
-# Write back shared config (preserving other sections)
-with open(shared_config_path, 'w') as f:
-    yaml.dump(shared, f, default_flow_style=False, sort_keys=False)
+# Update ONLY the 'faber' section (surgical edit)
+# This preserves all other sections (repo, work, logs, anthropic, github, etc.)
+config['faber'] = faber_config
 
-print(f"Updated faber section in {shared_config_path}")
+# Write back unified config (preserving other sections)
+with open(unified_config_path, 'w') as f:
+    yaml.dump(config, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+
+print(f"Updated faber section in {unified_config_path}")
 PYEOF
-  else
-    echo "Note: Python not available for YAML merge. Skipping shared config update."
-    echo "The faber config at .fractary/faber/config.yaml is the primary source."
-  fi
 else
-  echo "No shared config at .fractary/config.yaml - using dedicated faber config only"
+  # Fallback: Create minimal config if Python not available
+  echo "Warning: Python not available for YAML merge."
+
+  if [ ! -f "$unified_config" ]; then
+    # Create new config file with faber section
+    cat > "$unified_config" << 'EOF'
+# Fractary Unified Configuration
+# Generated by /fractary-faber:configure
+
+faber:
+  workflow:
+    config_path: ".fractary/faber/workflows"
+    autonomy: "{autonomy}"
+  workflows:
+    - id: default
+      description: "Default FABER workflow"
+      file: "./workflows/default.yaml"
+  logging:
+    use_logs_plugin: true
+    log_type: "workflow"
+    log_level: "info"
+  state:
+    runs_dir: ".fractary/runs"
+    state_dir: ".fractary/faber/state"
+EOF
+    echo "Created $unified_config with faber section"
+  else
+    echo "ERROR: Cannot merge into existing config without Python."
+    echo "Please install Python 3 or manually add the faber section."
+    exit 3
+  fi
 fi
 ```
 
@@ -486,6 +486,7 @@ fi
 ```bash
 rollback_on_failure() {
   local error_msg="$1"
+  local unified_config=".fractary/config.yaml"
 
   echo "ERROR: $error_msg"
 
@@ -495,13 +496,13 @@ rollback_on_failure() {
 
     if [ -n "$backup_file" ] && [ -f "$backup_file" ]; then
       echo "Restoring from backup..."
-      cp "$backup_file" ".fractary/faber/config.yaml"
+      cp "$backup_file" "$unified_config"
       echo "Restored from: $backup_file"
     else
       # Fallback: use most recent backup
-      latest_backup=$(ls -1t .fractary/backups/faber-config-*.yaml 2>/dev/null | head -1)
+      latest_backup=$(ls -1t .fractary/backups/config-*.yaml 2>/dev/null | head -1)
       if [ -n "$latest_backup" ]; then
-        cp "$latest_backup" ".fractary/faber/config.yaml"
+        cp "$latest_backup" "$unified_config"
         echo "Restored from latest backup: $latest_backup"
       else
         echo "ERROR: No backup available for rollback"
@@ -511,9 +512,26 @@ rollback_on_failure() {
     # Clean up tracking file
     rm -f .fractary/backups/.last-backup
   elif [ "$config_existed" = false ]; then
-    # Remove files we created
-    rm -f ".fractary/faber/config.yaml"
-    echo "Cleaned up created files"
+    # Remove faber section from unified config if it was just added
+    # This is a partial rollback - we only remove the faber section
+    if command -v python3 >/dev/null 2>&1 && [ -f "$unified_config" ]; then
+      python3 << 'PYEOF'
+import yaml
+
+config_path = ".fractary/config.yaml"
+try:
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f) or {}
+    if 'faber' in config:
+        del config['faber']
+        with open(config_path, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        print("Removed faber section from unified config")
+except Exception as e:
+    print(f"Warning: Could not clean up faber section: {e}")
+PYEOF
+    fi
+    echo "Cleaned up created configuration"
   fi
 
   exit 1
@@ -550,7 +568,7 @@ validate_yaml() {
   return 1  # Invalid
 }
 
-if ! validate_yaml ".fractary/faber/config.yaml"; then
+if ! validate_yaml ".fractary/config.yaml"; then
   rollback_on_failure "Generated YAML is invalid"
 fi
 ```
@@ -566,10 +584,10 @@ if (!config) {
   rollback_on_failure('SDK failed to load configuration');
 }
 
-// Validate required fields
-if (!config.repo.owner || !config.repo.repo) {
-  console.warn('Config created but repo owner/name not set');
-  console.warn('Edit .fractary/faber/config.yaml to complete setup');
+// Validate faber section has required workflow path
+if (!config.workflow?.config_path) {
+  console.warn('Config created but workflow.config_path not set');
+  console.warn('Edit .fractary/config.yaml (faber: section) to complete setup');
 }
 ```
 
@@ -673,17 +691,20 @@ update_faber_gitignore_section() {
 ```
 FABER configuration complete!
 
+Configuration written to: .fractary/config.yaml (faber: section)
+Project workflows directory: .fractary/faber/workflows/
+
 ADDITIONAL CONFIGURATION REQUIRED:
 
 1. **Authentication** (Required)
-   Configure GitHub token in: .fractary/config.yaml
+   Configure GitHub token in: .fractary/config.yaml (github: section)
    Or run: /fractary-work:init
 
 2. **Cloud Infrastructure** (Optional)
    If using AWS/Terraform: /fractary-faber-cloud:configure
 
 Next Steps:
-  1. Review config: cat .fractary/faber/config.yaml
+  1. Review config: cat .fractary/config.yaml
   2. Run a workflow: /fractary-faber:workflow-plan <issue-number>
 ```
 
@@ -896,8 +917,10 @@ gh label create "priority:P4" --color "00CC00" --description "Nice to have" || t
 ## Optional: Legacy Config Migration
 
 ```bash
-# Check for legacy config locations
+# Check for legacy config locations (all DEPRECATED)
 legacy_paths=(
+  ".fractary/faber/config.yaml"
+  ".fractary/faber/config.json"
   ".fractary/plugins/faber/config.yaml"
   ".fractary/plugins/faber/config.json"
   "faber.config.json"
@@ -905,20 +928,58 @@ legacy_paths=(
 
 for legacy_path in "${legacy_paths[@]}"; do
   if [ -f "$legacy_path" ]; then
-    echo "Found legacy config at: $legacy_path"
+    echo "Found DEPRECATED config at: $legacy_path"
+    echo "FABER now uses .fractary/config.yaml (faber: section)"
 
     AskUserQuestion:
-      question: "Migrate legacy config from $legacy_path to new location?"
+      question: "Migrate legacy config from $legacy_path to .fractary/config.yaml?"
       options:
-        - "Yes, migrate"
+        - "Yes, migrate to faber: section"
         - "No, start fresh"
 
     if migrate:
-      # Copy to new location
-      cp "$legacy_path" ".fractary/faber/config.yaml"
+      # Convert legacy config to faber: section in unified config
+      if command -v python3 >/dev/null 2>&1; then
+        python3 << PYEOF
+import yaml
+import json
+
+legacy_path = "$legacy_path"
+unified_path = ".fractary/config.yaml"
+
+# Load legacy config
+if legacy_path.endswith('.json'):
+    with open(legacy_path, 'r') as f:
+        legacy = json.load(f)
+else:
+    with open(legacy_path, 'r') as f:
+        legacy = yaml.safe_load(f)
+
+# Load or create unified config
+try:
+    with open(unified_path, 'r') as f:
+        unified = yaml.safe_load(f) or {}
+except FileNotFoundError:
+    unified = {}
+
+# Migrate to faber: section
+# Ensure workflow.config_path is set correctly
+if 'workflow' not in legacy:
+    legacy['workflow'] = {}
+legacy['workflow']['config_path'] = '.fractary/faber/workflows'
+
+unified['faber'] = legacy
+
+# Write unified config
+with open(unified_path, 'w') as f:
+    yaml.dump(unified, f, default_flow_style=False, sort_keys=False)
+
+print(f"Migrated config to {unified_path} (faber: section)")
+PYEOF
+      fi
       # Backup and remove old
       mv "$legacy_path" "${legacy_path}.migrated"
-      echo "Migrated config to .fractary/faber/config.yaml"
+      echo "Legacy config backed up to ${legacy_path}.migrated"
     fi
     break
   fi
@@ -939,25 +1000,22 @@ Human-readable output with progress indicators and guidance.
 {
   "status": "success",
   "mode": "initialize",
-  "path": ".fractary/faber/config.yaml",
+  "path": ".fractary/config.yaml",
+  "section": "faber",
   "backup": null,
   "configuration": {
-    "repo": {
-      "owner": "owner",
-      "repo": "repo",
-      "platforms": {
-        "work": "github",
-        "repo": "github"
-      },
-      "default_branch": "main"
-    },
     "workflow": {
+      "config_path": ".fractary/faber/workflows",
       "autonomy": "guarded"
+    },
+    "state": {
+      "runs_dir": ".fractary/runs",
+      "state_dir": ".fractary/faber/state"
     }
   },
   "labels_created": false,
   "next_steps": [
-    "Review config: cat .fractary/faber/config.yaml",
+    "Review config: cat .fractary/config.yaml",
     "Run workflow: /fractary-faber:workflow-plan <issue-number>"
   ]
 }

@@ -92,7 +92,7 @@ resolve_workflow_path() {
             echo "${MARKETPLACE_ROOT}/fractary-codex/plugins/codex/config/workflows/${workflow_name}.json"
             ;;
         "project"|"")
-            echo "${PROJECT_ROOT}/.fractary/plugins/faber/workflows/${workflow_name}.json"
+            echo "${PROJECT_ROOT}/.fractary/faber/workflows/${workflow_name}.json"
             ;;
         *)
             # Fallback to old unified marketplace for backward compatibility

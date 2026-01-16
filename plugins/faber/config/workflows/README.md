@@ -112,21 +112,17 @@ The `asset_type` field identifies what type of thing the workflow operates on or
 
 ### In Config File
 
-Reference workflows in `.fractary/plugins/faber/config.json`:
+Reference workflows in `.fractary/config.yaml` (faber: section):
 
-```json
-{
-  "workflows": [
-    {
-      "id": "default",
-      "file": "./workflows/default.json"
-    },
-    {
-      "id": "hotfix",
-      "file": "./workflows/hotfix.json"
-    }
-  ]
-}
+```yaml
+faber:
+  workflow:
+    config_path: ".fractary/faber/workflows"
+  workflows:
+    - id: default
+      file: "./workflows/default.json"
+    - id: hotfix
+      file: "./workflows/hotfix.json"
 ```
 
 ### Selecting Workflow
@@ -291,7 +287,7 @@ If no `--workflow` flag is provided AND no labels match, uses the first workflow
 
 1. **Copy a template**:
    ```bash
-   cp plugins/faber/config/workflows/default.json .fractary/plugins/faber/workflows/custom.json
+   cp plugins/faber/config/workflows/default.json .fractary/faber/workflows/custom.json
    ```
 
 2. **Edit workflow** to meet your needs:
@@ -300,17 +296,13 @@ If no `--workflow` flag is provided AND no labels match, uses the first workflow
    - Adjust autonomy level
    - Customize validation
 
-3. **Reference in config**:
-   ```json
-   {
-     "workflows": [
-       {
-         "id": "custom",
-         "file": "./workflows/custom.json",
-         "description": "My custom workflow"
-       }
-     ]
-   }
+3. **Reference in config** (`.fractary/config.yaml`):
+   ```yaml
+   faber:
+     workflows:
+       - id: custom
+         file: "./workflows/custom.json"
+         description: "My custom workflow"
    ```
 
 4. **Validate**:

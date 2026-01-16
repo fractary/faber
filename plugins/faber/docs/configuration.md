@@ -19,17 +19,18 @@ Complete guide to configuring FABER workflow for your projects using the new JSO
 # Generate default FABER configuration
 /fractary-faber:configure
 
-# This creates .fractary/plugins/faber/config.json with baseline workflow
+# This creates the faber: section in .fractary/config.yaml
+# and sets up .fractary/faber/workflows/ for project workflows
 ```
 
 ### Option 2: Manual Configuration
 
 ```bash
 # Copy example configuration
-cp plugins/faber/config/faber.example.json .fractary/plugins/faber/config.json
+cp plugins/faber/config/faber.example.json .fractary/faber/config.json
 
-# Customize for your project
-vim .fractary/plugins/faber/config.json
+# Or edit the unified config directly
+vim .fractary/config.yaml  # Add/edit faber: section
 ```
 
 ### After Initialization
@@ -45,22 +46,23 @@ vim .fractary/plugins/faber/config.json
 
 ## Configuration File Location
 
-**Directory structure (v2.0)**:
+**Directory structure (v2.1+)**:
 ```
-.fractary/plugins/faber/
-|-- config.json              # Main configuration (references workflows)
-|-- workflows/               # Workflow definition files
-    |-- default.json         # Standard FABER workflow
-    |-- hotfix.json          # Expedited hotfix workflow
-    |-- custom.json          # Your custom workflows
-```
-
-**Old location (v1.x) - NO LONGER USED**:
-```
-.faber.config.toml
+.fractary/
+|-- config.yaml              # Unified config (faber: section contains FABER settings)
+|-- faber/
+    |-- workflows/           # Project-specific workflow files
+        |-- custom.json      # Your custom workflows
 ```
 
-The configuration uses JSON format and follows the standard Fractary plugin configuration pattern. Workflows are now stored as separate files (referenced by config.json) instead of being embedded inline.
+**Old locations (DEPRECATED - NO LONGER USED)**:
+```
+.fractary/plugins/faber/     # Legacy location - migrate to .fractary/faber/
+.fractary/faber/config.yaml  # Legacy standalone config - use unified config instead
+.faber.config.toml           # v1.x location - no longer used
+```
+
+FABER configuration is now in the `faber:` section of the unified `.fractary/config.yaml` file. Project-specific workflows go in `.fractary/faber/workflows/`.
 
 ## Workflow Resolution Order
 
@@ -68,8 +70,8 @@ When FABER resolves a workflow, it searches in a specific order. Understanding t
 
 ### Resolution Precedence (Highest to Lowest)
 
-1. **Project Workflows** (`.fractary/plugins/faber/workflows/`)
-   - Workflows defined in your project's `.fractary/` directory
+1. **Project Workflows** (`.fractary/faber/workflows/`)
+   - Workflows defined in your project's `.fractary/faber/` directory
    - Use `project:` namespace prefix (or no prefix)
    - Example: `project:custom-workflow` or just `custom-workflow`
 
@@ -96,7 +98,7 @@ When FABER resolves a workflow, it searches in a specific order. Understanding t
 When you specify `--workflow my-workflow`:
 
 ```
-1. Check: .fractary/plugins/faber/workflows/my-workflow.json
+1. Check: .fractary/faber/workflows/my-workflow.json
    - If found: Use it (project workflow)
    - If not found: Continue
 
@@ -176,7 +178,7 @@ These workflows are maintained in the plugin source code and update automaticall
 
 **For most projects**: Simply run `/fractary-faber:configure` and use the default workflow as-is. The config will reference `fractary-faber:default` which provides a complete software development workflow.
 
-**For custom needs**: Create project-specific workflows in `.fractary/plugins/faber/workflows/` that extend either `fractary-faber:core` or `fractary-faber:default`.
+**For custom needs**: Create project-specific workflows in `.fractary/faber/workflows/` that extend either `fractary-faber:core` or `fractary-faber:default`.
 
 ### Main Configuration File (config.json)
 
@@ -276,12 +278,12 @@ Projects can define multiple workflows for different scenarios. The `/fractary-f
 **Creating custom workflows:**
 ```bash
 # Copy a template as starting point
-cp .fractary/plugins/faber/workflows/default.json .fractary/plugins/faber/workflows/documentation.json
+cp .fractary/faber/workflows/default.json .fractary/faber/workflows/documentation.json
 
 # Edit the new workflow file
-vim .fractary/plugins/faber/workflows/documentation.json
+vim .fractary/faber/workflows/documentation.json
 
-# Add reference to config.json workflows array
+# Add reference to .fractary/config.yaml faber: section
 # Then validate
 /fractary-faber:audit
 ```
