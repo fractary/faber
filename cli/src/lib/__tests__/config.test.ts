@@ -238,7 +238,7 @@ describe('ConfigManager', () => {
 
       const config = await ConfigManager.load();
 
-      expect(config.workflow?.config_path).toBe('/project/plugins/faber/config/workflows');
+      expect(config.workflow?.config_path).toBe('/project/.fractary/faber/workflows');
     });
 
     it('should use workflow config from FABER config file', async () => {
@@ -287,7 +287,7 @@ describe('ConfigManager', () => {
       const config = await ConfigManager.load();
 
       expect(config.worktree?.location).toBe('/home/testuser/.claude-worktrees');
-      expect(config.workflow?.config_path).toBe('/project/plugins/faber/config/workflows');
+      expect(config.workflow?.config_path).toBe('/project/.fractary/faber/workflows');
     });
 
     it('should merge partial configs correctly', async () => {

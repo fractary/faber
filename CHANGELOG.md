@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-01-16
+
+### Version Bumps
+
+| Component | Version | Change |
+|-----------|---------|--------|
+| CLI (@fractary/faber-cli) | 1.5.1 | Patch |
+| faber plugin | 3.6.1 | Patch |
+
+### Changed
+
+- **BREAKING**: Unified workflow path configuration to `.fractary/faber/workflows/`
+  - Configurator agent now writes to `faber:` section in `.fractary/config.yaml` (not standalone `.fractary/faber/config.yaml`)
+  - Removed legacy fallback logic in CLI that checked `.fractary/plugins/faber/workflows/`
+  - `merge-workflows.sh` project namespace now resolves to `.fractary/faber/workflows/`
+  - Updated `config.schema.json` default project namespace example
+  - Updated all documentation to reflect new paths
+
+### Removed
+
+- Backward compatibility for `.fractary/plugins/faber/workflows/` path (use `.fractary/faber/workflows/` instead)
+- Legacy config fallback logic in CLI `config.ts`
+
 ## [1.5.0] - 2026-01-16
 
 ### Version Bumps

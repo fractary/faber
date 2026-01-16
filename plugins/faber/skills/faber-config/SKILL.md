@@ -10,8 +10,8 @@ model: claude-opus-4-5
 You are a focused utility skill for loading, validating, and resolving FABER configuration files.
 You provide deterministic operations for configuration management including workflow inheritance resolution.
 
-Configuration is stored at: `.fractary/plugins/faber/config.json`
-Workflow definitions may be inline or in separate files under `.fractary/plugins/faber/workflows/`
+Configuration is stored in the `faber:` section of `.fractary/config.yaml`
+Project workflow definitions are in `.fractary/faber/workflows/`
 
 **Workflow Inheritance**: Workflows can extend other workflows via the `extends` field. The resolver
 merges parent and child workflows, handling pre_steps, steps, and post_steps according to inheritance rules.
@@ -33,19 +33,22 @@ merges parent and child workflows, handling pre_steps, steps, and post_steps acc
 
 ## load-config
 
-Load the main FABER configuration file.
+Load the FABER configuration from the unified config file.
 
-**Script:** `../core/scripts/config-loader.sh` (for TOML) or direct JSON read
+**Script:** `../core/scripts/config-loader.sh` (for TOML) or direct YAML read
 
 **Parameters:**
-- `config_path` (optional): Path to config file (default: `.fractary/plugins/faber/config.json`)
+- `config_path` (optional): Path to unified config file (default: `.fractary/config.yaml`)
 
 **Returns:**
 ```json
 {
   "status": "success",
   "config": {
-    "schema_version": "2.0",
+    "workflow": {
+      "config_path": ".fractary/faber/workflows",
+      "autonomy": "guarded"
+    },
     "workflows": [...],
     "integrations": {...}
   }
@@ -54,8 +57,8 @@ Load the main FABER configuration file.
 
 **Execution:**
 ```bash
-# For JSON config (v2.0)
-cat .fractary/plugins/faber/config.json
+# Load faber section from unified config (YAML)
+python3 -c "import yaml; import json; c=yaml.safe_load(open('.fractary/config.yaml')); print(json.dumps(c.get('faber', {})))"
 
 # For TOML config (legacy)
 ../core/scripts/config-loader.sh .faber.config.toml
@@ -145,8 +148,8 @@ This is the main operation for getting an executable workflow. It handles:
 |-----------|----------|-------------|
 | `fractary-faber:` | `${PLUGIN_ROOT}/plugins/faber/config/workflows/` | Core FABER workflows |
 | `fractary-faber-cloud:` | `${PLUGIN_ROOT}/plugins/faber-cloud/config/workflows/` | Cloud infrastructure workflows |
-| `project:` | `.fractary/plugins/faber/workflows/` | Project-specific workflows |
-| (no namespace) | `.fractary/plugins/faber/workflows/` | Defaults to `project:` |
+| `project:` | `.fractary/faber/workflows/` | Project-specific workflows |
+| (no namespace) | `.fractary/faber/workflows/` | Defaults to `project:` |
 
 **Plugin Root Resolution:**
 - Check environment variable `CLAUDE_PLUGIN_ROOT` first (set by plugin system)
@@ -281,7 +284,7 @@ Validate configuration against JSON schema.
 **Script:** `../core/scripts/config-validate.sh`
 
 **Parameters:**
-- `config_path`: Path to config file to validate
+- `config_path`: Path to unified config file to validate (default: `.fractary/config.yaml`)
 
 **Returns:**
 ```json
@@ -289,7 +292,7 @@ Validate configuration against JSON schema.
   "status": "success",
   "valid": true,
   "summary": {
-    "schema_version": "2.0",
+    "workflow_path": ".fractary/faber/workflows",
     "workflow_count": 1,
     "autonomy_level": "guarded"
   }
@@ -302,7 +305,7 @@ Or on failure:
   "status": "error",
   "valid": false,
   "errors": [
-    "Missing required field: integrations.work_plugin",
+    "Missing required field: faber.workflow.config_path",
     "Invalid autonomy level: unknown"
   ]
 }
@@ -310,7 +313,7 @@ Or on failure:
 
 **Execution:**
 ```bash
-../core/scripts/config-validate.sh .fractary/plugins/faber/config.json
+../core/scripts/config-validate.sh .fractary/config.yaml
 ```
 
 ---
@@ -389,8 +392,9 @@ When invoked with an operation:
 <ERROR_HANDLING>
 | Error | Code | Action |
 |-------|------|--------|
-| Config file not found | CONFIG_NOT_FOUND | Return error with path and suggestion to run `/fractary-faber:configure` |
-| Invalid JSON | CONFIG_INVALID_JSON | Return error with parse error details |
+| Config file not found | CONFIG_NOT_FOUND | Return error with path (.fractary/config.yaml) and suggestion to run `/fractary-faber:configure` |
+| Missing faber section | FABER_SECTION_MISSING | Return error suggesting to run `/fractary-faber:configure` |
+| Invalid YAML | CONFIG_INVALID_YAML | Return error with parse error details |
 | Schema validation failed | CONFIG_SCHEMA_ERROR | Return error with specific validation failures |
 | Workflow not found | WORKFLOW_NOT_FOUND | Return error with available workflow IDs |
 | Workflow file not found | WORKFLOW_FILE_NOT_FOUND | Return error with missing file path |
@@ -406,13 +410,13 @@ Always output start/end messages for visibility:
 ```
 🎯 STARTING: FABER Config
 Operation: load-config
-Config Path: .fractary/plugins/faber/config.json
+Config Path: .fractary/config.yaml (faber: section)
 ───────────────────────────────────────
 
 [... execution ...]
 
 ✅ READY: FABER Config
-Schema Version: 2.0
+Workflow Path: .fractary/faber/workflows/
 Workflows: 1
 ───────────────────────────────────────
 → Workflow resolved and ready for execution by faber-manager
@@ -429,9 +433,9 @@ not termination of the overall workflow. The director skill will continue to inv
 </DEPENDENCIES>
 
 <FILE_LOCATIONS>
-- **Config (v2.0)**: `.fractary/plugins/faber/config.json`
+- **Unified Config**: `.fractary/config.yaml` (faber settings in `faber:` section)
 - **Config (legacy)**: `.faber.config.toml`
-- **Project Workflows**: `.fractary/plugins/faber/workflows/*.json`
+- **Project Workflows**: `.fractary/faber/workflows/*.json`
 - **Plugin Workflows (fractary-faber)**: `~/.claude/plugins/marketplaces/fractary/plugins/faber/config/workflows/*.json`
 - **Plugin Workflows (fractary-faber-cloud)**: `~/.claude/plugins/marketplaces/fractary/plugins/faber-cloud/config/workflows/*.json`
 - **Config Schema**: `../../config/config.schema.json`

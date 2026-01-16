@@ -173,7 +173,8 @@ The `configurator` agent is the canonical configurator example:
 - Initialize mode for new projects
 - Update mode with `--context` natural language changes
 - Auto-detects repository info from git
-- Creates `.fractary/faber/config.yaml`
+- Writes `faber:` section in `.fractary/config.yaml` (unified config)
+- Sets `workflow.config_path: ".fractary/faber/workflows"`
 - Manages `.fractary/.gitignore` entries
 - Supports `--force` and `--json` flags
 
