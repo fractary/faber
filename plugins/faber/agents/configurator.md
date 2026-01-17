@@ -1059,7 +1059,7 @@ Human-readable output with progress indicators and guidance.
 ## Related Commands
 
 - `/fractary-faber:workflow-inspect` - Validate configuration
-- `/fractary-faber:run-status` - Show workflow run status
+- `/fractary-faber:run-inspect` - Show workflow run status
 - `/fractary-faber:workflow-plan` - Plan a workflow
 - `/fractary-faber-cloud:configure` - Configure cloud infrastructure
 </RELATED_COMMANDS>

@@ -26,7 +26,7 @@ if (process.stdout.isTTY) {
 
 console.error('[DEBUG] CLI starting, args:', process.argv);
 
-const version = '1.3.2';
+const version = '1.5.2';
 
 /**
  * Create and configure the main CLI program
@@ -47,7 +47,7 @@ export function createFaberCLI(): Command {
   program.addCommand(createMigrateCommand());     // migrate
   program.addCommand(createPlanCommand());         // plan
   program.addCommand(createRunCommand());          // workflow-run
-  program.addCommand(createStatusCommand());       // run-status
+  program.addCommand(createStatusCommand());       // run-inspect
   program.addCommand(createResumeCommand());       // workflow-resume
   program.addCommand(createPauseCommand());        // workflow-pause
   program.addCommand(createRecoverCommand());      // workflow-recover
@@ -88,13 +88,13 @@ export function createFaberCLI(): Command {
 
   program
     .command('workflow-status')
-    .description('(DEPRECATED: Use run-status)')
+    .description('(DEPRECATED: Use run-inspect)')
     .option('--work-id <id>', 'Work item ID to check')
     .option('--workflow-id <id>', 'Workflow ID to check')
     .option('--verbose', 'Show detailed status')
     .option('--json', 'Output as JSON')
     .action((options) => {
-      showDeprecationWarning('workflow-status', 'run-status');
+      showDeprecationWarning('workflow-status', 'run-inspect');
       const statusCmd = createStatusCommand();
       statusCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
         typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
@@ -103,13 +103,28 @@ export function createFaberCLI(): Command {
 
   program
     .command('status')
-    .description('(DEPRECATED: Use run-status)')
+    .description('(DEPRECATED: Use run-inspect)')
     .option('--work-id <id>', 'Work item ID to check')
     .option('--workflow-id <id>', 'Workflow ID to check')
     .option('--verbose', 'Show detailed status')
     .option('--json', 'Output as JSON')
     .action((options) => {
-      showDeprecationWarning('status', 'run-status');
+      showDeprecationWarning('status', 'run-inspect');
+      const statusCmd = createStatusCommand();
+      statusCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
+        typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
+      )], { from: 'user' });
+    });
+
+  program
+    .command('run-status')
+    .description('(DEPRECATED: Use run-inspect)')
+    .option('--work-id <id>', 'Work item ID to check')
+    .option('--workflow-id <id>', 'Workflow ID to check')
+    .option('--verbose', 'Show detailed status')
+    .option('--json', 'Output as JSON')
+    .action((options) => {
+      showDeprecationWarning('run-status', 'run-inspect');
       const statusCmd = createStatusCommand();
       statusCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
         typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []

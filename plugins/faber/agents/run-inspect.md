@@ -1,11 +1,11 @@
 ---
-name: run-status
+name: run-inspect
 description: Displays FABER workflow run status combining current state with historical logs
 model: claude-sonnet-4-5
 tools: Read, Glob, Bash, Skill
 ---
 
-# Run Status Agent
+# Run Inspect Agent
 
 ## Purpose
 
@@ -66,7 +66,7 @@ else:
     for i, run_id in enumerate(active_runs):
       PRINT "  {i+1}. {run_id}"
     PRINT ""
-    PRINT "Please specify: /fractary-faber:run-status --run-id <run-id>"
+    PRINT "Please specify: /fractary-faber:run-inspect --run-id <run-id>"
     EXIT 1
 
 state_path = ".fractary/runs/{run_id}/state.json"
@@ -555,10 +555,10 @@ Expected location: .fractary/runs/*/state.json
 
 Recovery:
 1. Start a new workflow: /fractary-faber:workflow-run --work-id <work-id>
-2. Or specify a run ID: /fractary-faber:run-status --run-id <run-id>
+2. Or specify a run ID: /fractary-faber:run-inspect --run-id <run-id>
 
 Available runs:
-  /fractary-faber:run-status --run-id fractary-faber-258-20260105-143022
+  /fractary-faber:run-inspect --run-id fractary-faber-258-20260105-143022
 ```
 
 ## Exit Codes
@@ -583,7 +583,7 @@ Available runs:
 
 Check workflow run status in automation:
 ```bash
-/fractary-faber:run-status --json | jq '.status'
+/fractary-faber:run-inspect --json | jq '.status'
 ```
 
 ### Dashboard Integration
@@ -591,7 +591,7 @@ Check workflow run status in automation:
 Query status for multiple workflow runs:
 ```bash
 for run_id in $(ls .fractary/runs/); do
-  /fractary-faber:run-status --run-id $run_id --json
+  /fractary-faber:run-inspect --run-id $run_id --json
 done
 ```
 
@@ -599,7 +599,7 @@ done
 
 Track workflow run progress:
 ```bash
-watch -n 10 "/fractary-faber:run-status --timing"
+watch -n 10 "/fractary-faber:run-inspect --timing"
 ```
 
 ## Related Documentation
