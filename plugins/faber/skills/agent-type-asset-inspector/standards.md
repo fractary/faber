@@ -161,4 +161,4 @@ PRINT "As of: {now()}"
 
 See these inspector agents for reference:
 
-- `plugins/faber/agents/workflow-status.md` - Workflow inspector
+- `plugins/faber/agents/run-status.md` - Workflow run inspector

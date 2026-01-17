@@ -815,7 +815,7 @@ Add successful resolution to KB:
 
 - **Commands**:
   - `commands/workflow-run.md` - Resume workflows after fixes
-  - `commands/workflow-status.md` - Check workflow status
+  - `commands/run-status.md` - Check workflow run status
 - **Knowledge Base**:
   - `.fractary/faber/knowledge-base/` - Stored resolutions
   - `docs/DEBUGGING.md` - Debugging guide

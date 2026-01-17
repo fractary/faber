@@ -198,8 +198,8 @@ const result = await workflow.run({
 ### Additional CLI Commands
 
 ```bash
-# Check workflow status
-fractary-faber workflow-status --work-id 258
+# Check workflow run status
+fractary-faber run-status --work-id 258
 
 # Manage work items
 fractary-faber work issue fetch 123

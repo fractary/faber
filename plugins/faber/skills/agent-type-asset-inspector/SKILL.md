@@ -171,14 +171,14 @@ Support multiple output formats:
 
 <EXAMPLES>
 
-## Example 1: workflow-status
+## Example 1: run-status
 
-The `workflow-status` agent inspects FABER workflows:
+The `run-status` agent inspects FABER workflow runs:
 
-**Location**: `plugins/faber/agents/workflow-status.md`
+**Location**: `plugins/faber/agents/run-status.md`
 
 **Key features:**
-- Reports on single workflow
+- Reports on single workflow run
 - Loads state from run directory
 - Queries logs plugin
 - Shows phase progress
