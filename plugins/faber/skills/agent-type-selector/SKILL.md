@@ -202,7 +202,7 @@ Direct the user to the appropriate agent-type-* skill for:
 - Reports current state at a point in time
 - Focuses on a single entity
 - **Typical tools**: Read, Glob, Bash, Skill
-- **Example**: `run-status` - Displays single workflow run status
+- **Example**: `run-inspect` - Displays single workflow run status
 
 ## Project-Level Agent Types
 

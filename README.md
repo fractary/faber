@@ -199,7 +199,7 @@ const result = await workflow.run({
 
 ```bash
 # Check workflow run status
-fractary-faber run-status --work-id 258
+fractary-faber run-inspect --work-id 258
 
 # Manage work items
 fractary-faber work issue fetch 123

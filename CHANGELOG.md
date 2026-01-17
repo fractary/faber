@@ -7,14 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Version Bumps
+
+| Component | Version | Change |
+|-----------|---------|--------|
+| CLI (@fractary/faber-cli) | 1.5.2 | Patch |
+| SDK (@fractary/faber) | 2.1.3 | Patch |
+| MCP Server (@fractary/faber-mcp) | 1.1.2 | Patch |
+| faber plugin | 3.6.1 | Patch |
+| Marketplace | 2.1.2 | Patch |
+
 ### Changed
 
-- **Renamed**: `workflow-status` command and agent renamed to `run-status`
-  - Clarifies that the command reports on workflow **run/execution** status, not workflow definition status
-  - Plugin command: `/fractary-faber:workflow-status` → `/fractary-faber:run-status`
-  - CLI command: `fractary-faber workflow-status` → `fractary-faber run-status`
-  - Agent: `workflow-status` → `run-status`
-  - `workflow-status` and `status` CLI commands now show deprecation warning pointing to `run-status`
+- **Renamed**: `run-status` command and agent renamed to `run-inspect`
+  - Aligns with `workflow-inspect` and `agent-inspect` naming pattern (noun-verb alignment)
+  - Plugin command: `/fractary-faber:run-status` → `/fractary-faber:run-inspect`
+  - CLI command: `fractary-faber run-status` → `fractary-faber run-inspect`
+  - Agent: `run-status` → `run-inspect`
+  - `workflow-status`, `status`, and `run-status` CLI commands now show deprecation warning pointing to `run-inspect`
   - Updated all documentation references
 
 ## [1.5.1] - 2026-01-16

@@ -1051,7 +1051,7 @@ Validate after upgrading FABER version:
 
 - **Commands**:
   - `commands/init.md` - Initialize configuration
-  - `commands/run-status.md` - Check workflow run status
+  - `commands/run-inspect.md` - Check workflow run status
 - **Configuration**:
   - `config/workflows/core.json` - Example workflow configuration
   - `docs/CONFIGURATION.md` - Configuration guide
