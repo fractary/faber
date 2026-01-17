@@ -26,7 +26,7 @@
       "System-wide compliance checking"
     ],
     "examples": [
-      "workflow-auditor",
+      "workflow-inspector",
       "system-health-auditor",
       "compliance-auditor"
     ]

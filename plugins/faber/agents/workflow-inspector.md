@@ -1,11 +1,11 @@
 ---
-name: workflow-auditor
+name: workflow-inspector
 description: Validates FABER workflow configuration and reports issues with completeness scoring
 model: claude-sonnet-4-5
 tools: Read, Write, Glob, Bash
 ---
 
-# Workflow Audit Agent
+# Workflow Inspector Agent
 
 ## Purpose
 
@@ -22,23 +22,23 @@ Reports issues with severity levels (ERROR, WARNING, INFO) and calculates a conf
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `workflow-target` | string | No | **First positional argument**. Workflow to audit: workflow ID, file path (*.json), or namespaced (plugin:id). If omitted, shows usage and lists available workflows. |
+| `workflow-target` | string | No | **First positional argument**. Workflow to inspect: workflow ID, file path (*.json), or namespaced (plugin:id). If omitted, shows usage and lists available workflows. |
 | `verbose` | boolean | No | Show detailed validation output. Default: false |
 | `fix` | boolean | No | Auto-fix simple issues. Default: false |
 | `check` | string | No | Check specific aspect: `phases`, `hooks`, `integrations`, or `all` (default) |
 | `config-path` | string | No | Path to config file. Default: `.fractary/faber/config.json` |
 
 **Examples**:
-- No argument: `/fractary-faber:workflow-audit` → Shows usage and lists workflows
-- Workflow ID: `/fractary-faber:workflow-audit default` → Validates "default" workflow from project config
-- Workflow file: `/fractary-faber:workflow-audit ./custom.json` → Validates standalone workflow file
-- Namespaced: `/fractary-faber:workflow-audit fractary-faber:feature` → Validates plugin workflow
+- No argument: `/fractary-faber:workflow-inspect` → Shows usage and lists workflows
+- Workflow ID: `/fractary-faber:workflow-inspect default` → Validates "default" workflow from project config
+- Workflow file: `/fractary-faber:workflow-inspect ./custom.json` → Validates standalone workflow file
+- Namespaced: `/fractary-faber:workflow-inspect fractary-faber:feature` → Validates plugin workflow
 
 ## Algorithm
 
-### Step 0: Parse Arguments and Determine Audit Mode
+### Step 0: Parse Arguments and Determine Inspect Mode
 
-**Goal**: Parse input arguments and determine what to audit (full config, specific workflow, or show usage)
+**Goal**: Parse input arguments and determine what to inspect (full config, specific workflow, or show usage)
 
 **Logic**:
 ```
@@ -54,51 +54,51 @@ config_path_override = flags["config-path"] or null
 
 # Determine audit mode based on workflow_target format
 if workflow_target is null or workflow_target == "":
-  audit_mode = "no_target"
+  inspect_mode = "no_target"
   target_description = "Show usage and list available workflows"
 else if workflow_target ends_with ".json":
-  audit_mode = "workflow_file"
+  inspect_mode = "workflow_file"
   workflow_file_path = resolve_path(workflow_target)
   target_description = "Workflow file: {workflow_file_path}"
 else if workflow_target contains ":":
-  audit_mode = "namespaced_workflow"
+  inspect_mode = "namespaced_workflow"
   parts = split(workflow_target, ":")
   namespace = parts[0]
   workflow_id = parts[1]
   target_description = "Namespaced workflow: {workflow_target}"
 else:
-  audit_mode = "workflow_id"
+  inspect_mode = "workflow_id"
   workflow_id = workflow_target
   target_description = "Workflow '{workflow_id}' from project config"
 
-# Display audit header
-PRINT "🔍 FABER Workflow Audit"
+# Display inspect header
+PRINT "🔍 FABER Workflow Inspection"
 PRINT "Target: {target_description}"
 PRINT "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 PRINT ""
 
 if verbose:
-  PRINT "Mode: {audit_mode}"
+  PRINT "Mode: {inspect_mode}"
   PRINT "Check aspect: {check_aspect}"
   PRINT "Auto-fix: {fix}"
   PRINT ""
 ```
 
 **Output**:
-- `audit_mode`: One of `no_target`, `workflow_file`, `namespaced_workflow`, `workflow_id`, `config`
+- `inspect_mode`: One of `no_target`, `workflow_file`, `namespaced_workflow`, `workflow_id`, `config`
 - `workflow_target`, `workflow_id`, `workflow_file_path`, `namespace` (depending on mode)
 - `verbose`, `fix`, `check_aspect`, `config_path_override` flags
 
 ### Step 1: Load Target Configuration/Workflow
 
-**Goal**: Load the target for auditing based on the mode determined in Step 0
+**Goal**: Load the target for inspection based on the mode determined in Step 0
 
 **Logic**:
 ```
-# Handle based on audit_mode from Step 0
+# Handle based on inspect_mode from Step 0
 
 # MODE: no_target - Show usage and list workflows
-if audit_mode == "no_target":
+if inspect_mode == "no_target":
   # Load default config to list workflows
   default_config_paths = [
     ".fractary/faber/config.json",
@@ -110,7 +110,7 @@ if audit_mode == "no_target":
   if config_file:
     config = parse_json(read(config_file))
 
-    PRINT "Usage: /fractary-faber:workflow-audit [<workflow>] [OPTIONS]"
+    PRINT "Usage: /fractary-faber:workflow-inspect [<workflow>] [OPTIONS]"
     PRINT ""
     PRINT "Workflow identifier:"
     PRINT "  workflow-id          Validate workflow from project config"
@@ -132,7 +132,7 @@ if audit_mode == "no_target":
     else:
       PRINT "No workflows found in {config_file}"
   else:
-    PRINT "Usage: /fractary-faber:workflow-audit [<workflow>] [OPTIONS]"
+    PRINT "Usage: /fractary-faber:workflow-inspect [<workflow>] [OPTIONS]"
     PRINT ""
     PRINT "No configuration file found at default locations."
     PRINT "Use --config-path to specify config location."
@@ -140,7 +140,7 @@ if audit_mode == "no_target":
   EXIT 0
 
 # MODE: workflow_file - Validate standalone JSON file
-else if audit_mode == "workflow_file":
+else if inspect_mode == "workflow_file":
   if not exists(workflow_file_path):
     ERROR "Workflow file not found: {workflow_file_path}"
     EXIT 3
@@ -157,7 +157,7 @@ else if audit_mode == "workflow_file":
   config_file = workflow_file_path
 
 # MODE: namespaced_workflow - Load from plugin
-else if audit_mode == "namespaced_workflow":
+else if inspect_mode == "namespaced_workflow":
   # Resolve namespace to plugin path
   plugin_root = getenv("CLAUDE_PLUGIN_ROOT") or "~/.claude/plugins/marketplaces/fractary/"
 
@@ -187,7 +187,7 @@ else if audit_mode == "namespaced_workflow":
   config_file = workflow_file_path
 
 # MODE: workflow_id - Load from project config
-else if audit_mode == "workflow_id":
+else if inspect_mode == "workflow_id":
   # Determine config paths
   if config_path_override:
     config_paths = [config_path_override]
@@ -865,7 +865,7 @@ if fix_mode and has_fixes:
 
 **Output Format**:
 ```
-🔍 FABER Configuration Audit
+🔍 FABER Configuration Inspection
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Configuration: {config_file}
 Workflow(s): {workflow_count}
@@ -967,7 +967,7 @@ Expected locations:
 
 Recovery:
 1. Initialize FABER configuration: /fractary-faber:configure
-2. Or specify custom path: /fractary-faber:workflow-audit --config-path <path>
+2. Or specify custom path: /fractary-faber:workflow-inspect --config-path <path>
 ```
 
 ### Invalid JSON Syntax
@@ -1007,7 +1007,7 @@ Recovery:
 
 Validate configuration in CI pipeline:
 ```bash
-/fractary-faber:workflow-audit
+/fractary-faber:workflow-inspect
 if [ $? -eq 0 ]; then
   echo "Configuration valid"
 else
@@ -1022,7 +1022,7 @@ Validate before committing config changes:
 ```bash
 # .git/hooks/pre-commit
 if git diff --cached --name-only | grep -q "faber/config.json"; then
-  /fractary-faber:workflow-audit --check all
+  /fractary-faber:workflow-inspect --check all
 fi
 ```
 
@@ -1030,14 +1030,14 @@ fi
 
 Debug configuration issues:
 ```bash
-/fractary-faber:workflow-audit --verbose --check phases
+/fractary-faber:workflow-inspect --verbose --check phases
 ```
 
 ### Configuration Migration
 
 Validate after upgrading FABER version:
 ```bash
-/fractary-faber:workflow-audit --fix
+/fractary-faber:workflow-inspect --fix
 ```
 
 ## Performance Considerations

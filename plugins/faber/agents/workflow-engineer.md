@@ -391,7 +391,7 @@ When generating steps for a phase, consider the context provided and the selecte
    - Options: "Yes, run audit (Recommended)", "No, I'm done"
 
 6. If validation is requested, display the command to run:
-   - `/fractary-faber:workflow-audit {output_path}`
+   - `/fractary-faber:workflow-inspect {output_path}`
 
 ## Exit Codes
 
@@ -428,7 +428,7 @@ The workflow engineer ensures all workflows follow these best practices:
 - **Commands**:
   - `commands/workflow-create.md` - Create new workflows
   - `commands/workflow-update.md` - Update existing workflows
-  - `commands/workflow-audit.md` - Validate workflow configuration
+  - `commands/workflow-inspect.md` - Validate workflow configuration
   - `commands/workflow-run.md` - Execute workflows
 - **Workflows**:
   - `config/workflows/core.json` - Core workflow to extend

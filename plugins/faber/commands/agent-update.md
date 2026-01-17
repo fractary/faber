@@ -34,7 +34,7 @@ Use **Task** tool with `fractary-faber:agent-engineer` agent in **update mode** 
 /fractary-faber:agent-update faber-planner --context "Add support for parallel step execution"
 
 # Update model and tools
-/fractary-faber:agent-update workflow-auditor --model opus --tools "Read,Write,Glob,Grep,Bash"
+/fractary-faber:agent-update workflow-inspector --model opus --tools "Read,Write,Glob,Grep,Bash"
 
 # Update purpose/description
 /fractary-faber:agent-update spec-generator --purpose "Generates comprehensive technical specifications with architecture diagrams"

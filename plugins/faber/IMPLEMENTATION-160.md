@@ -149,8 +149,8 @@ This document summarizes the implementation of FABER v2.0 core infrastructure, c
    - `phase-validate.sh` - Validate phase configuration
    - `workflow-validate.sh` - Validate complete workflow (supports --all)
 
-2. **Audit Scripts** (2 files):
-   - `workflow-audit.sh` - Completeness scoring (100 point scale)
+2. **Inspect Scripts** (2 files):
+   - `workflow-inspect.sh` - Completeness scoring (100 point scale)
      - 6 scoring categories:
        1. Basic Configuration (20pts)
        2. Phase Configuration (40pts)
@@ -429,9 +429,9 @@ All functionality is accessed via core scripts:
 ./skills/core/scripts/diagnostics.sh --verbose
 ```
 
-**Audit Workflow**:
+**Inspect Workflow**:
 ```bash
-./skills/core/scripts/workflow-audit.sh default --verbose
+./skills/core/scripts/workflow-inspect.sh default --verbose
 ```
 
 **Get Recommendations**:

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #
-# workflow-audit.sh - Audit workflow completeness with scoring
+# workflow-inspect.sh - Inspect workflow completeness with scoring
 #
 # Usage:
-#   workflow-audit.sh [workflow-id]
-#   workflow-audit.sh --verbose
+#   workflow-inspect.sh [workflow-id]
+#   workflow-inspect.sh --verbose
 #
 # Example:
-#   workflow-audit.sh default
-#   workflow-audit.sh default --verbose
+#   workflow-inspect.sh default
+#   workflow-inspect.sh default --verbose
 
 set -euo pipefail
 
@@ -56,7 +56,7 @@ if [ -z "$WORKFLOW" ]; then
 fi
 
 echo -e "${BLUE}═══════════════════════════════════════${NC}"
-echo -e "${BLUE}  FABER Workflow Audit${NC}"
+echo -e "${BLUE}  FABER Workflow Inspection${NC}"
 echo -e "${BLUE}  Workflow: $WORKFLOW_ID${NC}"
 echo -e "${BLUE}═══════════════════════════════════════${NC}"
 echo ""

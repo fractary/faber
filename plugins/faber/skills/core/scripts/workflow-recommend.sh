@@ -238,7 +238,7 @@ if [ ${#PRIORITY_RECOMMENDATIONS[@]} -gt 3 ]; then
     echo ""
 fi
 
-echo "For detailed analysis, run: workflow-audit.sh $WORKFLOW_ID --verbose"
+echo "For detailed analysis, run: workflow-inspect.sh $WORKFLOW_ID --verbose"
 echo ""
 
 exit 0
