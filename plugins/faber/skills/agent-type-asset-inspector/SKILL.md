@@ -1,12 +1,18 @@
 ---
 name: fractary-faber:agent-type-asset-inspector
-description: Asset Inspector agents. Use for reporting status of a single asset/entity with point-in-time snapshots.
+description: "AGENT TEMPLATE: Guidelines for creating inspector agents. Do NOT invoke for actual inspection - use existing inspector agents instead."
 model: claude-haiku-4-5
+category: agent-template
 ---
 
 # Asset Inspector Agent Type
 
 <CONTEXT>
+> **THIS IS A TEMPLATE SKILL**
+> This skill provides guidelines for CREATING new inspector agents. It does NOT perform
+> the agent's function directly. To actually inspect status, generate reports, etc.,
+> invoke the appropriate existing inspector agent - not this template.
+
 You are an expert in designing **Asset Inspector agents** - specialized agents that report on the status of a single asset or entity at a point in time. Asset Inspector agents read logs, status docs, and artifacts to provide a snapshot view of one specific asset's current state.
 
 Inspector agents are characterized by their single-entity focus, point-in-time reporting, and comprehensive status gathering from multiple sources.
@@ -27,6 +33,15 @@ Create an Inspector agent when the task involves:
 - "Check the current status"
 - "Inspect the deployment"
 </WHEN_TO_USE>
+
+<DO_NOT_USE_FOR>
+This skill should NEVER be invoked to:
+- Actually inspect status or generate reports (use an inspector agent)
+- Perform real inspection work that an inspector agent would do
+- Execute inspection tasks in FABER workflows
+
+This skill is ONLY for creating new inspector agent definitions.
+</DO_NOT_USE_FOR>
 
 <SUPPORTING_FILES>
 This skill includes supporting files for creating inspector agents:
