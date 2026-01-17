@@ -22,72 +22,90 @@ Use this skill when:
 
 <AVAILABLE_AGENT_TYPES>
 
+## Scope Categories
+
+Agent types are organized by scope:
+- **Asset agents** (`agent-type-asset-*`): Work on a single entity or asset
+- **Project agents** (`agent-type-project-*`): Work across the entire project
+
 ## Decision Tree
 
-**Is the agent designing or planning implementation?**
+### Asset-Level Agents (Single Entity)
+
+**Is the agent designing or planning implementation for a specific asset?**
 - Creates design documents, specs, or implementation plans
 - Makes architectural decisions
 - Generates specifications from requirements
-- **Use: `agent-type-architect`**
+- **Use: `agent-type-asset-architect`**
 
-**Is the agent implementing, building, or creating entities?**
+**Is the agent implementing, building, or creating a specific asset?**
 - Executes implementation work (code, infrastructure, content)
 - Creates and modifies artifacts
 - Powers the "build" phase in FABER workflows
 - Can adapt approach during implementation
-- **Use: `agent-type-engineer`**
+- **Use: `agent-type-asset-engineer`**
 
-**Is the agent managing project configuration?**
+**Is the agent managing configuration for a specific asset?**
 - Interactive setup wizards
 - Configuration validation and updates
 - Preview before apply, backup/rollback
-- **Use: `agent-type-configurator`**
+- **Use: `agent-type-asset-configurator`**
 
-**Is the agent troubleshooting problems and recording solutions?**
+**Is the agent troubleshooting problems with a specific asset?**
 - Diagnoses issues from errors/context
 - Searches knowledge base for past solutions
 - Records new solutions for future reference
-- **Use: `agent-type-debugger`**
+- **Use: `agent-type-asset-debugger`**
 
-**Is the agent checking standards/compliance (static analysis)?**
-- Schema validation
-- Linting and compliance checks
-- Standards conformance verification
-- Runs BEFORE deployment/release
-- **Use: `agent-type-validator`**
+**Is the agent verifying an architect's specification?**
+- Validates spec completeness and structure
+- Checks acceptance criteria are measurable
+- Verifies requirement traceability
+- Mostly static analysis
+- **Use: `agent-type-asset-architect-validator`**
 
-**Is the agent executing tests (dynamic analysis)?**
-- Creates and runs automated tests
-- Verifies functional requirements at runtime
-- Reports test results
-- **Use: `agent-type-tester`**
+**Is the agent verifying an engineer's implementation?**
+- Validates code via linting, type checking
+- Executes tests and checks coverage
+- Verifies build success
+- Both static and dynamic analysis
+- **Use: `agent-type-asset-engineer-validator`**
 
-**Is the agent reporting status of a single entity (point-in-time)?**
+**Is the agent reporting status of a single asset (point-in-time)?**
 - Reads logs, status docs, artifacts
 - Reports current state of ONE entity
 - Provides a snapshot view
-- **Use: `agent-type-inspector`**
+- **Use: `agent-type-asset-inspector`**
+
+### Project-Level Agents (Cross-Entity)
 
 **Is the agent aggregating across multiple entities (dashboard view)?**
 - Spans multiple entities/components
-- Creates summary dashboards
-- Aggregates health/status information
-- **Use: `agent-type-auditor`**
+- Creates project-wide summary dashboards
+- Aggregates health/status information across the project
+- **Use: `agent-type-project-auditor`**
 
 </AVAILABLE_AGENT_TYPES>
 
 <TYPE_SUMMARY_TABLE>
 
+### Asset-Level Agent Types
+
 | Type | Purpose | Key Characteristic | FABER Phase Affinity |
 |------|---------|-------------------|---------------------|
-| architect | Design implementation | Creates plans/specs | architect |
-| engineer | Implement entities | Does the work with autonomy | build |
-| configurator | Manage configuration | Interactive + validation | frame, release |
-| debugger | Troubleshoot problems | Knowledge base integration | evaluate |
-| validator | Check standards | Static analysis, pre-deploy | evaluate |
-| tester | Execute tests | Dynamic analysis, runtime | evaluate |
-| inspector | Report single entity | Point-in-time snapshot | any |
-| auditor | Aggregate multiple | Cross-entity dashboards | evaluate, release |
+| asset-architect | Design asset implementation | Creates plans/specs for one asset | architect |
+| asset-engineer | Implement asset | Does the work with autonomy | build |
+| asset-configurator | Manage asset configuration | Interactive + validation | frame, release |
+| asset-debugger | Troubleshoot asset problems | Knowledge base integration | evaluate |
+| asset-architect-validator | Verify architect specs | Static analysis, completeness | evaluate (pairs with architect) |
+| asset-engineer-validator | Verify engineer code | Static + dynamic, tests | evaluate (pairs with engineer) |
+| asset-inspector | Report asset status | Point-in-time snapshot | any |
+
+### Project-Level Agent Types
+
+| Type | Purpose | Key Characteristic | FABER Phase Affinity |
+|------|---------|-------------------|---------------------|
+| project-auditor | Aggregate across project | Cross-entity dashboards | evaluate, release |
 
 </TYPE_SUMMARY_TABLE>
 
@@ -124,85 +142,101 @@ Direct the user to the appropriate agent-type-* skill for:
 
 <TYPE_DETAILS>
 
-## architect
-**Purpose**: Designs implementation plans from specs/context
-- Creates design documents and specifications
-- Proposes architecture decisions
+## Asset-Level Agent Types
+
+### asset-architect
+**Purpose**: Designs implementation plans for a specific asset
+- Creates design documents and specifications for one entity
+- Proposes architecture decisions for the asset
 - Generates implementation specifications from requirements
 - **Typical tools**: Read, Write, Glob, Grep, WebFetch
 - **Example**: `faber-planner` - Creates FABER execution plans
 
-## engineer
-**Purpose**: Implements/creates/updates entities with problem-solving autonomy
+### asset-engineer
+**Purpose**: Implements/creates/updates a specific asset with problem-solving autonomy
 - Executes implementation work from detailed specs to high-level guidance
 - Creates and modifies code, infrastructure, or content artifacts
 - Can adapt approach during implementation when needed
 - **Typical tools**: Bash, Read, Write, Edit, Glob, Grep
 - **Example**: `workflow-engineer` - Creates/updates workflow configurations
 
-## configurator
-**Purpose**: Manages project configuration with safety guarantees
-- Provides interactive setup wizards
+### asset-configurator
+**Purpose**: Manages configuration for a specific asset with safety guarantees
+- Provides interactive setup wizards for the asset
 - Validates configuration before applying
 - Offers preview, backup, and rollback capabilities
 - **Typical tools**: Bash, Read, Write, Glob, AskUserQuestion
 - **Example**: `configurator` - FABER configuration management
 
-## debugger
-**Purpose**: Troubleshoots problems and records solutions
+### asset-debugger
+**Purpose**: Troubleshoots problems with a specific asset and records solutions
 - Diagnoses issues from errors and context
 - Searches knowledge base for similar past issues
 - Records new solutions for future reference
 - **Typical tools**: Read, Glob, Grep, Bash, Skill
 - **Example**: `faber-debugger` - Workflow issue diagnosis
 
-## validator
-**Purpose**: Pre-deployment checks against standards (static analysis)
-- Performs schema validation
-- Runs linting and compliance checks
-- Verifies standards conformance
-- Executes BEFORE deployment or release
-- **Typical tools**: Read, Glob, Grep, Bash
-- **Example**: `workflow-auditor` - Validates workflow configuration
+### asset-architect-validator
+**Purpose**: Verifies architect agent specifications are complete and implementable
+- Validates specification structure and completeness
+- Checks acceptance criteria are measurable and testable
+- Verifies requirement traceability
+- Identifies gaps, ambiguities, and missing information
+- Calculates specification completeness score
+- **Typical tools**: Read, Glob, Grep (static analysis only)
+- **Example**: `faber-spec-validator` - Validates FABER specifications
 
-## tester
-**Purpose**: Executes tests and verifies runtime behavior (dynamic analysis)
-- Creates and manages automated tests
-- Runs test suites and captures results
-- Verifies functional requirements at runtime
-- **Typical tools**: Bash, Read, Write, Glob
-- **Example**: Test execution agents in evaluate phase
+### asset-engineer-validator
+**Purpose**: Verifies engineer agent implementations are correct and tested
+- Runs linting and type checking (static analysis)
+- Executes test suites (dynamic analysis)
+- Checks code coverage meets thresholds
+- Verifies build success
+- Reports on code quality metrics
+- **Typical tools**: Bash, Read, Glob, Grep
+- **Example**: `ts-implementation-validator` - Validates TypeScript implementations
 
-## inspector
-**Purpose**: Reports on state/status of a single entity
+### asset-inspector
+**Purpose**: Reports on state/status of a single asset
 - Reads logs, status docs, and artifacts
 - Reports current state at a point in time
 - Focuses on a single entity
 - **Typical tools**: Read, Glob, Bash, Skill
 - **Example**: `run-status` - Displays single workflow run status
 
-## auditor
-**Purpose**: Aggregates across multiple entities for dashboard views
-- Spans multiple entities or components
+## Project-Level Agent Types
+
+### project-auditor
+**Purpose**: Aggregates across multiple entities for project-wide dashboard views
+- Spans multiple entities or components across the project
 - Creates summary dashboards
 - Aggregates health and status information
 - **Typical tools**: Read, Glob, Grep, Bash, Skill
-- **Example**: `workflow-auditor` - Validates across all workflows
+- **Example**: `workflow-inspector` - Validates across all workflows
 
 </TYPE_DETAILS>
 
 <COMMON_QUESTIONS>
 
-**Q: What's the difference between validator and tester?**
-A: Validators perform static analysis (checking code/config without running it), while testers perform dynamic analysis (actually running code to verify behavior). Validators catch syntax and schema issues; testers catch runtime bugs.
+**Q: What's the difference between asset and project agent types?**
+A: Asset agent types (`agent-type-asset-*`) work on a single entity or asset. Project agent types (`agent-type-project-*`) work across the entire project, aggregating information from multiple entities.
 
-**Q: When should I use inspector vs auditor?**
-A: Use inspector for single-entity status (e.g., "show me the status of workflow X"). Use auditor for cross-entity analysis (e.g., "show me the health of all workflows").
+**Q: What's the difference between architect-validator and engineer-validator?**
+A: Architect-validators verify specifications (mostly static analysis - checking structure, completeness, acceptance criteria quality). Engineer-validators verify code implementations (both static and dynamic - linting, type checking, and running tests).
 
-**Q: Can an engineer also do validation?**
-A: Engineers can include basic validation as part of their implementation, but dedicated validators provide more thorough, reusable validation. Keep concerns separated for maintainability.
+**Q: Should every architect have a corresponding architect-validator?**
+A: Yes. Every architect agent should have an architect-validator that independently verifies the spec is complete and ready for engineers. This catches issues before implementation begins.
 
-**Q: Should a configurator also do setup/initialization?**
+**Q: Should every engineer have a corresponding engineer-validator?**
+A: Yes. Every engineer agent should have an engineer-validator that runs linting, type checking, and tests. This ensures code quality and correctness.
+
+**Q: When should I use asset-inspector vs project-auditor?**
+A: Use asset-inspector for single-entity status (e.g., "show me the status of workflow X"). Use project-auditor for cross-entity analysis (e.g., "show me the health of all workflows").
+
+**Q: Can an asset-engineer also do validation?**
+A: Engineers can include basic validation as part of their implementation, but dedicated engineer-validators provide more thorough, reusable validation. Keep concerns separated - the engineer builds, the engineer-validator verifies.
+
+**Q: Should an asset-configurator also do setup/initialization?**
 A: Yes! Configurators handle both initial setup and ongoing configuration updates. They excel at interactive wizards and safe configuration changes.
 
 </COMMON_QUESTIONS>
@@ -213,6 +247,8 @@ When recommending an agent type, provide:
 
 ```
 ## Recommended Type: {type}
+
+**Scope**: {asset|project}
 
 **Why this type fits:**
 - {reason_1}
@@ -228,7 +264,7 @@ When recommending an agent type, provide:
 - {example_2}
 
 **Next step:**
-Use `/fractary-faber:agent-type-{type}` for detailed guidance on creating your agent.
+Use `/fractary-faber:agent-type-{asset|project}-{type}` for detailed guidance on creating your agent.
 ```
 
 </OUTPUT_FORMAT>

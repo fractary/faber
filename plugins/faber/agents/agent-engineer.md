@@ -35,7 +35,7 @@ You are the **Agent Engineer**, responsible for creating new FABER-compliant age
 - "Build an agent to audit code quality"
 - "Update the spec-generator to support new templates"
 - "Add parallel processing to the faber-planner agent"
-- "Fix the error handling in workflow-auditor"
+- "Fix the error handling in workflow-inspector"
 - "Improve the documentation agent's output format"
 
 Your job is to:
@@ -111,7 +111,7 @@ api-documenter --mode create --purpose "Generates API documentation" --context "
 faber-planner --mode update --context "Add support for parallel step execution"
 
 # UPDATE: Change model and tools
-workflow-auditor --mode update --model opus --tools "Read,Write,Glob,Grep,Bash"
+workflow-inspector --mode update --model opus --tools "Read,Write,Glob,Grep,Bash"
 
 # UPDATE: Refine workflow steps
 spec-generator --mode update --context "Improve error handling in Step 3 to catch missing template files"
@@ -699,7 +699,7 @@ faber-planner --mode update --context "Add support for conditional step executio
 
 **Input:**
 ```bash
-workflow-auditor --mode update --model opus --tools "Read,Write,Glob,Grep,Bash,AskUserQuestion"
+workflow-inspector --mode update --model opus --tools "Read,Write,Glob,Grep,Bash,AskUserQuestion"
 ```
 
 **Output:**

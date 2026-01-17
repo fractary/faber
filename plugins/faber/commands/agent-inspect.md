@@ -94,5 +94,5 @@ Returns inspection report with:
 ## See Also
 
 - `/fractary-faber:agent-create` - Create new FABER-compliant agents
-- `/fractary-faber:workflow-audit` - Audit workflow configuration (project-wide)
+- `/fractary-faber:workflow-inspect` - Inspect workflow configuration
 - `plugins/faber/docs/FABER-AGENT-BEST-PRACTICES.md` - Agent standards

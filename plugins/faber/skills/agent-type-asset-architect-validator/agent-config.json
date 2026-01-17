@@ -1,0 +1,118 @@
+{
+  "agent_type": "architect-validator",
+  "validates_agent_type": "asset-architect",
+  "recommended_model": "claude-sonnet-4-5",
+  "common_tools": [
+    "Read",
+    "Glob",
+    "Grep"
+  ],
+  "required_tools": [],
+  "typical_complexity": "medium",
+  "faber_phase_affinity": ["evaluate"],
+  "pairs_with": "asset-architect",
+  "requires_user_interaction": false,
+  "maintains_state": false,
+  "validation_mode": "static",
+  "documentation": {
+    "description": "Architect Validator agents verify that specifications produced by architect agents are complete, well-structured, and ready for implementation. They perform static analysis only.",
+    "when_to_use": [
+      "Verifying an architect agent's specification is complete",
+      "Checking specification structure and schema compliance",
+      "Validating acceptance criteria are measurable",
+      "Verifying requirement traceability",
+      "Scoring specification completeness"
+    ],
+    "examples": [
+      "faber-spec-validator",
+      "api-design-validator",
+      "workflow-spec-validator"
+    ]
+  },
+  "required_sections": [
+    "CONTEXT",
+    "VALIDATES",
+    "REQUIRED_SECTIONS",
+    "QUALITY_CHECKS",
+    "SCORING"
+  ],
+  "recommended_sections": [
+    "INPUTS",
+    "AMBIGUITY_CHECKS",
+    "TRACEABILITY",
+    "REPORT_FORMAT"
+  ],
+  "critical_rules": [
+    {
+      "id": "verify-architect-output",
+      "title": "Verify Architect Output",
+      "description": "Exists to validate ARCHITECT agent work. Specifications are the target, not code."
+    },
+    {
+      "id": "static-analysis-only",
+      "title": "Static Analysis Only",
+      "description": "Specifications are documents, not executable code. Validation is structural/semantic."
+    },
+    {
+      "id": "completeness-is-key",
+      "title": "Completeness is Key",
+      "description": "Every required section MUST be present. Every requirement MUST have acceptance criteria."
+    },
+    {
+      "id": "check-for-ambiguity",
+      "title": "Check for Ambiguity",
+      "description": "Flag vague language. Identify missing specifics. Note contradictions."
+    },
+    {
+      "id": "verify-traceability",
+      "title": "Verify Traceability",
+      "description": "Requirements should have IDs and link to source issues."
+    },
+    {
+      "id": "provide-actionable-feedback",
+      "title": "Provide Actionable Feedback",
+      "description": "Every gap MUST have a specific ask. Prioritize issues by severity."
+    }
+  ],
+  "implementation_steps": [
+    "Identify specification to validate",
+    "Load specification schema/requirements",
+    "Check structure and required sections",
+    "Validate schema compliance",
+    "Analyze acceptance criteria quality",
+    "Check requirement traceability",
+    "Calculate completeness score",
+    "Identify gaps and ambiguities",
+    "Generate validation report"
+  ],
+  "output_format": {
+    "type": "validation_report",
+    "required_sections": [
+      "completeness_score",
+      "section_checklist",
+      "acceptance_criteria_quality",
+      "gaps_identified",
+      "verdict"
+    ],
+    "recommended_sections": [
+      "traceability_check",
+      "ambiguity_check",
+      "improvement_suggestions"
+    ]
+  },
+  "scoring": {
+    "pass_threshold": 80,
+    "weights": {
+      "required_sections": 40,
+      "acceptance_criteria_quality": 30,
+      "traceability": 15,
+      "ambiguity_free": 15
+    }
+  },
+  "exit_codes": [
+    { "code": 0, "meaning": "Specification is valid and ready for implementation" },
+    { "code": 1, "meaning": "Specification has warnings but can proceed" },
+    { "code": 2, "meaning": "Specification has errors and is not ready" },
+    { "code": 3, "meaning": "Specification not found" }
+  ]
+}
