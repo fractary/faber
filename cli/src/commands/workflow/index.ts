@@ -1,7 +1,7 @@
 /**
  * Workflow commands - FABER workflow execution
  *
- * Provides workflow-run, workflow-status, workflow-resume, workflow-pause commands via FaberWorkflow SDK.
+ * Provides workflow-run, run-status, workflow-resume, workflow-pause commands via FaberWorkflow SDK.
  */
 
 import { Command } from 'commander';
@@ -65,11 +65,11 @@ export function createRunCommand(): Command {
 }
 
 /**
- * Create the workflow-status command
+ * Create the run-status command
  */
 export function createStatusCommand(): Command {
-  return new Command('workflow-status')
-    .description('Show workflow status')
+  return new Command('run-status')
+    .description('Show workflow run status')
     .option('--work-id <id>', 'Work item ID to check')
     .option('--workflow-id <id>', 'Workflow ID to check')
     .option('--verbose', 'Show detailed status')

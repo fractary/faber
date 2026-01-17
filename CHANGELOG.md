@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Renamed**: `workflow-status` command and agent renamed to `run-status`
   - Clarifies that the command reports on workflow **run/execution** status, not workflow definition status
-  - Command: `/fractary-faber:workflow-status` → `/fractary-faber:run-status`
+  - Plugin command: `/fractary-faber:workflow-status` → `/fractary-faber:run-status`
+  - CLI command: `fractary-faber workflow-status` → `fractary-faber run-status`
   - Agent: `workflow-status` → `run-status`
+  - `workflow-status` and `status` CLI commands now show deprecation warning pointing to `run-status`
   - Updated all documentation references
 
 ## [1.5.1] - 2026-01-16

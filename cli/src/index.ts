@@ -47,7 +47,7 @@ export function createFaberCLI(): Command {
   program.addCommand(createMigrateCommand());     // migrate
   program.addCommand(createPlanCommand());         // plan
   program.addCommand(createRunCommand());          // workflow-run
-  program.addCommand(createStatusCommand());       // workflow-status
+  program.addCommand(createStatusCommand());       // run-status
   program.addCommand(createResumeCommand());       // workflow-resume
   program.addCommand(createPauseCommand());        // workflow-pause
   program.addCommand(createRecoverCommand());      // workflow-recover
@@ -87,14 +87,29 @@ export function createFaberCLI(): Command {
     });
 
   program
-    .command('status')
-    .description('(DEPRECATED: Use workflow-status)')
+    .command('workflow-status')
+    .description('(DEPRECATED: Use run-status)')
     .option('--work-id <id>', 'Work item ID to check')
     .option('--workflow-id <id>', 'Workflow ID to check')
     .option('--verbose', 'Show detailed status')
     .option('--json', 'Output as JSON')
     .action((options) => {
-      showDeprecationWarning('status', 'workflow-status');
+      showDeprecationWarning('workflow-status', 'run-status');
+      const statusCmd = createStatusCommand();
+      statusCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
+        typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
+      )], { from: 'user' });
+    });
+
+  program
+    .command('status')
+    .description('(DEPRECATED: Use run-status)')
+    .option('--work-id <id>', 'Work item ID to check')
+    .option('--workflow-id <id>', 'Workflow ID to check')
+    .option('--verbose', 'Show detailed status')
+    .option('--json', 'Output as JSON')
+    .action((options) => {
+      showDeprecationWarning('status', 'run-status');
       const statusCmd = createStatusCommand();
       statusCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
         typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
