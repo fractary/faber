@@ -50,6 +50,11 @@ Creates and updates high-quality, project-specific FABER workflow configurations
    - If the name is invalid, display an error message explaining the naming requirements and exit with code 1
 
 3. **Check for template-based mode**: If `--template` is specified:
+   - **SECURITY: Validate template name format**:
+     - Template name MUST match the pattern: `^[a-z][a-z0-9-]*$` (lowercase letters, numbers, hyphens only)
+     - Valid examples: `asset-create`, `data-pipeline`, `my-template`
+     - Invalid examples: `../etc`, `../../passwd`, `asset/create`, `Asset-Create`
+     - If the name is invalid, display a security error and exit with code 1
    - Set `use_template = true`
    - Validate that the template exists in `templates/workflows/{template}/`
    - If template not found, display available templates and exit with code 1
@@ -74,10 +79,19 @@ Skip this step if `use_template` is false.
    - Primary: `templates/workflows/{template}/`
    - Fallback: Check plugin installation path
 
-2. Load template files:
-   - Read `workflow.yaml` for variable definitions and validation rules
-   - Read `template.json` for the Handlebars workflow template
-   - Read `standards.md` for best practices (optional, for reference)
+2. Load template files with error handling:
+   - **Load workflow.yaml**:
+     - Read `workflow.yaml` for variable definitions and validation rules
+     - If file not found: Display error "Template '{template}' is missing workflow.yaml" and exit with code 1
+     - If YAML parsing fails: Display error "Invalid YAML in workflow.yaml: {parse_error}" and exit with code 1
+     - Validate required fields exist: `id`, `variables`. If missing: Display error and exit with code 1
+   - **Load template.json**:
+     - Read `template.json` for the Handlebars workflow template
+     - If file not found: Display error "Template '{template}' is missing template.json" and exit with code 1
+     - Note: JSON validation happens AFTER Handlebars rendering, not before (template contains placeholders)
+   - **Load standards.md** (optional):
+     - Read `standards.md` for best practices
+     - If file not found: Continue without error (this file is optional)
 
 3. Extract required variables from `workflow.yaml`:
    ```yaml
@@ -306,7 +320,11 @@ Record the user's selections for use when generating steps.
    - Process conditionals like `{{#unless skip_research}}...{{/unless}}`
    - Handle default values with `{{#if var}}{{var}}{{else}}default{{/if}}`
 
-3. Parse the rendered JSON into a workflow object
+3. Parse the rendered JSON into a workflow object:
+   - **Validate JSON syntax**: Attempt to parse the rendered template as JSON
+   - If JSON parsing fails: Display error "Template rendering produced invalid JSON: {parse_error}"
+   - Display the first 500 characters of the rendered output for debugging
+   - Exit with code 2 (validation error)
 
 4. Ensure the workflow includes:
    - `workflow_type`: Set to the template type (e.g., "asset-create")
