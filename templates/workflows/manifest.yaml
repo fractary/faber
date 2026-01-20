@@ -1,0 +1,56 @@
+version: "1.0"
+base_url: https://raw.githubusercontent.com/fractary/faber/main/templates/workflows
+
+scopes:
+  - id: asset
+    display_name: Asset-Level
+    description: Workflows for creating or managing individual assets
+
+  - id: project
+    display_name: Project-Level
+    description: Workflows spanning multiple assets or project-wide operations
+
+workflow_types:
+  # Asset-Level Workflows
+  - id: asset-create
+    display_name: Asset Creation
+    scope: asset
+    path: ./asset-create
+    description: |
+      End-to-end workflow for creating new assets from requirements.
+      The "asset" prefix is a placeholder - projects customize it for their domain
+      (e.g., dataset, catalog, api, report, model).
+    default_extends: fractary-faber:core
+    asset_types:
+      - dataset
+      - catalog
+      - api
+      - report
+      - model
+      - pipeline
+      - dashboard
+      - schema
+    typical_phases:
+      frame:
+        - "{asset}-research"
+        - "{asset}-research-validate"
+        - "{asset}-research-document"
+      architect:
+        - "{asset}-architect"
+        - "{asset}-architect-validate"
+        - "{asset}-architect-document"
+      build:
+        - "{asset}-engineer"
+        - "{asset}-engineer-validate"
+        - "{asset}-engineer-document"
+      evaluate:
+        - "{asset}-deploy-test"
+        - "{asset}-validate-deployment"
+      release:
+        - "{asset}-deploy-production"
+        - "{asset}-sync-codex"
+    integrations:
+      required:
+        - faber-cloud
+      optional:
+        - codex

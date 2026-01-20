@@ -1,0 +1,113 @@
+version: "1.0"
+description: |
+  Decision tree for selecting the appropriate workflow type.
+  Used by workflow-engineer when --type is not specified.
+
+# Primary selection based on context keywords
+keyword_matching:
+  asset-create:
+    keywords:
+      - create
+      - new
+      - generate
+      - build
+      - implement
+      - develop
+      - make
+    asset_hints:
+      dataset:
+        - dataset
+        - data
+        - etl
+        - pipeline
+        - ingestion
+      catalog:
+        - catalog
+        - catalogue
+        - inventory
+        - registry
+      api:
+        - api
+        - endpoint
+        - service
+        - rest
+        - graphql
+      report:
+        - report
+        - dashboard
+        - visualization
+        - analytics
+      model:
+        - model
+        - ml
+        - machine learning
+        - prediction
+      pipeline:
+        - pipeline
+        - workflow
+        - automation
+        - etl
+      schema:
+        - schema
+        - structure
+        - definition
+        - spec
+    negative_keywords:
+      - fix
+      - bug
+      - update
+      - modify
+      - delete
+      - remove
+
+# Decision tree (for interactive selection)
+decision_tree:
+  root:
+    question: "What type of work is this workflow for?"
+    options:
+      - label: "Creating a new asset (dataset, API, catalog, etc.)"
+        next: asset_type_selection
+      - label: "Other/Custom workflow"
+        result: null  # No template, create from scratch
+
+  asset_type_selection:
+    question: "What type of asset will this workflow create?"
+    options:
+      - label: "Dataset/Data Pipeline"
+        result: asset-create
+        variables:
+          asset_type: dataset
+      - label: "Catalog/Registry"
+        result: asset-create
+        variables:
+          asset_type: catalog
+      - label: "API/Service"
+        result: asset-create
+        variables:
+          asset_type: api
+      - label: "Other asset type"
+        next: custom_asset_type
+
+  custom_asset_type:
+    question: "Enter the asset type name (e.g., 'report', 'model', 'schema'):"
+    input_type: text
+    result: asset-create
+    variables:
+      asset_type: "{input}"
+
+# Confidence thresholds for auto-selection
+confidence:
+  high: 0.8    # Strong keyword match - auto-select with notification
+  medium: 0.6  # Good match - suggest with confirmation
+  low: 0.4     # Weak signal - show options
+
+# Selection algorithm
+selection_algorithm: |
+  1. Parse the context/description for keywords
+  2. Check against keyword_matching rules
+  3. If keywords match asset-create with high confidence:
+     a. Check asset_hints to determine asset_type
+     b. If asset_type can be inferred, recommend with confirmation
+     c. If asset_type unclear, ask user to select
+  4. If no high-confidence match, use decision_tree interactively
+  5. Return: { workflow_type, asset_type, confidence }

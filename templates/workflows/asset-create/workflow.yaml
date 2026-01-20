@@ -1,0 +1,280 @@
+id: asset-create
+display_name: Asset Creation Workflow
+scope: asset
+description: |
+  End-to-end workflow for creating new assets from requirements.
+  Follows research-first, validate-each-phase, document-continuously pattern.
+  The "asset" prefix in step IDs is replaced with the project's actual asset type.
+
+# Variable definitions for template rendering
+variables:
+  required:
+    - name: asset_type
+      type: string
+      pattern: "^[a-z][a-z0-9-]*$"
+      description: The type of asset (e.g., dataset, catalog, api, report, model)
+      examples:
+        - dataset
+        - catalog
+        - api
+
+    - name: workflow_id
+      type: string
+      pattern: "^[a-z][a-z0-9-]*$"
+      description: Unique identifier for this workflow
+      default: "{{asset_type}}-create"
+
+  optional:
+    - name: skip_research
+      type: boolean
+      default: false
+      description: Skip the research steps in frame phase (not recommended)
+
+    - name: skip_codex_sync
+      type: boolean
+      default: false
+      description: Skip syncing to codex in release phase
+
+    - name: test_environment
+      type: string
+      default: "test"
+      description: Target environment for test deployment
+
+    - name: production_environment
+      type: string
+      default: "production"
+      description: Target environment for production deployment
+
+# Default workflow configuration
+defaults:
+  extends: fractary-faber:core
+  autonomy:
+    level: guarded
+    pause_before_release: true
+    require_approval_for:
+      - deploy-production
+
+# Phase structure with step templates
+phase_structure:
+  frame:
+    description: Gather and document requirements through research
+    required: true
+    step_templates:
+      - id: "{{asset_type}}-research"
+        name: "Research {{asset_type}} requirements"
+        description: "Investigate requirements, existing patterns, and constraints"
+        prompt: |
+          Research the requirements for creating a new {{asset_type}}.
+          Gather context from:
+          - User requirements and specifications
+          - Existing similar {{asset_type}}s in the codebase
+          - Project conventions and patterns
+          - External dependencies and integrations
+
+      - id: "{{asset_type}}-research-validate"
+        name: "Validate research completeness"
+        description: "Ensure all necessary information has been gathered"
+        prompt: |
+          Validate that research is complete:
+          - All requirements are documented
+          - Constraints are identified
+          - Dependencies are mapped
+          - No ambiguities remain
+
+      - id: "{{asset_type}}-research-document"
+        name: "Document research findings"
+        description: "Create research summary document"
+        prompt: |
+          Document research findings in a structured format.
+          Include requirements, constraints, dependencies, and recommendations.
+
+  architect:
+    description: Create implementation plan from research
+    required: true
+    step_templates:
+      - id: "{{asset_type}}-architect"
+        name: "Design {{asset_type}} architecture"
+        description: "Create detailed implementation plan"
+        prompt: |
+          Design the implementation approach for the {{asset_type}}:
+          - Define structure and schema
+          - Plan implementation steps
+          - Identify integration points
+          - Consider error handling and edge cases
+
+      - id: "{{asset_type}}-architect-validate"
+        name: "Validate architecture"
+        description: "Review and validate the design"
+        prompt: |
+          Validate the architecture:
+          - Check completeness against requirements
+          - Verify feasibility
+          - Review integration points
+          - Ensure best practices are followed
+
+      - id: "{{asset_type}}-architect-document"
+        name: "Document architecture"
+        description: "Create architecture specification"
+        prompt: |
+          Document the architecture in a specification file.
+          Include design decisions, rationale, and implementation guide.
+
+  build:
+    description: Implement and document the asset
+    required: true
+    step_templates:
+      - id: "{{asset_type}}-engineer"
+        name: "Implement {{asset_type}}"
+        description: "Build the asset according to specification"
+        prompt: |
+          Implement the {{asset_type}} following the architecture specification.
+          - Follow project conventions
+          - Write clean, maintainable code
+          - Include appropriate error handling
+          - Add inline documentation
+
+      - id: "{{asset_type}}-engineer-validate"
+        name: "Validate implementation"
+        description: "Run tests and static analysis"
+        prompt: |
+          Validate the implementation:
+          - Run unit tests
+          - Execute static analysis
+          - Check code coverage
+          - Verify against specification
+
+      - id: "{{asset_type}}-engineer-document"
+        name: "Document implementation"
+        description: "Update documentation with implementation details"
+        prompt: |
+          Document the implementation:
+          - Update API documentation
+          - Add usage examples
+          - Document configuration options
+
+  evaluate:
+    description: Deploy to test and validate
+    required: true
+    step_templates:
+      - id: "{{asset_type}}-deploy-test"
+        name: "Deploy to test environment"
+        description: "Deploy asset to test environment using faber-cloud"
+        prompt: |
+          Deploy the {{asset_type}} to the {{test_environment}} environment.
+          Use /fractary-faber-cloud:deploy-apply with appropriate configuration.
+
+      - id: "{{asset_type}}-validate-deployment"
+        name: "Validate test deployment"
+        description: "Verify deployment and run integration tests"
+        prompt: |
+          Validate the test deployment:
+          - Verify resources are created correctly
+          - Run integration tests
+          - Check logs for errors
+          - Validate functionality
+
+  release:
+    description: Deploy to production and sync to codex
+    required: true
+    require_approval: true
+    step_templates:
+      - id: "{{asset_type}}-deploy-production"
+        name: "Deploy to production"
+        description: "Deploy asset to production environment"
+        prompt: |
+          Deploy the {{asset_type}} to {{production_environment}} environment.
+          Use /fractary-faber-cloud:deploy-apply with production configuration.
+          Ensure all approvals are obtained.
+
+      - id: "{{asset_type}}-sync-codex"
+        name: "Sync to codex"
+        description: "Sync documentation and specifications to codex"
+        prompt: |
+          Sync all documentation and specifications to codex:
+          - Architecture specification
+          - Implementation documentation
+          - Deployment configuration
+        condition: "!skip_codex_sync"
+
+# Critical rules this workflow type enforces
+critical_rules:
+  - id: research-before-build
+    title: Research Before Building
+    severity: error
+    description: |
+      Frame phase MUST complete before build phase starts.
+      Never implement without understanding requirements first.
+
+  - id: validate-at-each-phase
+    title: Validate At Each Phase
+    severity: warning
+    description: |
+      Each phase should have a validation step.
+      Catch issues early before they propagate.
+
+  - id: document-continuously
+    title: Document Continuously
+    severity: warning
+    description: |
+      Each phase should produce documentation.
+      Don't leave documentation for the end.
+
+  - id: test-before-production
+    title: Test Before Production
+    severity: error
+    description: |
+      Always deploy to test environment before production.
+      Never skip the evaluate phase.
+
+  - id: require-production-approval
+    title: Require Production Approval
+    severity: error
+    description: |
+      Production deployment must require explicit approval.
+      Set require_approval: true for release phase.
+
+# Validation rules for workflow-inspector
+validation:
+  required_phases:
+    - frame
+    - architect
+    - build
+    - evaluate
+    - release
+
+  min_steps_per_phase:
+    frame: 2
+    architect: 2
+    build: 2
+    evaluate: 1
+    release: 1
+
+  step_id_patterns:
+    # Step IDs should follow {asset_type}-{action} pattern
+    frame: "^{{asset_type}}-(research|gather|analyze|document)"
+    architect: "^{{asset_type}}-(architect|design|spec|plan)"
+    build: "^{{asset_type}}-(engineer|implement|build|create)"
+    evaluate: "^{{asset_type}}-(deploy-test|validate|test|verify)"
+    release: "^{{asset_type}}-(deploy-production|release|sync|publish)"
+
+  required_integrations:
+    evaluate:
+      - faber-cloud
+    release:
+      - faber-cloud
+
+  optional_integrations:
+    release:
+      - codex
+
+# Frontmatter schema for generated workflows
+frontmatter:
+  required:
+    - workflow_type
+    - asset_type
+  properties:
+    workflow_type:
+      const: asset-create
+    asset_type:
+      type: string
+      description: The asset type this workflow creates

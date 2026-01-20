@@ -401,6 +401,38 @@ for field in required_fields:
     add_passed("[{workflow.id}] Field '{field}' present")
 ```
 
+#### 6.1.5: Load Type-Specific Validation Rules (if workflow_type present)
+
+```
+# Check if workflow has a workflow_type field
+if workflow.workflow_type is not null:
+  workflow_type = workflow.workflow_type
+
+  # Load type specification from templates
+  type_spec_path = "templates/workflows/{workflow_type}/workflow.yaml"
+
+  if exists(type_spec_path):
+    type_spec = parse_yaml(read(type_spec_path))
+
+    PRINT "📋 Workflow Type: {workflow_type}"
+    PRINT "   Loading type-specific validation rules..."
+
+    # Store for use in subsequent validation steps
+    type_validation_rules = type_spec.validation
+    type_critical_rules = type_spec.critical_rules
+
+    add_passed("[{workflow.id}] workflow_type '{workflow_type}' found and loaded")
+  else:
+    add_warning("[{workflow.id}] workflow_type '{workflow_type}' specified but template not found")
+    add_suggestion("Check that templates/workflows/{workflow_type}/ exists")
+    type_validation_rules = null
+    type_critical_rules = null
+else:
+  # No workflow_type - use standard validation only
+  type_validation_rules = null
+  type_critical_rules = null
+```
+
 #### 6.2: Validate Phases
 
 ```
@@ -447,6 +479,116 @@ for phase_name in required_phases:
   if phase.validation is null or length(phase.validation) == 0:
     add_info("[{workflow.id}] Phase '{phase_name}' has no validation criteria")
     add_suggestion("Add validation criteria for {phase_name} phase")
+```
+
+#### 6.2.5: Type-Specific Phase Validation
+
+```
+# Skip if no type validation rules loaded
+if type_validation_rules is null:
+  skip this step
+
+PRINT "🔍 Validating against {workflow_type} template rules..."
+
+asset_type = workflow.asset_type or "asset"  # Default to "asset" if not specified
+
+# Validate required phases
+if type_validation_rules.required_phases:
+  for phase_name in type_validation_rules.required_phases:
+    if workflow.phases[phase_name] is null:
+      add_error("[{workflow.id}] Type '{workflow_type}' requires phase: {phase_name}")
+    else if workflow.phases[phase_name].enabled == false:
+      add_warning("[{workflow.id}] Type '{workflow_type}' expects phase '{phase_name}' to be enabled")
+
+# Validate minimum steps per phase
+if type_validation_rules.min_steps_per_phase:
+  for phase_name, min_steps in type_validation_rules.min_steps_per_phase.items():
+    if workflow.phases[phase_name] is null:
+      continue
+
+    phase = workflow.phases[phase_name]
+    total_steps = len(phase.pre_steps or []) + len(phase.steps or []) + len(phase.post_steps or [])
+
+    if total_steps < min_steps:
+      add_warning("[{workflow.id}] Phase '{phase_name}' has {total_steps} steps, type requires minimum {min_steps}")
+
+# Validate step ID patterns
+if type_validation_rules.step_id_patterns:
+  for phase_name, pattern in type_validation_rules.step_id_patterns.items():
+    if workflow.phases[phase_name] is null:
+      continue
+
+    phase = workflow.phases[phase_name]
+    all_steps = (phase.pre_steps or []) + (phase.steps or []) + (phase.post_steps or [])
+
+    # Replace {{asset_type}} placeholder in pattern
+    resolved_pattern = pattern.replace("{{asset_type}}", asset_type)
+
+    for step in all_steps:
+      if step.id and not regex_match(step.id, resolved_pattern):
+        add_info("[{workflow.id}] Step '{step.id}' does not match type pattern: {resolved_pattern}")
+        add_suggestion("Consider renaming to follow '{asset_type}-<action>' pattern")
+
+# Validate required integrations
+if type_validation_rules.required_integrations:
+  for phase_name, integrations in type_validation_rules.required_integrations.items():
+    if workflow.phases[phase_name] is null:
+      continue
+
+    phase = workflow.phases[phase_name]
+    all_steps = (phase.pre_steps or []) + (phase.steps or []) + (phase.post_steps or [])
+
+    for required_integration in integrations:
+      found = false
+      for step in all_steps:
+        if step.command and required_integration in step.command:
+          found = true
+          break
+        if step.prompt and required_integration in step.prompt:
+          found = true
+          break
+
+      if not found:
+        add_warning("[{workflow.id}] Phase '{phase_name}' should use '{required_integration}' integration")
+        add_suggestion("Add a step using /fractary-{required_integration}:* command")
+
+# Validate critical rules
+if type_critical_rules:
+  for rule in type_critical_rules:
+    rule_id = rule.id
+    severity = rule.severity or "warning"
+
+    # Check specific rules
+    if rule_id == "research-before-build":
+      # Verify frame phase has research steps
+      if workflow.phases.frame:
+        frame_steps = workflow.phases.frame.steps or []
+        has_research = any(step.id and "research" in step.id for step in frame_steps)
+        if not has_research:
+          if severity == "error":
+            add_error("[{workflow.id}] {rule.title}: Frame phase should have research steps")
+          else:
+            add_warning("[{workflow.id}] {rule.title}: Frame phase should have research steps")
+
+    if rule_id == "require-production-approval":
+      # Verify release phase has approval required
+      if workflow.phases.release:
+        if workflow.phases.release.require_approval != true:
+          if severity == "error":
+            add_error("[{workflow.id}] {rule.title}: Release phase must have require_approval=true")
+          else:
+            add_warning("[{workflow.id}] {rule.title}: Release phase should have require_approval=true")
+
+    if rule_id == "test-before-production":
+      # Verify evaluate phase is enabled
+      if workflow.phases.evaluate:
+        if workflow.phases.evaluate.enabled == false:
+          if severity == "error":
+            add_error("[{workflow.id}] {rule.title}: Evaluate phase must be enabled")
+          else:
+            add_warning("[{workflow.id}] {rule.title}: Evaluate phase should be enabled")
+
+PRINT "   Type-specific validation complete"
 ```
 
 #### 6.3: Validate Hooks
@@ -869,6 +1011,18 @@ if fix_mode and has_fixes:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Configuration: {config_file}
 Workflow(s): {workflow_count}
+
+📋 Workflow Type Compliance (if workflow_type present):
+Type: {workflow_type}
+Asset Type: {asset_type}
+Template: templates/workflows/{workflow_type}/
+
+Type Standards Checked:
+  ✓ Required phases present
+  ✓ Minimum steps per phase met
+  ⚠ Step ID patterns (2 suggestions)
+  ✓ Required integrations present
+  ✓ Critical rules validated
 
 📊 Configuration Completeness: {completeness_score}/100
 
