@@ -6,5 +6,5 @@
 export { createWorkflowTools, createEventTools } from './tools/index.js';
 export { LocalFilesBackend } from './backends/local-files.js';
 export * from './types.js';
-export declare const version = "1.0.0";
+export declare const version = "1.1.2";
 //# sourceMappingURL=index.d.ts.map

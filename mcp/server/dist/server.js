@@ -27,7 +27,7 @@ const backend = new LocalFilesBackend(BASE_PATH);
 // Create MCP server
 const server = new Server({
     name: 'fractary-faber',
-    version: '1.0.0',
+    version: '1.1.2',
 }, {
     capabilities: {
         tools: {},

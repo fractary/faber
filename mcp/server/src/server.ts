@@ -37,7 +37,7 @@ const backend = new LocalFilesBackend(BASE_PATH);
 const server = new Server(
   {
     name: 'fractary-faber',
-    version: '1.0.0',
+    version: '1.1.3',
   },
   {
     capabilities: {
