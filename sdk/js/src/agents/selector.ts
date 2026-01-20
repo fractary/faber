@@ -5,8 +5,11 @@
  */
 
 import { readFile } from 'fs/promises';
-import { join, resolve } from 'path';
-import { parse as parseYaml } from 'yaml';
+import { join, resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import yaml from 'js-yaml';
+
+const parseYaml = (content: string) => yaml.load(content);
 
 import type {
   AgentTypeId,
@@ -21,9 +24,21 @@ import type {
 import { AgentTypeRegistry, getAgentTypeRegistry } from './type-registry.js';
 
 /**
+ * Get the package root directory
+ * Works both in development (src/) and production (dist/)
+ */
+function getPackageRoot(): string {
+  // In ESM, __dirname is not available, so we derive it
+  const currentFile = fileURLToPath(import.meta.url);
+  const currentDir = dirname(currentFile);
+  // Navigate up from sdk/js/src/agents or sdk/js/dist/agents to repo root
+  return resolve(currentDir, '..', '..', '..', '..');
+}
+
+/**
  * Default templates path relative to package root
  */
-const DEFAULT_TEMPLATES_PATH = '../../../../templates/agents';
+const DEFAULT_TEMPLATES_PATH = 'templates/agents';
 
 /**
  * AgentTypeSelector - Selects agent types based on context
@@ -54,7 +69,7 @@ export class AgentTypeSelector {
   constructor(options: { templatesPath?: string; registry?: AgentTypeRegistry } = {}) {
     this.templatesPath = options.templatesPath
       ? resolve(options.templatesPath)
-      : resolve(__dirname, DEFAULT_TEMPLATES_PATH);
+      : resolve(getPackageRoot(), DEFAULT_TEMPLATES_PATH);
     this.registry = options.registry || getAgentTypeRegistry();
   }
 
@@ -66,8 +81,14 @@ export class AgentTypeSelector {
 
     // Load selector.yaml
     const selectorPath = join(this.templatesPath, 'selector.yaml');
-    const selectorContent = await readFile(selectorPath, 'utf-8');
-    this.config = parseYaml(selectorContent) as SelectorConfig;
+    try {
+      const selectorContent = await readFile(selectorPath, 'utf-8');
+      this.config = parseYaml(selectorContent) as SelectorConfig;
+    } catch (error) {
+      throw new Error(
+        `Failed to load selector configuration from ${selectorPath}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
     // Ensure registry is loaded
     await this.registry.loadCoreTypes();
@@ -128,8 +149,15 @@ export class AgentTypeSelector {
         reasons: reasons.get(typeId) || [],
       }));
 
+    // Guard against empty results
+    if (sortedTypes.length === 0) {
+      throw new Error(
+        'No agent types available. Ensure registry is loaded with loadCoreTypes() first.'
+      );
+    }
+
     // Determine confidence level
-    const topScore = sortedTypes[0]?.score || 0;
+    const topScore = sortedTypes[0].score;
     const maxPossibleScore = this.getMaxPossibleScore(context);
     const normalizedConfidence = Math.min(topScore / maxPossibleScore, 1);
 

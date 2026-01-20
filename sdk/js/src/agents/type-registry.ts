@@ -5,8 +5,11 @@
  */
 
 import { readFile } from 'fs/promises';
-import { join, resolve } from 'path';
-import { parse as parseYaml } from 'yaml';
+import { join, resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import yaml from 'js-yaml';
+
+const parseYaml = (content: string) => yaml.load(content);
 
 import type {
   AgentType,
@@ -22,9 +25,21 @@ import type {
 } from './types.js';
 
 /**
+ * Get the package root directory
+ * Works both in development (src/) and production (dist/)
+ */
+function getPackageRoot(): string {
+  // In ESM, __dirname is not available, so we derive it
+  const currentFile = fileURLToPath(import.meta.url);
+  const currentDir = dirname(currentFile);
+  // Navigate up from sdk/js/src/agents or sdk/js/dist/agents to repo root
+  return resolve(currentDir, '..', '..', '..', '..');
+}
+
+/**
  * Default templates path relative to package root
  */
-const DEFAULT_TEMPLATES_PATH = '../../../../templates/agents';
+const DEFAULT_TEMPLATES_PATH = 'templates/agents';
 
 /**
  * Default base URL for remote loading
@@ -57,7 +72,7 @@ export class AgentTypeRegistry {
   constructor(options: AgentTypeRegistryOptions = {}) {
     this.templatesPath = options.templatesPath
       ? resolve(options.templatesPath)
-      : resolve(__dirname, DEFAULT_TEMPLATES_PATH);
+      : resolve(getPackageRoot(), DEFAULT_TEMPLATES_PATH);
     this.baseUrl = options.baseUrl || DEFAULT_BASE_URL;
   }
 
@@ -69,8 +84,14 @@ export class AgentTypeRegistry {
 
     // Load manifest
     const manifestPath = join(this.templatesPath, 'manifest.yaml');
-    const manifestContent = await readFile(manifestPath, 'utf-8');
-    this.manifest = parseYaml(manifestContent) as AgentTypeManifest;
+    try {
+      const manifestContent = await readFile(manifestPath, 'utf-8');
+      this.manifest = parseYaml(manifestContent) as AgentTypeManifest;
+    } catch (error) {
+      throw new Error(
+        `Failed to load agent types manifest from ${manifestPath}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
     // Load each type
     for (const entry of this.manifest.agent_types) {
@@ -86,21 +107,27 @@ export class AgentTypeRegistry {
   private async loadType(entry: AgentTypeManifestEntry): Promise<void> {
     const typePath = join(this.templatesPath, entry.id);
 
-    // Load type.yaml
-    const typeYamlPath = join(typePath, 'type.yaml');
-    const typeContent = await readFile(typeYamlPath, 'utf-8');
-    const typeData = parseYaml(typeContent) as AgentType;
-    this.types.set(entry.id, typeData);
+    try {
+      // Load type.yaml
+      const typeYamlPath = join(typePath, 'type.yaml');
+      const typeContent = await readFile(typeYamlPath, 'utf-8');
+      const typeData = parseYaml(typeContent) as AgentType;
+      this.types.set(entry.id, typeData);
 
-    // Load template.md
-    const templatePath = join(typePath, 'template.md');
-    const templateContent = await readFile(templatePath, 'utf-8');
-    this.templates.set(entry.id, templateContent);
+      // Load template.md
+      const templatePath = join(typePath, 'template.md');
+      const templateContent = await readFile(templatePath, 'utf-8');
+      this.templates.set(entry.id, templateContent);
 
-    // Load standards.md
-    const standardsPath = join(typePath, 'standards.md');
-    const standardsContent = await readFile(standardsPath, 'utf-8');
-    this.standards.set(entry.id, standardsContent);
+      // Load standards.md
+      const standardsPath = join(typePath, 'standards.md');
+      const standardsContent = await readFile(standardsPath, 'utf-8');
+      this.standards.set(entry.id, standardsContent);
+    } catch (error) {
+      throw new Error(
+        `Failed to load agent type '${entry.id}' from ${typePath}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   /**
