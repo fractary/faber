@@ -1,0 +1,182 @@
+{
+  "$schema": "../../../plugins/faber/config/workflow.schema.json",
+  "id": "{{workflow_id}}",
+  "description": "Workflow for creating {{asset_type}} assets with research-first approach",
+  "workflow_type": "asset-create",
+  "asset_type": "{{asset_type}}",
+  "extends": "{{#if extends}}{{extends}}{{else}}fractary-faber:core{{/if}}",
+  "phases": {
+    "frame": {
+      "enabled": true,
+      "description": "Gather and document requirements through research",
+      "steps": [
+        {{#unless skip_research}}
+        {
+          "id": "{{asset_type}}-research",
+          "name": "Research {{asset_type}} requirements",
+          "description": "Investigate requirements, existing patterns, and constraints",
+          "prompt": "Research the requirements for creating a new {{asset_type}}. Gather context from user requirements, existing similar {{asset_type}}s in the codebase, project conventions and patterns, and external dependencies."
+        },
+        {
+          "id": "{{asset_type}}-research-validate",
+          "name": "Validate research completeness",
+          "description": "Ensure all necessary information has been gathered",
+          "prompt": "Validate that research is complete. Verify all requirements are documented, constraints are identified, dependencies are mapped, and no ambiguities remain."
+        },
+        {
+          "id": "{{asset_type}}-research-document",
+          "name": "Document research findings",
+          "description": "Create research summary document",
+          "prompt": "Document research findings in a structured format. Include requirements, constraints, dependencies, and recommendations."
+        }
+        {{/unless}}
+      ],
+      "validation": [
+        "Research document exists",
+        "Requirements are documented",
+        "Dependencies are identified"
+      ]
+    },
+    "architect": {
+      "enabled": true,
+      "description": "Create implementation plan from research",
+      "steps": [
+        {
+          "id": "{{asset_type}}-architect",
+          "name": "Design {{asset_type}} architecture",
+          "description": "Create detailed implementation plan",
+          "prompt": "Design the implementation approach for the {{asset_type}}. Define structure and schema, plan implementation steps, identify integration points, and consider error handling."
+        },
+        {
+          "id": "{{asset_type}}-architect-validate",
+          "name": "Validate architecture",
+          "description": "Review and validate the design",
+          "prompt": "Validate the architecture. Check completeness against requirements, verify feasibility, review integration points, and ensure best practices are followed."
+        },
+        {
+          "id": "{{asset_type}}-architect-document",
+          "name": "Document architecture",
+          "description": "Create architecture specification",
+          "prompt": "Document the architecture in a specification file. Include design decisions, rationale, and implementation guide."
+        }
+      ],
+      "validation": [
+        "Architecture specification exists",
+        "Design addresses all requirements",
+        "Implementation steps are defined"
+      ]
+    },
+    "build": {
+      "enabled": true,
+      "description": "Implement and document the {{asset_type}}",
+      "steps": [
+        {
+          "id": "{{asset_type}}-engineer",
+          "name": "Implement {{asset_type}}",
+          "description": "Build the asset according to specification",
+          "prompt": "Implement the {{asset_type}} following the architecture specification. Follow project conventions, write clean maintainable code, include error handling, and add inline documentation."
+        },
+        {
+          "id": "{{asset_type}}-engineer-validate",
+          "name": "Validate implementation",
+          "description": "Run tests and static analysis",
+          "prompt": "Validate the implementation. Run unit tests, execute static analysis, check code coverage, and verify against specification."
+        },
+        {
+          "id": "{{asset_type}}-engineer-document",
+          "name": "Document implementation",
+          "description": "Update documentation with implementation details",
+          "prompt": "Document the implementation. Update API documentation, add usage examples, and document configuration options."
+        }
+      ],
+      "validation": [
+        "Implementation matches specification",
+        "All tests pass",
+        "Documentation is complete"
+      ]
+    },
+    "evaluate": {
+      "enabled": true,
+      "description": "Deploy to test environment and validate",
+      "max_retries": 2,
+      "steps": [
+        {
+          "id": "{{asset_type}}-deploy-test",
+          "name": "Deploy to test environment",
+          "description": "Deploy asset to test environment using faber-cloud",
+          "prompt": "Deploy the {{asset_type}} to the {{#if test_environment}}{{test_environment}}{{else}}test{{/if}} environment. Use /fractary-faber-cloud:deploy-apply with appropriate configuration.",
+          "command": "/fractary-faber-cloud:deploy-apply"
+        },
+        {
+          "id": "{{asset_type}}-validate-deployment",
+          "name": "Validate test deployment",
+          "description": "Verify deployment and run integration tests",
+          "prompt": "Validate the test deployment. Verify resources are created correctly, run integration tests, check logs for errors, and validate functionality."
+        }
+      ],
+      "validation": [
+        "Test deployment successful",
+        "Integration tests pass",
+        "No errors in logs"
+      ]
+    },
+    "release": {
+      "enabled": true,
+      "description": "Deploy to production and sync documentation",
+      "require_approval": true,
+      "steps": [
+        {
+          "id": "{{asset_type}}-deploy-production",
+          "name": "Deploy to production",
+          "description": "Deploy asset to production environment",
+          "prompt": "Deploy the {{asset_type}} to {{#if production_environment}}{{production_environment}}{{else}}production{{/if}} environment. Use /fractary-faber-cloud:deploy-apply with production configuration. Ensure all approvals are obtained.",
+          "command": "/fractary-faber-cloud:deploy-apply",
+          "result_handling": {
+            "on_success": "prompt"
+          }
+        }
+        {{#unless skip_codex_sync}}
+        ,{
+          "id": "{{asset_type}}-sync-codex",
+          "name": "Sync to codex",
+          "description": "Sync documentation and specifications to codex",
+          "prompt": "Sync all documentation and specifications to codex. Include architecture specification, implementation documentation, and deployment configuration.",
+          "command": "/fractary-codex:sync"
+        }
+        {{/unless}}
+      ],
+      "validation": [
+        "Production deployment successful",
+        "Documentation synced to codex"
+      ]
+    }
+  },
+  "autonomy": {
+    "level": "{{#if autonomy_level}}{{autonomy_level}}{{else}}guarded{{/if}}",
+    "description": "Guarded autonomy with approval required for production deployment",
+    "pause_before_release": true,
+    "require_approval_for": [
+      "{{asset_type}}-deploy-production"
+    ]
+  },
+  "critical_artifacts": {
+    "always_load": [
+      {
+        "id": "research-doc",
+        "type": "markdown",
+        "path": ".fractary/faber/artifacts/{run_id}/{{asset_type}}-research.md",
+        "description": "Research findings document",
+        "required": false,
+        "reload_triggers": ["session_start", "phase_start:architect"]
+      },
+      {
+        "id": "architecture-spec",
+        "type": "markdown",
+        "path": ".fractary/faber/artifacts/{run_id}/{{asset_type}}-architecture.md",
+        "description": "Architecture specification",
+        "required": false,
+        "reload_triggers": ["session_start", "phase_start:build"]
+      }
+    ]
+  }
+}

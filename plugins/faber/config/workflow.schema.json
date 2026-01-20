@@ -26,6 +26,11 @@
       "pattern": "^[a-z][a-z0-9-]*$",
       "description": "The type of asset this workflow operates on (e.g., 'software-feature', 'blog-post', 'dataset', 'video', 'catalog'). Identifies what kind of thing the workflow creates, modifies, or manages. Projects may have multiple workflows operating on different asset types."
     },
+    "workflow_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Template type this workflow was created from (e.g., 'asset-create'). Links to templates in templates/workflows/{workflow_type}/. Optional - existing workflows without this field continue to work."
+    },
     "extends": {
       "type": "string",
       "description": "Parent workflow to extend. Use namespaced format: 'fractary-faber:default' for core workflows, or unnamespaced for project workflows. Parent pre_steps execute before child steps, parent post_steps execute after."

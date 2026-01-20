@@ -24,7 +24,8 @@ Creates and updates high-quality, project-specific FABER workflow configurations
 | `workflow-name` | string | No* | Name/ID of the workflow (*required for update mode) |
 | `context` | string | No | Description of workflow purpose or requested changes |
 | `extends` | string | No | Parent workflow to extend (default: `fractary-faber:core`) |
-| `type` | string | No | Workflow type hint: `feature`, `bug`, `data`, `infra`, `custom` |
+| `template` | string | No | Workflow template from `templates/workflows/` (e.g., `asset-create`). When specified, loads template and prompts for required variables. |
+| `asset-type` | string | No | Asset type for template-based workflows (e.g., `dataset`, `catalog`, `api`). Required when `--template` is specified. |
 
 ## Algorithm
 
@@ -39,7 +40,8 @@ Creates and updates high-quality, project-specific FABER workflow configurations
    - `workflow_name`: The first positional argument (not starting with `--`)
    - `context`: Value after `--context` flag
    - `extends`: Value after `--extends` flag, default to `fractary-faber:core`
-   - `type`: Value after `--type` flag
+   - `template`: Value after `--template` flag (workflow template type)
+   - `asset_type`: Value after `--asset-type` flag
 
 2. **SECURITY: Validate workflow_name format**. If a workflow name is provided:
    - It MUST match the pattern: starts with a lowercase letter, followed by only lowercase letters, numbers, or hyphens
@@ -47,11 +49,72 @@ Creates and updates high-quality, project-specific FABER workflow configurations
    - Invalid examples: `../etc/passwd`, `My Workflow`, `workflow.json`, `UPPERCASE`
    - If the name is invalid, display an error message explaining the naming requirements and exit with code 1
 
-3. Display the appropriate header based on mode:
+3. **Check for template-based mode**: If `--template` is specified:
+   - Set `use_template = true`
+   - Validate that the template exists in `templates/workflows/{template}/`
+   - If template not found, display available templates and exit with code 1
+   - Display: "FABER Workflow Engineer - Template Mode ({template})"
+
+4. Display the appropriate header based on mode:
+   - For template mode: "FABER Workflow Engineer - Template Mode ({template})"
    - For update mode: "FABER Workflow Engineer - Update Mode"
    - For create mode: "FABER Workflow Engineer - Create Mode"
 
-4. For update mode, verify that workflow_name was provided. If not, display an error explaining that update mode requires a workflow name and exit with code 1.
+5. For update mode, verify that workflow_name was provided. If not, display an error explaining that update mode requires a workflow name and exit with code 1.
+
+### Step 0.5: Load Template (Template Mode Only)
+
+**Goal**: Load and parse workflow template when `--template` is specified
+
+**Instructions**:
+
+Skip this step if `use_template` is false.
+
+1. Locate the template directory:
+   - Primary: `templates/workflows/{template}/`
+   - Fallback: Check plugin installation path
+
+2. Load template files:
+   - Read `type.yaml` for variable definitions and validation rules
+   - Read `template.json` for the Handlebars workflow template
+   - Read `standards.md` for best practices (optional, for reference)
+
+3. Extract required variables from `type.yaml`:
+   ```yaml
+   variables:
+     required:
+       - name: asset_type
+         type: string
+         ...
+   ```
+
+4. Check if required variables are provided via arguments:
+   - If `asset_type` is required and `--asset-type` was provided, use it
+   - If `workflow_id` is required and `workflow_name` was provided, use it
+
+5. For any missing required variables, use AskUserQuestion:
+   - Question: "What is the {variable_name}?"
+   - Use examples from type.yaml as options if available
+   - For `asset_type`, offer: "dataset", "catalog", "api", "report", "Other"
+
+6. Store collected variables for template rendering:
+   ```
+   template_variables = {
+     asset_type: "dataset",
+     workflow_id: "dataset-create",
+     ...
+   }
+   ```
+
+7. If no `workflow_name` was provided, generate default from template:
+   - Use `{asset_type}-create` pattern for asset-create template
+   - Or use default from type.yaml if specified
+
+8. Display summary of template variables:
+   - Template type
+   - Asset type (if applicable)
+   - Workflow ID
+   - Other variables
 
 ### Step 1: Research Project Structure
 
@@ -138,6 +201,32 @@ Creates and updates high-quality, project-specific FABER workflow configurations
 
 **Instructions**:
 
+**Template Detection** (when `--template` not specified in CREATE mode):
+
+Before asking about workflow customization, check if the context suggests using a template:
+
+1. Load `templates/workflows/selector.yaml` for keyword matching rules
+
+2. If context was provided, analyze it for template keywords:
+   - Keywords like "create", "new", "dataset", "catalog", "api" suggest `asset-create`
+   - Check `keyword_matching` section of selector.yaml
+
+3. If high confidence match (>0.8):
+   - Display: "Based on your context, this looks like an asset creation workflow."
+   - Use AskUserQuestion to confirm:
+     - Question: "Would you like to use the asset-create template?"
+     - Options: "Yes, use template (Recommended)", "No, create custom workflow"
+
+4. If user confirms template:
+   - Set `use_template = true`
+   - Set `template = "asset-create"`
+   - Proceed to Step 0.5 to load template and gather variables
+   - Skip the rest of Step 3
+
+5. If medium confidence match (0.4-0.8):
+   - Use AskUserQuestion to offer template as an option
+   - Continue with manual workflow creation if declined
+
 **For CREATE mode**:
 
 1. If workflow_name was not provided, use AskUserQuestion to ask:
@@ -206,6 +295,29 @@ Record the user's selections for use when generating steps.
 **Goal**: Create new workflow or apply updates to existing workflow
 
 **Instructions**:
+
+**For TEMPLATE mode** (when `use_template` is true):
+
+1. Load the template.json from `templates/workflows/{template}/template.json`
+
+2. Render the Handlebars template with collected variables:
+   - Replace `{{asset_type}}` with the asset type value
+   - Replace `{{workflow_id}}` with the workflow ID
+   - Process conditionals like `{{#unless skip_research}}...{{/unless}}`
+   - Handle default values with `{{#if var}}{{var}}{{else}}default{{/if}}`
+
+3. Parse the rendered JSON into a workflow object
+
+4. Ensure the workflow includes:
+   - `workflow_type`: Set to the template type (e.g., "asset-create")
+   - `asset_type`: Set to the collected asset type value
+   - `$schema`: Set to `"../workflow.schema.json"`
+
+5. Apply any user-specified overrides:
+   - If `--extends` was provided, override the extends field
+   - If `--context` was provided, append to the description
+
+6. Skip to Step 7 (Validate Workflow Structure) after template rendering
 
 **For CREATE mode**:
 
