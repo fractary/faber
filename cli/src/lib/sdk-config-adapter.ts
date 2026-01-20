@@ -59,15 +59,11 @@ function getTokenProvider(faberConfig: LoadedFaberConfig): TokenProvider {
     'GitHub authentication not configured. Either:\n' +
     '  1. Set GITHUB_TOKEN environment variable, or\n' +
     '  2. Configure GitHub App in .fractary/config.yaml:\n' +
-    '     {\n' +
-    '       "github": {\n' +
-    '         "app": {\n' +
-    '           "id": "<app-id>",\n' +
-    '           "installation_id": "<installation-id>",\n' +
-    '           "private_key_path": "~/.github/your-app.pem"\n' +
-    '         }\n' +
-    '       }\n' +
-    '     }'
+    '     github:\n' +
+    '       app:\n' +
+    '         id: "<app-id>"\n' +
+    '         installation_id: "<installation-id>"\n' +
+    '         private_key_path: "~/.github/your-app.pem"'
   );
 }
 

@@ -79,8 +79,13 @@ export class ConfigManager {
       }
     }
 
+    // Token fallback: env var > github section > work.handlers.github
+    const token = process.env.GITHUB_TOKEN
+      || unifiedConfig.github?.token
+      || anyConfig.work?.handlers?.github?.token;
+
     let github: GitHubConfig = {
-      token: process.env.GITHUB_TOKEN || unifiedConfig.github?.token,
+      token,
       organization,
       project,
       repo: unifiedConfig.github?.repo,
