@@ -3,7 +3,7 @@ name: fractary-faber:agent-update
 description: Update an existing FABER agent - delegates to fractary-faber:agent-engineer agent
 allowed-tools: Task(fractary-faber:agent-engineer)
 model: claude-haiku-4-5
-argument-hint: '<agent-name> [--context "<changes>"] [--purpose "<purpose>"] [--tools <tools>] [--model <model>] [--plugin <plugin>]'
+argument-hint: '<agent-name> [--context "<changes>"] [--tools <tools>] [--model <model>] [--plugin <plugin>]'
 ---
 
 # Agent Update Command
@@ -20,8 +20,7 @@ Use **Task** tool with `fractary-faber:agent-engineer` agent in **update mode** 
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--context` | string | - | Description of changes to make (required for content updates) |
-| `--purpose` | string | - | Update the agent's description/purpose |
+| `--context` | string | - | Description of changes to make (what to add, modify, or fix) |
 | `--tools` | string | - | Update tools (comma-separated, e.g., "Read,Write,Glob,Bash") |
 | `--model` | string | - | Update model: haiku, sonnet, opus |
 | `--plugin` | string | faber | Plugin where agent is located |
@@ -36,8 +35,8 @@ Use **Task** tool with `fractary-faber:agent-engineer` agent in **update mode** 
 # Update model and tools
 /fractary-faber:agent-update workflow-inspector --model opus --tools "Read,Write,Glob,Grep,Bash"
 
-# Update purpose/description
-/fractary-faber:agent-update spec-generator --purpose "Generates comprehensive technical specifications with architecture diagrams"
+# Update description and purpose
+/fractary-faber:agent-update spec-generator --context "Update description to: Generates comprehensive technical specifications with architecture diagrams"
 
 # Detailed changes via context
 /fractary-faber:agent-update schema-validator --context "Improve error messages to include line numbers. Add support for JSON Schema draft-07. Update OUTPUTS section with new error format examples."
@@ -71,9 +70,22 @@ The `--context` argument describes what changes to make:
 --context "Refactor Step 4 to use parallel file processing for better performance with large codebases."
 ```
 
+## Agent Type Awareness
+
+When updating an agent that has `agent_type` in its frontmatter, the updater:
+- Loads the corresponding type's standards from `templates/agents/{type}/standards.md`
+- Uses type-specific validation rules when applying changes
+- Ensures updates maintain compliance with type requirements
+
+For example, if updating an agent with `agent_type: asset-engineer-validator`, the updater will:
+- Verify the agent maintains read-only behavior (no Write tool unless justified)
+- Ensure OUTPUTS section includes pass/fail status
+- Validate that scoring criteria are preserved
+
 ## Safety
 
 - Preserves existing content not explicitly changed
+- Preserves `agent_type` from frontmatter (ensures type compliance)
 - Use git to track changes and revert if needed
 
 ## Invocation
@@ -98,6 +110,7 @@ On success, returns:
   "message": "Agent 'faber-planner' updated successfully",
   "details": {
     "agent_path": "plugins/faber/agents/faber-planner.md",
+    "agent_type": "asset-architect",
     "changes_made": ["Updated WORKFLOW section", "Added new CRITICAL_RULE"]
   }
 }

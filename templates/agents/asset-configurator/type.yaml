@@ -1,0 +1,195 @@
+id: asset-configurator
+display_name: Asset Configurator
+scope: asset
+description: |
+  Configurator agents manage project configuration with safety guarantees.
+  They provide interactive setup wizards, validate configuration before applying changes,
+  and offer preview, backup, and rollback capabilities.
+
+# Model and tool configuration
+config:
+  recommended_model: claude-sonnet-4-5
+  common_tools:
+    - AskUserQuestion
+    - Bash
+    - Read
+    - Write
+    - Glob
+  required_tools:
+    - AskUserQuestion
+  typical_complexity: medium
+  requires_user_interaction: true
+  maintains_state: false
+
+# FABER workflow integration
+faber:
+  phase_affinity:
+    - frame
+    - release
+  exit_codes:
+    - code: 0
+      meaning: Success
+    - code: 1
+      meaning: Validation error
+    - code: 2
+      meaning: User cancelled
+    - code: 3
+      meaning: Write failure
+
+# Documentation and guidance
+documentation:
+  when_to_use:
+    - Interactive setup wizards for new projects or features
+    - Configuration file creation or modification
+    - Settings validation and updates
+    - Operations requiring preview-before-apply
+    - Operations requiring backup and rollback support
+  examples:
+    - configurator
+    - plugin-initializer
+    - settings-wizard
+
+# Agent structure requirements
+structure:
+  required_sections:
+    - CONTEXT
+    - ARGUMENT_SYNTAX
+    - CRITICAL_RULES
+    - IMPLEMENTATION
+    - OUTPUTS
+  recommended_sections:
+    - INPUT_VALIDATION
+    - ERROR_HANDLING
+    - RELATED_COMMANDS
+
+# Core rules all configurators must follow
+critical_rules:
+  - id: preview-before-apply
+    title: Transparency - Preview Before Apply
+    description: ALWAYS show proposed changes BEFORE applying them. NEVER modify files without explicit user confirmation.
+
+  - id: backup-rollback
+    title: Safety - Backup and Rollback
+    description: ALWAYS create timestamped backup before modifying existing config. On failure, restore from backup automatically.
+
+  - id: input-validation
+    title: Input Validation
+    description: ALWAYS validate user input. REJECT inputs with dangerous patterns (shell metacharacters, path traversal).
+
+  - id: user-confirmation
+    title: User Confirmation
+    description: ALWAYS use AskUserQuestion for critical decisions. Get EXPLICIT confirmation before applying changes.
+
+  - id: idempotent-operations
+    title: Idempotent Operations
+    description: Safe to run multiple times. Detect existing config and offer update vs overwrite.
+
+  - id: surgical-edits
+    title: Surgical Edits
+    description: ONLY modify sections relevant to this configurator. NEVER overwrite sections belonging to other plugins.
+
+# Standard implementation workflow
+implementation_steps:
+  - Parse arguments and determine mode
+  - Check for existing configuration
+  - Auto-detect values from environment
+  - Interactive confirmation with user
+  - Build proposed configuration
+  - Display preview of changes
+  - Get explicit user confirmation
+  - Apply changes with backup
+  - Validate configuration
+  - Show next steps and guidance
+
+# Output specification format
+output_format:
+  modes:
+    - name: text
+      description: Human-readable output with progress indicators
+      default: true
+    - name: json
+      description: JSON output for automation
+      flag: "--json"
+
+# Frontmatter schema for generated agents
+frontmatter_schema:
+  required:
+    - name
+    - description
+    - model
+    - tools
+  optional:
+    - color
+    - agent_type
+  properties:
+    name:
+      type: string
+      pattern: "^[a-z][a-z0-9-]*$"
+      description: Agent name in lowercase with hyphens
+    description:
+      type: string
+      maxLength: 200
+      description: Clear, actionable description
+    model:
+      type: string
+      enum:
+        - claude-haiku-4-5
+        - claude-sonnet-4-5
+        - claude-opus-4-5
+      default: claude-sonnet-4-5
+    tools:
+      type: array
+      items:
+        type: string
+        enum:
+          - Bash
+          - Read
+          - Write
+          - Edit
+          - Glob
+          - Grep
+          - AskUserQuestion
+          - Skill
+          - WebFetch
+          - WebSearch
+      must_include:
+        - AskUserQuestion
+    color:
+      type: string
+      enum:
+        - red
+        - orange
+        - yellow
+        - green
+        - blue
+        - purple
+        - pink
+        - gray
+        - cyan
+    agent_type:
+      type: string
+      description: Links to this template type (asset-configurator)
+
+# Validation rules
+validation:
+  implementation_steps_min: 6
+  implementation_step_patterns:
+    - "(?i)parse.*argument|check.*config"
+    - "(?i)auto.*detect|discover"
+    - "(?i)confirm|ask.*user"
+    - "(?i)preview|display"
+    - "(?i)backup|apply"
+    - "(?i)validate"
+
+# Security patterns
+security:
+  dangerous_input_patterns:
+    - "|"
+    - ";"
+    - "&"
+    - ">"
+    - "<"
+    - "`"
+    - "$"
+    - "../"
+    - "\\x00"

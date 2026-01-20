@@ -1,0 +1,178 @@
+id: asset-debugger
+display_name: Asset Debugger
+scope: asset
+description: |
+  Debugger agents troubleshoot problems, diagnose errors, and maintain a knowledge base
+  of solutions. They analyze failures, identify root causes, propose actionable fixes,
+  and build institutional knowledge.
+
+# Model and tool configuration
+config:
+  recommended_model: claude-sonnet-4-5
+  common_tools:
+    - Read
+    - Glob
+    - Grep
+    - Bash
+    - Skill
+  required_tools:
+    - Read
+  typical_complexity: medium
+  requires_user_interaction: false
+  maintains_state: true
+
+# FABER workflow integration
+faber:
+  phase_affinity:
+    - evaluate
+  exit_codes:
+    - code: 0
+      meaning: Diagnosis complete, solution proposed
+    - code: 1
+      meaning: Unable to diagnose
+    - code: 2
+      meaning: Insufficient context
+
+# Documentation and guidance
+documentation:
+  when_to_use:
+    - Diagnosing errors or failures from logs/output
+    - Troubleshooting workflow or build issues
+    - Analyzing test failures
+    - Maintaining a knowledge base of past issues
+    - Proposing fixes for identified problems
+  examples:
+    - faber-debugger
+    - build-debugger
+    - test-failure-analyzer
+
+# Agent structure requirements
+structure:
+  required_sections:
+    - CONTEXT
+    - CRITICAL_RULES
+    - IMPLEMENTATION
+    - OUTPUTS
+  recommended_sections:
+    - INPUTS
+    - KNOWLEDGE_BASE
+    - ERROR_HANDLING
+    - COMPLETION_CRITERIA
+
+# Core rules all debuggers must follow
+critical_rules:
+  - id: search-kb-first
+    title: Search Knowledge Base First
+    description: ALWAYS check for similar past issues before diagnosing. Use past solutions as starting points.
+
+  - id: gather-context
+    title: Gather Complete Context
+    description: Collect ALL relevant information before diagnosing. Don't diagnose with partial information.
+
+  - id: root-cause
+    title: Identify Root Cause
+    description: Find the UNDERLYING cause, not just symptoms. Trace errors back to their source.
+
+  - id: actionable-solutions
+    title: Propose Actionable Solutions
+    description: Solutions MUST be specific and actionable. Include step-by-step instructions.
+
+  - id: record-solutions
+    title: Record Solutions
+    description: Document successful resolutions. Update knowledge base with new patterns.
+
+  - id: never-auto-fix
+    title: Never Auto-Fix
+    description: PROPOSE solutions, don't apply them automatically. Let engineer agents implement fixes.
+
+# Standard implementation workflow
+implementation_steps:
+  - Gather debug context (state, logs, errors)
+  - Search knowledge base for similar issues
+  - Analyze issue and identify root cause
+  - Propose solutions with confidence levels
+  - Generate continuation command
+  - Log findings
+  - Update knowledge base (on resolution)
+
+# Output specification format
+output_format:
+  type: diagnosis
+  required_fields:
+    - root_cause
+    - confidence
+    - solutions
+    - continuation_command
+
+# Knowledge base configuration
+knowledge_base:
+  recommended_path: ".fractary/plugins/{plugin}/debugger/knowledge-base"
+  entry_format: yaml_frontmatter_markdown
+  index_file: index.json
+
+# Frontmatter schema for generated agents
+frontmatter_schema:
+  required:
+    - name
+    - description
+    - model
+    - tools
+  optional:
+    - color
+    - agent_type
+  properties:
+    name:
+      type: string
+      pattern: "^[a-z][a-z0-9-]*$"
+      description: Agent name in lowercase with hyphens
+    description:
+      type: string
+      maxLength: 200
+      description: Clear, actionable description
+    model:
+      type: string
+      enum:
+        - claude-haiku-4-5
+        - claude-sonnet-4-5
+        - claude-opus-4-5
+      default: claude-sonnet-4-5
+    tools:
+      type: array
+      items:
+        type: string
+        enum:
+          - Bash
+          - Read
+          - Write
+          - Edit
+          - Glob
+          - Grep
+          - AskUserQuestion
+          - Skill
+          - WebFetch
+          - WebSearch
+    color:
+      type: string
+      enum:
+        - red
+        - orange
+        - yellow
+        - green
+        - blue
+        - purple
+        - pink
+        - gray
+        - cyan
+    agent_type:
+      type: string
+      description: Links to this template type (asset-debugger)
+
+# Validation rules
+validation:
+  implementation_steps_min: 5
+  implementation_step_patterns:
+    - "(?i)gather.*context|collect.*info"
+    - "(?i)search.*kb|knowledge.*base"
+    - "(?i)analyze|diagnose|root.*cause"
+    - "(?i)propos.*solution|suggest.*fix"
+    - "(?i)continuation|command|log"

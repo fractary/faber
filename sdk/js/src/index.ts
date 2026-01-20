@@ -11,6 +11,7 @@
  * - state: Workflow state persistence
  * - workflow: FABER workflow orchestration
  * - storage: Artifact storage (local and Codex integration)
+ * - agents: Agent type templates and selection
  */
 
 // Core exports
@@ -26,3 +27,4 @@ export * from './logs/index.js';
 export * from './state/index.js';
 export * from './workflow/index.js';
 export * from './storage/index.js';
+export * from './agents/index.js';
