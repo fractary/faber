@@ -193,6 +193,135 @@ if command -v gh >/dev/null 2>&1; then
 fi
 ```
 
+## Step 3.5: Validate GitHub Authentication
+
+**CRITICAL**: FABER requires GitHub authentication to work. Check and help set it up.
+
+### Check for GITHUB_TOKEN
+
+```bash
+github_token_status="not_found"
+github_token_source=""
+
+# 1. Check environment variable
+if [ -n "$GITHUB_TOKEN" ]; then
+  github_token_status="ready"
+  github_token_source="environment"
+fi
+
+# 2. Check .env file in project root
+if [ "$github_token_status" = "not_found" ] && [ -f ".env" ]; then
+  if grep -q "^GITHUB_TOKEN=" .env 2>/dev/null; then
+    github_token_status="in_dotenv_not_loaded"
+    github_token_source=".env file (not loaded)"
+  fi
+fi
+
+# 3. Check ~/.env or other common locations
+if [ "$github_token_status" = "not_found" ] && [ -f "$HOME/.env" ]; then
+  if grep -q "^GITHUB_TOKEN=" "$HOME/.env" 2>/dev/null; then
+    github_token_status="in_home_dotenv"
+    github_token_source="~/.env (not loaded)"
+  fi
+fi
+```
+
+### Handle Authentication Status
+
+```
+if github_token_status == "ready":
+  # Token is available - continue
+  echo "✓ GitHub authentication ready (from $github_token_source)"
+
+elif github_token_status == "in_dotenv_not_loaded":
+  # Token exists in .env but not loaded into environment
+  AskUserQuestion:
+    question: "Found GITHUB_TOKEN in .env file but it's not loaded into your shell. How would you like to fix this?"
+    header: "Auth Setup"
+    options:
+      - label: "Set up direnv (Recommended)"
+        description: "Auto-load .env when you enter this directory"
+      - label: "Show manual export command"
+        description: "I'll run the command myself"
+      - label: "Skip for now"
+        description: "I'll handle this later (workflows will fail)"
+
+  if choice == "Set up direnv":
+    # Check if direnv is installed
+    if command -v direnv >/dev/null 2>&1:
+      echo "Creating .envrc file..."
+      echo "dotenv" > .envrc
+      direnv allow
+      echo "✓ direnv configured. GITHUB_TOKEN will auto-load when you cd into this directory."
+      echo "  Run: cd . # to reload"
+    else:
+      echo "direnv is not installed. Install it first:"
+      echo "  Ubuntu/Debian: sudo apt install direnv"
+      echo "  macOS: brew install direnv"
+      echo ""
+      echo "Then add to your ~/.bashrc or ~/.zshrc:"
+      echo '  eval "$(direnv hook bash)"  # or zsh'
+      echo ""
+      echo "After installing, run /fractary-faber:configure again."
+
+  elif choice == "Show manual export command":
+    echo "Run this command to load your .env:"
+    echo ""
+    echo "  export \$(grep GITHUB_TOKEN .env | xargs)"
+    echo ""
+    echo "Or add to your ~/.bashrc for persistence:"
+    echo "  echo 'export \$(grep GITHUB_TOKEN /path/to/project/.env | xargs)' >> ~/.bashrc"
+
+elif github_token_status == "not_found":
+  # No token found anywhere
+  AskUserQuestion:
+    question: "No GitHub token found. FABER requires a token to interact with GitHub. How would you like to proceed?"
+    header: "Auth Required"
+    options:
+      - label: "Guide me through token creation"
+        description: "Step-by-step instructions to create a GitHub PAT"
+      - label: "I already have a token"
+        description: "I'll add it to my .env file"
+      - label: "Skip for now"
+        description: "I'll handle this later (workflows will fail)"
+
+  if choice == "Guide me through token creation":
+    echo ""
+    echo "=== Creating a GitHub Personal Access Token ==="
+    echo ""
+    echo "1. Go to: https://github.com/settings/tokens?type=beta"
+    echo ""
+    echo "2. Click 'Generate new token'"
+    echo ""
+    echo "3. Configure the token:"
+    echo "   - Name: fractary-faber-cli"
+    echo "   - Expiration: 90 days (or your preference)"
+    echo "   - Repository access: Select '{detected_owner}/{detected_repo}'"
+    echo ""
+    echo "4. Set permissions:"
+    echo "   - Issues: Read and write"
+    echo "   - Pull requests: Read and write"
+    echo "   - Contents: Read and write"
+    echo ""
+    echo "5. Click 'Generate token' and copy it"
+    echo ""
+    echo "6. Add to your .env file:"
+    echo "   echo 'GITHUB_TOKEN=ghp_your_token_here' >> .env"
+    echo ""
+    echo "7. Load it:"
+    echo "   export \$(grep GITHUB_TOKEN .env | xargs)"
+    echo ""
+
+  elif choice == "I already have a token":
+    echo ""
+    echo "Add your token to .env:"
+    echo "  echo 'GITHUB_TOKEN=ghp_your_token_here' >> .env"
+    echo ""
+    echo "Then load it:"
+    echo "  export \$(grep GITHUB_TOKEN .env | xargs)"
+    echo ""
+```
+
 ## Step 4: Interactive Confirmation
 
 For each auto-detected value, ask user to confirm or modify:
@@ -689,23 +818,33 @@ update_faber_gitignore_section() {
 ## Step 11: Post-Configuration Guidance
 
 ```
-FABER configuration complete!
+if github_token_status == "ready":
+  echo "✅ FABER configuration complete!"
+  echo ""
+  echo "Configuration written to: .fractary/config.yaml (faber: section)"
+  echo "Project workflows directory: .fractary/faber/workflows/"
+  echo "GitHub authentication: Ready"
+  echo ""
+  echo "Next Steps:"
+  echo "  1. Review config: cat .fractary/config.yaml"
+  echo "  2. Run a workflow: /fractary-faber:workflow-plan <issue-number>"
+  echo ""
+  echo "Optional:"
+  echo "  - Cloud Infrastructure: /fractary-faber-cloud:configure"
 
-Configuration written to: .fractary/config.yaml (faber: section)
-Project workflows directory: .fractary/faber/workflows/
-
-ADDITIONAL CONFIGURATION REQUIRED:
-
-1. **Authentication** (Required)
-   Configure GitHub token in: .fractary/config.yaml (github: section)
-   Or run: /fractary-work:init
-
-2. **Cloud Infrastructure** (Optional)
-   If using AWS/Terraform: /fractary-faber-cloud:configure
-
-Next Steps:
-  1. Review config: cat .fractary/config.yaml
-  2. Run a workflow: /fractary-faber:workflow-plan <issue-number>
+else:
+  echo "⚠️  FABER configuration complete (with warnings)"
+  echo ""
+  echo "Configuration written to: .fractary/config.yaml (faber: section)"
+  echo "Project workflows directory: .fractary/faber/workflows/"
+  echo ""
+  echo "⚠️  GitHub authentication NOT configured"
+  echo "   Workflows will fail until you set up GITHUB_TOKEN."
+  echo "   Run /fractary-faber:configure again to set up authentication."
+  echo ""
+  echo "Next Steps:"
+  echo "  1. Set up GitHub token (required)"
+  echo "  2. Run a workflow: /fractary-faber:workflow-plan <issue-number>"
 ```
 
 </IMPLEMENTATION>
