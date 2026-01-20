@@ -19,7 +19,6 @@ import type {
   KeywordMatchConfig,
   FaberPhaseName,
   AgentScope,
-  ConfidenceThresholds,
 } from './types.js';
 import { AgentTypeRegistry, getAgentTypeRegistry } from './type-registry.js';
 
@@ -302,7 +301,7 @@ export class AgentTypeSelector {
   private normalizeConfidence(raw: number): number {
     if (!this.config) return raw;
 
-    const thresholds = this.config.confidence as ConfidenceThresholds;
+    const thresholds = this.config.confidence;
 
     if (raw >= thresholds.high) return raw;
     if (raw >= thresholds.medium) return raw;
