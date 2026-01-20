@@ -177,7 +177,7 @@ export interface AgentTypeThresholds {
 // Full Agent Type Definition
 // ============================================================================
 
-/** Complete agent type definition (from type.yaml) */
+/** Complete agent type definition (from agent.yaml) */
 export interface AgentType {
   id: AgentTypeId;
   display_name: string;

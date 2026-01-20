@@ -409,7 +409,7 @@ if workflow.workflow_type is not null:
   workflow_type = workflow.workflow_type
 
   # Load type specification from templates
-  type_spec_path = "templates/workflows/{workflow_type}/type.yaml"
+  type_spec_path = "templates/workflows/{workflow_type}/workflow.yaml"
 
   if exists(type_spec_path):
     type_spec = parse_yaml(read(type_spec_path))

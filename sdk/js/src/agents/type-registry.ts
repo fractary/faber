@@ -101,8 +101,8 @@ export class AgentTypeRegistry {
     const typePath = join(this.templatesPath, entry.id);
 
     try {
-      // Load type.yaml
-      const typeYamlPath = join(typePath, 'type.yaml');
+      // Load agent.yaml
+      const typeYamlPath = join(typePath, 'agent.yaml');
       const typeContent = await readFile(typeYamlPath, 'utf-8');
       const typeData = parseYaml(typeContent) as AgentType;
       this.types.set(entry.id, typeData);
@@ -234,11 +234,11 @@ export class AgentTypeRegistry {
   ): Promise<void> {
     const { url } = options;
 
-    // Fetch type.yaml
-    const typeUrl = `${url}/type.yaml`;
+    // Fetch agent.yaml
+    const typeUrl = `${url}/agent.yaml`;
     const typeResponse = await fetch(typeUrl);
     if (!typeResponse.ok) {
-      throw new Error(`Failed to fetch type.yaml from ${typeUrl}`);
+      throw new Error(`Failed to fetch agent.yaml from ${typeUrl}`);
     }
     const typeContent = await typeResponse.text();
     const typeData = parseYaml(typeContent) as AgentType;

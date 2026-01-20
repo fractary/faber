@@ -332,7 +332,7 @@ IF mode == "create":
     type_path = "templates/agents/{agent_type}"
 
   # Load type configuration
-  type_config = Read("{type_path}/type.yaml")
+  type_config = Read("{type_path}/agent.yaml")
   type_template = Read("{type_path}/template.md")
   type_standards = Read("{type_path}/standards.md")
 
@@ -773,7 +773,7 @@ IF create_command:
 | Invalid plugin name | Plugin name contains invalid characters | Use lowercase alphanumeric with hyphens |
 | Invalid model | Model not recognized | Use: haiku, sonnet, or opus |
 | Invalid agent type | Type not in templates/agents | Valid types: asset-architect, asset-engineer, asset-configurator, asset-debugger, asset-architect-validator, asset-engineer-validator, asset-inspector, project-auditor |
-| Type template not found | Template files missing for type | Check templates/agents/{type}/ exists with type.yaml, template.md, standards.md |
+| Type template not found | Template files missing for type | Check templates/agents/{type}/ exists with agent.yaml, template.md, standards.md |
 | Invalid tool name | Tool not in allowed list | Check tool spelling; valid: Read, Write, Glob, Grep, Bash, Edit, etc. |
 | Parse error | Existing agent has malformed structure | Fix manually or use git to restore |
 | Write permission denied | Cannot write to target directory | Check permissions on plugins directory |

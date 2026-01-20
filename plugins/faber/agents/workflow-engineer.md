@@ -75,11 +75,11 @@ Skip this step if `use_template` is false.
    - Fallback: Check plugin installation path
 
 2. Load template files:
-   - Read `type.yaml` for variable definitions and validation rules
+   - Read `workflow.yaml` for variable definitions and validation rules
    - Read `template.json` for the Handlebars workflow template
    - Read `standards.md` for best practices (optional, for reference)
 
-3. Extract required variables from `type.yaml`:
+3. Extract required variables from `workflow.yaml`:
    ```yaml
    variables:
      required:
@@ -94,7 +94,7 @@ Skip this step if `use_template` is false.
 
 5. For any missing required variables, use AskUserQuestion:
    - Question: "What is the {variable_name}?"
-   - Use examples from type.yaml as options if available
+   - Use examples from workflow.yaml as options if available
    - For `asset_type`, offer: "dataset", "catalog", "api", "report", "Other"
 
 6. Store collected variables for template rendering:
@@ -108,7 +108,7 @@ Skip this step if `use_template` is false.
 
 7. If no `workflow_name` was provided, generate default from template:
    - Use `{asset_type}-create` pattern for asset-create template
-   - Or use default from type.yaml if specified
+   - Or use default from workflow.yaml if specified
 
 8. Display summary of template variables:
    - Template type
