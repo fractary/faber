@@ -66,14 +66,13 @@ export class AgentTypeRegistry {
   private standards: Map<AgentTypeId, string> = new Map();
   private manifest: AgentTypeManifest | null = null;
   private templatesPath: string;
-  private baseUrl: string;
   private loaded: boolean = false;
 
   constructor(options: AgentTypeRegistryOptions = {}) {
     this.templatesPath = options.templatesPath
       ? resolve(options.templatesPath)
       : resolve(getPackageRoot(), DEFAULT_TEMPLATES_PATH);
-    this.baseUrl = options.baseUrl || DEFAULT_BASE_URL;
+    // Note: baseUrl from options is available for future remote loading features
   }
 
   /**
