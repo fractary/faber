@@ -1,0 +1,171 @@
+id: asset-engineer
+display_name: Asset Engineer
+scope: asset
+description: |
+  Engineer agents implement solutions by creating, modifying, or generating artifacts.
+  They execute the build phase of FABER workflows, turning specifications into working implementations.
+
+# Model and tool configuration
+config:
+  recommended_model: claude-sonnet-4-5
+  common_tools:
+    - Bash
+    - Read
+    - Write
+    - Edit
+    - Glob
+    - Grep
+  required_tools:
+    - Read
+  typical_complexity: high
+  requires_user_interaction: false
+  maintains_state: false
+
+# FABER workflow integration
+faber:
+  phase_affinity:
+    - build
+  exit_codes:
+    - code: 0
+      meaning: Implementation complete, all checks pass
+    - code: 1
+      meaning: Implementation failed
+    - code: 2
+      meaning: Tests failing
+    - code: 3
+      meaning: Linting errors
+
+# Documentation and guidance
+documentation:
+  when_to_use:
+    - Implementing features from specifications
+    - Writing or modifying code
+    - Creating or updating configuration files
+    - Generating content or artifacts
+    - Executing build-phase work in FABER workflows
+  examples:
+    - workflow-engineer
+    - feature-engineer
+    - config-generator
+
+# Agent structure requirements
+structure:
+  required_sections:
+    - CONTEXT
+    - CRITICAL_RULES
+    - IMPLEMENTATION
+    - OUTPUTS
+  recommended_sections:
+    - INPUTS
+    - ERROR_HANDLING
+    - VALIDATION
+    - COMPLETION_CRITERIA
+
+# Core rules all engineers must follow
+critical_rules:
+  - id: read-before-write
+    title: Read Before Writing
+    description: ALWAYS read existing code before modifying. NEVER assume file contents.
+
+  - id: follow-patterns
+    title: Follow Existing Patterns
+    description: MATCH existing code style and conventions. USE existing utilities when available.
+
+  - id: incremental-changes
+    title: Incremental Changes
+    description: Make SMALL, verifiable changes. VERIFY each step before proceeding.
+
+  - id: adapt-when-blocked
+    title: Adapt When Blocked
+    description: When encountering obstacles, ADAPT the approach. DON'T give up on the first error.
+
+  - id: quality-over-speed
+    title: Quality Over Speed
+    description: Write CLEAN, maintainable code. Consider TESTABILITY during implementation.
+
+  - id: validate-results
+    title: Validate Results
+    description: VERIFY implementation meets acceptance criteria. RUN tests and CHECK for regressions.
+
+# Standard implementation workflow
+implementation_steps:
+  - Load specification and understand requirements
+  - Research existing patterns in codebase
+  - Plan implementation approach
+  - Implement in small, verified steps
+  - Handle errors and adapt as needed
+  - Validate implementation meets criteria
+
+# Output specification format
+output_format:
+  type: implementation
+  deliverables:
+    - code_changes
+    - test_coverage
+    - documentation_updates
+
+# Frontmatter schema for generated agents
+frontmatter_schema:
+  required:
+    - name
+    - description
+    - model
+    - tools
+  optional:
+    - color
+    - agent_type
+  properties:
+    name:
+      type: string
+      pattern: "^[a-z][a-z0-9-]*$"
+      description: Agent name in lowercase with hyphens
+    description:
+      type: string
+      maxLength: 200
+      description: Clear, actionable description of what it implements
+    model:
+      type: string
+      enum:
+        - claude-haiku-4-5
+        - claude-sonnet-4-5
+        - claude-opus-4-5
+      default: claude-sonnet-4-5
+    tools:
+      type: array
+      items:
+        type: string
+        enum:
+          - Bash
+          - Read
+          - Write
+          - Edit
+          - Glob
+          - Grep
+          - AskUserQuestion
+          - Skill
+          - WebFetch
+          - WebSearch
+    color:
+      type: string
+      enum:
+        - red
+        - orange
+        - yellow
+        - green
+        - blue
+        - purple
+        - pink
+        - gray
+        - cyan
+    agent_type:
+      type: string
+      description: Links to this template type (asset-engineer)
+
+# Validation rules
+validation:
+  implementation_steps_min: 4
+  implementation_step_patterns:
+    - "(?i)load.*context|read.*spec|understand"
+    - "(?i)research|pattern|existing"
+    - "(?i)implement|create|write"
+    - "(?i)validate|verify|test"

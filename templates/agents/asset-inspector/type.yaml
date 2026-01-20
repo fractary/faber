@@ -1,0 +1,160 @@
+id: asset-inspector
+display_name: Asset Inspector
+scope: asset
+description: |
+  Inspector agents report on the status of a single entity, providing point-in-time
+  snapshots by loading state, querying logs, and checking artifacts. They are read-only
+  and provide comprehensive status information for individual entities.
+
+# Model and tool configuration
+config:
+  recommended_model: claude-sonnet-4-5
+  common_tools:
+    - Read
+    - Glob
+    - Grep
+    - Skill
+  required_tools:
+    - Read
+  typical_complexity: low
+  requires_user_interaction: false
+  maintains_state: false
+
+# FABER workflow integration
+faber:
+  phase_affinity:
+    - any
+  exit_codes:
+    - code: 0
+      meaning: Status retrieved
+    - code: 1
+      meaning: Entity failed status
+    - code: 2
+      meaning: Entity cancelled
+    - code: 3
+      meaning: Entity not found
+
+# Documentation and guidance
+documentation:
+  when_to_use:
+    - Checking status of a single workflow run
+    - Getting current state of an entity
+    - Reviewing recent events for an entity
+    - Finding artifacts related to an entity
+    - Getting a quick status snapshot
+  examples:
+    - workflow-inspector
+    - run-inspector
+    - entity-status
+
+# Agent structure requirements
+structure:
+  required_sections:
+    - CONTEXT
+    - CRITICAL_RULES
+    - IMPLEMENTATION
+    - OUTPUTS
+  recommended_sections:
+    - INPUTS
+    - STATE_SCHEMA
+    - COMPLETION_CRITERIA
+
+# Core rules all inspectors must follow
+critical_rules:
+  - id: single-entity-focus
+    title: Single Entity Focus
+    description: Report on ONE entity at a time. Don't aggregate across multiple entities.
+
+  - id: point-in-time-snapshot
+    title: Point-in-Time Snapshot
+    description: Report CURRENT state. Note the timestamp of the snapshot.
+
+  - id: comprehensive-sources
+    title: Comprehensive Sources
+    description: Gather from state files, logs, and artifacts. Query relevant services if needed.
+
+  - id: clear-status-indicators
+    title: Clear Status Indicators
+    description: Use consistent status values. Include visual indicators. Explain what each status means.
+
+  - id: actionable-information
+    title: Actionable Information
+    description: Include next steps when relevant. Provide commands to continue/resume.
+
+  - id: non-modifying
+    title: Non-Modifying
+    description: ONLY read, never modify. Status queries should be safe. No side effects.
+
+# Standard implementation workflow
+implementation_steps:
+  - Resolve target entity
+  - Load current state
+  - Query recent logs
+  - Check artifacts
+  - Generate status report
+
+# Output specification format
+output_format:
+  type: status_report
+  required_fields:
+    - entity_id
+    - status
+    - updated_at
+  recommended_fields:
+    - started_at
+    - progress
+    - recent_events
+    - artifacts
+    - next_steps
+
+# Frontmatter schema for generated agents
+frontmatter_schema:
+  required:
+    - name
+    - description
+    - model
+    - tools
+  optional:
+    - color
+    - agent_type
+  properties:
+    name:
+      type: string
+      pattern: "^[a-z][a-z0-9-]*$"
+      description: Agent name in lowercase with hyphens
+    description:
+      type: string
+      maxLength: 200
+      description: Should describe what entity it inspects
+    model:
+      type: string
+      enum:
+        - claude-haiku-4-5
+        - claude-sonnet-4-5
+        - claude-opus-4-5
+      default: claude-sonnet-4-5
+    tools:
+      type: array
+      items:
+        type: string
+        enum:
+          - Read
+          - Glob
+          - Grep
+          - Skill
+      note: Should NOT include Write or Edit (read-only)
+    color:
+      type: string
+      enum:
+        - red
+        - orange
+        - yellow
+        - green
+        - blue
+        - purple
+        - pink
+        - gray
+        - cyan
+    agent_type:
+      type: string
+      description: Links to this template type (asset-inspector)

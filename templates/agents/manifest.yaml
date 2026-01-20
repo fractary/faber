@@ -1,0 +1,72 @@
+version: "1.0"
+base_url: https://raw.githubusercontent.com/fractary/faber/main/templates/agents
+
+scopes:
+  - id: asset
+    display_name: Asset-Level
+    description: Agents working on a single entity or asset
+
+  - id: project
+    display_name: Project-Level
+    description: Agents spanning multiple entities across the project
+
+agent_types:
+  # Asset-Level Agents
+  - id: asset-architect
+    display_name: Asset Architect
+    scope: asset
+    path: ./asset-architect
+    faber_phase: architect
+    description: Designs implementation plans for a specific asset
+
+  - id: asset-engineer
+    display_name: Asset Engineer
+    scope: asset
+    path: ./asset-engineer
+    faber_phase: build
+    description: Implements solutions by creating, modifying, or generating artifacts
+
+  - id: asset-configurator
+    display_name: Asset Configurator
+    scope: asset
+    path: ./asset-configurator
+    faber_phase: frame
+    description: Manages configuration with safety guarantees (preview, backup, rollback)
+
+  - id: asset-debugger
+    display_name: Asset Debugger
+    scope: asset
+    path: ./asset-debugger
+    faber_phase: evaluate
+    description: Troubleshoots problems and maintains a knowledge base of solutions
+
+  - id: asset-architect-validator
+    display_name: Asset Architect Validator
+    scope: asset
+    path: ./asset-architect-validator
+    faber_phase: evaluate
+    pairs_with: asset-architect
+    description: Validates specifications from architect agents (static analysis)
+
+  - id: asset-engineer-validator
+    display_name: Asset Engineer Validator
+    scope: asset
+    path: ./asset-engineer-validator
+    faber_phase: evaluate
+    pairs_with: asset-engineer
+    description: Validates code from engineer agents (static + dynamic analysis)
+
+  - id: asset-inspector
+    display_name: Asset Inspector
+    scope: asset
+    path: ./asset-inspector
+    faber_phase: any
+    description: Reports point-in-time status of a single entity
+
+  # Project-Level Agents
+  - id: project-auditor
+    display_name: Project Auditor
+    scope: project
+    path: ./project-auditor
+    faber_phase: evaluate
+    description: Aggregates across multiple entities for project-wide dashboards

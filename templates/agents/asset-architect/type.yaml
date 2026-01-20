@@ -1,0 +1,171 @@
+id: asset-architect
+display_name: Asset Architect
+scope: asset
+description: |
+  Architect agents design implementation approaches and produce specifications that guide
+  the build phase. They analyze requirements, explore solutions, and document decisions.
+
+# Model and tool configuration
+config:
+  recommended_model: claude-sonnet-4-5
+  common_tools:
+    - Read
+    - Write
+    - Glob
+    - Grep
+    - WebFetch
+    - WebSearch
+  required_tools: []
+  typical_complexity: high
+  requires_user_interaction: false
+  maintains_state: false
+
+# FABER workflow integration
+faber:
+  phase_affinity:
+    - architect
+  exit_codes:
+    - code: 0
+      meaning: Specification generated successfully
+    - code: 1
+      meaning: Missing required context
+    - code: 2
+      meaning: Ambiguous requirements (clarification needed)
+
+# Documentation and guidance
+documentation:
+  when_to_use:
+    - Creating design documents or technical specifications
+    - Making architectural decisions (technology, patterns, approaches)
+    - Generating implementation plans from requirements
+    - Analyzing trade-offs between different approaches
+    - Breaking down complex problems into implementable components
+  examples:
+    - faber-planner
+    - feature-architect
+    - api-designer
+
+# Agent structure requirements
+structure:
+  required_sections:
+    - CONTEXT
+    - CRITICAL_RULES
+    - IMPLEMENTATION
+    - OUTPUTS
+  recommended_sections:
+    - INPUTS
+    - EXAMPLES
+    - DECISION_FRAMEWORK
+    - COMPLETION_CRITERIA
+
+# Core rules all architects must follow
+critical_rules:
+  - id: understand-before-designing
+    title: Understand Before Designing
+    description: ALWAYS read relevant existing code before proposing changes. ALWAYS clarify ambiguous requirements.
+
+  - id: explore-alternatives
+    title: Explore Alternatives
+    description: ALWAYS consider at least 2-3 approaches for non-trivial problems. Document why alternatives were rejected.
+
+  - id: actionable-specifications
+    title: Produce Actionable Specifications
+    description: Specifications MUST be detailed enough for engineers to implement. Include acceptance criteria and dependencies.
+
+  - id: document-decisions
+    title: Document Decisions
+    description: Record the rationale for key decisions. Note assumptions, constraints, and flag risks.
+
+  - id: stay-in-design-mode
+    title: Stay in Design Mode
+    description: NEVER implement code. Focus on WHAT and WHY, not HOW. Produce specifications, not implementations.
+
+# Standard implementation workflow
+implementation_steps:
+  - Gather context from requirements and codebase
+  - Analyze requirements and identify constraints
+  - Explore solution alternatives
+  - Evaluate trade-offs between approaches
+  - Generate detailed specification
+  - Document decisions with rationale
+
+# Output specification format
+output_format:
+  type: specification
+  required_sections:
+    - overview
+    - requirements
+    - design
+    - implementation_steps
+    - acceptance_criteria
+  recommended_sections:
+    - alternatives_considered
+    - risks_and_mitigations
+    - decisions
+    - dependencies
+
+# Frontmatter schema for generated agents
+frontmatter_schema:
+  required:
+    - name
+    - description
+    - model
+    - tools
+  optional:
+    - color
+    - agent_type
+  properties:
+    name:
+      type: string
+      pattern: "^[a-z][a-z0-9-]*$"
+      description: Agent name in lowercase with hyphens
+    description:
+      type: string
+      maxLength: 200
+      description: Clear, actionable description
+    model:
+      type: string
+      enum:
+        - claude-haiku-4-5
+        - claude-sonnet-4-5
+        - claude-opus-4-5
+      default: claude-sonnet-4-5
+    tools:
+      type: array
+      items:
+        type: string
+        enum:
+          - Bash
+          - Read
+          - Write
+          - Edit
+          - Glob
+          - Grep
+          - AskUserQuestion
+          - Skill
+          - WebFetch
+          - WebSearch
+    color:
+      type: string
+      enum:
+        - red
+        - orange
+        - yellow
+        - green
+        - blue
+        - purple
+        - pink
+        - gray
+        - cyan
+    agent_type:
+      type: string
+      description: Links to this template type (asset-architect)
+
+# Validation rules
+validation:
+  implementation_steps_min: 4
+  implementation_step_patterns:
+    - "(?i)gather.*context|read.*code|understand"
+    - "(?i)analyze|explore|consider"
+    - "(?i)design|specify|generate.*spec"
+    - "(?i)document|record|decision"

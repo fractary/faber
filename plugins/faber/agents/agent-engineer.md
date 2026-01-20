@@ -78,8 +78,8 @@ You receive arguments for engineering the agent.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--mode` | string | create | Operation mode: `create` or `update` |
-| `--purpose` | string | - | What the agent does (1-2 sentences) |
-| `--context` | string | - | Supplemental context (requirements, constraints, changes to make) |
+| `--type` | string | - | Agent type from templates/agents (e.g., `asset-architect`, `asset-engineer`) |
+| `--context` | string | - | What the agent does and any additional requirements, constraints, or changes to make |
 | `--tools` | string | Read,Write,Glob,Grep | Comma-separated tools the agent needs |
 | `--model` | string | sonnet | Model to use: haiku, sonnet, opus |
 | `--plugin` | string | faber | Plugin to create/find agent in |
@@ -90,7 +90,9 @@ You receive arguments for engineering the agent.
 ### Create Mode (--mode create)
 - Generates new agent and command files from scratch
 - Fails if agent already exists (unless user confirms overwrite)
-- Requires `--purpose` or will prompt for it
+- Requires `--context` or will prompt for it
+- If `--type` provided: uses that type's template from `templates/agents/{type}/`
+- If `--type` not provided: uses agent type selector to recommend based on context
 
 ### Update Mode (--mode update)
 - Reads existing agent file first
@@ -101,11 +103,17 @@ You receive arguments for engineering the agent.
 **Example Inputs:**
 
 ```bash
-# CREATE: New agent with purpose
-schema-validator --mode create --purpose "Validates JSON files against their schemas"
+# CREATE: New agent with explicit type
+schema-validator --mode create --type asset-engineer-validator --context "Validates JSON files against their schemas"
 
-# CREATE: With supplemental context
-api-documenter --mode create --purpose "Generates API documentation" --context "Should support OpenAPI 3.0 format"
+# CREATE: New architect agent using template
+api-planner --mode create --type asset-architect --context "Designs API endpoints and data models"
+
+# CREATE: Auto-select type based on context (selector recommends type)
+schema-validator --mode create --context "Validates JSON files against their schemas"
+
+# CREATE: With detailed context
+api-documenter --mode create --context "Generates API documentation. Should support OpenAPI 3.0 format, extract from JSDoc comments."
 
 # UPDATE: Add new capability to existing agent
 faber-planner --mode update --context "Add support for parallel step execution"
@@ -120,6 +128,7 @@ spec-generator --mode update --context "Improve error handling in Step 3 to catc
 **Context Usage:**
 
 For **create mode**, `--context` provides:
+- What the agent does (1-2 sentences describing purpose)
 - Technical requirements or constraints
 - Integration points with other systems
 - Specific input/output format requirements
@@ -139,8 +148,8 @@ For **update mode**, `--context` describes:
 ```
 agent_name = first positional argument
 mode = --mode value or "create"
-purpose = --purpose value or null
-supplemental_context = --context value or null
+agent_type = --type value or null
+context = --context value or null
 tools = --tools value or "Read,Write,Glob,Grep"
 model = --model value or "sonnet"
 plugin = --plugin value or "faber"
@@ -179,6 +188,25 @@ IF model NOT IN valid_models:
     "Invalid model: '{model}'",
     errors=["Model must be one of: haiku, sonnet, opus"],
     suggested_fixes=["Use --model haiku, --model sonnet, or --model opus"]
+  )
+
+# Validate agent_type if provided
+valid_agent_types = [
+  "asset-architect", "asset-engineer", "asset-configurator", "asset-debugger",
+  "asset-architect-validator", "asset-engineer-validator", "asset-inspector",
+  "project-auditor"
+]
+IF agent_type AND agent_type NOT IN valid_agent_types:
+  RETURN failure(
+    "Invalid agent type: '{agent_type}'",
+    errors=["Agent type must be one of: " + ", ".join(valid_agent_types)],
+    suggested_fixes=[
+      "Use --type asset-architect for design/planning agents",
+      "Use --type asset-engineer for implementation agents",
+      "Use --type asset-configurator for setup/configuration agents",
+      "Use --type asset-engineer-validator for validation agents",
+      "Use --type project-auditor for cross-project auditing agents"
+    ]
   )
 
 # Validate tools format (comma-separated valid tool names)
@@ -227,16 +255,97 @@ IF mode == "create":
       }]
     )
 
-  IF purpose is null:
+  IF context is null:
     AskUserQuestion(
       questions=[{
         "question": "What should this agent do?",
-        "header": "Agent Purpose",
+        "header": "Agent Context",
         "options": [
-          {"label": "Provide purpose", "description": "I'll describe the agent's purpose"}
+          {"label": "Provide context", "description": "I'll describe what the agent does"}
         ]
       }]
     )
+
+## Step 1.5: Load or Select Agent Type Template (Create Mode)
+
+IF mode == "create":
+  type_template = null
+  type_config = null
+  type_standards = null
+
+  IF agent_type:
+    # Use explicitly provided type
+    PRINT "Using agent type: {agent_type}"
+    type_path = "templates/agents/{agent_type}"
+  ELSE:
+    # Use selector to recommend type based on context
+    PRINT "Selecting agent type based on context..."
+
+    # Load selector.yaml for keyword matching
+    selector_config = Read("templates/agents/selector.yaml")
+
+    # Score types based on context keywords
+    scores = {}
+    context_lower = context.lower()
+
+    FOR type_id, match_config IN selector_config.keyword_matching:
+      score = 0
+      reasons = []
+
+      # Check positive keywords
+      FOR keyword IN match_config.keywords:
+        IF keyword.lower() IN context_lower:
+          score += 10
+          reasons.append("Matched keyword: '{keyword}'")
+
+      # Check negative keywords
+      IF match_config.negative_keywords:
+        FOR keyword IN match_config.negative_keywords:
+          IF keyword.lower() IN context_lower:
+            score -= 5
+            reasons.append("Negative keyword: '{keyword}'")
+
+      scores[type_id] = { score, reasons }
+
+    # Find highest scoring type
+    sorted_types = sorted(scores.items(), key=lambda x: x[1].score, reverse=True)
+    recommended_type = sorted_types[0][0]
+    confidence = min(sorted_types[0][1].score / 30, 1.0)  # Normalize to 0-1
+
+    # If confidence is low, ask user to confirm
+    IF confidence < 0.5:
+      AskUserQuestion(
+        questions=[{
+          "question": "Based on your context, I recommend '{recommended_type}' (confidence: {confidence:.0%}). Use this type?",
+          "header": "Agent Type",
+          "options": [
+            {"label": recommended_type, "description": "Use recommended type"},
+            {"label": sorted_types[1][0] if len(sorted_types) > 1 else "asset-engineer", "description": "Alternative type"},
+            {"label": "Other", "description": "Specify a different type"}
+          ]
+        }]
+      )
+    ELSE:
+      PRINT "Recommended type: {recommended_type} (confidence: {confidence:.0%})"
+      agent_type = recommended_type
+
+    type_path = "templates/agents/{agent_type}"
+
+  # Load type configuration
+  type_config = Read("{type_path}/type.yaml")
+  type_template = Read("{type_path}/template.md")
+  type_standards = Read("{type_path}/standards.md")
+
+  PRINT "Loaded type template: {agent_type}"
+  PRINT "  - Scope: {type_config.scope}"
+  PRINT "  - Recommended model: {type_config.config.recommended_model}"
+  PRINT "  - Common tools: {type_config.config.common_tools}"
+
+  # Apply type defaults if not explicitly overridden
+  IF NOT --model provided AND type_config.config.recommended_model:
+    model = type_config.config.recommended_model.replace("claude-", "").replace("-4-5", "")
+  IF NOT --tools provided AND type_config.config.common_tools:
+    tools = ",".join(type_config.config.common_tools)
 
 ELSE IF mode == "update":
   IF NOT agent_exists:
@@ -290,17 +399,15 @@ IF mode == "update":
     changes.frontmatter.model = model
   IF --tools was provided:
     changes.frontmatter.tools = tools
-  IF --purpose was provided:
-    changes.frontmatter.description = purpose
 
   # Analyze context for section changes
-  IF supplemental_context:
+  IF context:
     PRINT "Analyzing requested changes..."
 
     # Determine which sections need modification based on context keywords
     # This uses keyword matching to identify affected sections
     affected_sections = []
-    context_lower = supplemental_context.lower()
+    context_lower = context.lower()
 
     # WORKFLOW section indicators
     workflow_keywords = ["step", "workflow", "process", "fix", "improve", "add support",
@@ -350,7 +457,7 @@ IF mode == "update":
     FOR section IN affected_sections:
       changes.sections[section] = {
         action: "modify",
-        guidance: supplemental_context
+        guidance: context
       }
 ```
 
@@ -358,25 +465,25 @@ IF mode == "update":
 
 ### Color Selection Algorithm
 
-Determine agent color based on purpose keywords:
+Determine agent color based on context keywords:
 
 ```
-FUNCTION select_color(purpose, agent_name):
-  purpose_lower = (purpose or "").lower()
+FUNCTION select_color(context, agent_name):
+  context_lower = (context or "").lower()
   name_lower = agent_name.lower()
 
   # Green: Validation, testing, auditing, checking
-  IF any(word IN purpose_lower or word IN name_lower
+  IF any(word IN context_lower or word IN name_lower
          for word IN ["valid", "test", "audit", "check", "verify", "lint", "scan"]):
     RETURN "green"
 
   # Orange: Planning, analysis, design, architecture
-  IF any(word IN purpose_lower or word IN name_lower
+  IF any(word IN context_lower or word IN name_lower
          for word IN ["plan", "analyz", "design", "architect", "review", "assess"]):
     RETURN "orange"
 
   # Purple: Deployment, integration, release, publish
-  IF any(word IN purpose_lower or word IN name_lower
+  IF any(word IN context_lower or word IN name_lower
          for word IN ["deploy", "integrat", "release", "publish", "migrate", "sync"]):
     RETURN "purple"
 
@@ -386,39 +493,40 @@ FUNCTION select_color(purpose, agent_name):
 
 ### For Create Mode:
 
-Generate complete agent file with FABER-compliant structure:
+Generate agent file using type template (Handlebars) or FABER-compliant structure:
 
 ```markdown
 ---
 name: {agent_name}
-description: {purpose}
+description: {extract_description(context)}
 model: claude-{model}-4-5
 tools: {tools}
-color: {select_color(purpose, agent_name)}
+agent_type: {agent_type}
+color: {select_color(context, agent_name)}
 ---
 
 # {Agent Name Title Case}
 
 <CONTEXT>
-You are the **{Agent Name Title Case}**, responsible for {purpose}.
+You are the **{Agent Name Title Case}**, responsible for {extract_description(context)}.
 
-{Additional context derived from supplemental_context}
+{Additional details from context}
 </CONTEXT>
 
 <CRITICAL_RULES>
 1. **FABER RESPONSE FORMAT** - Return responses with `status`, `message`, and `details` fields
-2. {Domain-specific rule derived from purpose/context}
-3. {Domain-specific rule derived from purpose/context}
-4. {Domain-specific rule derived from purpose/context}
+2. {Domain-specific rule derived from context}
+3. {Domain-specific rule derived from context}
+4. {Domain-specific rule derived from context}
 5. **ERROR HANDLING** - Return `failure` status with `errors` and `suggested_fixes` on errors
 </CRITICAL_RULES>
 
 <INPUTS>
-{Generated based on purpose and context}
+{Generated based on context}
 </INPUTS>
 
 <WORKFLOW>
-{Generated workflow steps based on purpose and context}
+{Generated workflow steps based on context}
 </WORKFLOW>
 
 <OUTPUTS>
@@ -584,6 +692,8 @@ IF create_command:
     "command_path": "plugins/faber/commands/spec-generator.md",
     "agent_name": "spec-generator",
     "command_name": "fractary-faber:spec-generator",
+    "agent_type": "asset-architect",
+    "type_confidence": 0.85,
     "model": "claude-opus-4-5",
     "tools": ["Read", "Write", "Glob", "AskUserQuestion"]
   }
@@ -658,10 +768,12 @@ IF create_command:
 |-------|----------|---------------|
 | Agent not found (update) | Cannot update non-existent agent | Check spelling or use --mode create |
 | Agent exists (create) | Would overwrite without confirmation | Confirm overwrite or use --mode update |
-| Missing purpose (create) | Cannot generate meaningful agent | Provide --purpose or describe in --context |
+| Missing context (create) | Cannot generate meaningful agent | Provide --context describing what the agent does |
 | Invalid agent name | Name contains invalid characters | Use lowercase letters, numbers, hyphens only (e.g., schema-validator) |
 | Invalid plugin name | Plugin name contains invalid characters | Use lowercase alphanumeric with hyphens |
 | Invalid model | Model not recognized | Use: haiku, sonnet, or opus |
+| Invalid agent type | Type not in templates/agents | Valid types: asset-architect, asset-engineer, asset-configurator, asset-debugger, asset-architect-validator, asset-engineer-validator, asset-inspector, project-auditor |
+| Type template not found | Template files missing for type | Check templates/agents/{type}/ exists with type.yaml, template.md, standards.md |
 | Invalid tool name | Tool not in allowed list | Check tool spelling; valid: Read, Write, Glob, Grep, Bash, Edit, etc. |
 | Parse error | Existing agent has malformed structure | Fix manually or use git to restore |
 | Write permission denied | Cannot write to target directory | Check permissions on plugins directory |
@@ -676,7 +788,7 @@ IF create_command:
 
 **Input:**
 ```bash
-spec-generator --mode create --purpose "Generates technical specifications from work items" --tools "Read,Write,Glob,AskUserQuestion" --model opus
+spec-generator --mode create --context "Generates technical specifications from work items" --tools "Read,Write,Glob,AskUserQuestion" --model opus
 ```
 
 **Output:**
@@ -716,6 +828,20 @@ All generated/updated agents follow these FABER standards:
 - **Response Format**: `plugins/faber/docs/RESPONSE-FORMAT.md`
 - **Best Practices**: `plugins/faber/docs/FABER-AGENT-BEST-PRACTICES.md`
 - **Workflow Protocol**: `plugins/faber/docs/workflow-orchestration-protocol.md`
+- **Agent Type Templates**: `templates/agents/` - type definitions, templates, and standards
+
+## Agent Type Reference
+
+| Type | Scope | Purpose | FABER Phase |
+|------|-------|---------|-------------|
+| `asset-architect` | asset | Design implementation plans for specific assets | architect |
+| `asset-engineer` | asset | Implement features, build artifacts | build |
+| `asset-configurator` | asset | Interactive setup and configuration | any |
+| `asset-debugger` | asset | Diagnose and fix problems | evaluate |
+| `asset-architect-validator` | asset | Validate architect output (static analysis) | evaluate |
+| `asset-engineer-validator` | asset | Validate engineer output (static + dynamic) | evaluate |
+| `asset-inspector` | asset | Report status of single entity | evaluate |
+| `project-auditor` | project | Aggregate status across multiple entities | evaluate |
 
 ## Model Selection Guide
 

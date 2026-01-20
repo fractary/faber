@@ -1,0 +1,196 @@
+version: "1.0"
+description: |
+  Decision tree for selecting the appropriate agent type.
+  Used by AgentTypeSelector in the SDK and by agent-engineer when --type is not specified.
+
+# Primary selection based on purpose keywords
+keyword_matching:
+  asset-architect:
+    keywords:
+      - design
+      - plan
+      - architect
+      - specification
+      - spec
+      - blueprint
+      - propose
+      - strategy
+    negative_keywords:
+      - implement
+      - code
+      - build
+      - validate
+      - test
+
+  asset-engineer:
+    keywords:
+      - implement
+      - build
+      - create
+      - generate
+      - code
+      - write
+      - modify
+      - update
+      - execute
+    negative_keywords:
+      - design
+      - plan
+      - validate
+      - test
+      - report
+
+  asset-configurator:
+    keywords:
+      - configure
+      - setup
+      - initialize
+      - settings
+      - wizard
+      - install
+      - bootstrap
+    negative_keywords:
+      - validate
+      - audit
+      - report
+
+  asset-debugger:
+    keywords:
+      - debug
+      - troubleshoot
+      - diagnose
+      - fix
+      - error
+      - failure
+      - issue
+      - problem
+    negative_keywords:
+      - test
+      - validate
+      - build
+
+  asset-architect-validator:
+    keywords:
+      - validate spec
+      - check spec
+      - review spec
+      - verify specification
+      - spec completeness
+      - spec quality
+    negative_keywords:
+      - code
+      - test
+      - build
+
+  asset-engineer-validator:
+    keywords:
+      - validate code
+      - lint
+      - type check
+      - run tests
+      - test coverage
+      - verify implementation
+      - check code
+    negative_keywords:
+      - specification
+      - design
+      - plan
+
+  asset-inspector:
+    keywords:
+      - status
+      - inspect
+      - show
+      - display
+      - report
+      - state
+      - snapshot
+    negative_keywords:
+      - aggregate
+      - dashboard
+      - all
+      - multiple
+
+  project-auditor:
+    keywords:
+      - audit
+      - aggregate
+      - dashboard
+      - health
+      - summary
+      - all
+      - multiple
+      - cross
+      - project-wide
+    negative_keywords:
+      - single
+      - one
+
+# FABER phase affinity mapping
+phase_affinity:
+  frame:
+    - asset-configurator
+  architect:
+    - asset-architect
+  build:
+    - asset-engineer
+  evaluate:
+    - asset-debugger
+    - asset-architect-validator
+    - asset-engineer-validator
+    - asset-inspector
+    - project-auditor
+  release:
+    - asset-configurator
+    - project-auditor
+
+# Decision tree (for interactive selection)
+decision_tree:
+  root:
+    question: "What scope does this agent work on?"
+    options:
+      - label: "Single entity/asset"
+        next: asset_purpose
+      - label: "Multiple entities/project-wide"
+        next: project_type
+
+  asset_purpose:
+    question: "What is the primary purpose?"
+    options:
+      - label: "Design/plan implementation"
+        result: asset-architect
+      - label: "Implement/build/create"
+        result: asset-engineer
+      - label: "Configure/setup"
+        result: asset-configurator
+      - label: "Troubleshoot/debug"
+        result: asset-debugger
+      - label: "Validate/verify"
+        next: validation_type
+      - label: "Report status"
+        result: asset-inspector
+
+  validation_type:
+    question: "What does it validate?"
+    options:
+      - label: "Specifications (structure, completeness)"
+        result: asset-architect-validator
+      - label: "Code (lint, tests, coverage)"
+        result: asset-engineer-validator
+
+  project_type:
+    question: "What does it do at project level?"
+    options:
+      - label: "Aggregate status/health across entities"
+        result: project-auditor
+
+# Confidence thresholds
+confidence:
+  high: 0.8    # Strong keyword match + phase alignment
+  medium: 0.6  # Good keyword match or phase alignment
+  low: 0.4     # Weak signal, recommend confirmation
+
+# Common pairings (architect -> architect-validator, engineer -> engineer-validator)
+pairings:
+  asset-architect: asset-architect-validator
+  asset-engineer: asset-engineer-validator

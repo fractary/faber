@@ -1,0 +1,181 @@
+id: asset-engineer-validator
+display_name: Asset Engineer Validator
+scope: asset
+description: |
+  Engineer Validator agents verify that code implementations produced by engineer agents
+  are correct, well-tested, and meet quality standards. They perform both static analysis
+  (linting, type checking) and dynamic analysis (test execution, coverage checking).
+
+# Pairing information
+validates_agent_type: asset-engineer
+pairs_with: asset-engineer
+validation_mode: static+dynamic
+
+# Model and tool configuration
+config:
+  recommended_model: claude-sonnet-4-5
+  common_tools:
+    - Bash
+    - Read
+    - Glob
+    - Grep
+  required_tools:
+    - Bash
+  typical_complexity: high
+  requires_user_interaction: false
+  maintains_state: false
+
+# FABER workflow integration
+faber:
+  phase_affinity:
+    - evaluate
+  exit_codes:
+    - code: 0
+      meaning: All checks passed
+    - code: 1
+      meaning: Warnings present (coverage low but acceptable)
+    - code: 2
+      meaning: Errors present (lint, type, or test failures)
+    - code: 3
+      meaning: Source files not found
+    - code: 4
+      meaning: Build failed
+
+# Documentation and guidance
+documentation:
+  when_to_use:
+    - Verifying an engineer agent's code implementation
+    - Running linters and type checkers
+    - Executing test suites
+    - Checking code coverage thresholds
+    - Verifying build success
+  examples:
+    - ts-implementation-validator
+    - python-implementation-validator
+    - go-implementation-validator
+
+# Agent structure requirements
+structure:
+  required_sections:
+    - CONTEXT
+    - VALIDATES
+    - IMPLEMENTATION
+    - THRESHOLDS
+  recommended_sections:
+    - INPUTS
+    - TOOLS
+    - REPORT_FORMAT
+    - COMPLETION_CRITERIA
+
+# Core rules all engineer validators must follow
+critical_rules:
+  - id: verify-engineer-output
+    title: Verify Engineer Output
+    description: Exists to validate ENGINEER agent work. Code is the target, not specifications.
+
+  - id: run-both-modes
+    title: Run Both Static and Dynamic
+    description: Static alone is insufficient. Tests MUST be executed to verify behavior.
+
+  - id: clear-pass-fail
+    title: Clear Pass/Fail Criteria
+    description: Define explicit thresholds. Lint errors = FAIL. Test failures = FAIL.
+
+  - id: coverage-enforcement
+    title: Coverage Enforcement
+    description: Check coverage meets project thresholds. Report uncovered lines.
+
+  - id: build-verification
+    title: Build Verification
+    description: Code must compile/build successfully. Verify output artifacts exist.
+
+  - id: actionable-feedback
+    title: Actionable Feedback
+    description: Every error MUST have file and line number. Provide suggested fixes.
+
+# Standard implementation workflow
+implementation_steps:
+  - Identify implementation to validate
+  - Discover source and test files
+  - Run static analysis (lint, type check)
+  - Execute test suite
+  - Check coverage thresholds
+  - Verify build succeeds
+  - Parse all results
+  - Analyze failures
+  - Generate comprehensive report
+
+# Output specification format
+output_format:
+  type: validation_report
+  required_sections:
+    - static_analysis_results
+    - test_results
+    - coverage_report
+    - build_status
+    - verdict
+  recommended_sections:
+    - lint_details
+    - type_errors
+    - failed_tests
+    - uncovered_lines
+
+# Default thresholds
+thresholds:
+  lint_errors: 0
+  type_errors: 0
+  test_pass_rate: 100
+  coverage_minimum: 80
+
+# Frontmatter schema for generated agents
+frontmatter_schema:
+  required:
+    - name
+    - description
+    - model
+    - tools
+  optional:
+    - color
+    - agent_type
+  properties:
+    name:
+      type: string
+      pattern: "^[a-z][a-z0-9-]*-validator$"
+      description: Agent name in lowercase with hyphens, ending with -validator
+    description:
+      type: string
+      maxLength: 200
+      description: Should mention validates and code/implementation
+    model:
+      type: string
+      enum:
+        - claude-haiku-4-5
+        - claude-sonnet-4-5
+        - claude-opus-4-5
+      default: claude-sonnet-4-5
+    tools:
+      type: array
+      items:
+        type: string
+        enum:
+          - Bash
+          - Read
+          - Glob
+          - Grep
+      must_include:
+        - Bash
+    color:
+      type: string
+      enum:
+        - red
+        - orange
+        - yellow
+        - green
+        - blue
+        - purple
+        - pink
+        - gray
+        - cyan
+    agent_type:
+      type: string
+      description: Links to this template type (asset-engineer-validator)
