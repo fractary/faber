@@ -42,12 +42,6 @@ function getPackageRoot(): string {
 const DEFAULT_TEMPLATES_PATH = 'templates/agents';
 
 /**
- * Default base URL for remote loading
- */
-const DEFAULT_BASE_URL =
-  'https://raw.githubusercontent.com/fractary/faber/main/templates/agents';
-
-/**
  * AgentTypeRegistry - Loads and manages agent type templates
  *
  * @example
