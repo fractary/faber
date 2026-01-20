@@ -89,7 +89,7 @@ export class PrivateKeyLoader {
 
     throw new Error(
       'GitHub App private key not found. ' +
-      "Configure 'private_key_path' in .fractary/settings.json or set GITHUB_APP_PRIVATE_KEY env var"
+      "Configure 'private_key_path' in .fractary/config.yaml or set GITHUB_APP_PRIVATE_KEY env var"
     );
   }
 
@@ -194,11 +194,11 @@ export class GitHubAppAuth {
   async validate(): Promise<void> {
     // Validate required fields
     if (!this.config.id) {
-      throw new Error("GitHub App ID is required. Configure 'app.id' in .fractary/settings.json");
+      throw new Error("GitHub App ID is required. Configure 'app.id' in .fractary/config.yaml");
     }
     if (!this.config.installation_id) {
       throw new Error(
-        "GitHub App Installation ID is required. Configure 'app.installation_id' in .fractary/settings.json"
+        "GitHub App Installation ID is required. Configure 'app.installation_id' in .fractary/config.yaml"
       );
     }
 

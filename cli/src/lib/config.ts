@@ -55,11 +55,34 @@ export class ConfigManager {
       max_tokens: unifiedConfig.anthropic?.max_tokens,
     };
 
-    // Extract github config (from top level)
+    // Extract github config (from top level, with fallbacks to work/repo sections)
+    // Priority: github section > work.handlers.github > repo section > codex > parse from repo string
+    const anyConfig = unifiedConfig as any; // Allow access to plugin-specific sections
+    let organization = unifiedConfig.github?.organization
+      || anyConfig.work?.handlers?.github?.owner
+      || anyConfig.work?.github?.organization
+      || anyConfig.repo?.organization
+      || anyConfig.codex?.organization;
+    let project = unifiedConfig.github?.project
+      || anyConfig.work?.handlers?.github?.repo
+      || anyConfig.work?.github?.project
+      || anyConfig.repo?.project
+      || anyConfig.codex?.project;
+
+    // If still not found, try to parse from repo string (owner/repo format)
+    const repoString = unifiedConfig.github?.repo || anyConfig.repo?.repo;
+    if ((!organization || !project) && repoString) {
+      const repoParts = repoString.split('/');
+      if (repoParts.length === 2) {
+        organization = organization || repoParts[0];
+        project = project || repoParts[1];
+      }
+    }
+
     let github: GitHubConfig = {
       token: process.env.GITHUB_TOKEN || unifiedConfig.github?.token,
-      organization: unifiedConfig.github?.organization,
-      project: unifiedConfig.github?.project,
+      organization,
+      project,
       repo: unifiedConfig.github?.repo,
       app: unifiedConfig.github?.app,
     };

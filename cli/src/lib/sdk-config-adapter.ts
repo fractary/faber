@@ -58,7 +58,7 @@ function getTokenProvider(faberConfig: LoadedFaberConfig): TokenProvider {
   throw new Error(
     'GitHub authentication not configured. Either:\n' +
     '  1. Set GITHUB_TOKEN environment variable, or\n' +
-    '  2. Configure GitHub App in .fractary/settings.json:\n' +
+    '  2. Configure GitHub App in .fractary/config.yaml:\n' +
     '     {\n' +
     '       "github": {\n' +
     '         "app": {\n' +
@@ -113,7 +113,7 @@ export async function validateGitHubAuth(faberConfig: LoadedFaberConfig): Promis
   // Validate PAT
   if (!faberConfig.github?.token) {
     throw new Error(
-      'GitHub token not found. Set GITHUB_TOKEN environment variable or configure in .fractary/settings.json'
+      'GitHub token not found. Set GITHUB_TOKEN environment variable or configure in .fractary/config.yaml'
     );
   }
 }
@@ -142,7 +142,7 @@ export function createWorkConfig(faberConfig: LoadedFaberConfig): WorkConfig {
 
   if (!owner || !repo) {
     throw new Error(
-      'GitHub organization and project must be configured in .fractary/settings.json'
+      'GitHub organization and project must be configured in .fractary/config.yaml'
     );
   }
 
@@ -188,7 +188,7 @@ export async function createWorkConfigAsync(faberConfig: LoadedFaberConfig): Pro
 
   if (!owner || !repo) {
     throw new Error(
-      'GitHub organization and project must be configured in .fractary/settings.json'
+      'GitHub organization and project must be configured in .fractary/config.yaml'
     );
   }
 
