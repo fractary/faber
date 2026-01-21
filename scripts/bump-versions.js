@@ -109,35 +109,71 @@ function debug(msg) {
 }
 
 /**
- * Get list of changed files
+ * Get the repository root directory
  */
-function getChangedFiles() {
+function getRepoRoot() {
   try {
-    if (stagedOnly) {
-      debug('Getting staged files...');
-      const result = execSync('git diff --cached --name-only', { encoding: 'utf-8' });
-      return result.trim().split('\n').filter(Boolean);
-    }
-    debug('Getting files changed vs origin/main...');
-    const result = execSync('git diff --name-only origin/main...HEAD 2>/dev/null || git diff --name-only HEAD~1', {
-      encoding: 'utf-8',
-    });
-    return result.trim().split('\n').filter(Boolean);
+    return execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
   } catch (e) {
-    debug(`Error getting changed files: ${e.message}`);
-    try {
-      return execSync('git diff --cached --name-only', { encoding: 'utf-8' })
-        .trim()
-        .split('\n')
-        .filter(Boolean);
-    } catch (e2) {
-      return [];
-    }
+    return path.resolve('.');
   }
 }
 
 /**
- * Read JSON file
+ * Validate that a file path is within the repository
+ */
+function isValidRepoPath(filePath) {
+  const repoRoot = getRepoRoot();
+  const resolved = path.resolve(filePath);
+  return resolved.startsWith(repoRoot);
+}
+
+/**
+ * Get list of changed files
+ */
+function getChangedFiles() {
+  if (stagedOnly) {
+    debug('Getting staged files...');
+    try {
+      const result = execSync('git diff --cached --name-only', { encoding: 'utf-8' });
+      return result.trim().split('\n').filter(Boolean).filter(isValidRepoPath);
+    } catch (e) {
+      debug(`Error getting staged files: ${e.message}`);
+      return [];
+    }
+  }
+
+  // Try origin/main first
+  debug('Getting files changed vs origin/main...');
+  try {
+    const result = execSync('git diff --name-only origin/main...HEAD', { encoding: 'utf-8' });
+    return result.trim().split('\n').filter(Boolean).filter(isValidRepoPath);
+  } catch (e) {
+    debug(`origin/main not available: ${e.message}`);
+  }
+
+  // Fallback to local main branch
+  debug('Trying local main branch...');
+  try {
+    const result = execSync('git diff --name-only main...HEAD', { encoding: 'utf-8' });
+    return result.trim().split('\n').filter(Boolean).filter(isValidRepoPath);
+  } catch (e) {
+    debug(`main branch not available: ${e.message}`);
+  }
+
+  // Final fallback to staged files
+  debug('Falling back to staged files...');
+  try {
+    const result = execSync('git diff --cached --name-only', { encoding: 'utf-8' });
+    return result.trim().split('\n').filter(Boolean).filter(isValidRepoPath);
+  } catch (e) {
+    debug(`Error getting staged files: ${e.message}`);
+    return [];
+  }
+}
+
+/**
+ * Read JSON file with validation
  */
 function readJson(filePath) {
   const fullPath = path.resolve(filePath);
@@ -145,8 +181,18 @@ function readJson(filePath) {
     throw new Error(`File not found: ${filePath}`);
   }
   try {
-    return JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+    const data = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+    if (!data || typeof data !== 'object') {
+      throw new Error(`Invalid JSON structure in ${filePath}: expected object`);
+    }
+    if (typeof data.version !== 'string') {
+      throw new Error(`Missing or invalid 'version' field in ${filePath}`);
+    }
+    return data;
   } catch (e) {
+    if (e.message.includes('Invalid JSON') || e.message.includes('Missing or invalid')) {
+      throw e;
+    }
     throw new Error(`Failed to parse JSON in ${filePath}: ${e.message}`);
   }
 }
@@ -179,11 +225,28 @@ function writeText(filePath, content) {
 }
 
 /**
+ * Validate semver format
+ */
+function isValidSemver(version) {
+  if (typeof version !== 'string') return false;
+  const parts = version.split('.');
+  if (parts.length !== 3) return false;
+  return parts.every((part) => {
+    const num = parseInt(part, 10);
+    return !isNaN(num) && num >= 0 && String(num) === part;
+  });
+}
+
+/**
  * Bump patch version: 1.2.3 -> 1.2.4
  */
 function bumpPatch(version) {
+  if (!isValidSemver(version)) {
+    throw new Error(`Invalid version format: ${version} (expected X.Y.Z where X, Y, Z are non-negative integers)`);
+  }
   const parts = version.split('.');
-  parts[2] = String(parseInt(parts[2], 10) + 1);
+  const patch = parseInt(parts[2], 10);
+  parts[2] = String(patch + 1);
   return parts.join('.');
 }
 
@@ -221,6 +284,20 @@ function syncHardcodedVersions(component, newVersion) {
   const synced = [];
   for (const loc of locations) {
     const content = readText(loc.file);
+    const matches = content.match(new RegExp(loc.pattern.source, 'g'));
+
+    // Safety check: verify exactly one occurrence
+    if (!matches) {
+      debug(`No match found for pattern in ${loc.file}`);
+      continue;
+    }
+    if (matches.length > 1) {
+      throw new Error(
+        `Multiple matches (${matches.length}) found for version pattern in ${loc.file}. ` +
+          'Please update the pattern to be more specific.'
+      );
+    }
+
     const match = content.match(loc.pattern);
     if (match && match[1] !== newVersion) {
       const updated = content.replace(loc.pattern, loc.replacement(newVersion));
@@ -341,7 +418,10 @@ function main() {
       const currentDep = pkg.dependencies?.['@fractary/faber'];
 
       if (currentDep && !currentDep.includes('*')) {
-        // Update to ^major.minor.0
+        // Update to ^major.minor.0 - we use .0 instead of the exact patch version
+        // because the caret (^) range allows any patch version >= 0, and using .0
+        // makes it clear this is a minimum version requirement for the major.minor series.
+        // This avoids unnecessary churn when only patch versions change.
         const newDep = `^${sdkMajorMinor}.0`;
         if (currentDep !== newDep) {
           if (checkOnly) {
@@ -389,8 +469,12 @@ function main() {
 module.exports = {
   bumpPatch,
   getMajorMinor,
+  isValidSemver,
+  isValidRepoPath,
   checkSourceChanged,
   checkVersionBumped,
+  syncHardcodedVersions,
+  readJson,
   VERSION_FILES,
   SOURCE_DIRS,
   HARDCODED_VERSIONS,

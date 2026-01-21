@@ -23,7 +23,8 @@ VERSION_FILES="sdk/js/package.json cli/package.json cli/src/index.ts mcp/server/
 
 STAGED_FILES=""
 for file in $VERSION_FILES; do
-  if [ -f "$file" ] && git diff --name-only "$file" | grep -q .; then
+  # Check if file exists and has unstaged changes (git diff --quiet returns 1 if changes exist)
+  if [ -f "$file" ] && ! git diff --quiet "$file" 2>/dev/null; then
     STAGED_FILES="$STAGED_FILES $file"
   fi
 done
