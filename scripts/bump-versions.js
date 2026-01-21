@@ -198,11 +198,33 @@ function readJson(filePath) {
 }
 
 /**
- * Write JSON file
+ * Write file atomically (write to temp, then rename)
+ * This prevents file corruption if the write fails partway through
+ */
+function writeFileAtomic(filePath, content) {
+  const fullPath = path.resolve(filePath);
+  const tempPath = `${fullPath}.tmp.${process.pid}`;
+  try {
+    fs.writeFileSync(tempPath, content);
+    fs.renameSync(tempPath, fullPath);
+  } catch (e) {
+    // Clean up temp file if it exists
+    try {
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+    throw e;
+  }
+}
+
+/**
+ * Write JSON file atomically
  */
 function writeJson(filePath, data) {
-  const fullPath = path.resolve(filePath);
-  fs.writeFileSync(fullPath, JSON.stringify(data, null, 2) + '\n');
+  writeFileAtomic(filePath, JSON.stringify(data, null, 2) + '\n');
 }
 
 /**
@@ -217,11 +239,10 @@ function readText(filePath) {
 }
 
 /**
- * Write text file
+ * Write text file atomically
  */
 function writeText(filePath, content) {
-  const fullPath = path.resolve(filePath);
-  fs.writeFileSync(fullPath, content);
+  writeFileAtomic(filePath, content);
 }
 
 /**

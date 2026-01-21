@@ -19,17 +19,25 @@ if [ $EXIT_CODE -ne 0 ]; then
 fi
 
 # Stage any modified version files (only if they exist and were modified)
-VERSION_FILES="sdk/js/package.json cli/package.json cli/src/index.ts mcp/server/package.json mcp/server/src/index.ts mcp/server/src/server.ts plugins/faber/.claude-plugin/plugin.json plugins/faber-article/.claude-plugin/plugin.json plugins/faber-cloud/.claude-plugin/plugin.json"
+# Note: These paths are controlled and do not contain spaces
+stage_modified_version_files() {
+  for file in \
+    "sdk/js/package.json" \
+    "cli/package.json" \
+    "cli/src/index.ts" \
+    "mcp/server/package.json" \
+    "mcp/server/src/index.ts" \
+    "mcp/server/src/server.ts" \
+    "plugins/faber/.claude-plugin/plugin.json" \
+    "plugins/faber-article/.claude-plugin/plugin.json" \
+    "plugins/faber-cloud/.claude-plugin/plugin.json"
+  do
+    # Check if file exists and has unstaged changes (git diff --quiet returns 1 if changes exist)
+    if [ -f "$file" ] && ! git diff --quiet -- "$file" 2>/dev/null; then
+      echo "Auto-staging: $file"
+      git add -- "$file"
+    fi
+  done
+}
 
-STAGED_FILES=""
-for file in $VERSION_FILES; do
-  # Check if file exists and has unstaged changes (git diff --quiet returns 1 if changes exist)
-  if [ -f "$file" ] && ! git diff --quiet "$file" 2>/dev/null; then
-    STAGED_FILES="$STAGED_FILES $file"
-  fi
-done
-
-if [ -n "$STAGED_FILES" ]; then
-  echo "Auto-staging version files:$STAGED_FILES"
-  git add $STAGED_FILES
-fi
+stage_modified_version_files
