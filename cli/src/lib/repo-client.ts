@@ -2,10 +2,9 @@
  * Repo Client
  *
  * Integrates with @fractary/core SDK for repository and work tracking operations.
- * Uses core's auth-aware factories for automatic GitHub App and PAT support.
  */
 
-import { WorkManager, RepoManager, createWorkManager, createRepoManager } from '@fractary/core';
+import { WorkManager, RepoManager } from '@fractary/core';
 import { sdkIssueToCLIIssue, sdkWorktreeToCLIWorktreeResult } from './sdk-type-adapter.js';
 import type { LoadedFaberConfig } from '../types/config.js';
 import os from 'os';
@@ -41,8 +40,7 @@ interface IssueUpdateOptions {
  * Repo Client - integrates with @fractary/core SDK
  *
  * Provides repository and work tracking operations using WorkManager and RepoManager
- * from the @fractary/core SDK. Authentication (PAT or GitHub App) is handled
- * automatically by core's factories.
+ * from the @fractary/core SDK.
  */
 export class RepoClient {
   private workManager!: WorkManager;
@@ -53,21 +51,40 @@ export class RepoClient {
   /**
    * Create a RepoClient instance (async factory method)
    *
-   * Uses @fractary/core's auth-aware factories which automatically handle
-   * both PAT and GitHub App authentication based on .fractary/config.yaml.
-   *
-   * @param config - Optional FABER CLI configuration (for org/project info)
+   * @param config - FABER CLI configuration with GitHub settings
    * @returns Promise resolving to RepoClient instance
    */
-  static async create(config?: LoadedFaberConfig): Promise<RepoClient> {
-    try {
-      // Use core's auth-aware factories - they handle config loading and auth automatically
-      const workManager = await createWorkManager();
-      const repoManager = await createRepoManager();
+  static async create(config: LoadedFaberConfig): Promise<RepoClient> {
+    const organization = config.github?.organization;
+    const project = config.github?.project;
+    const token = config.github?.token || process.env.GITHUB_TOKEN;
 
-      // Get org/project from config or from the managers
-      const organization = config?.github?.organization || 'unknown';
-      const project = config?.github?.project || 'unknown';
+    if (!organization || !project) {
+      throw new Error(
+        'GitHub organization and project must be configured in .fractary/config.yaml'
+      );
+    }
+
+    if (!token) {
+      throw new Error(
+        'GitHub token not found. Set GITHUB_TOKEN environment variable or configure in .fractary/config.yaml'
+      );
+    }
+
+    try {
+      const workManager = new WorkManager({
+        platform: 'github',
+        owner: organization,
+        repo: project,
+        token,
+      });
+
+      const repoManager = new RepoManager({
+        platform: 'github',
+        owner: organization,
+        repo: project,
+        token,
+      });
 
       return new RepoClient(workManager, repoManager, organization, project);
     } catch (error) {
