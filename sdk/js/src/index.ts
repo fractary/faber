@@ -28,3 +28,6 @@ export * from './state/index.js';
 export * from './workflow/index.js';
 export * from './storage/index.js';
 export * from './agents/index.js';
+
+// Auth module
+export * from './auth/index.js';

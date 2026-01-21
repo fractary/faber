@@ -2,9 +2,11 @@
  * Repo Client
  *
  * Integrates with @fractary/core SDK for repository and work tracking operations.
+ * Supports both PAT and GitHub App authentication.
  */
 
 import { WorkManager, RepoManager } from '@fractary/core';
+import { GitHubAppAuth } from '@fractary/faber';
 import { sdkIssueToCLIIssue, sdkWorktreeToCLIWorktreeResult } from './sdk-type-adapter.js';
 import type { LoadedFaberConfig } from '../types/config.js';
 import os from 'os';
@@ -51,42 +53,79 @@ export class RepoClient {
   /**
    * Create a RepoClient instance (async factory method)
    *
+   * Supports both PAT and GitHub App authentication.
+   * GitHub App takes precedence if configured.
+   *
    * @param config - FABER CLI configuration with GitHub settings
    * @returns Promise resolving to RepoClient instance
    */
   static async create(config: LoadedFaberConfig): Promise<RepoClient> {
     const organization = config.github?.organization;
     const project = config.github?.project;
-    const token = config.github?.token || process.env.GITHUB_TOKEN;
 
-    if (!organization || !project) {
+    if (!organization || typeof organization !== 'string' || organization.trim() === '') {
       throw new Error(
-        'GitHub organization and project must be configured in .fractary/config.yaml'
+        'GitHub organization must be configured in .fractary/config.yaml\n' +
+        'Add: github.organization: "your-org"'
       );
     }
 
-    if (!token) {
+    if (!project || typeof project !== 'string' || project.trim() === '') {
       throw new Error(
-        'GitHub token not found. Set GITHUB_TOKEN environment variable or configure in .fractary/config.yaml'
+        'GitHub project must be configured in .fractary/config.yaml\n' +
+        'Add: github.project: "your-repo"'
       );
+    }
+
+    // Get token - GitHub App takes precedence over PAT
+    let token: string;
+    const appConfig = config.github?.app;
+
+    if (appConfig?.id && appConfig?.installation_id) {
+      // Use GitHub App authentication
+      try {
+        const auth = new GitHubAppAuth(appConfig);
+        token = await auth.getToken();
+      } catch (error) {
+        if (error instanceof Error) {
+          throw new Error(`GitHub App authentication failed: ${error.message}`);
+        }
+        throw error;
+      }
+    } else {
+      // Fall back to PAT
+      const patToken = config.github?.token || process.env.GITHUB_TOKEN;
+      if (!patToken || typeof patToken !== 'string' || patToken.trim() === '') {
+        throw new Error(
+          'GitHub authentication not configured. Either:\n' +
+          '  1. Set GITHUB_TOKEN environment variable, or\n' +
+          '  2. Configure GitHub App in .fractary/config.yaml:\n' +
+          '     github:\n' +
+          '       app:\n' +
+          '         id: "<app-id>"\n' +
+          '         installation_id: "<installation-id>"\n' +
+          '         private_key_path: "~/.github/your-app.pem"'
+        );
+      }
+      token = patToken;
     }
 
     try {
       const workManager = new WorkManager({
         platform: 'github',
-        owner: organization,
-        repo: project,
+        owner: organization.trim(),
+        repo: project.trim(),
         token,
       });
 
       const repoManager = new RepoManager({
         platform: 'github',
-        owner: organization,
-        repo: project,
+        owner: organization.trim(),
+        repo: project.trim(),
         token,
       });
 
-      return new RepoClient(workManager, repoManager, organization, project);
+      return new RepoClient(workManager, repoManager, organization.trim(), project.trim());
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to initialize SDK managers: ${error.message}`);
