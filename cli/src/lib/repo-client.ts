@@ -1,18 +1,11 @@
 /**
  * Repo Client
  *
- * Integrates with @fractary/core SDK for repository and work tracking operations
- * Supports both PAT and GitHub App authentication methods.
+ * Integrates with @fractary/core SDK for repository and work tracking operations.
+ * Uses core's auth-aware factories for automatic GitHub App and PAT support.
  */
 
-import { WorkManager, RepoManager } from '@fractary/core';
-import {
-  createWorkConfig,
-  createRepoConfig,
-  createWorkConfigAsync,
-  createRepoConfigAsync,
-  isGitHubAppConfigured,
-} from './sdk-config-adapter.js';
+import { WorkManager, RepoManager, createWorkManager, createRepoManager } from '@fractary/core';
 import { sdkIssueToCLIIssue, sdkWorktreeToCLIWorktreeResult } from './sdk-type-adapter.js';
 import type { LoadedFaberConfig } from '../types/config.js';
 import os from 'os';
@@ -48,10 +41,10 @@ interface IssueUpdateOptions {
  * Repo Client - integrates with @fractary/core SDK
  *
  * Provides repository and work tracking operations using WorkManager and RepoManager
- * from the @fractary/core SDK. Supports both PAT and GitHub App authentication.
+ * from the @fractary/core SDK. Authentication (PAT or GitHub App) is handled
+ * automatically by core's factories.
  */
 export class RepoClient {
-  private config: LoadedFaberConfig;
   private workManager!: WorkManager;
   private repoManager!: RepoManager;
   private organization: string;
@@ -60,23 +53,23 @@ export class RepoClient {
   /**
    * Create a RepoClient instance (async factory method)
    *
-   * Use this method to create RepoClient instances as it supports
-   * both PAT and GitHub App authentication.
+   * Uses @fractary/core's auth-aware factories which automatically handle
+   * both PAT and GitHub App authentication based on .fractary/config.yaml.
    *
-   * @param config - FABER CLI configuration
+   * @param config - Optional FABER CLI configuration (for org/project info)
    * @returns Promise resolving to RepoClient instance
    */
-  static async create(config: LoadedFaberConfig): Promise<RepoClient> {
-    // Use async config methods for GitHub App support
-    const workConfig = await createWorkConfigAsync(config);
-    const repoConfig = await createRepoConfigAsync(config);
-
+  static async create(config?: LoadedFaberConfig): Promise<RepoClient> {
     try {
-      const workManager = new WorkManager(workConfig);
-      const repoManager = new RepoManager(repoConfig);
+      // Use core's auth-aware factories - they handle config loading and auth automatically
+      const workManager = await createWorkManager();
+      const repoManager = await createRepoManager();
 
-      // Create client with pre-initialized managers
-      return new RepoClient(config, workManager, repoManager);
+      // Get org/project from config or from the managers
+      const organization = config?.github?.organization || 'unknown';
+      const project = config?.github?.project || 'unknown';
+
+      return new RepoClient(workManager, repoManager, organization, project);
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to initialize SDK managers: ${error.message}`);
@@ -86,52 +79,18 @@ export class RepoClient {
   }
 
   /**
-   * Create a RepoClient instance
-   *
-   * @param config - FABER CLI configuration
-   * @param workManager - Optional pre-initialized WorkManager (for async factory)
-   * @param repoManager - Optional pre-initialized RepoManager (for async factory)
+   * Private constructor - use RepoClient.create() factory method
    */
-  constructor(config: LoadedFaberConfig, workManager?: WorkManager, repoManager?: RepoManager) {
-    this.config = config;
-    this.organization = config.github?.organization || 'unknown';
-    this.project = config.github?.project || 'unknown';
-
-    // If managers are provided (from static create), use them
-    if (workManager && repoManager) {
-      this.workManager = workManager;
-      this.repoManager = repoManager;
-      return;
-    }
-
-    // Synchronous initialization - only works with PAT
-    if (isGitHubAppConfigured(config)) {
-      throw new Error(
-        'GitHub App authentication requires async initialization. ' +
-        'Use RepoClient.create() instead of new RepoClient().'
-      );
-    }
-
-    // Validate GitHub token for PAT auth
-    const token = config.github?.token;
-    if (!token) {
-      throw new Error('GitHub token not found. Set GITHUB_TOKEN environment variable.');
-    }
-
-    // Create SDK configurations (PAT only)
-    const workConfig = createWorkConfig(config);
-    const repoConfig = createRepoConfig(config);
-
-    // Initialize SDK managers
-    try {
-      this.workManager = new WorkManager(workConfig);
-      this.repoManager = new RepoManager(repoConfig);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Failed to initialize SDK managers: ${error.message}`);
-      }
-      throw error;
-    }
+  private constructor(
+    workManager: WorkManager,
+    repoManager: RepoManager,
+    organization: string,
+    project: string
+  ) {
+    this.workManager = workManager;
+    this.repoManager = repoManager;
+    this.organization = organization;
+    this.project = project;
   }
 
   /**
@@ -255,5 +214,4 @@ export class RepoClient {
       throw error;
     }
   }
-
 }
