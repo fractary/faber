@@ -26,7 +26,7 @@ if (process.stdout.isTTY) {
 
 console.error('[DEBUG] CLI starting, args:', process.argv);
 
-const version = '1.5.2';
+const version = '1.5.5';
 
 /**
  * Create and configure the main CLI program
