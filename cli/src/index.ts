@@ -7,6 +7,10 @@
  * Entry point for the FABER command-line interface
  */
 
+// Load .env file from current working directory before anything else
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand } from './commands/workflow/index.js';
@@ -26,7 +30,7 @@ if (process.stdout.isTTY) {
 
 console.error('[DEBUG] CLI starting, args:', process.argv);
 
-const version = '1.5.7';
+const version = '1.5.8';
 
 /**
  * Create and configure the main CLI program
