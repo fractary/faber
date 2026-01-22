@@ -74,8 +74,8 @@ export class AnthropicClient {
     }
 
     try {
-      // Schema path relative to this file
-      const schemaPath = path.resolve(__dirname, '../../../plugins/faber/config/schemas/plan.schema.json');
+      // Schema bundled with CLI package (cli/schemas/plan.schema.json)
+      const schemaPath = path.resolve(__dirname, '../../schemas/plan.schema.json');
       const schemaContent = await fs.readFile(schemaPath, 'utf8');
       this.planSchema = JSON.parse(schemaContent);
     } catch (error) {
