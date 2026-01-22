@@ -9,7 +9,7 @@ import Ajv from 'ajv';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Git } from '@fractary/faber';
+import { Git, WorkflowResolver, type ResolvedWorkflow } from '@fractary/faber';
 import { validateJsonSize } from '../utils/validation.js';
 import type { LoadedFaberConfig } from '../types/config.js';
 
@@ -112,8 +112,9 @@ export class AnthropicClient {
     // Load plan schema for validation
     await this.loadPlanSchema();
 
-    // Load workflow configuration
-    const workflowConfig = await this.loadWorkflowConfig(input.workflow);
+    // Resolve workflow with inheritance (uses SDK WorkflowResolver)
+    const resolver = new WorkflowResolver({ projectRoot: process.cwd() });
+    const workflowConfig = await resolver.resolveWorkflow(input.workflow);
 
     // Generate plan ID
     const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z/, '').replace('T', '-');
@@ -170,26 +171,9 @@ export class AnthropicClient {
   }
 
   /**
-   * Load workflow configuration
-   */
-  private async loadWorkflowConfig(workflow: string): Promise<any> {
-    const workflowPath = path.join(
-      this.config.workflow?.config_path || './plugins/faber/config/workflows',
-      `${workflow}.json`
-    );
-
-    try {
-      const content = await fs.readFile(workflowPath, 'utf-8');
-      return JSON.parse(content);
-    } catch (error) {
-      throw new Error(`Failed to load workflow config: ${workflow} (${workflowPath})`);
-    }
-  }
-
-  /**
    * Construct planning prompt for Claude
    */
-  private constructPlanningPrompt(input: GeneratePlanInput, workflowConfig: any): string {
+  private constructPlanningPrompt(input: GeneratePlanInput, workflowConfig: ResolvedWorkflow): string {
     return `You are a workflow planning assistant for the FABER system. Your task is to generate a structured workflow plan based on the provided issue and workflow configuration.
 
 **Issue Information:**
