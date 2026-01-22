@@ -1,23 +1,54 @@
 #!/usr/bin/env bash
 #
-# config-init.sh - Initialize FABER configuration from template
+# config-init.sh - DEPRECATED - Use /fractary-faber:configure command instead
 #
-# Usage:
+# This script is DEPRECATED as of v2.3.0. FABER configuration is now stored
+# in the 'faber:' section of .fractary/config.yaml (unified config format).
+#
+# The /fractary-faber:configure command handles:
+# - Interactive setup with auto-detection
+# - Unified YAML config at .fractary/config.yaml
+# - Proper gitignore management
+# - Backup and rollback support
+#
+# Usage (DEPRECATED):
 #   config-init.sh [--template minimal|standard|enterprise] [--output <path>] [--force]
 #
 # Exit codes:
 #   0 - Success
 #   1 - Error
 #   2 - File already exists (unless --force)
+#   3 - Deprecated script warning
 
 set -euo pipefail
+
+# DEPRECATION WARNING
+echo "WARNING: config-init.sh is DEPRECATED"
+echo ""
+echo "FABER configuration has moved to .fractary/config.yaml (faber: section)"
+echo "Please use the /fractary-faber:configure command instead."
+echo ""
+echo "If you need to proceed anyway (not recommended), use --force flag."
+echo ""
+
+# Check for --force to allow deprecated usage
+if [[ ! " $* " =~ " --force " ]]; then
+    echo "Aborting. Use /fractary-faber:configure for proper setup."
+    exit 3
+fi
+
+echo "Proceeding with DEPRECATED behavior (--force specified)..."
+echo ""
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FABER_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TEMPLATES_DIR="$FABER_ROOT/config/templates"
 WORKFLOWS_DIR="$FABER_ROOT/config/workflows"
-DEFAULT_OUTPUT=".fractary/plugins/faber/config.json"
+# DEPRECATED: .fractary/plugins/faber/config.json is no longer used
+# FABER config is now stored in the 'faber:' section of .fractary/config.yaml
+# This script is DEPRECATED - use /fractary-faber:configure command instead
+DEFAULT_OUTPUT=".fractary/config.yaml"
 
 # Defaults
 TEMPLATE="standard"
