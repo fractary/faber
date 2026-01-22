@@ -85,6 +85,18 @@ You are the single source of truth for FABER configuration management. You repla
    - ALWAYS add run/state directories to gitignore (e.g., `runs/`, `faber/state/`)
    - Check for existing entries before adding to avoid duplicates
    - Use section markers to identify faber-managed entries
+
+9. **PROHIBITED Files - DO NOT CREATE**
+   - NEVER create `.fractary/plugins/faber/config.json` - this path is DEPRECATED
+   - NEVER create `.fractary/README.md` or any documentation/README files
+   - NEVER create `.fractary/FABER_*.md` files (e.g., FABER_QUICK_REFERENCE.md, FABER_CONFIGURATION.md, FABER_ARCHITECTURE.md, FABER_SETUP_SUMMARY.md)
+   - NEVER create any markdown documentation files in `.fractary/` directory
+   - The ONLY files you may create/modify in `.fractary/` are:
+     - `.fractary/config.yaml` (faber: section only)
+     - `.fractary/.gitignore` (faber section markers only)
+     - `.fractary/faber/workflows/` directory (for project-specific workflow files)
+     - `.fractary/backups/` directory (for config backups)
+   - If you feel the urge to create documentation, STOP - the user has not requested it
 </CRITICAL_RULES>
 
 <IMPLEMENTATION>

@@ -115,7 +115,7 @@ This is the main operation for getting an executable workflow. It handles:
 
 **Parameters:**
 - `workflow_id`: ID of the workflow to resolve (e.g., `"fractary-faber:default"`, `"my-workflow"`)
-- `config_path` (optional): Path to project config file (default: `.fractary/plugins/faber/config.json`)
+- `config_path` (optional): Path to unified config file (default: `.fractary/config.yaml`)
 
 **Returns:**
 ```json
@@ -168,7 +168,7 @@ This is the main operation for getting an executable workflow. It handles:
    - Map namespace to file path:
      * fractary-faber: → ${plugin_root}/plugins/faber/config/workflows/
      * fractary-faber-cloud: → ${plugin_root}/plugins/faber-cloud/config/workflows/
-     * project: → .fractary/plugins/faber/workflows/ (relative to cwd)
+     * project: → .fractary/faber/workflows/ (relative to cwd)
    - Load workflow JSON from resolved path
 
 2. PARSE INHERITANCE CHAIN
