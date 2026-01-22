@@ -261,16 +261,6 @@ export function generateManifestHtml(
 }
 
 /**
- * Generate GitHub App creation URL (legacy - prefer generateManifestHtml)
- *
- * @deprecated Use generateManifestHtml() instead for proper manifest flow
- */
-export function getManifestCreationUrl(manifest: GitHubAppManifest): string {
-  // For backward compatibility, return the basic GitHub App creation page
-  return 'https://github.com/settings/apps/new';
-}
-
-/**
  * Exchange manifest code for app credentials
  *
  * @param code - The code from the GitHub redirect URL

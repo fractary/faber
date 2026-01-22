@@ -16,7 +16,6 @@ import chalk from 'chalk';
 import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand } from './commands/workflow/index.js';
 import { createWorkCommand } from './commands/work/index.js';
 import { createRepoCommand } from './commands/repo/index.js';
-import { createSpecCommand } from './commands/spec/index.js';
 import { createLogsCommand } from './commands/logs/index.js';
 import { createInitCommand } from './commands/init.js';
 import { createMigrateCommand } from './commands/migrate.js';
@@ -28,7 +27,7 @@ if (process.stdout.isTTY) {
   (process.stdout as any)._handle?.setBlocking?.(true);
 }
 
-const version = '1.5.11';
+const version = '1.5.12';
 
 /**
  * Create and configure the main CLI program
@@ -37,7 +36,7 @@ export function createFaberCLI(): Command {
   const program = new Command('fractary-faber');
 
   program
-    .description('FABER development toolkit (workflow, work, repo, spec, logs, auth)')
+    .description('FABER development toolkit (workflow, work, repo, logs, auth)')
     .version(version)
     .enablePositionalOptions();
 
@@ -184,7 +183,6 @@ export function createFaberCLI(): Command {
   program.addCommand(createAuthCommand());
   program.addCommand(createWorkCommand());
   program.addCommand(createRepoCommand());
-  program.addCommand(createSpecCommand());
   program.addCommand(createLogsCommand());
 
   // Help command

@@ -20,12 +20,9 @@ import {
 } from './types.js';
 import { WorkManager } from '../work/index.js';
 import { RepoManager } from '../repo/index.js';
-import { SpecManager } from '../spec/index.js';
 import { LogManager } from '../logs/index.js';
 import { StateManager } from '../state/index.js';
 import { WorkflowError } from '../errors.js';
-import { AgentExecutor } from './agent-executor.js';
-import type { AgentResult } from '@fractary/forge';
 
 /**
  * Default workflow configuration
@@ -38,11 +35,6 @@ const defaultConfig: WorkflowConfig = {
     build: { enabled: true },
     evaluate: { enabled: true, maxRetries: 3 },
     release: { enabled: true, requestReviews: true, reviewers: [] },
-  },
-  // NEW: Enable Forge by default (v1.x: false for backward compatibility, v2.0: true)
-  forge: {
-    enabled: false, // TODO: Change to true in v2.0
-    prefer_local: true,
   },
 };
 
@@ -59,10 +51,8 @@ const defaultConfig: WorkflowConfig = {
 export class FaberWorkflow {
   private workManager: WorkManager;
   private repoManager: RepoManager;
-  private specManager: SpecManager;
   private logManager: LogManager;
   private stateManager: StateManager;
-  private agentExecutor: AgentExecutor;
 
   private config: WorkflowConfig;
   private userInput: UserInputCallback | null = null;
@@ -72,7 +62,6 @@ export class FaberWorkflow {
   constructor(options?: { config?: Partial<WorkflowConfig> }) {
     this.workManager = new WorkManager();
     this.repoManager = new RepoManager();
-    this.specManager = new SpecManager();
     this.logManager = new LogManager();
     this.stateManager = new StateManager();
 
@@ -80,14 +69,6 @@ export class FaberWorkflow {
     if (options?.config?.phases) {
       this.config.phases = { ...defaultConfig.phases, ...options.config.phases };
     }
-    if (options?.config?.forge) {
-      this.config.forge = { ...defaultConfig.forge, ...options.config.forge };
-    }
-
-    // Initialize AgentExecutor
-    this.agentExecutor = new AgentExecutor({
-      forge: this.config.forge,
-    });
   }
 
   /**
@@ -331,12 +312,6 @@ export class FaberWorkflow {
    * Run a specific phase
    */
   private async runPhase(phase: FaberPhase, context: PhaseContext): Promise<PhaseHandlerResult> {
-    // Check if Forge mode is enabled
-    if (this.agentExecutor.isForgeEnabled()) {
-      return this.runPhaseWithForge(phase, context);
-    }
-
-    // Legacy mode - use hardcoded logic
     switch (phase) {
       case 'frame':
         return this.runFramePhase(context);
@@ -351,87 +326,6 @@ export class FaberWorkflow {
       default:
         return { status: 'skipped' };
     }
-  }
-
-  /**
-   * Run phase using Forge agent
-   */
-  private async runPhaseWithForge(
-    phase: FaberPhase,
-    context: PhaseContext
-  ): Promise<PhaseHandlerResult> {
-    // Get custom agent name if specified in phase config
-    const phaseConfig = this.config.phases[phase];
-    const customAgent = phaseConfig?.agent;
-
-    // Build task description based on phase
-    const task = this.buildPhaseTask(phase, context);
-
-    try {
-      const result = await this.agentExecutor.executePhaseAgent(
-        customAgent || phase,  // Use custom agent or phase name
-        task,
-        context
-      );
-
-      // Convert Forge result to FABER result
-      return {
-        status: 'completed',
-        outputs: {
-          agentOutput: result.output,
-          structured: result.structured_output,
-          usage: result.usage,
-          ...this.extractPhaseOutputs(phase, result),
-        },
-      };
-    } catch (error) {
-      return {
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Agent execution failed',
-      };
-    }
-  }
-
-  /**
-   * Build task description for phase agent
-   */
-  private buildPhaseTask(phase: FaberPhase, context: PhaseContext): string {
-    switch (phase) {
-      case 'frame':
-        return `Analyze and frame the requirements for work item ${context.workId}. ` +
-          `Issue: ${JSON.stringify(context.issue)}`;
-      case 'architect':
-        return `Create or refine the specification for work item ${context.workId}. ` +
-          `Previous frame output: ${JSON.stringify(context.previousOutputs.frame)}`;
-      case 'build':
-        return `Implement the solution for work item ${context.workId}. ` +
-          `Spec: ${JSON.stringify(context.previousOutputs.architect)}`;
-      case 'evaluate':
-        return `Validate the implementation against requirements for ${context.workId}. ` +
-          `Build output: ${JSON.stringify(context.previousOutputs.build)}`;
-      case 'release':
-        return `Prepare release artifacts for work item ${context.workId}. ` +
-          `Evaluation: ${JSON.stringify(context.previousOutputs.evaluate)}`;
-      default:
-        return `Execute ${phase} phase for work item ${context.workId}`;
-    }
-  }
-
-  /**
-   * Extract phase-specific outputs from agent result
-   */
-  private extractPhaseOutputs(
-    _phase: FaberPhase,
-    result: AgentResult
-  ): Record<string, unknown> {
-    // Parse structured output or extract from text
-    if (result.structured_output) {
-      return result.structured_output;
-    }
-
-    // Default extraction based on phase
-    // For now, return empty object - agents will provide structured output
-    return {};
   }
 
   /**
@@ -479,61 +373,20 @@ export class FaberWorkflow {
 
   /**
    * Architect Phase: Create/refine specification
+   *
+   * NOTE: This is a legacy no-op. Spec operations should be done via
+   * Fractary Core (/fractary-spec:create). Modern FABER workflows use
+   * agents (faber-planner, faber-manager) which call Fractary Core skills.
    */
-  private async runArchitectPhase(context: PhaseContext): Promise<PhaseHandlerResult> {
-    const outputs: Record<string, unknown> = {};
-
-    // Check for existing spec
-    let spec = context.spec;
-    const existingSpecs = this.specManager.listSpecs({ workId: context.workId });
-
-    if (existingSpecs.length > 0) {
-      spec = existingSpecs[0];
-    }
-
-    // Create spec if none exists
-    if (!spec && context.issue) {
-      const workType = context.previousOutputs.frame?.workType as string || 'feature';
-      const template = workType === 'bug' ? 'bug' : workType === 'chore' ? 'basic' : 'feature';
-
-      spec = this.specManager.createSpec(context.issue.title, {
-        workId: context.workId,
-        template,
-        context: context.issue.body,
-      });
-
-      this.recordArtifact('spec', spec.path);
-      outputs.specCreated = true;
-    }
-
-    if (spec) {
-      outputs.specId = spec.id;
-      outputs.specPath = spec.path;
-
-      // Refine spec if enabled
-      if (this.config.phases.architect.refineSpec) {
-        const questions = this.specManager.generateRefinementQuestions(spec.id);
-
-        if (questions.length > 0 && context.autonomy !== 'autonomous') {
-          outputs.refinementQuestions = questions;
-
-          // In assisted mode, pause for refinement
-          if (context.autonomy === 'assisted') {
-            return {
-              status: 'needs_input',
-              message: 'Specification needs refinement. Review generated questions.',
-              outputs,
-            };
-          }
-        }
-      }
-
-      // Validate spec
-      const validation = this.specManager.validateSpec(spec.id);
-      outputs.validation = validation;
-    }
-
-    return { status: 'completed', outputs };
+  private async runArchitectPhase(_context: PhaseContext): Promise<PhaseHandlerResult> {
+    // Legacy no-op - spec operations are handled by Fractary Core
+    return {
+      status: 'completed',
+      outputs: {
+        legacy: true,
+        message: 'Spec operations should use Fractary Core (/fractary-spec:create)',
+      },
+    };
   }
 
   /**
@@ -594,46 +447,23 @@ export class FaberWorkflow {
 
   /**
    * Evaluate Phase: Validate against requirements
+   *
+   * NOTE: This is a legacy no-op. Spec validation should be done via
+   * Fractary Core (/fractary-spec:validate). Modern FABER workflows use
+   * agents (faber-planner, faber-manager) which call Fractary Core skills.
    */
-  private async runEvaluatePhase(context: PhaseContext): Promise<PhaseHandlerResult> {
-    const outputs: Record<string, unknown> = {};
-
-    // Get the spec to validate against
-    const specId = context.previousOutputs.architect?.specId as string;
-    if (!specId) {
-      return { status: 'skipped', outputs: { reason: 'No spec to validate against' } };
-    }
-
-    // Validate spec
-    const validation = this.specManager.validateSpec(specId);
-    outputs.validation = validation;
-
-    // Check if validation passed
-    if (validation.status === 'fail') {
-      const attempts = context.previousOutputs.evaluate?.attempts as number || 0;
-      const maxRetries = this.config.phases.evaluate.maxRetries;
-
-      if (attempts < maxRetries) {
-        outputs.attempts = attempts + 1;
-        return {
-          status: 'needs_input',
-          message: `Validation failed, retry ${attempts + 1}/${maxRetries}`,
-          outputs,
-          error: `Validation failed: ${validation.suggestions?.join(', ')}`,
-        };
-      }
-
-      return {
-        status: 'failed',
-        outputs,
-        error: `Validation failed after ${maxRetries} attempts`,
-      };
-    }
-
+  private async runEvaluatePhase(_context: PhaseContext): Promise<PhaseHandlerResult> {
     // Stop session capture
     this.logManager.stopCapture();
 
-    return { status: 'completed', outputs };
+    // Legacy no-op - spec validation is handled by Fractary Core
+    return {
+      status: 'completed',
+      outputs: {
+        legacy: true,
+        message: 'Spec validation should use Fractary Core (/fractary-spec:validate)',
+      },
+    };
   }
 
   /**

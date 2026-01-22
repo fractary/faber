@@ -9,7 +9,6 @@ import fs from 'fs/promises';
 import {
   generateAppManifest,
   generateManifestHtml,
-  getManifestCreationUrl,
   exchangeCodeForCredentials,
   validateAppCredentials,
   getInstallationId,

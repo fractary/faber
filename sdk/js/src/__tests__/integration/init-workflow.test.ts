@@ -11,9 +11,7 @@ import {
   loadFaberConfig,
   loadWorkConfig,
   loadRepoConfig,
-  loadSpecConfig,
 } from '../../config.js';
-import { SpecManager } from '../../spec/manager.js';
 
 describe('Init Workflow Integration', () => {
   const testDir = path.join(__dirname, '__test-init-workflow__');
@@ -107,34 +105,6 @@ describe('Init Workflow Integration', () => {
     });
   });
 
-  describe('SpecManager Integration After Init', () => {
-    it('should allow SpecManager creation before init', () => {
-      // Before init - should work with defaults
-      const managerBefore = new SpecManager();
-      expect(managerBefore).toBeDefined();
-
-      // After init - should use config
-      ConfigInitializer.initializeProject(testDir);
-      const managerAfter = new SpecManager();
-      expect(managerAfter).toBeDefined();
-    });
-
-    it('should use config path after init', () => {
-      // Create manager before config exists
-      const manager1 = new SpecManager();
-      expect(manager1).toBeDefined();
-
-      // Initialize with custom specs path
-      const config = ConfigInitializer.generateDefaultConfig();
-      config.artifacts.specs.local_path = '/custom/specs';
-      ConfigInitializer.writeConfig(config, configPath);
-
-      // New manager should use config path
-      const manager2 = new SpecManager();
-      expect(manager2).toBeDefined();
-    });
-  });
-
   describe('Config Loading After Init', () => {
     it('should load all config sections after init', () => {
       ConfigInitializer.initializeProject(testDir);
@@ -142,12 +112,10 @@ describe('Init Workflow Integration', () => {
       const faberConfig = loadFaberConfig(testDir);
       const workConfig = loadWorkConfig(testDir);
       const repoConfig = loadRepoConfig(testDir);
-      const specConfig = loadSpecConfig(testDir);
 
       expect(faberConfig).not.toBeNull();
       expect(workConfig).not.toBeNull();
       expect(repoConfig).not.toBeNull();
-      expect(specConfig).toBeDefined();
     });
 
     it('should not throw after successful init', () => {
@@ -157,7 +125,6 @@ describe('Init Workflow Integration', () => {
       expect(() => loadFaberConfig(testDir)).not.toThrow();
       expect(() => loadWorkConfig(testDir)).not.toThrow();
       expect(() => loadRepoConfig(testDir)).not.toThrow();
-      expect(() => loadSpecConfig(testDir)).not.toThrow();
     });
   });
 
@@ -186,13 +153,6 @@ describe('Init Workflow Integration', () => {
       } catch (error: any) {
         expect(error.message).toContain('fractary init');
       }
-
-      try {
-        loadSpecConfig(testDir);
-        fail('Should have thrown');
-      } catch (error: any) {
-        expect(error.message).toContain('fractary init');
-      }
     });
   });
 
@@ -211,10 +171,6 @@ describe('Init Workflow Integration', () => {
       const config = loadFaberConfig(testDir);
       expect(config).not.toBeNull();
       expect(config?.repo.owner).toBe('legacy-owner');
-
-      // SpecManager should work
-      const manager = new SpecManager();
-      expect(manager).toBeDefined();
     });
 
     it('should migrate from JSON to YAML when re-initializing', () => {
@@ -249,11 +205,7 @@ describe('Init Workflow Integration', () => {
 
       expect(fs.existsSync(createdPath)).toBe(true);
 
-      // 2. User runs: fractary spec:create
-      const manager = new SpecManager();
-      expect(manager).toBeDefined();
-
-      // 3. Config should be loaded correctly
+      // 2. Config should be loaded correctly
       const config = loadFaberConfig(testDir);
       expect(config?.repo.owner).toBe('acme');
       expect(config?.repo.repo).toBe('my-app');
@@ -307,10 +259,6 @@ describe('Init Workflow Integration', () => {
 
       // Now config exists
       expect(ConfigInitializer.configExists(configPath)).toBe(true);
-
-      // CLI can now run commands
-      const manager = new SpecManager();
-      expect(manager).toBeDefined();
     });
   });
 
@@ -331,16 +279,6 @@ describe('Init Workflow Integration', () => {
       const duration = Date.now() - start;
 
       expect(duration).toBeLessThan(100);
-    });
-
-    it('should handle concurrent SpecManager creation', () => {
-      ConfigInitializer.initializeProject(testDir);
-
-      // Create multiple managers concurrently (simulates parallel operations)
-      const managers = Array(10).fill(null).map(() => new SpecManager());
-
-      expect(managers).toHaveLength(10);
-      managers.forEach(manager => expect(manager).toBeDefined());
     });
   });
 });
