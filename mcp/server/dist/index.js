@@ -10,5 +10,5 @@ export { LocalFilesBackend } from './backends/local-files.js';
 // Export types
 export * from './types.js';
 // Package version
-export const version = '1.1.2';
+export const version = '1.1.3';
 //# sourceMappingURL=index.js.map

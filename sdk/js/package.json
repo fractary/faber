@@ -1,6 +1,6 @@
 {
   "name": "@fractary/faber",
-  "version": "2.3.0",
+  "version": "2.3.3",
   "description": "FABER SDK - Development toolkit for AI-assisted workflows",
   "type": "module",
   "main": "dist/index.js",
