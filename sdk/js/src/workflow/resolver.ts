@@ -8,6 +8,7 @@
  */
 
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 // ============================================================================
@@ -212,8 +213,36 @@ export class WorkflowResolver {
     this.marketplaceRoot =
       options.marketplaceRoot ||
       process.env['CLAUDE_MARKETPLACE_ROOT'] ||
-      path.join(process.env['HOME'] || '~', '.claude/plugins/marketplaces');
+      path.join(process.env['HOME'] || os.homedir(), '.claude/plugins/marketplaces');
     this.projectRoot = options.projectRoot || process.cwd();
+  }
+
+  /**
+   * Sanitize a path component to prevent path traversal attacks.
+   * Rejects components containing '..' or absolute path indicators.
+   */
+  private sanitizePathComponent(component: string, context: string): string {
+    // Reject empty components
+    if (!component || component.trim() === '') {
+      throw new InvalidWorkflowError(component, `${context} cannot be empty`);
+    }
+
+    // Reject path traversal sequences
+    if (component.includes('..')) {
+      throw new InvalidWorkflowError(component, `${context} cannot contain '..' (path traversal attempt)`);
+    }
+
+    // Reject absolute paths (Unix or Windows style)
+    if (component.startsWith('/') || component.startsWith('\\') || /^[a-zA-Z]:/.test(component)) {
+      throw new InvalidWorkflowError(component, `${context} cannot be an absolute path`);
+    }
+
+    // Reject null bytes (could bypass checks in some systems)
+    if (component.includes('\0')) {
+      throw new InvalidWorkflowError(component, `${context} contains invalid characters`);
+    }
+
+    return component;
   }
 
   /**
@@ -330,6 +359,7 @@ export class WorkflowResolver {
 
   /**
    * Resolve a workflow ID to a file path based on namespace.
+   * Validates all path components to prevent path traversal attacks.
    */
   private resolveWorkflowPath(workflowId: string): string {
     let namespace: string;
@@ -343,6 +373,10 @@ export class WorkflowResolver {
       namespace = 'project';
       workflowName = workflowId;
     }
+
+    // Sanitize namespace and workflow name to prevent path traversal
+    this.sanitizePathComponent(namespace, 'namespace');
+    this.sanitizePathComponent(workflowName, 'workflow name');
 
     switch (namespace) {
       case 'fractary-faber':
@@ -362,8 +396,11 @@ export class WorkflowResolver {
       case 'fractary-core': {
         // Extract plugin name from workflow_name if it contains slash
         const parts = workflowName.split('/');
-        const plugin = parts[0];
-        const workflow = parts.length > 1 ? parts.slice(1).join('/') : parts[0];
+        // Sanitize each part individually
+        const plugin = this.sanitizePathComponent(parts[0], 'plugin name');
+        const workflow = parts.length > 1
+          ? this.sanitizePathComponent(parts.slice(1).join('/'), 'workflow name')
+          : plugin;
         return path.join(
           this.marketplaceRoot,
           `fractary-core/plugins/${plugin}/config/workflows`,
@@ -382,13 +419,19 @@ export class WorkflowResolver {
       case '':
         return path.join(this.projectRoot, '.fractary/faber/workflows', `${workflowName}.json`);
 
-      default:
+      default: {
         // Fallback to old unified marketplace for backward compatibility
+        // Sanitize the derived plugin name as well
+        const pluginName = this.sanitizePathComponent(
+          namespace.replace('fractary-', ''),
+          'plugin name'
+        );
         return path.join(
           this.marketplaceRoot,
-          `fractary/plugins/${namespace.replace('fractary-', '')}/config/workflows`,
+          `fractary/plugins/${pluginName}/config/workflows`,
           `${workflowName}.json`
         );
+      }
     }
   }
 
