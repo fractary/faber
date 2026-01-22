@@ -53,7 +53,9 @@ export class AnthropicClient {
   constructor(config: LoadedFaberConfig) {
     this.config = config;
     this.git = new Git();
-    this.ajv = new Ajv({ strict: false }); // Allow additional properties
+    // validateFormats: false suppresses warnings about unknown formats (uri, date-time)
+    // These formats are used for documentation, not strict validation
+    this.ajv = new Ajv({ strict: false, validateFormats: false });
 
     const apiKey = config.anthropic?.api_key;
     if (!apiKey) {

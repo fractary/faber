@@ -51,6 +51,30 @@ function exec(command: string, options?: ExecSyncOptions): string {
 }
 
 /**
+ * Execute a command with stdin input (for safely passing large text like comment bodies)
+ */
+function execWithStdin(command: string, stdin: string): string {
+  try {
+    const result = execSync(command, {
+      encoding: 'utf-8',
+      maxBuffer: 10 * 1024 * 1024, // 10MB
+      input: stdin,
+    });
+    return result.trim();
+  } catch (error: unknown) {
+    const err = error as { status?: number; stderr?: Buffer | string };
+    const exitCode = err.status || 1;
+    const stderr = err.stderr?.toString() || '';
+
+    if (stderr.includes('authentication') || stderr.includes('auth')) {
+      throw new AuthenticationError('github', 'GitHub authentication failed. Run "gh auth login"');
+    }
+
+    throw new CommandExecutionError(command, exitCode, stderr);
+  }
+}
+
+/**
  * Check if gh CLI is available and authenticated
  */
 function checkGhCli(): void {
@@ -97,8 +121,10 @@ export class GitHubWorkProvider implements WorkProvider {
     const args = [`--repo ${this.getRepoArg()}`];
     args.push(`--title "${options.title.replace(/"/g, '\\"')}"`);
 
-    if (options.body) {
-      args.push(`--body "${options.body.replace(/"/g, '\\"')}"`);
+    // Use stdin for body to avoid shell injection
+    const useBodyStdin = !!options.body;
+    if (useBodyStdin) {
+      args.push('--body-file -');
     }
     if (options.labels && options.labels.length > 0) {
       args.push(`--label "${options.labels.join(',')}"`);
@@ -111,7 +137,10 @@ export class GitHubWorkProvider implements WorkProvider {
     }
 
     try {
-      const result = exec(`gh issue create ${args.join(' ')} --json number,title,body,state,labels,assignees,milestone,createdAt,updatedAt,url`);
+      const cmd = `gh issue create ${args.join(' ')} --json number,title,body,state,labels,assignees,milestone,createdAt,updatedAt,url`;
+      const result = useBodyStdin
+        ? execWithStdin(cmd, options.body!)
+        : exec(cmd);
       return this.parseIssue(JSON.parse(result));
     } catch (error) {
       if (error instanceof CommandExecutionError) {
@@ -146,12 +175,20 @@ export class GitHubWorkProvider implements WorkProvider {
     if (options.title) {
       args.push(`--title "${options.title.replace(/"/g, '\\"')}"`);
     }
-    if (options.body) {
-      args.push(`--body "${options.body.replace(/"/g, '\\"')}"`);
+
+    // Use stdin for body to avoid shell injection
+    const useBodyStdin = !!options.body;
+    if (useBodyStdin) {
+      args.push('--body-file -');
     }
 
     if (args.length > 1) {
-      exec(`gh issue edit ${issueId} ${args.join(' ')}`);
+      const cmd = `gh issue edit ${issueId} ${args.join(' ')}`;
+      if (useBodyStdin) {
+        execWithStdin(cmd, options.body!);
+      } else {
+        exec(cmd);
+      }
     }
 
     return this.fetchIssue(issueId);
@@ -226,8 +263,10 @@ export class GitHubWorkProvider implements WorkProvider {
       finalBody = `<!-- faber:${faberContext} -->\n${body}`;
     }
 
-    exec(
-      `gh issue comment ${issueId} --repo ${this.getRepoArg()} --body "${finalBody.replace(/"/g, '\\"')}"`
+    // Use stdin to pass body safely (avoids shell injection with backticks, newlines, etc.)
+    execWithStdin(
+      `gh issue comment ${issueId} --repo ${this.getRepoArg()} --body-file -`,
+      finalBody
     );
 
     // gh doesn't return JSON for comment creation, so we fetch latest
