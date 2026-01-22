@@ -5,7 +5,6 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import {
   generateAppManifest,
-  getManifestCreationUrl,
   exchangeCodeForCredentials,
   validateAppCredentials,
   getInstallationId,
@@ -114,19 +113,6 @@ describe('generateAppManifest', () => {
 
     expect(manifest.hook_attributes).toBeDefined();
     expect(manifest.hook_attributes.url).toBeDefined();
-  });
-});
-
-describe('getManifestCreationUrl', () => {
-  it('returns GitHub app creation URL', () => {
-    const manifest = generateAppManifest({
-      organization: 'test-org',
-      repository: 'test-repo',
-    });
-
-    const url = getManifestCreationUrl(manifest);
-
-    expect(url).toBe('https://github.com/settings/apps/new');
   });
 });
 

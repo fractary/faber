@@ -6,7 +6,6 @@
  * Modules:
  * - work: Work tracking (GitHub Issues, Jira, Linear)
  * - repo: Repository operations (Git, GitHub, GitLab, Bitbucket)
- * - spec: Specification management
  * - logs: Log management and session capture
  * - state: Workflow state persistence
  * - workflow: FABER workflow orchestration
@@ -22,7 +21,6 @@ export * from './config.js';
 // Module exports
 export * from './work/index.js';
 export * from './repo/index.js';
-export * from './spec/index.js';
 export * from './logs/index.js';
 export * from './state/index.js';
 export * from './workflow/index.js';
