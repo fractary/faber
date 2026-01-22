@@ -28,9 +28,7 @@ if (process.stdout.isTTY) {
   (process.stdout as any)._handle?.setBlocking?.(true);
 }
 
-console.error('[DEBUG] CLI starting, args:', process.argv);
-
-const version = '1.5.8';
+const version = '1.5.9';
 
 /**
  * Create and configure the main CLI program
@@ -212,11 +210,8 @@ const isMainModule = import.meta.url === `file://${process.argv[1]}` ||
                      process.argv[1]?.endsWith('fractary-faber');
 
 if (isMainModule) {
-  console.error('[DEBUG] Creating CLI program');
   const program = createFaberCLI();
-  console.error('[DEBUG] Parsing argv');
   program.parse(process.argv);
-  console.error('[DEBUG] Parse complete');
 
   // Show help if no command provided
   if (!process.argv.slice(2).length) {
