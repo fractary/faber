@@ -4,6 +4,7 @@
   "description": "Universal SDLC workflow framework with unified orchestrator pattern (plan + run)",
   "commands": "./commands/",
   "agents": [
+    "./agents/configurator.md",
     "./agents/faber-manager.md",
     "./agents/faber-planner.md",
     "./agents/workflow-engineer.md",
