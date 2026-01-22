@@ -8,6 +8,10 @@
     "./agents/faber-manager.md",
     "./agents/faber-planner.md",
     "./agents/workflow-engineer.md",
+    "./agents/workflow-debugger.md",
+    "./agents/workflow-inspector.md",
+    "./agents/session-manager.md",
+    "./agents/run-inspect.md",
     "./agents/agent-engineer.md",
     "./agents/agent-inspector.md"
   ],
