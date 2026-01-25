@@ -94,7 +94,9 @@ export class CodexAdapter {
 
     try {
       // Dynamic import for ESM compatibility - no compile-time dependency
-      const codexModule = await import('@fractary/codex') as unknown as CodexModule;
+      // Use string variable to prevent TypeScript from attempting module resolution
+      const codexModuleName = '@fractary/codex';
+      const codexModule = await import(codexModuleName) as unknown as CodexModule;
       this.codex = codexModule;
       return codexModule;
     } catch {
