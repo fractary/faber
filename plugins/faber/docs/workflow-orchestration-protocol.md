@@ -126,10 +126,14 @@ if (!step.prompt) {
   throw new Error(`Step ${step.step_id} has no prompt defined`);
 }
 
+// Build effective context by cascading: global → phase → step
+// Context overlays allow injecting additional instructions into inherited steps
+let effectiveContext = buildEffectiveContext(workflow.context, step);
+
 // If context is provided, include it in the execution
 let executionPrompt = step.prompt;
-if (step.context) {
-  executionPrompt = `${step.prompt}\n\nAdditional Context:\n${step.context}`;
+if (effectiveContext) {
+  executionPrompt = `${step.prompt}\n\nAdditional Context:\n${effectiveContext}`;
 }
 
 // Execute the prompt
@@ -220,6 +224,83 @@ The orchestrator invokes commands uniformly via `Skill({skill: full_command_stri
 1. Commands can change execution strategy without affecting orchestrator
 2. New commands can be added without updating orchestration protocol
 3. Orchestrator logic remains simple and maintainable
+
+### Context Overlay Application
+
+Context overlays allow workflows to inject additional instructions into inherited steps without forking the entire workflow. The orchestrator builds the effective context for each step by cascading context at three levels.
+
+#### Context Cascade Order
+
+Context is applied from most general to most specific:
+
+1. **Global context** - Applies to ALL steps in ALL phases
+2. **Phase context** - Applies to all steps in a specific phase
+3. **Step context** - Applies to a specific step (either from overlays or step's own `context` field)
+
+#### Building Effective Context
+
+```javascript
+function buildEffectiveContext(workflowContext, step) {
+  const contextParts = [];
+
+  // 1. Global context (applies to all steps)
+  if (workflowContext?.global) {
+    contextParts.push(workflowContext.global);
+  }
+
+  // 2. Phase context (applies to all steps in this phase)
+  if (workflowContext?.phases?.[step.phase]) {
+    contextParts.push(workflowContext.phases[step.phase]);
+  }
+
+  // 3. Step-specific context (overlay takes precedence over step's own context)
+  if (workflowContext?.steps?.[step.id]) {
+    // Step context from overlays
+    contextParts.push(workflowContext.steps[step.id]);
+  } else if (step.context) {
+    // Step's own context field
+    contextParts.push(step.context);
+  }
+
+  // Join with double newlines for readability
+  return contextParts.length > 0 ? contextParts.join('\n\n') : null;
+}
+```
+
+#### Example Context Application
+
+Given a workflow with:
+```json
+{
+  "context": {
+    "global": "This is the Acme Widget project. Follow docs/STANDARDS.md.",
+    "phases": {
+      "build": "Use React patterns from src/hooks/."
+    },
+    "steps": {
+      "implement": "Prefer composition over inheritance."
+    }
+  }
+}
+```
+
+When executing the `implement` step in the `build` phase, the effective context would be:
+```
+This is the Acme Widget project. Follow docs/STANDARDS.md.
+
+Use React patterns from src/hooks/.
+
+Prefer composition over inheritance.
+```
+
+#### Inheritance Behavior
+
+When workflows extend other workflows, context accumulates:
+- **Ancestor context prepends to child context** - Base workflow context appears first
+- **Child context is most prominent** - Project-specific context appears last
+- **Step-level context overrides** - Child step context replaces ancestor step context for the same step ID
+
+This ensures that base workflow context provides foundation while project-specific customizations take precedence.
 
 ### AFTER Step Execution
 

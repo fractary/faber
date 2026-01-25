@@ -260,6 +260,79 @@ validate_unique_step_ids() {
     fi
 }
 
+# Merge context overlays across inheritance chain
+# Context accumulates: ancestor context prepends to child context
+# This ensures project-specific context (child) is most prominent
+merge_context_overlays() {
+    local chain_json="$1"
+    local merged='{"global":"","phases":{},"steps":{}}'
+    local chain_length
+    chain_length=$(echo "$chain_json" | jq 'length')
+
+    # Iterate root→child so ancestor context prepends to child
+    for ((i=chain_length-1; i>=0; i--)); do
+        local workflow_id
+        workflow_id=$(echo "$chain_json" | jq -r ".[$i]")
+        local workflow_json
+        workflow_json=$(load_workflow "$workflow_id")
+        local context
+        context=$(echo "$workflow_json" | jq '.context // {}')
+
+        # Skip if no context defined
+        if [[ "$context" == "{}" ]] || [[ "$context" == "null" ]]; then
+            continue
+        fi
+
+        # Merge global context
+        local global
+        global=$(echo "$context" | jq -r '.global // ""')
+        if [[ -n "$global" ]]; then
+            local existing_global
+            existing_global=$(echo "$merged" | jq -r '.global')
+            if [[ -z "$existing_global" ]]; then
+                merged=$(echo "$merged" | jq --arg g "$global" '.global = $g')
+            else
+                merged=$(echo "$merged" | jq --arg g "$global" '.global = .global + "\n\n" + $g')
+            fi
+        fi
+
+        # Merge phase contexts
+        for phase in frame architect build evaluate release; do
+            local phase_ctx
+            phase_ctx=$(echo "$context" | jq -r --arg p "$phase" '.phases[$p] // ""')
+            if [[ -n "$phase_ctx" ]]; then
+                local existing_phase
+                existing_phase=$(echo "$merged" | jq -r --arg p "$phase" '.phases[$p] // ""')
+                if [[ -z "$existing_phase" ]]; then
+                    merged=$(echo "$merged" | jq --arg p "$phase" --arg c "$phase_ctx" '.phases[$p] = $c')
+                else
+                    merged=$(echo "$merged" | jq --arg p "$phase" --arg c "$phase_ctx" '.phases[$p] = .phases[$p] + "\n\n" + $c')
+                fi
+            fi
+        done
+
+        # Merge step contexts (child overrides ancestor for same step ID)
+        local step_ctx
+        step_ctx=$(echo "$context" | jq '.steps // {}')
+        if [[ "$step_ctx" != "{}" ]] && [[ "$step_ctx" != "null" ]]; then
+            merged=$(echo "$merged" "$step_ctx" | jq -s '.[0].steps = (.[0].steps + .[1]) | .[0]')
+        fi
+    done
+
+    # Return merged context (or null if empty)
+    local has_content
+    has_content=$(echo "$merged" | jq 'if .global == "" and (.phases | length) == 0 and (.steps | length) == 0 then false else true end')
+    if [[ "$has_content" == "true" ]]; then
+        # Clean up empty global
+        if [[ $(echo "$merged" | jq -r '.global') == "" ]]; then
+            merged=$(echo "$merged" | jq 'del(.global)')
+        fi
+        echo "$merged"
+    else
+        echo "null"
+    fi
+}
+
 # Main execution
 main() {
     # Build inheritance chain
@@ -335,6 +408,13 @@ main() {
 
     # Add phases to merged workflow
     merged=$(echo "$merged" | jq --argjson phases "$phases" '. + {phases: $phases}')
+
+    # Merge context overlays from inheritance chain
+    local context_overlays
+    context_overlays=$(merge_context_overlays "$chain")
+    if [[ "$context_overlays" != "null" ]]; then
+        merged=$(echo "$merged" | jq --argjson ctx "$context_overlays" '. + {context: $ctx}')
+    fi
 
     # Return success response
     echo "{\"status\": \"success\", \"message\": \"Workflow merged successfully\", \"workflow\": $merged}"

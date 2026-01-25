@@ -57,6 +57,10 @@
     "critical_artifacts": {
       "$ref": "#/definitions/critical_artifacts",
       "description": "Configuration for critical artifacts that must be maintained in context during workflow execution. Used for context management across sessions and compaction."
+    },
+    "context": {
+      "$ref": "#/definitions/context_overlays",
+      "description": "Context overlays that inject additional instructions into inherited steps without forking. Context cascades: global → phase → step. Accumulates across inheritance chain (ancestor prepends to child)."
     }
   },
   "definitions": {
@@ -606,6 +610,51 @@
           "required": ["command"]
         }
       ]
+    },
+    "context_overlays": {
+      "type": "object",
+      "description": "Context overlays that inject additional instructions into inherited steps without forking. Context cascades: global → phase → step.",
+      "additionalProperties": false,
+      "properties": {
+        "global": {
+          "type": "string",
+          "description": "Context appended to ALL steps in ALL phases. Use for project-wide standards, conventions, or constraints."
+        },
+        "phases": {
+          "type": "object",
+          "description": "Phase-specific context that applies to all steps within a phase.",
+          "additionalProperties": false,
+          "properties": {
+            "frame": {
+              "type": "string",
+              "description": "Context for all steps in the frame phase"
+            },
+            "architect": {
+              "type": "string",
+              "description": "Context for all steps in the architect phase"
+            },
+            "build": {
+              "type": "string",
+              "description": "Context for all steps in the build phase"
+            },
+            "evaluate": {
+              "type": "string",
+              "description": "Context for all steps in the evaluate phase"
+            },
+            "release": {
+              "type": "string",
+              "description": "Context for all steps in the release phase"
+            }
+          }
+        },
+        "steps": {
+          "type": "object",
+          "description": "Step-specific context by step ID. Applies to inherited steps without redefining them. Keys are step IDs.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }
