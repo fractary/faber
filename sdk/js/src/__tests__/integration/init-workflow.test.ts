@@ -15,7 +15,8 @@ import {
 
 describe('Init Workflow Integration', () => {
   const testDir = path.join(__dirname, '__test-init-workflow__');
-  const configPath = path.join(testDir, '.fractary', 'plugins', 'faber', 'config.yaml');
+  // Use new unified config path (.fractary/faber/) instead of legacy (.fractary/plugins/faber/)
+  const configPath = path.join(testDir, '.fractary', 'faber', 'config.yaml');
 
   beforeEach(() => {
     // Clean up test directory before each test
@@ -157,39 +158,40 @@ describe('Init Workflow Integration', () => {
   });
 
   describe('Backward Compatibility', () => {
-    it('should work with existing JSON configs during migration', () => {
-      // Create legacy JSON config
-      const jsonConfigPath = configPath.replace(/\.yaml$/, '.json');
-      const dir = path.dirname(jsonConfigPath);
-      fs.mkdirSync(dir, { recursive: true });
+    it('should work with existing JSON configs at legacy location', () => {
+      // Create legacy JSON config at the LEGACY path (.fractary/plugins/faber/)
+      const legacyDir = path.join(testDir, '.fractary', 'plugins', 'faber');
+      const legacyJsonPath = path.join(legacyDir, 'config.json');
+      fs.mkdirSync(legacyDir, { recursive: true });
 
       const jsonConfig = ConfigInitializer.generateDefaultConfig();
       jsonConfig.repo.owner = 'legacy-owner';
-      fs.writeFileSync(jsonConfigPath, JSON.stringify(jsonConfig, null, 2), 'utf-8');
+      fs.writeFileSync(legacyJsonPath, JSON.stringify(jsonConfig, null, 2), 'utf-8');
 
-      // Should still be loadable
+      // Should still be loadable from legacy location with deprecation warning
       const config = loadFaberConfig(testDir);
       expect(config).not.toBeNull();
       expect(config?.repo.owner).toBe('legacy-owner');
     });
 
     it('should migrate from JSON to YAML when re-initializing', () => {
-      // Create legacy JSON config
-      const jsonConfigPath = configPath.replace(/\.yaml$/, '.json');
-      const dir = path.dirname(jsonConfigPath);
-      fs.mkdirSync(dir, { recursive: true });
+      // Create legacy JSON config at the LEGACY path (.fractary/plugins/faber/)
+      const legacyDir = path.join(testDir, '.fractary', 'plugins', 'faber');
+      const legacyJsonPath = path.join(legacyDir, 'config.json');
+      fs.mkdirSync(legacyDir, { recursive: true });
 
       const jsonConfig = ConfigInitializer.generateDefaultConfig();
-      fs.writeFileSync(jsonConfigPath, JSON.stringify(jsonConfig, null, 2), 'utf-8');
+      fs.writeFileSync(legacyJsonPath, JSON.stringify(jsonConfig, null, 2), 'utf-8');
 
-      // Re-initialize (creates YAML)
+      // Re-initialize (migrates to new YAML location)
       ConfigInitializer.initializeProject(testDir);
 
-      // Both should exist during migration
-      expect(fs.existsSync(jsonConfigPath)).toBe(true);
+      // Old file should be deleted during migration
+      expect(fs.existsSync(legacyJsonPath)).toBe(false);
+      // New YAML config should exist at the new location
       expect(fs.existsSync(configPath)).toBe(true);
 
-      // YAML should be preferred
+      // YAML should be readable
       const config = ConfigInitializer.readConfig(configPath);
       expect(config).not.toBeNull();
     });

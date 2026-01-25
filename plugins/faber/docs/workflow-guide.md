@@ -5,6 +5,9 @@ Complete guide to understanding and using FABER workflows.
 ## Table of Contents
 
 - [Overview](#overview)
+  - [Workflow Inheritance](#workflow-inheritance-v22)
+  - [Context Overlays](#context-overlays-v23)
+  - [Asset Types](#asset-types)
 - [Workflow Phases](#workflow-phases)
 - [Phase Details](#phase-details)
 - [Retry Mechanism](#retry-mechanism)
@@ -51,6 +54,74 @@ FABER v2.2 introduces **workflow inheritance**, allowing you to extend existing 
       ]
     }
   }
+}
+```
+
+### Context Overlays (v2.3+)
+
+FABER v2.3 introduces **context overlays**, allowing you to inject project-specific context into inherited workflows without forking:
+
+```json
+{
+  "extends": "fractary-faber:default",
+  "context": {
+    "global": "This is the Acme Widget project. Follow docs/STANDARDS.md.",
+    "phases": {
+      "build": "Use React functional components. Follow hooks patterns.",
+      "evaluate": "Require 90% test coverage for new code."
+    },
+    "steps": {
+      "implement": "Prefer composition over inheritance.",
+      "generate-spec": "Include API versioning considerations."
+    }
+  }
+}
+```
+
+**Context cascade order** (most general → most specific):
+1. **Global** - Applies to ALL steps in ALL phases
+2. **Phase** - Applies to all steps in a specific phase
+3. **Step** - Applies to a specific step by ID
+
+**Context accumulates across inheritance**:
+- Ancestor context prepends to child context
+- Project-specific context (child) is most prominent
+- Step-level context from child overrides ancestor for the same step ID
+
+**When to use context overlays**:
+| Use Case | Solution |
+|----------|----------|
+| Project-wide coding standards | `context.global` |
+| Phase-specific requirements | `context.phases.<phase>` |
+| Customize inherited step behavior | `context.steps.<step-id>` |
+| Different testing requirements | `context.phases.evaluate` |
+| Architecture guidelines | `context.phases.architect` |
+
+**Full example with inheritance**:
+```json
+{
+  "id": "acme-feature",
+  "extends": "fractary-faber:default",
+  "context": {
+    "global": "This is the Acme Widget project. Follow patterns in docs/ARCHITECTURE.md.",
+    "phases": {
+      "architect": "Include database schema changes. Reference docs/DATABASE_CONVENTIONS.md.",
+      "build": "Use React functional components. Follow hooks patterns from src/hooks/.",
+      "evaluate": "Require 90% coverage for new code. Run integration tests."
+    },
+    "steps": {
+      "implement": "Prefer composition over inheritance. Use TypeScript strict mode.",
+      "generate-spec": "Include API versioning considerations."
+    }
+  },
+  "phases": {
+    "frame": { "enabled": true },
+    "architect": { "enabled": true },
+    "build": { "enabled": true },
+    "evaluate": { "enabled": true },
+    "release": { "enabled": true }
+  },
+  "autonomy": { "level": "guarded" }
 }
 ```
 

@@ -79,6 +79,26 @@ export interface CriticalArtifactsConfig {
 }
 
 /**
+ * Context overlays for injecting additional instructions into inherited steps.
+ * Context cascades: global → phase → step (most general to most specific).
+ * In inheritance, ancestor context prepends to child context.
+ */
+export interface ContextOverlays {
+  /** Context appended to ALL steps in ALL phases */
+  global?: string;
+  /** Phase-specific context that applies to all steps within a phase */
+  phases?: {
+    frame?: string;
+    architect?: string;
+    build?: string;
+    evaluate?: string;
+    release?: string;
+  };
+  /** Step-specific context by step ID */
+  steps?: Record<string, string>;
+}
+
+/**
  * Raw workflow file structure (as stored in JSON files)
  */
 export interface WorkflowFileConfig {
@@ -98,6 +118,8 @@ export interface WorkflowFileConfig {
   autonomy?: WorkflowAutonomyConfig;
   critical_artifacts?: CriticalArtifactsConfig;
   integrations?: Record<string, unknown>;
+  /** Context overlays for injecting additional instructions into inherited steps */
+  context?: ContextOverlays;
 }
 
 /**
@@ -120,6 +142,8 @@ export interface ResolvedWorkflow {
   autonomy?: WorkflowAutonomyConfig;
   critical_artifacts?: CriticalArtifactsConfig;
   integrations?: Record<string, unknown>;
+  /** Merged context overlays from inheritance chain */
+  context?: ContextOverlays;
 }
 
 /**
@@ -262,6 +286,9 @@ export class WorkflowResolver {
     // Validate unique step IDs across all phases
     this.validateUniqueStepIds(phases);
 
+    // Merge context overlays from inheritance chain
+    const context = this.mergeContextOverlays(chain);
+
     // Build resolved workflow
     const resolved: ResolvedWorkflow = {
       id: childWorkflow.id,
@@ -275,6 +302,11 @@ export class WorkflowResolver {
 
     if (skipSteps.length > 0) {
       resolved.skipped_steps = skipSteps;
+    }
+
+    // Include context overlays if any were defined
+    if (context && (context.global || Object.keys(context.phases || {}).length > 0 || Object.keys(context.steps || {}).length > 0)) {
+      resolved.context = context;
     }
 
     return resolved;
@@ -559,6 +591,72 @@ export class WorkflowResolver {
     if (duplicates.length > 0) {
       throw new DuplicateStepIdError(duplicates);
     }
+  }
+
+  /**
+   * Merge context overlays from the inheritance chain.
+   * Iterates from root (last in chain) to child (first) so ancestor context prepends to child.
+   * This ensures project-specific context (child) is most prominent.
+   */
+  private mergeContextOverlays(chain: string[]): ContextOverlays | undefined {
+    const result: ContextOverlays = {
+      global: '',
+      phases: {},
+      steps: {},
+    };
+
+    const phaseNames = ['frame', 'architect', 'build', 'evaluate', 'release'] as const;
+
+    // Iterate root→child (reversed chain order) so ancestor context prepends to child
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const workflow = this.workflowCache.get(chain[i])!;
+      const ctx = workflow.context;
+      if (!ctx) continue;
+
+      // Merge global context
+      if (ctx.global) {
+        result.global = result.global
+          ? result.global + '\n\n' + ctx.global
+          : ctx.global;
+      }
+
+      // Merge phase contexts
+      for (const phase of phaseNames) {
+        if (ctx.phases?.[phase]) {
+          result.phases![phase] = result.phases![phase]
+            ? result.phases![phase] + '\n\n' + ctx.phases[phase]
+            : ctx.phases[phase];
+        }
+      }
+
+      // Merge step contexts (child overrides ancestor for same step ID)
+      if (ctx.steps) {
+        result.steps = { ...result.steps, ...ctx.steps };
+      }
+    }
+
+    // Check if any context was defined
+    const hasContent =
+      result.global ||
+      Object.keys(result.phases || {}).length > 0 ||
+      Object.keys(result.steps || {}).length > 0;
+
+    if (!hasContent) {
+      return undefined;
+    }
+
+    // Clean up empty fields
+    if (!result.global) {
+      delete result.global;
+    }
+    if (Object.keys(result.phases || {}).length === 0) {
+      delete result.phases;
+    }
+    if (Object.keys(result.steps || {}).length === 0) {
+      delete result.steps;
+    }
+
+    return result;
   }
 
   /**
