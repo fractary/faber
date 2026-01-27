@@ -552,7 +552,28 @@ export class WorkflowResolver {
         throw new WorkflowNotFoundError(workflowId, [url]);
       }
 
+      // Content-Length validation to prevent DoS via memory exhaustion (10MB limit)
+      const MAX_CONTENT_LENGTH = 10 * 1024 * 1024; // 10MB
+      const contentLengthHeader = response.headers.get('content-length');
+      if (contentLengthHeader) {
+        const contentLength = parseInt(contentLengthHeader, 10);
+        if (contentLength > MAX_CONTENT_LENGTH) {
+          throw new InvalidWorkflowError(
+            workflowId,
+            `Response too large (${contentLength} bytes). Maximum allowed: ${MAX_CONTENT_LENGTH} bytes`
+          );
+        }
+      }
+
       const content = await response.text();
+
+      // Also validate actual content size (in case Content-Length header was missing/incorrect)
+      if (content.length > MAX_CONTENT_LENGTH) {
+        throw new InvalidWorkflowError(
+          workflowId,
+          `Response too large (${content.length} bytes). Maximum allowed: ${MAX_CONTENT_LENGTH} bytes`
+        );
+      }
 
       // Validate JSON before caching
       try {
@@ -581,10 +602,10 @@ export class WorkflowResolver {
   }
 
   /**
-   * Hash a string using MD5.
+   * Hash a string using SHA-256.
    */
   private hashString(str: string): string {
-    return crypto.createHash('md5').update(str).digest('hex');
+    return crypto.createHash('sha256').update(str).digest('hex');
   }
 
   /**

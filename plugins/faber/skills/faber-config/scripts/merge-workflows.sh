@@ -189,7 +189,7 @@ load_workflow() {
 
         local cache_dir="${MARKETPLACE_ROOT}/.cache/workflows"
         local url_hash
-        url_hash=$(echo -n "$url" | md5sum | cut -d' ' -f1)
+        url_hash=$(echo -n "$url" | sha256sum | cut -d' ' -f1)
         local cache_file="${cache_dir}/${url_hash}.json"
 
         # Check cache (valid for 1 hour)
@@ -202,24 +202,38 @@ load_workflow() {
         mkdir -p "$cache_dir"
         chmod 700 "$cache_dir"
 
+        # Maximum content size (10MB) to prevent DoS via memory exhaustion
+        local MAX_CONTENT_SIZE=10485760
+
         # Fetch with security options:
         # -s: silent mode
         # -f: fail silently on HTTP errors
         # --max-time: timeout to prevent hanging
         # --max-redirs 0: disable redirects (SSRF protection)
+        # --max-filesize: limit response size to prevent DoS
         # -A: user agent
         if ! curl -sf \
             --max-time "$URL_FETCH_TIMEOUT" \
             --max-redirs 0 \
+            --max-filesize "$MAX_CONTENT_SIZE" \
             -A "Fractary-Faber-WorkflowResolver/1.0" \
             "$url" -o "$cache_file" 2>/dev/null; then
             rm -f "$cache_file"
-            echo '{"status": "failure", "message": "Failed to fetch URL: '"$url"'", "errors": ["HTTP request failed or timed out for '"$url"'"]}' >&2
+            echo '{"status": "failure", "message": "Failed to fetch URL: '"$url"'", "errors": ["HTTP request failed, timed out, or response too large for '"$url"'"]}' >&2
             exit 1
         fi
 
         # Set restricted permissions on cached file
         chmod 600 "$cache_file"
+
+        # Validate file size (additional check in case Content-Length was missing)
+        local file_size
+        file_size=$(stat -c%s "$cache_file" 2>/dev/null || stat -f%z "$cache_file" 2>/dev/null)
+        if [[ -n "$file_size" ]] && [[ "$file_size" -gt "$MAX_CONTENT_SIZE" ]]; then
+            rm -f "$cache_file"
+            echo '{"status": "failure", "message": "Response too large ('"$file_size"' bytes). Maximum allowed: '"$MAX_CONTENT_SIZE"' bytes", "errors": ["Content size exceeds limit"]}' >&2
+            exit 1
+        fi
 
         # Validate fetched JSON
         if ! jq empty "$cache_file" 2>/dev/null; then
