@@ -7,9 +7,12 @@
  * Centralized workflow resolution ensures consistent behavior across CLI, MCP, and agents.
  */
 
+import * as crypto from 'crypto';
+import * as dns from 'dns';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { promisify } from 'util';
 
 // ============================================================================
 // Workflow File Types
@@ -210,6 +213,137 @@ export class InvalidWorkflowError extends Error {
   }
 }
 
+export class SSRFError extends Error {
+  constructor(
+    public url: string,
+    public reason: string
+  ) {
+    super(`SSRF protection blocked URL ${url}: ${reason}`);
+    this.name = 'SSRFError';
+  }
+}
+
+// ============================================================================
+// URL Security Helpers
+// ============================================================================
+
+const dnsLookup = promisify(dns.lookup);
+
+/** Timeout for URL fetch operations (30 seconds) */
+const URL_FETCH_TIMEOUT_MS = 30000;
+
+/** Allowed URL schemes for workflow references */
+const ALLOWED_URL_SCHEMES = ['https:'];
+
+/**
+ * Check if an IP address is in a private/internal range.
+ * Blocks: localhost, private networks, link-local, loopback
+ */
+function isPrivateIP(ip: string): boolean {
+  // IPv4 patterns
+  const ipv4Patterns = [
+    /^127\./, // 127.0.0.0/8 - Loopback
+    /^10\./, // 10.0.0.0/8 - Private
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16.0.0/12 - Private
+    /^192\.168\./, // 192.168.0.0/16 - Private
+    /^169\.254\./, // 169.254.0.0/16 - Link-local (AWS metadata!)
+    /^0\./, // 0.0.0.0/8 - Current network
+    /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./, // 100.64.0.0/10 - Carrier-grade NAT
+    /^192\.0\.0\./, // 192.0.0.0/24 - IETF Protocol Assignments
+    /^192\.0\.2\./, // 192.0.2.0/24 - TEST-NET-1
+    /^198\.(1[89])\./, // 198.18.0.0/15 - Benchmarking
+    /^198\.51\.100\./, // 198.51.100.0/24 - TEST-NET-2
+    /^203\.0\.113\./, // 203.0.113.0/24 - TEST-NET-3
+    /^224\./, // 224.0.0.0/4 - Multicast
+    /^240\./, // 240.0.0.0/4 - Reserved
+    /^255\.255\.255\.255$/, // Broadcast
+  ];
+
+  // IPv6 patterns
+  const ipv6Patterns = [
+    /^::1$/, // Loopback
+    /^fe80:/i, // Link-local
+    /^fc00:/i, // Unique local (private)
+    /^fd[0-9a-f]{2}:/i, // Unique local (private)
+    /^::ffff:(127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|169\.254\.)/i, // IPv4-mapped
+  ];
+
+  for (const pattern of ipv4Patterns) {
+    if (pattern.test(ip)) return true;
+  }
+
+  for (const pattern of ipv6Patterns) {
+    if (pattern.test(ip)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Validate a URL for SSRF protection.
+ * Throws SSRFError if the URL is potentially dangerous.
+ *
+ * SECURITY NOTE: DNS Rebinding (TOCTOU) Limitation
+ * ------------------------------------------------
+ * This validation has a Time-of-Check-Time-of-Use vulnerability: the DNS
+ * resolution performed here may return a different IP than the one used
+ * by the subsequent fetch() call. An attacker with DNS control could:
+ * 1. First resolution (validation): returns public IP -> passes validation
+ * 2. Second resolution (fetch): returns private IP -> SSRF achieved
+ *
+ * Mitigation requires a custom HTTP agent that validates IP at connection
+ * time, which is complex to implement. For workflow references, this risk
+ * is acceptable because:
+ * - URL references are typically from trusted sources (marketplace configs)
+ * - The attacker would need DNS control over the domain
+ * - Additional mitigations exist (HTTPS-only, redirect blocking)
+ *
+ * For high-security environments, disable URL references entirely and use
+ * only explicit plugin@marketplace:workflow or project-local references.
+ */
+async function validateUrlSecurity(url: string): Promise<void> {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new SSRFError(url, 'Invalid URL format');
+  }
+
+  // Check scheme (only HTTPS allowed)
+  if (!ALLOWED_URL_SCHEMES.includes(parsedUrl.protocol)) {
+    throw new SSRFError(
+      url,
+      `URL scheme '${parsedUrl.protocol}' not allowed. Only HTTPS is permitted.`
+    );
+  }
+
+  // Block localhost hostnames
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (
+    hostname === 'localhost' ||
+    hostname === 'localhost.localdomain' ||
+    hostname.endsWith('.localhost') ||
+    hostname.endsWith('.local')
+  ) {
+    throw new SSRFError(url, 'Localhost URLs are not allowed');
+  }
+
+  // Resolve hostname to IP and check if private
+  try {
+    const { address } = await dnsLookup(hostname);
+    if (isPrivateIP(address)) {
+      throw new SSRFError(
+        url,
+        `URL resolves to private/internal IP address (${address})`
+      );
+    }
+  } catch (error) {
+    if (error instanceof SSRFError) throw error;
+    throw new SSRFError(url, `Failed to resolve hostname: ${(error as Error).message}`);
+  }
+}
+
 // ============================================================================
 // Workflow Resolver Class
 // ============================================================================
@@ -340,7 +474,8 @@ export class WorkflowResolver {
 
   /**
    * Load a workflow file by ID.
-   * Supports namespace resolution (fractary-faber:, project:, etc.)
+   * Supports URL references, explicit plugin@marketplace references,
+   * and project-local references with fallback to plugin defaults.
    */
   private async loadWorkflowFile(workflowId: string): Promise<WorkflowFileConfig> {
     // Check cache first
@@ -348,15 +483,23 @@ export class WorkflowResolver {
       return this.workflowCache.get(workflowId)!;
     }
 
-    const filePath = this.resolveWorkflowPath(workflowId);
+    const pathOrUrl = this.resolveWorkflowPath(workflowId);
+
+    // Handle URL references
+    if (typeof pathOrUrl === 'object' && pathOrUrl.type === 'url') {
+      return this.fetchWorkflowFromUrl(workflowId, pathOrUrl.url);
+    }
+
+    // At this point, pathOrUrl is guaranteed to be a string
+    const filePath = pathOrUrl as string;
     const searchedPaths: string[] = [filePath];
 
     if (!fs.existsSync(filePath)) {
-      // Fallback: if no explicit namespace, try plugin defaults
-      if (!workflowId.includes(':')) {
+      // Fallback: if project-local (no @ or :), try plugin defaults
+      if (!workflowId.includes('@') && !workflowId.includes(':')) {
         const fallbackPath = path.join(
           this.marketplaceRoot,
-          'fractary-faber/plugins/faber/config/workflows',
+          'fractary-faber/plugins/faber/.fractary/faber/workflows',
           `${workflowId}.json`
         );
         searchedPaths.push(fallbackPath);
@@ -390,81 +533,185 @@ export class WorkflowResolver {
   }
 
   /**
-   * Resolve a workflow ID to a file path based on namespace.
+   * Fetch a workflow from a URL with caching.
+   * Cache is valid for 1 hour.
+   *
+   * Security: Validates URL to prevent SSRF attacks before fetching.
+   */
+  private async fetchWorkflowFromUrl(workflowId: string, url: string): Promise<WorkflowFileConfig> {
+    // SSRF Protection: Validate URL before fetching
+    await validateUrlSecurity(url);
+
+    const cacheDir = path.join(this.marketplaceRoot, '.cache', 'workflows');
+    const cacheFile = path.join(cacheDir, `${this.hashString(url)}.json`);
+
+    // Check cache (1 hour TTL)
+    if (fs.existsSync(cacheFile)) {
+      const stats = fs.statSync(cacheFile);
+      const ageMinutes = (Date.now() - stats.mtimeMs) / 60000;
+      if (ageMinutes < 60) {
+        return this.loadAndCacheWorkflow(workflowId, cacheFile);
+      }
+    }
+
+    // Fetch from URL with timeout and security settings
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), URL_FETCH_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        redirect: 'error', // Block redirects to prevent SSRF via redirect
+        headers: {
+          'User-Agent': 'Fractary-Faber-WorkflowResolver/1.0',
+        },
+      });
+
+      if (!response.ok) {
+        throw new WorkflowNotFoundError(workflowId, [url]);
+      }
+
+      // Content-Length validation to prevent DoS via memory exhaustion (10MB limit)
+      const MAX_CONTENT_LENGTH = 10 * 1024 * 1024; // 10MB
+      const contentLengthHeader = response.headers.get('content-length');
+      if (contentLengthHeader) {
+        const contentLength = parseInt(contentLengthHeader, 10);
+        if (contentLength > MAX_CONTENT_LENGTH) {
+          throw new InvalidWorkflowError(
+            workflowId,
+            `Response too large (${contentLength} bytes). Maximum allowed: ${MAX_CONTENT_LENGTH} bytes`
+          );
+        }
+      }
+
+      const content = await response.text();
+
+      // Also validate actual content size (in case Content-Length header was missing/incorrect)
+      if (content.length > MAX_CONTENT_LENGTH) {
+        throw new InvalidWorkflowError(
+          workflowId,
+          `Response too large (${content.length} bytes). Maximum allowed: ${MAX_CONTENT_LENGTH} bytes`
+        );
+      }
+
+      // Validate JSON before caching
+      try {
+        JSON.parse(content);
+      } catch {
+        throw new InvalidWorkflowError(workflowId, `Invalid JSON from URL: ${url}`);
+      }
+
+      // Create cache directory with restricted permissions (owner only)
+      fs.mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
+
+      // Atomic file write to prevent permission race condition:
+      // Write to temp file first, then rename (atomic on POSIX systems)
+      const tempFile = `${cacheFile}.${process.pid}.tmp`;
+      try {
+        // Write with restrictive permissions from the start
+        const fd = fs.openSync(tempFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o600);
+        fs.writeSync(fd, content);
+        fs.closeSync(fd);
+        // Atomic rename
+        fs.renameSync(tempFile, cacheFile);
+      } catch (writeError) {
+        // Clean up temp file on error
+        try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
+        throw writeError;
+      }
+
+      // Opportunistic cache cleanup: remove expired entries (>1 hour old)
+      this.cleanupExpiredCache(cacheDir);
+
+      return this.loadAndCacheWorkflow(workflowId, cacheFile);
+    } catch (error) {
+      // Handle timeout
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new InvalidWorkflowError(
+          workflowId,
+          `URL fetch timed out after ${URL_FETCH_TIMEOUT_MS / 1000} seconds: ${url}`
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * Hash a string using SHA-256.
+   */
+  private hashString(str: string): string {
+    return crypto.createHash('sha256').update(str).digest('hex');
+  }
+
+  /**
+   * Clean up expired cache entries (older than 1 hour).
+   * Called opportunistically when writing new cache files.
+   * Errors are silently ignored to not disrupt normal operations.
+   */
+  private cleanupExpiredCache(cacheDir: string): void {
+    try {
+      if (!fs.existsSync(cacheDir)) return;
+
+      const files = fs.readdirSync(cacheDir);
+      const now = Date.now();
+      const ONE_HOUR_MS = 60 * 60 * 1000;
+
+      for (const file of files) {
+        // Only process .json cache files (skip .tmp files)
+        if (!file.endsWith('.json')) continue;
+
+        const filePath = path.join(cacheDir, file);
+        try {
+          const stats = fs.statSync(filePath);
+          const ageMs = now - stats.mtimeMs;
+          if (ageMs > ONE_HOUR_MS) {
+            fs.unlinkSync(filePath);
+          }
+        } catch {
+          // Ignore errors for individual files (may have been deleted by another process)
+        }
+      }
+    } catch {
+      // Silently ignore cleanup errors - this is opportunistic
+    }
+  }
+
+  /**
+   * Resolve a workflow ID to a file path or URL reference.
+   * Supports three formats:
+   *   1. URL: url:https://example.com/workflow.json
+   *   2. Explicit: plugin@marketplace:workflow
+   *   3. Project-local: workflow-name
    * Validates all path components to prevent path traversal attacks.
    */
-  private resolveWorkflowPath(workflowId: string): string {
-    let namespace: string;
-    let workflowName: string;
-
-    if (workflowId.includes(':')) {
-      const parts = workflowId.split(':');
-      namespace = parts[0];
-      workflowName = parts.slice(1).join(':');
-    } else {
-      namespace = 'project';
-      workflowName = workflowId;
+  private resolveWorkflowPath(workflowId: string): string | { type: 'url'; url: string } {
+    // Format 1: URL reference
+    if (workflowId.startsWith('url:')) {
+      return { type: 'url', url: workflowId.slice(4) };
     }
 
-    // Sanitize namespace and workflow name to prevent path traversal
-    this.sanitizePathComponent(namespace, 'namespace');
-    this.sanitizePathComponent(workflowName, 'workflow name');
-
-    switch (namespace) {
-      case 'fractary-faber':
-        return path.join(
-          this.marketplaceRoot,
-          'fractary-faber/plugins/faber/config/workflows',
-          `${workflowName}.json`
-        );
-
-      case 'fractary-faber-cloud':
-        return path.join(
-          this.marketplaceRoot,
-          'fractary-faber/plugins/faber-cloud/config/workflows',
-          `${workflowName}.json`
-        );
-
-      case 'fractary-core': {
-        // Extract plugin name from workflow_name if it contains slash
-        const parts = workflowName.split('/');
-        // Sanitize each part individually
-        const plugin = this.sanitizePathComponent(parts[0], 'plugin name');
-        const workflow = parts.length > 1
-          ? this.sanitizePathComponent(parts.slice(1).join('/'), 'workflow name')
-          : plugin;
-        return path.join(
-          this.marketplaceRoot,
-          `fractary-core/plugins/${plugin}/config/workflows`,
-          `${workflow}.json`
-        );
-      }
-
-      case 'fractary-codex':
-        return path.join(
-          this.marketplaceRoot,
-          'fractary-codex/plugins/codex/config/workflows',
-          `${workflowName}.json`
-        );
-
-      case 'project':
-      case '':
-        return path.join(this.projectRoot, '.fractary/faber/workflows', `${workflowName}.json`);
-
-      default: {
-        // Fallback to old unified marketplace for backward compatibility
-        // Sanitize the derived plugin name as well
-        const pluginName = this.sanitizePathComponent(
-          namespace.replace('fractary-', ''),
-          'plugin name'
-        );
-        return path.join(
-          this.marketplaceRoot,
-          `fractary/plugins/${pluginName}/config/workflows`,
-          `${workflowName}.json`
-        );
-      }
+    // Format 2: Explicit plugin@marketplace:workflow
+    const explicitMatch = workflowId.match(/^([^@]+)@([^:]+):(.+)$/);
+    if (explicitMatch) {
+      const [, plugin, marketplace, workflow] = explicitMatch;
+      this.sanitizePathComponent(plugin, 'plugin');
+      this.sanitizePathComponent(marketplace, 'marketplace');
+      this.sanitizePathComponent(workflow, 'workflow');
+      return path.join(
+        this.marketplaceRoot,
+        marketplace,
+        'plugins',
+        plugin,
+        '.fractary/faber/workflows',
+        `${workflow}.json`
+      );
     }
+
+    // Format 3: Project-local (no @ symbol)
+    this.sanitizePathComponent(workflowId, 'workflow');
+    return path.join(this.projectRoot, '.fractary/faber/workflows', `${workflowId}.json`);
   }
 
   /**
