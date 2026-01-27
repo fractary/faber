@@ -251,6 +251,7 @@ function isPrivateIP(ip: string): boolean {
     /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./, // 100.64.0.0/10 - Carrier-grade NAT
     /^192\.0\.0\./, // 192.0.0.0/24 - IETF Protocol Assignments
     /^192\.0\.2\./, // 192.0.2.0/24 - TEST-NET-1
+    /^198\.(1[89])\./, // 198.18.0.0/15 - Benchmarking
     /^198\.51\.100\./, // 198.51.100.0/24 - TEST-NET-2
     /^203\.0\.113\./, // 203.0.113.0/24 - TEST-NET-3
     /^224\./, // 224.0.0.0/4 - Multicast
@@ -281,6 +282,24 @@ function isPrivateIP(ip: string): boolean {
 /**
  * Validate a URL for SSRF protection.
  * Throws SSRFError if the URL is potentially dangerous.
+ *
+ * SECURITY NOTE: DNS Rebinding (TOCTOU) Limitation
+ * ------------------------------------------------
+ * This validation has a Time-of-Check-Time-of-Use vulnerability: the DNS
+ * resolution performed here may return a different IP than the one used
+ * by the subsequent fetch() call. An attacker with DNS control could:
+ * 1. First resolution (validation): returns public IP -> passes validation
+ * 2. Second resolution (fetch): returns private IP -> SSRF achieved
+ *
+ * Mitigation requires a custom HTTP agent that validates IP at connection
+ * time, which is complex to implement. For workflow references, this risk
+ * is acceptable because:
+ * - URL references are typically from trusted sources (marketplace configs)
+ * - The attacker would need DNS control over the domain
+ * - Additional mitigations exist (HTTPS-only, redirect blocking)
+ *
+ * For high-security environments, disable URL references entirely and use
+ * only explicit plugin@marketplace:workflow or project-local references.
  */
 async function validateUrlSecurity(url: string): Promise<void> {
   let parsedUrl: URL;
@@ -584,7 +603,25 @@ export class WorkflowResolver {
 
       // Create cache directory with restricted permissions (owner only)
       fs.mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
-      fs.writeFileSync(cacheFile, content, { mode: 0o600 });
+
+      // Atomic file write to prevent permission race condition:
+      // Write to temp file first, then rename (atomic on POSIX systems)
+      const tempFile = `${cacheFile}.${process.pid}.tmp`;
+      try {
+        // Write with restrictive permissions from the start
+        const fd = fs.openSync(tempFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o600);
+        fs.writeSync(fd, content);
+        fs.closeSync(fd);
+        // Atomic rename
+        fs.renameSync(tempFile, cacheFile);
+      } catch (writeError) {
+        // Clean up temp file on error
+        try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
+        throw writeError;
+      }
+
+      // Opportunistic cache cleanup: remove expired entries (>1 hour old)
+      this.cleanupExpiredCache(cacheDir);
 
       return this.loadAndCacheWorkflow(workflowId, cacheFile);
     } catch (error) {
@@ -606,6 +643,39 @@ export class WorkflowResolver {
    */
   private hashString(str: string): string {
     return crypto.createHash('sha256').update(str).digest('hex');
+  }
+
+  /**
+   * Clean up expired cache entries (older than 1 hour).
+   * Called opportunistically when writing new cache files.
+   * Errors are silently ignored to not disrupt normal operations.
+   */
+  private cleanupExpiredCache(cacheDir: string): void {
+    try {
+      if (!fs.existsSync(cacheDir)) return;
+
+      const files = fs.readdirSync(cacheDir);
+      const now = Date.now();
+      const ONE_HOUR_MS = 60 * 60 * 1000;
+
+      for (const file of files) {
+        // Only process .json cache files (skip .tmp files)
+        if (!file.endsWith('.json')) continue;
+
+        const filePath = path.join(cacheDir, file);
+        try {
+          const stats = fs.statSync(filePath);
+          const ageMs = now - stats.mtimeMs;
+          if (ageMs > ONE_HOUR_MS) {
+            fs.unlinkSync(filePath);
+          }
+        } catch {
+          // Ignore errors for individual files (may have been deleted by another process)
+        }
+      }
+    } catch {
+      // Silently ignore cleanup errors - this is opportunistic
+    }
   }
 
   /**

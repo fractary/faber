@@ -77,6 +77,7 @@ is_private_ip() {
        [[ "$ip" =~ ^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\. ]] || # Carrier-grade NAT
        [[ "$ip" =~ ^192\.0\.0\. ]] ||                              # IETF Protocol
        [[ "$ip" =~ ^192\.0\.2\. ]] ||                              # TEST-NET-1
+       [[ "$ip" =~ ^198\.(1[89])\. ]] ||                           # Benchmarking (198.18.0.0/15)
        [[ "$ip" =~ ^198\.51\.100\. ]] ||                           # TEST-NET-2
        [[ "$ip" =~ ^203\.0\.113\. ]] ||                            # TEST-NET-3
        [[ "$ip" =~ ^224\. ]] ||                                    # Multicast
@@ -98,6 +99,21 @@ is_private_ip() {
 
 # Function to validate URL for SSRF protection
 # Exits with error if URL is potentially dangerous
+#
+# SECURITY NOTE: DNS Rebinding (TOCTOU) Limitation
+# ------------------------------------------------
+# This validation has a Time-of-Check-Time-of-Use vulnerability: the DNS
+# resolution performed here may return a different IP than the one used
+# by the subsequent curl call. An attacker with DNS control could:
+# 1. First resolution (validation): returns public IP -> passes validation
+# 2. Second resolution (curl): returns private IP -> SSRF achieved
+#
+# For workflow references, this risk is acceptable because:
+# - URL references are typically from trusted sources (marketplace configs)
+# - The attacker would need DNS control over the domain
+# - Additional mitigations exist (HTTPS-only, redirect blocking)
+#
+# For high-security environments, disable URL references entirely.
 validate_url_security() {
     local url="$1"
 
@@ -205,6 +221,9 @@ load_workflow() {
         # Maximum content size (10MB) to prevent DoS via memory exhaustion
         local MAX_CONTENT_SIZE=10485760
 
+        # Use temp file for atomic write (prevents permission race condition)
+        local temp_file="${cache_file}.$$.tmp"
+
         # Fetch with security options:
         # -s: silent mode
         # -f: fail silently on HTTP errors
@@ -212,35 +231,46 @@ load_workflow() {
         # --max-redirs 0: disable redirects (SSRF protection)
         # --max-filesize: limit response size to prevent DoS
         # -A: user agent
-        if ! curl -sf \
-            --max-time "$URL_FETCH_TIMEOUT" \
-            --max-redirs 0 \
-            --max-filesize "$MAX_CONTENT_SIZE" \
-            -A "Fractary-Faber-WorkflowResolver/1.0" \
-            "$url" -o "$cache_file" 2>/dev/null; then
-            rm -f "$cache_file"
+        # Write to temp file first with restrictive umask
+        (
+            umask 077
+            if ! curl -sf \
+                --max-time "$URL_FETCH_TIMEOUT" \
+                --max-redirs 0 \
+                --max-filesize "$MAX_CONTENT_SIZE" \
+                -A "Fractary-Faber-WorkflowResolver/1.0" \
+                "$url" -o "$temp_file" 2>/dev/null; then
+                rm -f "$temp_file"
+                exit 1
+            fi
+        )
+        if [[ $? -ne 0 ]]; then
+            rm -f "$temp_file"
             echo '{"status": "failure", "message": "Failed to fetch URL: '"$url"'", "errors": ["HTTP request failed, timed out, or response too large for '"$url"'"]}' >&2
             exit 1
         fi
 
-        # Set restricted permissions on cached file
-        chmod 600 "$cache_file"
-
         # Validate file size (additional check in case Content-Length was missing)
         local file_size
-        file_size=$(stat -c%s "$cache_file" 2>/dev/null || stat -f%z "$cache_file" 2>/dev/null)
+        file_size=$(stat -c%s "$temp_file" 2>/dev/null || stat -f%z "$temp_file" 2>/dev/null)
         if [[ -n "$file_size" ]] && [[ "$file_size" -gt "$MAX_CONTENT_SIZE" ]]; then
-            rm -f "$cache_file"
+            rm -f "$temp_file"
             echo '{"status": "failure", "message": "Response too large ('"$file_size"' bytes). Maximum allowed: '"$MAX_CONTENT_SIZE"' bytes", "errors": ["Content size exceeds limit"]}' >&2
             exit 1
         fi
 
         # Validate fetched JSON
-        if ! jq empty "$cache_file" 2>/dev/null; then
-            rm -f "$cache_file"
+        if ! jq empty "$temp_file" 2>/dev/null; then
+            rm -f "$temp_file"
             echo '{"status": "failure", "message": "Invalid JSON from URL: '"$url"'", "errors": ["JSON parse error from '"$url"'"]}' >&2
             exit 5
         fi
+
+        # Atomic rename (prevents race condition where file is briefly world-readable)
+        mv "$temp_file" "$cache_file"
+
+        # Opportunistic cache cleanup: remove expired entries (>1 hour old)
+        find "$cache_dir" -name "*.json" -mmin +60 -delete 2>/dev/null || true
 
         cat "$cache_file"
         return

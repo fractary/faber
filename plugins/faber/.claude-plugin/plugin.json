@@ -1,6 +1,6 @@
 {
   "name": "fractary-faber",
-  "version": "3.7.6",
+  "version": "3.7.7",
   "description": "Universal SDLC workflow framework with unified orchestrator pattern (plan + run)",
   "commands": "./commands/",
   "agents": [
