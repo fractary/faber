@@ -7,6 +7,7 @@
  * Centralized workflow resolution ensures consistent behavior across CLI, MCP, and agents.
  */
 
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -340,7 +341,8 @@ export class WorkflowResolver {
 
   /**
    * Load a workflow file by ID.
-   * Supports namespace resolution (fractary-faber:, project:, etc.)
+   * Supports URL references, explicit plugin@marketplace references,
+   * and project-local references with fallback to plugin defaults.
    */
   private async loadWorkflowFile(workflowId: string): Promise<WorkflowFileConfig> {
     // Check cache first
@@ -348,15 +350,23 @@ export class WorkflowResolver {
       return this.workflowCache.get(workflowId)!;
     }
 
-    const filePath = this.resolveWorkflowPath(workflowId);
+    const pathOrUrl = this.resolveWorkflowPath(workflowId);
+
+    // Handle URL references
+    if (typeof pathOrUrl === 'object' && pathOrUrl.type === 'url') {
+      return this.fetchWorkflowFromUrl(workflowId, pathOrUrl.url);
+    }
+
+    // At this point, pathOrUrl is guaranteed to be a string
+    const filePath = pathOrUrl as string;
     const searchedPaths: string[] = [filePath];
 
     if (!fs.existsSync(filePath)) {
-      // Fallback: if no explicit namespace, try plugin defaults
-      if (!workflowId.includes(':')) {
+      // Fallback: if project-local (no @ or :), try plugin defaults
+      if (!workflowId.includes('@') && !workflowId.includes(':')) {
         const fallbackPath = path.join(
           this.marketplaceRoot,
-          'fractary-faber/plugins/faber/config/workflows',
+          'fractary-faber/plugins/faber/.fractary/faber/workflows',
           `${workflowId}.json`
         );
         searchedPaths.push(fallbackPath);
@@ -390,81 +400,84 @@ export class WorkflowResolver {
   }
 
   /**
-   * Resolve a workflow ID to a file path based on namespace.
+   * Fetch a workflow from a URL with caching.
+   * Cache is valid for 1 hour.
+   */
+  private async fetchWorkflowFromUrl(workflowId: string, url: string): Promise<WorkflowFileConfig> {
+    const cacheDir = path.join(this.marketplaceRoot, '.cache', 'workflows');
+    const cacheFile = path.join(cacheDir, `${this.hashString(url)}.json`);
+
+    // Check cache (1 hour TTL)
+    if (fs.existsSync(cacheFile)) {
+      const stats = fs.statSync(cacheFile);
+      const ageMinutes = (Date.now() - stats.mtimeMs) / 60000;
+      if (ageMinutes < 60) {
+        return this.loadAndCacheWorkflow(workflowId, cacheFile);
+      }
+    }
+
+    // Fetch from URL
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new WorkflowNotFoundError(workflowId, [url]);
+    }
+
+    const content = await response.text();
+
+    // Validate JSON before caching
+    try {
+      JSON.parse(content);
+    } catch {
+      throw new InvalidWorkflowError(workflowId, `Invalid JSON from URL: ${url}`);
+    }
+
+    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.writeFileSync(cacheFile, content);
+
+    return this.loadAndCacheWorkflow(workflowId, cacheFile);
+  }
+
+  /**
+   * Hash a string using MD5.
+   */
+  private hashString(str: string): string {
+    return crypto.createHash('md5').update(str).digest('hex');
+  }
+
+  /**
+   * Resolve a workflow ID to a file path or URL reference.
+   * Supports three formats:
+   *   1. URL: url:https://example.com/workflow.json
+   *   2. Explicit: plugin@marketplace:workflow
+   *   3. Project-local: workflow-name
    * Validates all path components to prevent path traversal attacks.
    */
-  private resolveWorkflowPath(workflowId: string): string {
-    let namespace: string;
-    let workflowName: string;
-
-    if (workflowId.includes(':')) {
-      const parts = workflowId.split(':');
-      namespace = parts[0];
-      workflowName = parts.slice(1).join(':');
-    } else {
-      namespace = 'project';
-      workflowName = workflowId;
+  private resolveWorkflowPath(workflowId: string): string | { type: 'url'; url: string } {
+    // Format 1: URL reference
+    if (workflowId.startsWith('url:')) {
+      return { type: 'url', url: workflowId.slice(4) };
     }
 
-    // Sanitize namespace and workflow name to prevent path traversal
-    this.sanitizePathComponent(namespace, 'namespace');
-    this.sanitizePathComponent(workflowName, 'workflow name');
-
-    switch (namespace) {
-      case 'fractary-faber':
-        return path.join(
-          this.marketplaceRoot,
-          'fractary-faber/plugins/faber/config/workflows',
-          `${workflowName}.json`
-        );
-
-      case 'fractary-faber-cloud':
-        return path.join(
-          this.marketplaceRoot,
-          'fractary-faber/plugins/faber-cloud/config/workflows',
-          `${workflowName}.json`
-        );
-
-      case 'fractary-core': {
-        // Extract plugin name from workflow_name if it contains slash
-        const parts = workflowName.split('/');
-        // Sanitize each part individually
-        const plugin = this.sanitizePathComponent(parts[0], 'plugin name');
-        const workflow = parts.length > 1
-          ? this.sanitizePathComponent(parts.slice(1).join('/'), 'workflow name')
-          : plugin;
-        return path.join(
-          this.marketplaceRoot,
-          `fractary-core/plugins/${plugin}/config/workflows`,
-          `${workflow}.json`
-        );
-      }
-
-      case 'fractary-codex':
-        return path.join(
-          this.marketplaceRoot,
-          'fractary-codex/plugins/codex/config/workflows',
-          `${workflowName}.json`
-        );
-
-      case 'project':
-      case '':
-        return path.join(this.projectRoot, '.fractary/faber/workflows', `${workflowName}.json`);
-
-      default: {
-        // Fallback to old unified marketplace for backward compatibility
-        // Sanitize the derived plugin name as well
-        const pluginName = this.sanitizePathComponent(
-          namespace.replace('fractary-', ''),
-          'plugin name'
-        );
-        return path.join(
-          this.marketplaceRoot,
-          `fractary/plugins/${pluginName}/config/workflows`,
-          `${workflowName}.json`
-        );
-      }
+    // Format 2: Explicit plugin@marketplace:workflow
+    const explicitMatch = workflowId.match(/^([^@]+)@([^:]+):(.+)$/);
+    if (explicitMatch) {
+      const [, plugin, marketplace, workflow] = explicitMatch;
+      this.sanitizePathComponent(plugin, 'plugin');
+      this.sanitizePathComponent(marketplace, 'marketplace');
+      this.sanitizePathComponent(workflow, 'workflow');
+      return path.join(
+        this.marketplaceRoot,
+        marketplace,
+        'plugins',
+        plugin,
+        '.fractary/faber/workflows',
+        `${workflow}.json`
+      );
     }
+
+    // Format 3: Project-local (no @ symbol)
+    this.sanitizePathComponent(workflowId, 'workflow');
+    return path.join(this.projectRoot, '.fractary/faber/workflows', `${workflowId}.json`);
   }
 
   /**

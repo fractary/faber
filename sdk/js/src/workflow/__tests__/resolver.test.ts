@@ -25,8 +25,8 @@ describe('WorkflowResolver', () => {
     marketplaceRoot = path.join(testDir, 'marketplaces');
     projectRoot = path.join(testDir, 'project');
 
-    // Create directory structures
-    fs.mkdirSync(path.join(marketplaceRoot, 'fractary-faber/plugins/faber/config/workflows'), {
+    // Create directory structures (new .fractary/faber/workflows location)
+    fs.mkdirSync(path.join(marketplaceRoot, 'fractary-faber/plugins/faber/.fractary/faber/workflows'), {
       recursive: true,
     });
     fs.mkdirSync(path.join(projectRoot, '.fractary/faber/workflows'), { recursive: true });
@@ -45,7 +45,7 @@ describe('WorkflowResolver', () => {
   });
 
   /**
-   * Helper to create a workflow file
+   * Helper to create a workflow file in the new .fractary/faber/workflows location
    */
   function createWorkflow(
     namespace: 'fractary-faber' | 'project',
@@ -54,7 +54,7 @@ describe('WorkflowResolver', () => {
   ): void {
     const basePath =
       namespace === 'fractary-faber'
-        ? path.join(marketplaceRoot, 'fractary-faber/plugins/faber/config/workflows')
+        ? path.join(marketplaceRoot, 'fractary-faber/plugins/faber/.fractary/faber/workflows')
         : path.join(projectRoot, '.fractary/faber/workflows');
 
     const fullConfig: WorkflowFileConfig = {
@@ -183,7 +183,7 @@ describe('WorkflowResolver', () => {
       it('should prepend ancestor global context to child global context', async () => {
         createWorkflow('project', 'child', {
           id: 'child',
-          extends: 'fractary-faber:base',
+          extends: 'faber@fractary-faber:base',
           context: {
             global: 'Child global context',
           },
@@ -197,7 +197,7 @@ describe('WorkflowResolver', () => {
       it('should prepend ancestor phase context to child phase context', async () => {
         createWorkflow('project', 'child-phase', {
           id: 'child-phase',
-          extends: 'fractary-faber:base',
+          extends: 'faber@fractary-faber:base',
           context: {
             phases: {
               build: 'Child build context',
@@ -215,7 +215,7 @@ describe('WorkflowResolver', () => {
       it('should override ancestor step context with child step context', async () => {
         createWorkflow('project', 'child-step', {
           id: 'child-step',
-          extends: 'fractary-faber:base',
+          extends: 'faber@fractary-faber:base',
           context: {
             steps: {
               implement: 'Child implement step (overrides base)',
@@ -232,7 +232,7 @@ describe('WorkflowResolver', () => {
       it('should merge step contexts when different step IDs', async () => {
         createWorkflow('project', 'child-new-step', {
           id: 'child-new-step',
-          extends: 'fractary-faber:base',
+          extends: 'faber@fractary-faber:base',
           context: {
             steps: {
               'new-step': 'Child new step context',
@@ -250,7 +250,7 @@ describe('WorkflowResolver', () => {
       it('should inherit ancestor context when child has none', async () => {
         createWorkflow('project', 'no-child-context', {
           id: 'no-child-context',
-          extends: 'fractary-faber:base',
+          extends: 'faber@fractary-faber:base',
           // No context defined
         });
 
@@ -269,7 +269,7 @@ describe('WorkflowResolver', () => {
 
         createWorkflow('project', 'child-only-context', {
           id: 'child-only-context',
-          extends: 'fractary-faber:no-ctx-base',
+          extends: 'faber@fractary-faber:no-ctx-base',
           context: {
             global: 'Child only global',
           },
@@ -301,7 +301,7 @@ describe('WorkflowResolver', () => {
         // Create parent extending core
         createWorkflow('fractary-faber', 'default', {
           id: 'default',
-          extends: 'fractary-faber:core',
+          extends: 'faber@fractary-faber:core',
           context: {
             global: 'Default global',
             phases: {
@@ -318,7 +318,7 @@ describe('WorkflowResolver', () => {
       it('should accumulate global context from all ancestors (grandparent → parent → child)', async () => {
         createWorkflow('project', 'grandchild', {
           id: 'grandchild',
-          extends: 'fractary-faber:default',
+          extends: 'faber@fractary-faber:default',
           context: {
             global: 'Grandchild global',
           },
@@ -332,7 +332,7 @@ describe('WorkflowResolver', () => {
       it('should accumulate phase context through inheritance chain', async () => {
         createWorkflow('project', 'grandchild-phase', {
           id: 'grandchild-phase',
-          extends: 'fractary-faber:default',
+          extends: 'faber@fractary-faber:default',
           context: {
             phases: {
               build: 'Grandchild build',
@@ -355,7 +355,7 @@ describe('WorkflowResolver', () => {
       it('should resolve step contexts with proper override chain', async () => {
         createWorkflow('project', 'grandchild-step', {
           id: 'grandchild-step',
-          extends: 'fractary-faber:default',
+          extends: 'faber@fractary-faber:default',
           context: {
             steps: {
               'core-step': 'Grandchild overrides core step',
@@ -377,15 +377,15 @@ describe('WorkflowResolver', () => {
       it('should preserve inheritance chain in resolved workflow', async () => {
         createWorkflow('project', 'grandchild-chain', {
           id: 'grandchild-chain',
-          extends: 'fractary-faber:default',
+          extends: 'faber@fractary-faber:default',
         });
 
         const resolved = await resolver.resolveWorkflow('grandchild-chain');
 
         expect(resolved.inheritance_chain).toEqual([
           'grandchild-chain',
-          'fractary-faber:default',
-          'fractary-faber:core',
+          'faber@fractary-faber:default',
+          'faber@fractary-faber:core',
         ]);
       });
     });
@@ -494,7 +494,7 @@ describe('WorkflowResolver', () => {
 
         createWorkflow('project', 'extends-legacy', {
           id: 'extends-legacy',
-          extends: 'fractary-faber:legacy',
+          extends: 'faber@fractary-faber:legacy',
           context: {
             global: 'New context on child',
           },
@@ -503,7 +503,7 @@ describe('WorkflowResolver', () => {
         const resolved = await resolver.resolveWorkflow('extends-legacy');
 
         expect(resolved.context?.global).toBe('New context on child');
-        expect(resolved.inheritance_chain).toEqual(['extends-legacy', 'fractary-faber:legacy']);
+        expect(resolved.inheritance_chain).toEqual(['extends-legacy', 'faber@fractary-faber:legacy']);
       });
 
       it('should preserve other workflow properties alongside context', async () => {
@@ -571,6 +571,167 @@ describe('WorkflowResolver', () => {
       resolver.clearCache();
       const fresh = await resolver.resolveWorkflow('cached');
       expect(fresh.description).toBe('Second version');
+    });
+  });
+
+  describe('Flexible Reference Formats', () => {
+    /**
+     * Helper to create a workflow in explicit plugin@marketplace format
+     */
+    function createExplicitWorkflow(
+      marketplace: string,
+      plugin: string,
+      name: string,
+      config: Partial<WorkflowFileConfig>
+    ): void {
+      const basePath = path.join(
+        marketplaceRoot,
+        marketplace,
+        'plugins',
+        plugin,
+        '.fractary/faber/workflows'
+      );
+      fs.mkdirSync(basePath, { recursive: true });
+
+      const fullConfig: WorkflowFileConfig = {
+        id: config.id || name,
+        phases: config.phases || {
+          frame: { enabled: true },
+          architect: { enabled: true },
+          build: { enabled: true },
+          evaluate: { enabled: true },
+          release: { enabled: true },
+        },
+        autonomy: config.autonomy || { level: 'guarded' },
+        ...config,
+      };
+
+      fs.writeFileSync(path.join(basePath, `${name}.json`), JSON.stringify(fullConfig, null, 2));
+    }
+
+    describe('Explicit plugin@marketplace:workflow Format', () => {
+      it('should resolve explicit format: faber@fractary-faber:default', async () => {
+        createExplicitWorkflow('fractary-faber', 'faber', 'default', {
+          id: 'default',
+          description: 'Default workflow from explicit format',
+        });
+
+        const resolved = await resolver.resolveWorkflow('faber@fractary-faber:default');
+
+        expect(resolved.id).toBe('default');
+        expect(resolved.description).toBe('Default workflow from explicit format');
+        expect(resolved.inheritance_chain).toEqual(['faber@fractary-faber:default']);
+      });
+
+      it('should resolve explicit format with different marketplace', async () => {
+        createExplicitWorkflow('fractary-faber-software', 'faber-software', 'software-development', {
+          id: 'software-development',
+          description: 'Software development workflow',
+        });
+
+        const resolved = await resolver.resolveWorkflow(
+          'faber-software@fractary-faber-software:software-development'
+        );
+
+        expect(resolved.id).toBe('software-development');
+        expect(resolved.description).toBe('Software development workflow');
+      });
+
+      it('should support inheritance with explicit format', async () => {
+        // Create parent in explicit format
+        createExplicitWorkflow('fractary-faber', 'faber', 'core', {
+          id: 'core',
+          description: 'Core workflow',
+          context: {
+            global: 'Core global context',
+          },
+        });
+
+        // Create child extending parent using explicit format
+        createWorkflow('project', 'my-workflow', {
+          id: 'my-workflow',
+          extends: 'faber@fractary-faber:core',
+          description: 'My custom workflow',
+          context: {
+            global: 'My custom context',
+          },
+        });
+
+        const resolved = await resolver.resolveWorkflow('my-workflow');
+
+        expect(resolved.id).toBe('my-workflow');
+        expect(resolved.inheritance_chain).toEqual(['my-workflow', 'faber@fractary-faber:core']);
+        expect(resolved.context?.global).toBe('Core global context\n\nMy custom context');
+      });
+
+      it('should throw WorkflowNotFoundError for non-existent explicit reference', async () => {
+        await expect(
+          resolver.resolveWorkflow('nonexistent@nonexistent-marketplace:workflow')
+        ).rejects.toThrow(WorkflowNotFoundError);
+      });
+    });
+
+    describe('Project-local Format', () => {
+      it('should resolve project-local workflow by name only', async () => {
+        createWorkflow('project', 'my-local-workflow', {
+          id: 'my-local-workflow',
+          description: 'Project local workflow',
+        });
+
+        const resolved = await resolver.resolveWorkflow('my-local-workflow');
+
+        expect(resolved.id).toBe('my-local-workflow');
+        expect(resolved.description).toBe('Project local workflow');
+      });
+
+      it('should fallback to plugin defaults for project-local format', async () => {
+        // Create workflow in plugin defaults (simulating fallback path)
+        createWorkflow('fractary-faber', 'default-fallback', {
+          id: 'default-fallback',
+          description: 'Fallback workflow from plugin',
+        });
+
+        const resolved = await resolver.resolveWorkflow('default-fallback');
+
+        expect(resolved.id).toBe('default-fallback');
+        expect(resolved.description).toBe('Fallback workflow from plugin');
+      });
+    });
+
+    describe('URL Format', () => {
+      it('should recognize url: prefix as URL reference', async () => {
+        // URL format is detected by the resolver but requires network fetch
+        // We test that it throws the appropriate error for an invalid URL
+        await expect(
+          resolver.resolveWorkflow('url:https://example.com/nonexistent-workflow.json')
+        ).rejects.toThrow();
+      });
+    });
+
+    describe('Path Security', () => {
+      it('should reject path traversal in explicit format plugin name', async () => {
+        await expect(
+          resolver.resolveWorkflow('../../../etc/passwd@marketplace:workflow')
+        ).rejects.toThrow(/path traversal/);
+      });
+
+      it('should reject path traversal in explicit format marketplace name', async () => {
+        await expect(
+          resolver.resolveWorkflow('plugin@../../../etc:workflow')
+        ).rejects.toThrow(/path traversal/);
+      });
+
+      it('should reject path traversal in explicit format workflow name', async () => {
+        await expect(
+          resolver.resolveWorkflow('plugin@marketplace:../../../etc/passwd')
+        ).rejects.toThrow(/path traversal/);
+      });
+
+      it('should reject path traversal in project-local format', async () => {
+        await expect(
+          resolver.resolveWorkflow('../../../etc/passwd')
+        ).rejects.toThrow(/path traversal/);
+      });
     });
   });
 });

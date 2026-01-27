@@ -59,62 +59,81 @@ if [[ -z "$WORKFLOW_ID" ]]; then
     exit 1
 fi
 
-# Function to resolve namespace to file path
+# Function to resolve workflow reference to file path
+# Supports three formats:
+#   1. URL: url:https://example.com/workflow.json
+#   2. Explicit: plugin@marketplace:workflow
+#   3. Project-local: workflow-name
 resolve_workflow_path() {
     local workflow_id="$1"
-    local namespace=""
-    local workflow_name=""
 
-    # Parse namespace from workflow_id
-    if [[ "$workflow_id" == *":"* ]]; then
-        namespace="${workflow_id%%:*}"
-        workflow_name="${workflow_id#*:}"
-    else
-        namespace="project"
-        workflow_name="$workflow_id"
+    # Format 1: URL reference
+    if [[ "$workflow_id" == url:* ]]; then
+        # Return special marker - actual fetch handled by load_workflow
+        echo "URL:${workflow_id#url:}"
+        return
     fi
 
-    # Map namespace to marketplace-aware path
-    case "$namespace" in
-        "fractary-faber")
-            echo "${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/config/workflows/${workflow_name}.json"
-            ;;
-        "fractary-faber-cloud")
-            echo "${MARKETPLACE_ROOT}/fractary-faber/plugins/faber-cloud/config/workflows/${workflow_name}.json"
-            ;;
-        "fractary-core")
-            # Extract plugin name from workflow_name if it contains slash
-            local plugin="${workflow_name%%/*}"
-            local workflow="${workflow_name##*/}"
-            echo "${MARKETPLACE_ROOT}/fractary-core/plugins/${plugin}/config/workflows/${workflow}.json"
-            ;;
-        "fractary-codex")
-            echo "${MARKETPLACE_ROOT}/fractary-codex/plugins/codex/config/workflows/${workflow_name}.json"
-            ;;
-        "project"|"")
-            echo "${PROJECT_ROOT}/.fractary/faber/workflows/${workflow_name}.json"
-            ;;
-        *)
-            # Fallback to old unified marketplace for backward compatibility
-            echo "${MARKETPLACE_ROOT}/fractary/plugins/${namespace#fractary-}/config/workflows/${workflow_name}.json"
-            ;;
-    esac
+    # Format 2: Explicit plugin@marketplace:workflow
+    if [[ "$workflow_id" == *@*:* ]]; then
+        local plugin="${workflow_id%%@*}"
+        local rest="${workflow_id#*@}"
+        local marketplace="${rest%%:*}"
+        local workflow="${rest#*:}"
+        echo "${MARKETPLACE_ROOT}/${marketplace}/plugins/${plugin}/.fractary/faber/workflows/${workflow}.json"
+        return
+    fi
+
+    # Format 3: Project-local (no @ symbol)
+    echo "${PROJECT_ROOT}/.fractary/faber/workflows/${workflow_id}.json"
 }
 
 # Function to load a workflow JSON file
-# Implements fallback: if workflow_id has no namespace (implicitly "project") and file doesn't exist
-# in project location, try the plugin's default workflows location
+# Handles URL references with caching, explicit plugin@marketplace references,
+# and project-local references with fallback to plugin defaults
 load_workflow() {
     local workflow_id="$1"
     local path
     path=$(resolve_workflow_path "$workflow_id")
 
+    # Handle URL references
+    if [[ "$path" == URL:* ]]; then
+        local url="${path#URL:}"
+        local cache_dir="${MARKETPLACE_ROOT}/.cache/workflows"
+        local url_hash
+        url_hash=$(echo -n "$url" | md5sum | cut -d' ' -f1)
+        local cache_file="${cache_dir}/${url_hash}.json"
+
+        # Check cache (valid for 1 hour)
+        if [[ -f "$cache_file" ]] && [[ $(find "$cache_file" -mmin -60 2>/dev/null) ]]; then
+            cat "$cache_file"
+            return
+        fi
+
+        # Fetch and cache
+        mkdir -p "$cache_dir"
+        if ! curl -sf "$url" -o "$cache_file" 2>/dev/null; then
+            echo '{"status": "failure", "message": "Failed to fetch URL: '"$url"'", "errors": ["HTTP request failed for '"$url"'"]}' >&2
+            exit 1
+        fi
+
+        # Validate fetched JSON
+        if ! jq empty "$cache_file" 2>/dev/null; then
+            rm -f "$cache_file"
+            echo '{"status": "failure", "message": "Invalid JSON from URL: '"$url"'", "errors": ["JSON parse error from '"$url"'"]}' >&2
+            exit 5
+        fi
+
+        cat "$cache_file"
+        return
+    fi
+
     # Check if file exists at resolved path
     if [[ ! -f "$path" ]]; then
-        # Fallback logic: if no explicit namespace was provided (no colon in workflow_id),
+        # Fallback logic: if project-local (no @ or : in workflow_id),
         # try the plugin's default workflow location before failing
-        if [[ "$workflow_id" != *":"* ]]; then
-            local fallback_path="${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/config/workflows/${workflow_id}.json"
+        if [[ "$workflow_id" != *"@"* ]] && [[ "$workflow_id" != *":"* ]]; then
+            local fallback_path="${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/.fractary/faber/workflows/${workflow_id}.json"
             if [[ -f "$fallback_path" ]]; then
                 # Found in plugin defaults - use this path
                 path="$fallback_path"
@@ -124,7 +143,7 @@ load_workflow() {
                 exit 1
             fi
         else
-            # Explicit namespace was provided, don't fallback
+            # Explicit reference was provided, don't fallback
             echo '{"status": "failure", "message": "Workflow not found: '"$workflow_id"'", "errors": ["File not found: '"$path"'"]}' >&2
             exit 1
         fi
