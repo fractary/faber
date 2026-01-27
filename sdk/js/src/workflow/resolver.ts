@@ -8,9 +8,11 @@
  */
 
 import * as crypto from 'crypto';
+import * as dns from 'dns';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { promisify } from 'util';
 
 // ============================================================================
 // Workflow File Types
@@ -211,6 +213,118 @@ export class InvalidWorkflowError extends Error {
   }
 }
 
+export class SSRFError extends Error {
+  constructor(
+    public url: string,
+    public reason: string
+  ) {
+    super(`SSRF protection blocked URL ${url}: ${reason}`);
+    this.name = 'SSRFError';
+  }
+}
+
+// ============================================================================
+// URL Security Helpers
+// ============================================================================
+
+const dnsLookup = promisify(dns.lookup);
+
+/** Timeout for URL fetch operations (30 seconds) */
+const URL_FETCH_TIMEOUT_MS = 30000;
+
+/** Allowed URL schemes for workflow references */
+const ALLOWED_URL_SCHEMES = ['https:'];
+
+/**
+ * Check if an IP address is in a private/internal range.
+ * Blocks: localhost, private networks, link-local, loopback
+ */
+function isPrivateIP(ip: string): boolean {
+  // IPv4 patterns
+  const ipv4Patterns = [
+    /^127\./, // 127.0.0.0/8 - Loopback
+    /^10\./, // 10.0.0.0/8 - Private
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16.0.0/12 - Private
+    /^192\.168\./, // 192.168.0.0/16 - Private
+    /^169\.254\./, // 169.254.0.0/16 - Link-local (AWS metadata!)
+    /^0\./, // 0.0.0.0/8 - Current network
+    /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./, // 100.64.0.0/10 - Carrier-grade NAT
+    /^192\.0\.0\./, // 192.0.0.0/24 - IETF Protocol Assignments
+    /^192\.0\.2\./, // 192.0.2.0/24 - TEST-NET-1
+    /^198\.51\.100\./, // 198.51.100.0/24 - TEST-NET-2
+    /^203\.0\.113\./, // 203.0.113.0/24 - TEST-NET-3
+    /^224\./, // 224.0.0.0/4 - Multicast
+    /^240\./, // 240.0.0.0/4 - Reserved
+    /^255\.255\.255\.255$/, // Broadcast
+  ];
+
+  // IPv6 patterns
+  const ipv6Patterns = [
+    /^::1$/, // Loopback
+    /^fe80:/i, // Link-local
+    /^fc00:/i, // Unique local (private)
+    /^fd[0-9a-f]{2}:/i, // Unique local (private)
+    /^::ffff:(127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|169\.254\.)/i, // IPv4-mapped
+  ];
+
+  for (const pattern of ipv4Patterns) {
+    if (pattern.test(ip)) return true;
+  }
+
+  for (const pattern of ipv6Patterns) {
+    if (pattern.test(ip)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Validate a URL for SSRF protection.
+ * Throws SSRFError if the URL is potentially dangerous.
+ */
+async function validateUrlSecurity(url: string): Promise<void> {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new SSRFError(url, 'Invalid URL format');
+  }
+
+  // Check scheme (only HTTPS allowed)
+  if (!ALLOWED_URL_SCHEMES.includes(parsedUrl.protocol)) {
+    throw new SSRFError(
+      url,
+      `URL scheme '${parsedUrl.protocol}' not allowed. Only HTTPS is permitted.`
+    );
+  }
+
+  // Block localhost hostnames
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (
+    hostname === 'localhost' ||
+    hostname === 'localhost.localdomain' ||
+    hostname.endsWith('.localhost') ||
+    hostname.endsWith('.local')
+  ) {
+    throw new SSRFError(url, 'Localhost URLs are not allowed');
+  }
+
+  // Resolve hostname to IP and check if private
+  try {
+    const { address } = await dnsLookup(hostname);
+    if (isPrivateIP(address)) {
+      throw new SSRFError(
+        url,
+        `URL resolves to private/internal IP address (${address})`
+      );
+    }
+  } catch (error) {
+    if (error instanceof SSRFError) throw error;
+    throw new SSRFError(url, `Failed to resolve hostname: ${(error as Error).message}`);
+  }
+}
+
 // ============================================================================
 // Workflow Resolver Class
 // ============================================================================
@@ -402,8 +516,13 @@ export class WorkflowResolver {
   /**
    * Fetch a workflow from a URL with caching.
    * Cache is valid for 1 hour.
+   *
+   * Security: Validates URL to prevent SSRF attacks before fetching.
    */
   private async fetchWorkflowFromUrl(workflowId: string, url: string): Promise<WorkflowFileConfig> {
+    // SSRF Protection: Validate URL before fetching
+    await validateUrlSecurity(url);
+
     const cacheDir = path.join(this.marketplaceRoot, '.cache', 'workflows');
     const cacheFile = path.join(cacheDir, `${this.hashString(url)}.json`);
 
@@ -416,25 +535,49 @@ export class WorkflowResolver {
       }
     }
 
-    // Fetch from URL
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new WorkflowNotFoundError(workflowId, [url]);
-    }
+    // Fetch from URL with timeout and security settings
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), URL_FETCH_TIMEOUT_MS);
 
-    const content = await response.text();
-
-    // Validate JSON before caching
     try {
-      JSON.parse(content);
-    } catch {
-      throw new InvalidWorkflowError(workflowId, `Invalid JSON from URL: ${url}`);
+      const response = await fetch(url, {
+        signal: controller.signal,
+        redirect: 'error', // Block redirects to prevent SSRF via redirect
+        headers: {
+          'User-Agent': 'Fractary-Faber-WorkflowResolver/1.0',
+        },
+      });
+
+      if (!response.ok) {
+        throw new WorkflowNotFoundError(workflowId, [url]);
+      }
+
+      const content = await response.text();
+
+      // Validate JSON before caching
+      try {
+        JSON.parse(content);
+      } catch {
+        throw new InvalidWorkflowError(workflowId, `Invalid JSON from URL: ${url}`);
+      }
+
+      // Create cache directory with restricted permissions (owner only)
+      fs.mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
+      fs.writeFileSync(cacheFile, content, { mode: 0o600 });
+
+      return this.loadAndCacheWorkflow(workflowId, cacheFile);
+    } catch (error) {
+      // Handle timeout
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new InvalidWorkflowError(
+          workflowId,
+          `URL fetch timed out after ${URL_FETCH_TIMEOUT_MS / 1000} seconds: ${url}`
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    fs.mkdirSync(cacheDir, { recursive: true });
-    fs.writeFileSync(cacheFile, content);
-
-    return this.loadAndCacheWorkflow(workflowId, cacheFile);
   }
 
   /**

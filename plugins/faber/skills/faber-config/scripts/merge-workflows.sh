@@ -59,6 +59,90 @@ if [[ -z "$WORKFLOW_ID" ]]; then
     exit 1
 fi
 
+# Timeout for URL fetch operations (30 seconds)
+URL_FETCH_TIMEOUT=30
+
+# Function to check if an IP address is private/internal
+# Returns 0 (true) if private, 1 (false) if public
+is_private_ip() {
+    local ip="$1"
+
+    # IPv4 private/internal ranges
+    if [[ "$ip" =~ ^127\. ]] ||                                    # Loopback
+       [[ "$ip" =~ ^10\. ]] ||                                     # Private Class A
+       [[ "$ip" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] ||           # Private Class B
+       [[ "$ip" =~ ^192\.168\. ]] ||                               # Private Class C
+       [[ "$ip" =~ ^169\.254\. ]] ||                               # Link-local (AWS metadata!)
+       [[ "$ip" =~ ^0\. ]] ||                                      # Current network
+       [[ "$ip" =~ ^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\. ]] || # Carrier-grade NAT
+       [[ "$ip" =~ ^192\.0\.0\. ]] ||                              # IETF Protocol
+       [[ "$ip" =~ ^192\.0\.2\. ]] ||                              # TEST-NET-1
+       [[ "$ip" =~ ^198\.51\.100\. ]] ||                           # TEST-NET-2
+       [[ "$ip" =~ ^203\.0\.113\. ]] ||                            # TEST-NET-3
+       [[ "$ip" =~ ^224\. ]] ||                                    # Multicast
+       [[ "$ip" =~ ^240\. ]] ||                                    # Reserved
+       [[ "$ip" == "255.255.255.255" ]]; then                      # Broadcast
+        return 0
+    fi
+
+    # IPv6 private/internal patterns
+    if [[ "$ip" == "::1" ]] ||                                     # Loopback
+       [[ "$ip" =~ ^[Ff][Ee]80: ]] ||                              # Link-local
+       [[ "$ip" =~ ^[Ff][Cc]00: ]] ||                              # Unique local
+       [[ "$ip" =~ ^[Ff][Dd][0-9a-fA-F]{2}: ]]; then              # Unique local
+        return 0
+    fi
+
+    return 1
+}
+
+# Function to validate URL for SSRF protection
+# Exits with error if URL is potentially dangerous
+validate_url_security() {
+    local url="$1"
+
+    # Extract scheme
+    local scheme="${url%%://*}"
+    if [[ "$scheme" != "https" ]]; then
+        echo '{"status": "failure", "message": "SSRF protection: URL scheme '"'$scheme'"' not allowed. Only HTTPS is permitted.", "errors": ["Invalid URL scheme"]}' >&2
+        exit 1
+    fi
+
+    # Extract hostname
+    local url_without_scheme="${url#*://}"
+    local hostname="${url_without_scheme%%/*}"
+    hostname="${hostname%%:*}"  # Remove port if present
+    hostname=$(echo "$hostname" | tr '[:upper:]' '[:lower:]')
+
+    # Block localhost hostnames
+    if [[ "$hostname" == "localhost" ]] ||
+       [[ "$hostname" == "localhost.localdomain" ]] ||
+       [[ "$hostname" == *.localhost ]] ||
+       [[ "$hostname" == *.local ]]; then
+        echo '{"status": "failure", "message": "SSRF protection: Localhost URLs are not allowed", "errors": ["Blocked localhost hostname"]}' >&2
+        exit 1
+    fi
+
+    # Resolve hostname to IP and check if private
+    local resolved_ip
+    resolved_ip=$(getent hosts "$hostname" 2>/dev/null | awk '{print $1; exit}')
+
+    if [[ -z "$resolved_ip" ]]; then
+        # Try using dig as fallback
+        resolved_ip=$(dig +short "$hostname" 2>/dev/null | head -1)
+    fi
+
+    if [[ -z "$resolved_ip" ]]; then
+        echo '{"status": "failure", "message": "SSRF protection: Failed to resolve hostname '"'$hostname'"'", "errors": ["DNS resolution failed"]}' >&2
+        exit 1
+    fi
+
+    if is_private_ip "$resolved_ip"; then
+        echo '{"status": "failure", "message": "SSRF protection: URL resolves to private/internal IP address ('"$resolved_ip"')", "errors": ["Blocked private IP"]}' >&2
+        exit 1
+    fi
+}
+
 # Function to resolve workflow reference to file path
 # Supports three formats:
 #   1. URL: url:https://example.com/workflow.json
@@ -99,6 +183,10 @@ load_workflow() {
     # Handle URL references
     if [[ "$path" == URL:* ]]; then
         local url="${path#URL:}"
+
+        # SSRF Protection: Validate URL before fetching
+        validate_url_security "$url"
+
         local cache_dir="${MARKETPLACE_ROOT}/.cache/workflows"
         local url_hash
         url_hash=$(echo -n "$url" | md5sum | cut -d' ' -f1)
@@ -110,12 +198,28 @@ load_workflow() {
             return
         fi
 
-        # Fetch and cache
+        # Create cache directory with restricted permissions (owner only)
         mkdir -p "$cache_dir"
-        if ! curl -sf "$url" -o "$cache_file" 2>/dev/null; then
-            echo '{"status": "failure", "message": "Failed to fetch URL: '"$url"'", "errors": ["HTTP request failed for '"$url"'"]}' >&2
+        chmod 700 "$cache_dir"
+
+        # Fetch with security options:
+        # -s: silent mode
+        # -f: fail silently on HTTP errors
+        # --max-time: timeout to prevent hanging
+        # --max-redirs 0: disable redirects (SSRF protection)
+        # -A: user agent
+        if ! curl -sf \
+            --max-time "$URL_FETCH_TIMEOUT" \
+            --max-redirs 0 \
+            -A "Fractary-Faber-WorkflowResolver/1.0" \
+            "$url" -o "$cache_file" 2>/dev/null; then
+            rm -f "$cache_file"
+            echo '{"status": "failure", "message": "Failed to fetch URL: '"$url"'", "errors": ["HTTP request failed or timed out for '"$url"'"]}' >&2
             exit 1
         fi
+
+        # Set restricted permissions on cached file
+        chmod 600 "$cache_file"
 
         # Validate fetched JSON
         if ! jq empty "$cache_file" 2>/dev/null; then

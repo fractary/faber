@@ -11,6 +11,7 @@ import {
   WorkflowResolver,
   WorkflowFileConfig,
   WorkflowNotFoundError,
+  SSRFError,
 } from '../resolver.js';
 
 describe('WorkflowResolver', () => {
@@ -731,6 +732,77 @@ describe('WorkflowResolver', () => {
         await expect(
           resolver.resolveWorkflow('../../../etc/passwd')
         ).rejects.toThrow(/path traversal/);
+      });
+    });
+
+    describe('SSRF Security', () => {
+      it('should reject HTTP URLs (only HTTPS allowed)', async () => {
+        await expect(
+          resolver.resolveWorkflow('url:http://example.com/workflow.json')
+        ).rejects.toThrow(SSRFError);
+        await expect(
+          resolver.resolveWorkflow('url:http://example.com/workflow.json')
+        ).rejects.toThrow(/not allowed.*HTTPS/i);
+      });
+
+      it('should reject file:// URLs', async () => {
+        await expect(
+          resolver.resolveWorkflow('url:file:///etc/passwd')
+        ).rejects.toThrow(SSRFError);
+      });
+
+      it('should reject data: URLs', async () => {
+        await expect(
+          resolver.resolveWorkflow('url:data:application/json,{"id":"test"}')
+        ).rejects.toThrow(SSRFError);
+      });
+
+      it('should reject localhost URLs', async () => {
+        await expect(
+          resolver.resolveWorkflow('url:https://localhost/workflow.json')
+        ).rejects.toThrow(SSRFError);
+        await expect(
+          resolver.resolveWorkflow('url:https://localhost/workflow.json')
+        ).rejects.toThrow(/[Ll]ocalhost/);
+      });
+
+      it('should reject localhost.localdomain URLs', async () => {
+        await expect(
+          resolver.resolveWorkflow('url:https://localhost.localdomain/workflow.json')
+        ).rejects.toThrow(SSRFError);
+      });
+
+      it('should reject .local domain URLs', async () => {
+        await expect(
+          resolver.resolveWorkflow('url:https://internal.local/workflow.json')
+        ).rejects.toThrow(SSRFError);
+      });
+
+      it('should reject .localhost subdomain URLs', async () => {
+        await expect(
+          resolver.resolveWorkflow('url:https://evil.localhost/workflow.json')
+        ).rejects.toThrow(SSRFError);
+      });
+
+      it('should reject invalid URL format', async () => {
+        await expect(
+          resolver.resolveWorkflow('url:not-a-valid-url')
+        ).rejects.toThrow(SSRFError);
+        await expect(
+          resolver.resolveWorkflow('url:not-a-valid-url')
+        ).rejects.toThrow(/[Ii]nvalid URL/);
+      });
+
+      // Note: Testing actual private IP blocking requires DNS resolution,
+      // which is difficult to mock in unit tests. The following tests verify
+      // that the URL validation catches common attack patterns.
+
+      it('should block AWS metadata endpoint hostnames', async () => {
+        // AWS metadata endpoint typically requires resolution to 169.254.169.254
+        // This test verifies the hostname-based protection
+        await expect(
+          resolver.resolveWorkflow('url:https://169.254.169.254/latest/meta-data/')
+        ).rejects.toThrow();
       });
     });
   });
