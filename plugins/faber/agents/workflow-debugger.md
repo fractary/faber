@@ -12,9 +12,10 @@ tools: Read, Write, Glob, Bash, Skill
 Diagnoses FABER workflow issues and proposes solutions by:
 - Analyzing workflow state and event history
 - Aggregating errors and warnings from step executions
-- Searching knowledge base for similar past issues
+- Searching knowledge base for similar past issues (supports both markdown and JSON formats)
 - Providing actionable fixes with confidence ratings
-- Learning from successful resolutions (when used with --learn flag)
+- Learning from successful resolutions (automatic with `--auto-learn` or manual with `--learn`)
+- Escalating to GitHub issues after repeated failures (with `--escalate`)
 
 ## Input Parameters
 
@@ -24,9 +25,14 @@ Diagnoses FABER workflow issues and proposes solutions by:
 | `problem` | string | No | Explicit problem description for targeted debugging |
 | `phase` | string | No | Focus on specific phase: frame, architect, build, evaluate, release |
 | `step` | string | No | Focus on specific step within phase |
+| `agent` | string | No | Agent name for context (used with onFailure hooks) |
 | `create-spec` | boolean | No | Force specification creation for complex issues (default: false) |
 | `learn` | boolean | No | Add successful resolution to knowledge base (default: false) |
 | `auto-fix` | boolean | No | Automatically apply fixes if confidence is high (default: false) |
+| `auto-learn` | boolean | No | Automatically log verified solutions to KB (default: false) |
+| `escalate` | boolean | No | Create GitHub issue if max retries exceeded (default: false) |
+| `max-retries` | number | No | Maximum retry attempts before escalation (default: 3) |
+| `retry-count` | number | No | Current retry count (passed from workflow onFailure hook) |
 
 ## Algorithm
 
@@ -316,34 +322,134 @@ for problem in problems:
 
 **Helper Function**: `search_knowledge_base(problem)`
 ```
-# Knowledge base is stored in .fractary/faber/knowledge-base/
-kb_path = ".fractary/faber/knowledge-base/"
+# Use knowledge-aggregator skill to search all KB sources
+# This searches both core and plugin knowledge bases
+TRY:
+  aggregated_results = Skill(
+    skill="fractary-faber:knowledge-aggregator",
+    args="--category {problem.category} --phase {problem.phase}"
+  )
+  kb_entries = parse_json(aggregated_results)
+CATCH:
+  # Fallback to direct KB search if aggregator not available
+  kb_entries = search_local_knowledge_base(problem)
 
-if not exists(kb_path):
-  return []
-
-kb_files = glob("{kb_path}/*.json")
 matches = []
 
-for kb_file in kb_files:
-  kb_entry = parse_json(read(kb_file))
-
+for kb_entry in kb_entries:
   # Calculate similarity score
   similarity = calculate_similarity(problem, kb_entry)
 
   if similarity > 0.6:  # 60% similarity threshold
     matches.append({
       id: kb_entry.id,
-      problem_pattern: kb_entry.problem_pattern,
+      problem_pattern: kb_entry.problem_pattern or kb_entry.title,
       root_cause: kb_entry.root_cause,
       solution: kb_entry.solution,
       similarity: similarity,
-      success_rate: kb_entry.success_rate or 0.8
+      success_rate: kb_entry.success_rate or kb_entry.success_count / 10 or 0.8,
+      source: kb_entry.source  # "core" or plugin name
     })
 
 # Sort by similarity descending
 sort(matches, key=lambda x: x.similarity, reverse=True)
 return matches[:5]  # Return top 5 matches
+```
+
+**Helper Function**: `search_local_knowledge_base(problem)`
+```
+# Knowledge base can be markdown (new format) or JSON (legacy)
+kb_path = ".fractary/faber/knowledge-base/"
+
+if not exists(kb_path):
+  return []
+
+# Search both markdown and JSON files
+kb_files_md = glob("{kb_path}/**/*.md")
+kb_files_json = glob("{kb_path}/*.json")
+entries = []
+
+# Parse markdown files (new format with YAML front matter)
+for kb_file in kb_files_md:
+  kb_entry = parse_markdown_kb_entry(read(kb_file))
+  kb_entry.source = "core"
+  entries.append(kb_entry)
+
+# Parse JSON files (legacy format)
+for kb_file in kb_files_json:
+  kb_entry = parse_json(read(kb_file))
+  kb_entry.source = "core"
+  entries.append(kb_entry)
+
+return entries
+```
+
+**Helper Function**: `parse_markdown_kb_entry(content)`
+```
+# Parse markdown file with YAML front matter
+# Expected format:
+# ---
+# id: KB-build-001
+# title: TypeScript module resolution failure
+# phase: build
+# step: implement
+# agent: agent-engineer
+# category: missing_dependency
+# severity: medium
+# symptoms:
+#   - "Cannot find module"
+#   - "TS2307: Cannot find module"
+# tags:
+#   - typescript
+#   - imports
+# created: 2026-01-28
+# verified: true
+# success_count: 12
+# ---
+#
+# # Title
+# ## Symptoms
+# ## Root Cause
+# ## Solution
+# ## Prevention
+
+# Extract YAML front matter
+front_matter_match = regex_match(r"^---\n(.*?)\n---\n(.*)$", content, flags=DOTALL)
+
+if not front_matter_match:
+  ERROR "Invalid KB entry format: missing YAML front matter"
+  return null
+
+yaml_content = front_matter_match.group(1)
+markdown_body = front_matter_match.group(2)
+
+# Parse YAML front matter
+metadata = parse_yaml(yaml_content)
+
+# Extract sections from markdown body
+sections = parse_markdown_sections(markdown_body)
+
+return {
+  id: metadata.id,
+  title: metadata.title,
+  problem_pattern: metadata.title,
+  phase: metadata.phase,
+  step: metadata.step,
+  agent: metadata.agent,
+  category: metadata.category,
+  severity: metadata.severity,
+  symptoms: metadata.symptoms or [],
+  tags: metadata.tags or [],
+  created: metadata.created,
+  verified: metadata.verified or false,
+  success_count: metadata.success_count or 0,
+  root_cause: sections["Root Cause"] or "",
+  solution: {
+    description: sections["Solution"] or "",
+    actions: extract_actions_from_markdown(sections["Solution"])
+  },
+  prevention: sections["Prevention"] or ""
+}
 ```
 
 **Helper Function**: `calculate_similarity(problem, kb_entry)`
@@ -488,10 +594,13 @@ else:
 **Logic**:
 ```
 if auto_fix_mode:
+  fix_applied_successfully = false
+
   for solution in solutions:
     if solution.confidence == "high" and is_automatable(solution):
       PRINT "🔧 Auto-applying fix for: {solution.problem}"
 
+      all_actions_succeeded = true
       for action in solution.actions:
         if action.startswith("Run:"):
           # Extract and execute command
@@ -504,13 +613,186 @@ if auto_fix_mode:
           CATCH:
             PRINT "  ✗ {action}"
             PRINT "    Error: {error}"
+            all_actions_succeeded = false
         else:
           PRINT "  → {action} (manual action required)"
 
       # Record fix attempt
-      record_fix_attempt(solution, success=True)
+      record_fix_attempt(solution, success=all_actions_succeeded)
+
+      if all_actions_succeeded:
+        fix_applied_successfully = true
+
+        # Auto-learn: automatically add verified solution to KB
+        if auto_learn_mode:
+          create_kb_entry_markdown(
+            problem=solution.problem,
+            category=problems[0].category,
+            phase=problems[0].phase,
+            step=step_parameter or "unknown",
+            agent=agent_parameter or "unknown",
+            root_cause=solution.root_cause,
+            solution=solution,
+            verification_result="auto-verified"
+          )
+          PRINT "✅ Solution auto-logged to knowledge base"
     else:
       PRINT "⚠️  Skipping auto-fix: confidence={solution.confidence}"
+```
+
+### Step 6.5: Escalate to GitHub Issue (if max retries exceeded)
+
+**Goal**: Create GitHub issue with diagnostic context after repeated failures
+
+**Logic**:
+```
+if escalate_mode:
+  max_retries = max_retries_parameter or 3
+  retry_count = retry_count_parameter or 0
+
+  if retry_count >= max_retries:
+    PRINT "🚨 Maximum retries ({max_retries}) exceeded. Creating GitHub issue..."
+
+    # Generate issue body with full diagnostic context
+    issue_body = generate_issue_body(
+      run_id=run_id,
+      work_id=work_id,
+      problems=problems,
+      root_causes=root_causes,
+      attempted_solutions=solutions,
+      evidence=evidence,
+      retry_count=retry_count
+    )
+
+    # Create issue title from primary problem
+    primary_problem = problems[0].description if length(problems) > 0 else "Unknown workflow failure"
+    issue_title = "Workflow Debug: {primary_problem}"
+
+    # Truncate title if too long
+    if length(issue_title) > 100:
+      issue_title = issue_title[:97] + "..."
+
+    # Use gh CLI to create issue
+    TRY:
+      result = bash("""
+        gh issue create \
+          --title "{issue_title}" \
+          --body "{issue_body}" \
+          --label "workflow-failure,needs-investigation"
+      """)
+
+      # Extract issue URL from result
+      issue_url = extract_issue_url(result)
+      PRINT "✅ GitHub issue created: {issue_url}"
+
+      # Update workflow state with escalation info
+      update_workflow_state(state_path, {
+        escalated: true,
+        escalation_issue: issue_url,
+        escalation_time: now()
+      })
+    CATCH:
+      PRINT "❌ Failed to create GitHub issue: {error}"
+      PRINT "   Please create manually with the diagnostic information above"
+  else:
+    remaining = max_retries - retry_count
+    PRINT "ℹ️  Retry {retry_count}/{max_retries}. {remaining} attempts remaining before escalation."
+```
+
+**Helper Function**: `generate_issue_body(run_id, work_id, problems, root_causes, attempted_solutions, evidence, retry_count)`
+```
+body = """
+## Workflow Failure Report
+
+**Run ID**: {run_id}
+**Work Item**: {work_id}
+**Retry Count**: {retry_count}
+**Generated**: {now()}
+
+---
+
+## Problems Detected
+
+{for each problem in problems:}
+### {problem_index}. {problem.description}
+
+- **Phase**: {problem.phase}
+- **Category**: {problem.category}
+- **Severity**: {problem.severity}
+- **Confidence**: {problem.confidence}
+
+{end for}
+
+---
+
+## Root Cause Analysis
+
+{for each root_cause in root_causes:}
+**Problem**: {root_cause.problem.description}
+
+**Identified Cause**:
+{root_cause.root_cause}
+
+**Confidence**: {root_cause.confidence}
+{if root_cause.kb_reference:}
+**KB Reference**: {root_cause.kb_reference}
+{end if}
+
+{end for}
+
+---
+
+## Attempted Solutions
+
+{for each solution in attempted_solutions:}
+### Solution {solution_index}
+
+**Actions Attempted**:
+{for each action in solution.actions:}
+- {action}
+{end for}
+
+**Rationale**: {solution.rationale}
+
+{end for}
+
+---
+
+## Evidence
+
+### Errors ({length(evidence.errors)})
+```
+{json_stringify(evidence.errors, indent=2)}
+```
+
+### Warnings ({length(evidence.warnings)})
+```
+{json_stringify(evidence.warnings, indent=2)}
+```
+
+### Recent Events
+```
+{json_stringify(evidence.recent_events, indent=2)}
+```
+
+---
+
+## Next Steps
+
+This issue was auto-generated because the workflow debugger could not resolve the problem after {retry_count} attempts.
+
+Please:
+1. Review the evidence and attempted solutions above
+2. Investigate the root cause manually
+3. Apply a fix and update the knowledge base
+
+**To add to knowledge base after resolution**:
+```bash
+/fractary-faber:workflow-debugger --work-id {work_id} --learn
+```
+"""
+
+return body
 ```
 
 ### Step 7: Generate Diagnostic Report
@@ -691,34 +973,89 @@ if learn_mode:
     WARN "Workflow not yet completed. Run --learn after successful completion."
     EXIT 0
 
-  # Create KB entry
-  kb_entry = {
-    id: "faber-debug-{generate_id()}",
-    created_at: now(),
-    work_id: work_id,
-    run_id: run_id,
-    problem_pattern: problems[0].description,  # Primary problem
-    category: problems[0].category,
-    phase: problems[0].phase,
-    root_cause: root_causes[0].root_cause,
-    solution: {
-      actions: solutions[0].actions,
-      rationale: solutions[0].rationale
-    },
-    success_rate: 1.0,  # Initial success rate
-    usage_count: 0
-  }
-
-  # Save to knowledge base
-  kb_dir = ".fractary/faber/knowledge-base/"
-  ensure_directory_exists(kb_dir)
-
-  kb_file = "{kb_dir}/{kb_entry.id}.json"
-  write(kb_file, json.serialize(kb_entry, indent=2))
+  # Create KB entry in markdown format
+  create_kb_entry_markdown(
+    problem=problems[0].description,
+    category=problems[0].category,
+    phase=problems[0].phase,
+    step=step_parameter or "unknown",
+    agent=agent_parameter or "unknown",
+    root_cause=root_causes[0].root_cause,
+    solution=solutions[0],
+    verification_result="manual-verified"
+  )
 
   PRINT "✅ Resolution added to knowledge base"
-  PRINT "   KB ID: {kb_entry.id}"
   PRINT "   Future similar issues will reference this resolution"
+```
+
+**Helper Function**: `create_kb_entry_markdown(problem, category, phase, step, agent, root_cause, solution, verification_result)`
+```
+# Generate unique KB ID
+kb_id = "KB-{phase}-{generate_short_id()}"
+
+# Create markdown content with YAML front matter
+kb_content = """---
+id: {kb_id}
+title: {sanitize_title(problem)}
+phase: {phase}
+step: {step}
+agent: {agent}
+category: {category}
+severity: medium
+symptoms:
+  - "{problem}"
+tags:
+  - auto-generated
+  - {verification_result}
+created: {format_date(now())}
+verified: true
+success_count: 1
+---
+
+# {sanitize_title(problem)}
+
+## Symptoms
+
+{problem}
+
+## Root Cause
+
+{root_cause}
+
+## Solution
+
+{solution.rationale}
+
+### Actions
+
+{for each action in solution.actions:}
+1. {action}
+{end for}
+
+## Prevention
+
+Review similar patterns during code review to prevent this issue from recurring.
+
+---
+
+*Auto-generated by workflow-debugger on {format_date(now())}*
+"""
+
+# Save to knowledge base
+kb_dir = ".fractary/faber/knowledge-base/{phase}/"
+ensure_directory_exists(kb_dir)
+
+# Create filename from ID and sanitized title
+safe_title = sanitize_filename(problem)[:50]
+kb_file = "{kb_dir}/{kb_id}-{safe_title}.md"
+
+write(kb_file, kb_content)
+
+PRINT "   KB ID: {kb_id}"
+PRINT "   File: {kb_file}"
+
+return kb_id
 ```
 
 ### Step 10: Exit with Status Code
@@ -748,7 +1085,69 @@ else:
 
 ## Knowledge Base Structure
 
-Knowledge base entries are stored in `.fractary/faber/knowledge-base/*.json`:
+Knowledge base entries can be stored in either **markdown** (preferred) or **JSON** (legacy) format.
+
+### Markdown Format (Preferred)
+
+New entries are stored in `.fractary/faber/knowledge-base/{phase}/*.md`:
+
+```markdown
+---
+id: KB-build-001
+title: TypeScript module resolution failure
+phase: build
+step: implement
+agent: software-engineer
+category: missing_dependency
+severity: medium
+symptoms:
+  - "Cannot find module"
+  - "TS2307: Cannot find module"
+tags:
+  - typescript
+  - imports
+created: 2026-01-28
+verified: true
+success_count: 12
+---
+
+# TypeScript Module Resolution Failure
+
+## Symptoms
+
+The build fails with "Cannot find module" or "TS2307" errors when importing
+dependencies or local modules.
+
+## Root Cause
+
+Module resolution fails due to:
+- Missing package in node_modules
+- Incorrect import path (relative vs absolute)
+- Missing TypeScript path mappings in tsconfig.json
+- Package not listed in dependencies
+
+## Solution
+
+Check and fix the module resolution issue:
+
+### Actions
+
+1. Verify the package is installed: `npm ls <package-name>`
+2. If missing, install it: `npm install <package-name>`
+3. Check import path matches actual file location
+4. Verify tsconfig.json paths configuration
+5. Re-run build: `npm run build`
+
+## Prevention
+
+- Use absolute imports with path aliases configured in tsconfig.json
+- Run `npm ci` in CI to ensure consistent dependencies
+- Add pre-commit hook to verify imports
+```
+
+### JSON Format (Legacy)
+
+Legacy entries in `.fractary/faber/knowledge-base/*.json` are still supported:
 
 ```json
 {
@@ -774,6 +1173,16 @@ Knowledge base entries are stored in `.fractary/faber/knowledge-base/*.json`:
 }
 ```
 
+### Plugin Knowledge Bases
+
+Plugins can contribute domain-specific knowledge bases stored in:
+`.fractary/plugins/{plugin-name}/knowledge-base/{phase}/*.md`
+
+Use the `knowledge-aggregator` skill to search across all sources:
+```bash
+/fractary-faber:knowledge-aggregator --category type_system --phase build
+```
+
 ## Use Cases
 
 ### Automatic Problem Detection
@@ -797,11 +1206,41 @@ Automatically apply fixes:
 /fractary-faber:workflow-debugger --work-id 258 --auto-fix
 ```
 
+### Auto-Fix with Automatic Learning
+
+Apply fixes and automatically log successful resolutions to KB:
+```bash
+/fractary-faber:workflow-debugger --work-id 258 --auto-fix --auto-learn
+```
+
 ### Learn from Success
 
-Add successful resolution to KB:
+Manually add successful resolution to KB:
 ```bash
 /fractary-faber:workflow-debugger --work-id 258 --learn
+```
+
+### Escalate After Failures
+
+Create GitHub issue after max retries exceeded:
+```bash
+/fractary-faber:workflow-debugger --work-id 258 --escalate --retry-count 3
+```
+
+### Called from Workflow onFailure Hook
+
+When invoked by workflow onFailure hook with full context:
+```bash
+/fractary-faber:workflow-debugger \
+  --work-id 258 \
+  --phase build \
+  --step implement \
+  --agent software-engineer \
+  --auto-fix \
+  --auto-learn \
+  --escalate \
+  --max-retries 3 \
+  --retry-count 1
 ```
 
 ## Performance Considerations
