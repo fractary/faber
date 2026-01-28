@@ -1,153 +1,72 @@
 {
-    "name": "fractary-faber",
-    "owner": {
-      "name": "The Fractary",
-      "email": "admin@fractary.com",
-      "url": "https://github.com/fractary"
-    },
-    "metadata": {
-      "description": "Production-ready workflow orchestration.",
-      "version": "2.3.0",
-      "pluginRoot": "./plugins"
-    },
-    "plugins": [
-      {
-        "name": "fractary-faber",
-        "source": "./plugins/faber",
-        "description": "Universal SDLC workflow framework - Frame → Architect → Build → Evaluate → Release",
-        "version": "3.7.2",
-        "author": {
-          "name": "The Fractary",
-          "url": "https://github.com/fractary"
-        },
-        "homepage": "https://github.com/fractary/faber/tree/main/plugins/faber",
-        "repository": "https://github.com/fractary/faber/tree/main/plugins/faber",
-        "license": "MIT",
-        "keywords": [
-          "faber",
-          "sdlc",
-          "workflow",
-          "automation",
-          "frame",
-          "architect",
-          "build",
-          "evaluate",
-          "release",
-          "software-development"
-        ],
-        "category": "development",
-        "strict": true,
-        "commands": "./commands/",
-        "agents": [
-          "./agents/configurator.md",
-          "./agents/faber-manager.md",
-          "./agents/faber-planner.md",
-          "./agents/workflow-engineer.md",
-          "./agents/workflow-debugger.md",
-          "./agents/workflow-inspector.md",
-          "./agents/session-manager.md",
-          "./agents/run-inspect.md",
-          "./agents/agent-engineer.md",
-          "./agents/agent-inspector.md"
-        ]
+  "name": "fractary-faber",
+  "owner": {
+    "name": "The Fractary",
+    "email": "admin@fractary.com",
+    "url": "https://github.com/fractary"
+  },
+  "metadata": {
+    "description": "Core FABER workflow orchestration framework.",
+    "version": "3.0.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "fractary-faber",
+      "source": "./plugins/faber",
+      "description": "Universal SDLC workflow framework - Frame → Architect → Build → Evaluate → Release",
+      "version": "3.7.2",
+      "author": {
+        "name": "The Fractary",
+        "url": "https://github.com/fractary"
       },
-      {
-        "name": "fractary-faber-cloud",
-        "source": "./plugins/faber-cloud",
-        "description": "Comprehensive infrastructure and operations management for Claude Code - design, deploy, and monitor cloud infrastructure with AI assistance",
-        "version": "3.1.2",
-        "author": {
-          "name": "The Fractary",
-          "url": "https://github.com/fractary"
-        },
-        "homepage": "https://github.com/fractary/faber/tree/main/plugins/faber-cloud",
-        "repository": "https://github.com/fractary/faber/tree/main/plugins/faber-cloud",
-        "license": "MIT",
-        "keywords": [
-          "infrastructure",
-          "cloud",
-          "devops",
-          "aws",
-          "terraform",
-          "deployment",
-          "monitoring",
-          "operations",
-          "iac",
-          "infrastructure-as-code"
-        ],
-        "category": "development",
-        "strict": true,
-        "commands": [
-          "./commands/adopt.md",
-          "./commands/architect.md",
-          "./commands/audit.md",
-          "./commands/debug.md",
-          "./commands/deploy-apply.md",
-          "./commands/deploy-plan.md",
-          "./commands/direct.md",
-          "./commands/engineer.md",
-          "./commands/list.md",
-          "./commands/manage.md",
-          "./commands/status.md",
-          "./commands/teardown.md",
-          "./commands/test.md",
-          "./commands/validate.md"
-        ],
-        "agents": [
-          "./agents/adopt-agent.md",
-          "./agents/architect-agent.md",
-          "./agents/audit-agent.md",
-          "./agents/debug-agent.md",
-          "./agents/deploy-apply-agent.md",
-          "./agents/deploy-plan-agent.md",
-          "./agents/direct-agent.md",
-          "./agents/engineer-agent.md",
-          "./agents/list-agent.md",
-          "./agents/manage-agent.md",
-          "./agents/status-agent.md",
-          "./agents/teardown-agent.md",
-          "./agents/test-agent.md",
-          "./agents/validate-agent.md"
-        ]
-      },
-      {
-        "name": "fractary-faber-article",
-        "source": "./plugins/faber-article",
-        "description": "Content creation lifecycle automation for blog articles - ideate, research, outline, draft, enhance, optimize SEO, generate hero images, and publish with AI assistance",
-        "version": "1.0.2",
-        "author": {
-          "name": "The Fractary",
-          "url": "https://github.com/fractary"
-        },
-        "homepage": "https://github.com/fractary/faber/tree/main/plugins/faber-article",
-        "repository": "https://github.com/fractary/faber/tree/main/plugins/faber-article",
-        "license": "MIT",
-        "keywords": [
-          "content",
-          "articles",
-          "blog",
-          "writing",
-          "seo",
-          "publishing",
-          "content-creation",
-          "ai-writing"
-        ],
-        "category": "productivity",
-        "strict": true,
-        "commands": [
-          "./commands/content/new.md",
-          "./commands/content/ideate.md",
-          "./commands/content/research.md",
-          "./commands/content/draft.md",
-          "./commands/content/edit.md",
-          "./commands/content/seo.md",
-          "./commands/content/image.md",
-          "./commands/content/publish.md",
-          "./commands/content/status.md"
-        ],
-        "agents": [
-          "./agents/content-manager.md"
-        ]
-      }
-    ]
-  }
+      "homepage": "https://github.com/fractary/faber",
+      "repository": "https://github.com/fractary/faber",
+      "license": "MIT",
+      "keywords": [
+        "faber",
+        "sdlc",
+        "workflow",
+        "automation",
+        "frame",
+        "architect",
+        "build",
+        "evaluate",
+        "release",
+        "software-development"
+      ],
+      "category": "development",
+      "strict": true,
+      "commands": "./commands/",
+      "agents": [
+        "./agents/configurator.md",
+        "./agents/faber-manager.md",
+        "./agents/faber-planner.md",
+        "./agents/workflow-engineer.md",
+        "./agents/workflow-debugger.md",
+        "./agents/workflow-inspector.md",
+        "./agents/session-manager.md",
+        "./agents/run-inspect.md",
+        "./agents/agent-engineer.md",
+        "./agents/agent-inspector.md"
+      ]
+    }
+  ],
+  "relatedPlugins": [
+    {
+      "name": "fractary-faber-software",
+      "repository": "https://github.com/fractary/faber-software",
+      "description": "Software development agents for FABER workflows"
+    },
+    {
+      "name": "fractary-faber-cloud",
+      "repository": "https://github.com/fractary/faber-cloud",
+      "description": "Cloud infrastructure agents for FABER workflows"
+    },
+    {
+      "name": "fractary-faber-content",
+      "repository": "https://github.com/fractary/faber-content",
+      "description": "Content creation agents for FABER workflows"
+    }
+  ]
+}

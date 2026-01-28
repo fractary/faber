@@ -419,6 +419,18 @@ import type {
 } from '@fractary/faber';
 ```
 
+## Domain-Specific Plugins
+
+FABER's core framework can be extended with domain-specific plugins:
+
+| Plugin | Description | Install |
+|--------|-------------|---------|
+| [faber-software](https://github.com/fractary/faber-software) | Software development agents | `forge install @fractary/faber-software` |
+| [faber-cloud](https://github.com/fractary/faber-cloud) | Cloud infrastructure automation | `forge install @fractary/faber-cloud` |
+| [faber-content](https://github.com/fractary/faber-content) | Content creation workflows | `forge install @fractary/faber-content` |
+
+These plugins provide specialized agents, commands, and workflows for their respective domains while leveraging the core FABER orchestration framework.
+
 ## License
 
 MIT - see [LICENSE](LICENSE) for details.
