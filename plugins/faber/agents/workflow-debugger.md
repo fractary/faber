@@ -364,6 +364,12 @@ kb_path = ".fractary/faber/knowledge-base/"
 if not exists(kb_path):
   return []
 
+# Define allowed base paths for path traversal protection
+allowed_base_paths = [
+  ".fractary/faber/knowledge-base/",
+  ".fractary/plugins/"
+]
+
 # Search both markdown and JSON files
 kb_files_md = glob("{kb_path}/**/*.md")
 kb_files_json = glob("{kb_path}/*.json")
@@ -371,6 +377,11 @@ entries = []
 
 # Parse markdown files (new format with YAML front matter)
 for kb_file in kb_files_md:
+  # Validate path before reading (prevents path traversal)
+  if not validate_kb_file_path(kb_file, allowed_base_paths):
+    WARN "Skipping invalid KB file path: {kb_file}"
+    continue
+
   TRY:
     kb_entry = parse_markdown_kb_entry(read(kb_file))
     if kb_entry != null:  # parse_markdown_kb_entry returns null on error
@@ -382,6 +393,11 @@ for kb_file in kb_files_md:
 
 # Parse JSON files (legacy format)
 for kb_file in kb_files_json:
+  # Validate path before reading (prevents path traversal)
+  if not validate_kb_file_path(kb_file, allowed_base_paths):
+    WARN "Skipping invalid KB file path: {kb_file}"
+    continue
+
   TRY:
     kb_entry = parse_json(read(kb_file))
     kb_entry.source = "core"
@@ -650,17 +666,22 @@ if auto_fix_mode:
 
           # Auto-learn: automatically add verified solution to KB
           if auto_learn_mode:
-            create_kb_entry_markdown(
-              problem=solution.problem,
-              category=problems[0].category,
-              phase=problems[0].phase,
-              step=step_parameter or "unknown",
-              agent=agent_parameter or "unknown",
-              root_cause=solution.root_cause,
-              solution=solution,
-              verification_result="auto-verified"
-            )
-            PRINT "✅ Solution auto-logged to knowledge base"
+            TRY:
+              kb_entry_id = create_kb_entry_markdown(
+                problem=solution.problem,
+                category=problems[0].category,
+                phase=problems[0].phase,
+                step=step_parameter or "unknown",
+                agent=agent_parameter or "unknown",
+                root_cause=solution.root_cause,
+                solution=solution,
+                verification_result="auto-verified"
+              )
+              PRINT "✅ Solution auto-logged to knowledge base (ID: {kb_entry_id})"
+            CATCH kb_error:
+              WARN "⚠️  Failed to log solution to knowledge base: {kb_error}"
+              WARN "   Solution was applied successfully but KB entry was not created"
+              # Don't fail the overall operation - the fix worked, just logging failed
         else:
           PRINT "⚠️  Commands ran but verification failed: {verification_result.reason}"
           PRINT "   Problem may not be fully resolved"
@@ -749,6 +770,42 @@ if length(sanitized) > 200:
 return sanitized
 ```
 
+**Helper Function**: `validate_kb_file_path(file_path, allowed_base_paths)`
+```
+# Validate that a KB file path is within allowed directories
+# Prevents path traversal attacks (e.g., ../../etc/passwd)
+
+# Resolve to absolute path and normalize
+resolved_path = resolve_absolute_path(file_path)
+normalized_path = normalize_path(resolved_path)
+
+# Check for path traversal attempts
+if ".." in file_path:
+  WARN "Path traversal attempt detected: {file_path}"
+  return false
+
+# Verify path is under one of the allowed base paths
+is_allowed = false
+for base_path in allowed_base_paths:
+  resolved_base = resolve_absolute_path(base_path)
+  if normalized_path.startswith(resolved_base):
+    is_allowed = true
+    break
+
+if not is_allowed:
+  WARN "KB file path outside allowed directories: {file_path}"
+  WARN "Allowed base paths: {allowed_base_paths}"
+  return false
+
+# Verify file extension is allowed (.md or .json only)
+allowed_extensions = [".md", ".json"]
+if not any(normalized_path.endswith(ext) for ext in allowed_extensions):
+  WARN "Invalid KB file extension: {file_path}"
+  return false
+
+return true
+```
+
 ### Step 6.5: Escalate to GitHub Issue (if max retries exceeded)
 
 **Goal**: Create GitHub issue with diagnostic context after repeated failures
@@ -781,25 +838,42 @@ if escalate_mode:
     if length(issue_title) > 100:
       issue_title = issue_title[:97] + "..."
 
-    # Use gh CLI to create issue (using --body-file to avoid command injection)
+    # Use gh CLI to create issue (using files and env vars to avoid ALL shell interpolation)
     TRY:
-      # Write issue body to temp file to avoid shell escaping issues
-      temp_body_file = ".fractary/runs/{run_id}/escalation-issue-body.md"
-      ensure_directory_exists(dirname(temp_body_file))
+      # Write issue body AND title to temp files to completely avoid shell interpolation
+      temp_dir = ".fractary/runs/{run_id}/escalation/"
+      ensure_directory_exists(temp_dir)
+
+      temp_body_file = "{temp_dir}issue-body.md"
+      temp_title_file = "{temp_dir}issue-title.txt"
+
+      # Write body to file
       write(temp_body_file, issue_body)
 
-      # Sanitize title to prevent command injection (remove quotes and special chars)
+      # Write sanitized title to file (still sanitize for display purposes)
       safe_title = sanitize_for_shell(issue_title)
+      write(temp_title_file, safe_title)
 
+      # Use a shell script that reads from files - NO variable interpolation in bash command
+      # This completely avoids command injection as no user input is in the command string
       result = bash("""
+        ISSUE_TITLE=$(cat .fractary/runs/*/escalation/issue-title.txt 2>/dev/null | head -1)
+        ISSUE_BODY_FILE=$(ls .fractary/runs/*/escalation/issue-body.md 2>/dev/null | head -1)
+
+        if [ -z "$ISSUE_TITLE" ] || [ -z "$ISSUE_BODY_FILE" ]; then
+          echo "Error: Could not find issue title or body files"
+          exit 1
+        fi
+
         gh issue create \
-          --title '{safe_title}' \
-          --body-file '{temp_body_file}' \
+          --title "$ISSUE_TITLE" \
+          --body-file "$ISSUE_BODY_FILE" \
           --label "workflow-failure,needs-investigation"
       """)
 
-      # Clean up temp file
+      # Clean up temp files
       delete(temp_body_file)
+      delete(temp_title_file)
 
       # Extract issue URL from result
       issue_url = extract_issue_url(result)

@@ -76,11 +76,22 @@ CATCH:
 
 cache_updated = false
 
+# Define allowed base paths for path traversal protection
+allowed_base_paths = [
+  ".fractary/faber/knowledge-base/",
+  ".fractary/plugins/"
+]
+
 for source in sources:
   # Collect markdown entries (new format)
   md_files = glob("{source.path}**/*.md")
 
   for md_file in md_files:
+    # Validate path before processing (prevents path traversal)
+    if not validate_kb_file_path(md_file, allowed_base_paths):
+      WARN "Skipping invalid KB file path: {md_file}"
+      continue
+
     TRY:
       file_mtime = get_file_mtime(md_file)
       cache_key = md_file
@@ -109,6 +120,11 @@ for source in sources:
   json_files = glob("{source.path}*.json")
 
   for json_file in json_files:
+    # Validate path before processing (prevents path traversal)
+    if not validate_kb_file_path(json_file, allowed_base_paths):
+      WARN "Skipping invalid KB file path: {json_file}"
+      continue
+
     TRY:
       file_mtime = get_file_mtime(json_file)
       cache_key = json_file
@@ -376,6 +392,43 @@ for line in lines:
     actions.append(match.group(1))
 
 return actions
+```
+
+### validate_kb_file_path(file_path, allowed_base_paths)
+
+```
+# Validate that a KB file path is within allowed directories
+# Prevents path traversal attacks (e.g., ../../etc/passwd)
+
+# Check for path traversal attempts in the raw path
+if ".." in file_path:
+  WARN "Path traversal attempt detected: {file_path}"
+  return false
+
+# Resolve to absolute path and normalize
+resolved_path = resolve_absolute_path(file_path)
+normalized_path = normalize_path(resolved_path)
+
+# Verify path is under one of the allowed base paths
+is_allowed = false
+for base_path in allowed_base_paths:
+  resolved_base = resolve_absolute_path(base_path)
+  normalized_base = normalize_path(resolved_base)
+  if normalized_path.startswith(normalized_base):
+    is_allowed = true
+    break
+
+if not is_allowed:
+  WARN "KB file path outside allowed directories: {file_path}"
+  return false
+
+# Verify file extension is allowed (.md or .json only)
+allowed_extensions = [".md", ".json"]
+if not any(normalized_path.lower().endswith(ext) for ext in allowed_extensions):
+  WARN "Invalid KB file extension: {file_path}"
+  return false
+
+return true
 ```
 
 ## Output Format
