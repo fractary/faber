@@ -135,7 +135,7 @@ fractary forge install @fractary/faber-software # Optional
 - [x] Remove `plugins/faber-article/`
 - [x] Update marketplace.json
 - [x] Update README with cross-references
-- [ ] Commit and push
+- [x] Commit and push
 
 ---
 
