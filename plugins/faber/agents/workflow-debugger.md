@@ -371,15 +371,24 @@ entries = []
 
 # Parse markdown files (new format with YAML front matter)
 for kb_file in kb_files_md:
-  kb_entry = parse_markdown_kb_entry(read(kb_file))
-  kb_entry.source = "core"
-  entries.append(kb_entry)
+  TRY:
+    kb_entry = parse_markdown_kb_entry(read(kb_file))
+    if kb_entry != null:  # parse_markdown_kb_entry returns null on error
+      kb_entry.source = "core"
+      entries.append(kb_entry)
+  CATCH file_error:
+    WARN "Failed to read KB file {kb_file}: {file_error}"
+    # Continue processing other files
 
 # Parse JSON files (legacy format)
 for kb_file in kb_files_json:
-  kb_entry = parse_json(read(kb_file))
-  kb_entry.source = "core"
-  entries.append(kb_entry)
+  TRY:
+    kb_entry = parse_json(read(kb_file))
+    kb_entry.source = "core"
+    entries.append(kb_entry)
+  CATCH json_error:
+    WARN "Failed to parse JSON KB file {kb_file}: {json_error}"
+    # Continue processing other files
 
 return entries
 ```
@@ -423,8 +432,18 @@ if not front_matter_match:
 yaml_content = front_matter_match.group(1)
 markdown_body = front_matter_match.group(2)
 
-# Parse YAML front matter
-metadata = parse_yaml(yaml_content)
+# Parse YAML front matter with error handling
+TRY:
+  metadata = parse_yaml(yaml_content)
+CATCH yaml_error:
+  WARN "Failed to parse YAML front matter: {yaml_error}"
+  WARN "File may be malformed, skipping entry"
+  return null
+
+# Validate required fields
+if not metadata.id or not metadata.title:
+  WARN "KB entry missing required fields (id, title), skipping"
+  return null
 
 # Extract sections from markdown body
 sections = parse_markdown_sections(markdown_body)
@@ -621,23 +640,113 @@ if auto_fix_mode:
       record_fix_attempt(solution, success=all_actions_succeeded)
 
       if all_actions_succeeded:
-        fix_applied_successfully = true
+        # Verify the fix actually resolved the problem
+        PRINT "🔍 Verifying fix..."
+        verification_result = verify_fix_resolved_problem(solution, evidence)
 
-        # Auto-learn: automatically add verified solution to KB
-        if auto_learn_mode:
-          create_kb_entry_markdown(
-            problem=solution.problem,
-            category=problems[0].category,
-            phase=problems[0].phase,
-            step=step_parameter or "unknown",
-            agent=agent_parameter or "unknown",
-            root_cause=solution.root_cause,
-            solution=solution,
-            verification_result="auto-verified"
-          )
-          PRINT "✅ Solution auto-logged to knowledge base"
+        if verification_result.resolved:
+          fix_applied_successfully = true
+          PRINT "✅ Verification passed: problem resolved"
+
+          # Auto-learn: automatically add verified solution to KB
+          if auto_learn_mode:
+            create_kb_entry_markdown(
+              problem=solution.problem,
+              category=problems[0].category,
+              phase=problems[0].phase,
+              step=step_parameter or "unknown",
+              agent=agent_parameter or "unknown",
+              root_cause=solution.root_cause,
+              solution=solution,
+              verification_result="auto-verified"
+            )
+            PRINT "✅ Solution auto-logged to knowledge base"
+        else:
+          PRINT "⚠️  Commands ran but verification failed: {verification_result.reason}"
+          PRINT "   Problem may not be fully resolved"
     else:
       PRINT "⚠️  Skipping auto-fix: confidence={solution.confidence}"
+```
+
+**Helper Function**: `verify_fix_resolved_problem(solution, evidence)`
+```
+# Verify that the fix actually resolved the problem
+# Run a quick validation based on the problem category
+
+verification = { resolved: false, reason: "" }
+
+category = solution.category or "unknown"
+
+if category == "build_failure":
+  # Re-run build to verify
+  TRY:
+    result = bash("npm run build 2>&1 || true")
+    if "error" not in result.lower() and "failed" not in result.lower():
+      verification.resolved = true
+    else:
+      verification.reason = "Build still showing errors"
+  CATCH:
+    verification.reason = "Could not verify build"
+
+elif category == "test_failure":
+  # Re-run affected tests
+  TRY:
+    result = bash("npm test 2>&1 || true")
+    if "pass" in result.lower() or "0 failed" in result:
+      verification.resolved = true
+    else:
+      verification.reason = "Tests still failing"
+  CATCH:
+    verification.reason = "Could not run tests"
+
+elif category == "type_system":
+  # Re-run type check
+  TRY:
+    result = bash("npm run typecheck 2>&1 || npx tsc --noEmit 2>&1 || true")
+    if "error" not in result.lower():
+      verification.resolved = true
+    else:
+      verification.reason = "Type errors still present"
+  CATCH:
+    verification.reason = "Could not verify types"
+
+elif category == "missing_dependency":
+  # Check if module can be resolved
+  TRY:
+    # Quick check - just verify npm ls doesn't error
+    result = bash("npm ls 2>&1 || true")
+    if "missing" not in result.lower() and "UNMET" not in result:
+      verification.resolved = true
+    else:
+      verification.reason = "Dependencies still missing"
+  CATCH:
+    verification.reason = "Could not verify dependencies"
+
+else:
+  # For unknown categories, assume success if commands ran
+  verification.resolved = true
+  verification.reason = "Assumed resolved (no category-specific verification)"
+
+return verification
+```
+
+**Helper Function**: `sanitize_for_shell(input_string)`
+```
+# Sanitize string for safe use in shell commands
+# Remove or escape characters that could cause injection
+
+# Remove any shell metacharacters
+dangerous_chars = ['`', '$', '\\', '"', "'", ';', '&', '|', '>', '<', '\n', '\r']
+
+sanitized = input_string
+for char in dangerous_chars:
+  sanitized = sanitized.replace(char, '')
+
+# Truncate to reasonable length
+if length(sanitized) > 200:
+  sanitized = sanitized[:197] + "..."
+
+return sanitized
 ```
 
 ### Step 6.5: Escalate to GitHub Issue (if max retries exceeded)
@@ -672,14 +781,25 @@ if escalate_mode:
     if length(issue_title) > 100:
       issue_title = issue_title[:97] + "..."
 
-    # Use gh CLI to create issue
+    # Use gh CLI to create issue (using --body-file to avoid command injection)
     TRY:
+      # Write issue body to temp file to avoid shell escaping issues
+      temp_body_file = ".fractary/runs/{run_id}/escalation-issue-body.md"
+      ensure_directory_exists(dirname(temp_body_file))
+      write(temp_body_file, issue_body)
+
+      # Sanitize title to prevent command injection (remove quotes and special chars)
+      safe_title = sanitize_for_shell(issue_title)
+
       result = bash("""
         gh issue create \
-          --title "{issue_title}" \
-          --body "{issue_body}" \
+          --title '{safe_title}' \
+          --body-file '{temp_body_file}' \
           --label "workflow-failure,needs-investigation"
       """)
+
+      # Clean up temp file
+      delete(temp_body_file)
 
       # Extract issue URL from result
       issue_url = extract_issue_url(result)

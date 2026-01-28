@@ -59,10 +59,22 @@ for plugin_dir in plugin_dirs:
 PRINT "📚 Found {length(sources)} knowledge base source(s)"
 ```
 
-### Step 2: Collect Entries from All Sources
+### Step 2: Collect Entries from All Sources (with caching)
 
 ```
 all_entries = []
+
+# Load cache for performance optimization
+cache_path = ".fractary/cache/kb-aggregator-cache.json"
+TRY:
+  if exists(cache_path):
+    cache = parse_json(read(cache_path))
+  else:
+    cache = { entries: {}, last_updated: null }
+CATCH:
+  cache = { entries: {}, last_updated: null }
+
+cache_updated = false
 
 for source in sources:
   # Collect markdown entries (new format)
@@ -70,12 +82,26 @@ for source in sources:
 
   for md_file in md_files:
     TRY:
-      content = read(md_file)
-      entry = parse_markdown_kb_entry(content)
-      entry.source = source.name
-      entry.source_priority = source.priority
-      entry.file_path = md_file
-      all_entries.append(entry)
+      file_mtime = get_file_mtime(md_file)
+      cache_key = md_file
+
+      # Check cache first
+      if cache_key in cache.entries and cache.entries[cache_key].mtime == file_mtime:
+        # Use cached entry
+        entry = cache.entries[cache_key].entry
+      else:
+        # Parse file and update cache
+        content = read(md_file)
+        entry = parse_markdown_kb_entry(content)
+        if entry != null:
+          cache.entries[cache_key] = { mtime: file_mtime, entry: entry }
+          cache_updated = true
+
+      if entry != null:
+        entry.source = source.name
+        entry.source_priority = source.priority
+        entry.file_path = md_file
+        all_entries.append(entry)
     CATCH parse_error:
       WARN "Failed to parse {md_file}: {parse_error}"
 
@@ -84,14 +110,35 @@ for source in sources:
 
   for json_file in json_files:
     TRY:
-      content = read(json_file)
-      entry = parse_json(content)
+      file_mtime = get_file_mtime(json_file)
+      cache_key = json_file
+
+      # Check cache first
+      if cache_key in cache.entries and cache.entries[cache_key].mtime == file_mtime:
+        # Use cached entry
+        entry = cache.entries[cache_key].entry
+      else:
+        # Parse file and update cache
+        content = read(json_file)
+        entry = parse_json(content)
+        cache.entries[cache_key] = { mtime: file_mtime, entry: entry }
+        cache_updated = true
+
       entry.source = source.name
       entry.source_priority = source.priority
       entry.file_path = json_file
       all_entries.append(entry)
     CATCH parse_error:
       WARN "Failed to parse {json_file}: {parse_error}"
+
+# Save cache if updated
+if cache_updated:
+  TRY:
+    ensure_directory_exists(dirname(cache_path))
+    cache.last_updated = now()
+    write(cache_path, json.serialize(cache, indent=2))
+  CATCH:
+    WARN "Failed to save KB cache"
 
 PRINT "📖 Loaded {length(all_entries)} total entries"
 ```
@@ -260,8 +307,17 @@ if not front_matter_match:
 yaml_content = front_matter_match.group(1)
 markdown_body = front_matter_match.group(2)
 
-# Parse YAML
-metadata = parse_yaml(yaml_content)
+# Parse YAML with error handling
+TRY:
+  metadata = parse_yaml(yaml_content)
+CATCH yaml_error:
+  WARN "Failed to parse YAML front matter: {yaml_error}"
+  return null
+
+# Validate required fields
+if not metadata or not metadata.id or not metadata.title:
+  WARN "KB entry missing required fields (id, title)"
+  return null
 
 # Extract markdown sections
 sections = {}
@@ -403,10 +459,51 @@ return actions
 
 ## Performance Notes
 
-- Caches file system lookups within a single invocation
-- Parses files lazily when possible
+- Uses file modification time (mtime) caching to avoid re-parsing unchanged files
+- Cache stored in `.fractary/cache/kb-aggregator-cache.json`
+- Cache invalidated when file mtime changes
 - Limits default results to 20 entries
 - Plugin KB paths are discovered once per invocation
+
+### Caching Implementation
+
+The skill maintains a cache of parsed KB entries to avoid re-reading and re-parsing files on every invocation:
+
+```
+cache_path = ".fractary/cache/kb-aggregator-cache.json"
+
+# Load cache if exists
+if exists(cache_path):
+  cache = parse_json(read(cache_path))
+else:
+  cache = { entries: {}, last_updated: null }
+
+# For each KB file:
+for kb_file in all_kb_files:
+  file_mtime = get_file_mtime(kb_file)
+  cache_key = kb_file
+
+  # Check if cached entry is still valid
+  if cache_key in cache.entries:
+    cached = cache.entries[cache_key]
+    if cached.mtime == file_mtime:
+      # Use cached entry - skip parsing
+      entry = cached.entry
+    else:
+      # File changed - re-parse and update cache
+      entry = parse_kb_file(kb_file)
+      cache.entries[cache_key] = { mtime: file_mtime, entry: entry }
+  else:
+    # New file - parse and add to cache
+    entry = parse_kb_file(kb_file)
+    cache.entries[cache_key] = { mtime: file_mtime, entry: entry }
+
+# Save updated cache
+cache.last_updated = now()
+write(cache_path, json.serialize(cache, indent=2))
+```
+
+This reduces repeated file I/O when the debugger runs multiple times in succession.
 
 ## Related Documentation
 
