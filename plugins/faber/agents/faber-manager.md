@@ -537,6 +537,88 @@ function build_step_context(state, phase, step, result):
   }
 ```
 
+### Helper Function: build_failure_comment_context
+
+```
+function build_failure_comment_context(phase, step, result):
+  # Build context string for automatic issue comment on failure
+  # This provides stakeholders visibility into workflow failures
+
+  step_display = step.name ?? step.id
+
+  context_parts = [
+    "Add a comment documenting a WORKFLOW STEP FAILURE:",
+    "",
+    "**Step:** {step_display}",
+    "**Phase:** {phase}",
+    "**Status:** ❌ Failed",
+    "",
+    "**Error Message:** {result.message}"
+  ]
+
+  IF result.errors AND result.errors.length > 0 THEN
+    context_parts.push("")
+    context_parts.push("**Errors:**")
+    FOR error IN result.errors:
+      context_parts.push("- {error}")
+
+  IF result.error_analysis THEN
+    context_parts.push("")
+    context_parts.push("**Analysis:** {result.error_analysis}")
+
+  IF result.suggested_fixes AND result.suggested_fixes.length > 0 THEN
+    context_parts.push("")
+    context_parts.push("**Suggested Fixes:**")
+    FOR fix IN result.suggested_fixes:
+      context_parts.push("- {fix}")
+
+  context_parts.push("")
+  context_parts.push("The workflow has encountered a failure. Please review and take appropriate action.")
+
+  RETURN context_parts.join("\n")
+```
+
+### Helper Function: build_warning_comment_context
+
+```
+function build_warning_comment_context(phase, step, result):
+  # Build context string for automatic issue comment on warning
+  # This provides stakeholders visibility into workflow warnings
+
+  step_display = step.name ?? step.id
+
+  context_parts = [
+    "Add a comment documenting a WORKFLOW STEP WARNING:",
+    "",
+    "**Step:** {step_display}",
+    "**Phase:** {phase}",
+    "**Status:** ⚠️ Completed with warnings",
+    "",
+    "**Message:** {result.message}"
+  ]
+
+  IF result.warnings AND result.warnings.length > 0 THEN
+    context_parts.push("")
+    context_parts.push("**Warnings:**")
+    FOR warning IN result.warnings:
+      context_parts.push("- {warning}")
+
+  IF result.warning_analysis THEN
+    context_parts.push("")
+    context_parts.push("**Analysis:** {result.warning_analysis}")
+
+  IF result.suggested_fixes AND result.suggested_fixes.length > 0 THEN
+    context_parts.push("")
+    context_parts.push("**Suggested Actions:**")
+    FOR fix IN result.suggested_fixes:
+      context_parts.push("- {fix}")
+
+  context_parts.push("")
+  context_parts.push("The workflow is continuing, but these warnings may require attention.")
+
+  RETURN context_parts.join("\n")
+```
+
 ### Helper Function: write_context_file
 
 ```
@@ -1901,6 +1983,22 @@ SWITCH result.status:
       --message "Step failed: {step_display} - {result.message}" \
       --data '{"errors": {result.errors}}'
 
+    # AUTOMATIC ISSUE COMMENT FOR FAILURE (always, regardless of result_handling)
+    # This ensures stakeholders are notified of failures via the linked issue
+    IF work_id is available THEN
+      failure_context = build_failure_comment_context(phase, step, result)
+      # Context includes: step name, phase, error messages, error_analysis, suggested_fixes
+
+      TRY:
+        Skill(
+          skill: "fractary-work:issue-comment",
+          args: "--work-id {work_id} --context \"{failure_context}\""
+        )
+        LOG "📝 Posted failure comment to issue {work_id}"
+      CATCH comment_error:
+        # Don't fail the workflow if commenting fails - it's informational
+        LOG "⚠️ Failed to post failure comment to issue: {comment_error}"
+
     # Check if handler is a slash command
     IF failure_handler.startsWith("/") THEN
       # SLASH COMMAND HANDLER - Invoke skill with step context
@@ -2194,6 +2292,22 @@ SWITCH result.status:
   CASE "warning":
     # Check configured behavior
     warning_handler = result_handling.on_warning
+
+    # AUTOMATIC ISSUE COMMENT FOR WARNING (always, regardless of result_handling)
+    # This ensures stakeholders are notified of warnings via the linked issue
+    IF work_id is available THEN
+      warning_context = build_warning_comment_context(phase, step, result)
+      # Context includes: step name, phase, warning messages, warning_analysis, suggested_fixes
+
+      TRY:
+        Skill(
+          skill: "fractary-work:issue-comment",
+          args: "--work-id {work_id} --context \"{warning_context}\""
+        )
+        LOG "📝 Posted warning comment to issue {work_id}"
+      CATCH comment_error:
+        # Don't fail the workflow if commenting fails - it's informational
+        LOG "⚠️ Failed to post warning comment to issue: {comment_error}"
 
     # Check if handler is a slash command
     IF warning_handler.startsWith("/") THEN
