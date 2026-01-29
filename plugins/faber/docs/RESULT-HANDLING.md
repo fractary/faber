@@ -149,6 +149,60 @@ Step failed to complete successfully.
 - `on_failure: "stop"` (default, IMMUTABLE for steps) - Show intelligent failure prompt
 - `on_failure: "continue"` (hooks only) - Log failure, proceed anyway
 
+## Automatic Issue Comments (v2.4+)
+
+When a step completes with **warning** or **failure** status, FABER automatically posts a comment to the linked GitHub issue (if `work_id` is available). This provides stakeholders with visibility into workflow problems without requiring manual notification.
+
+**This behavior is automatic and independent of `result_handling` configuration.** Whether you use `continue`, `prompt`, `stop`, or a slash command handler, the issue comment is always posted first.
+
+### Warning Comment
+
+When a step returns `status: "warning"`, a comment is posted containing:
+- Step name and phase
+- Warning messages from the `warnings` array
+- Warning analysis (if `warning_analysis` is provided)
+- Suggested actions (if `suggested_fixes` is provided)
+- Note that the workflow is continuing
+
+### Failure Comment
+
+When a step returns `status: "failure"`, a comment is posted containing:
+- Step name and phase
+- Error message and errors from the `errors` array
+- Error analysis (if `error_analysis` is provided)
+- Suggested fixes (if `suggested_fixes` is provided)
+- Note that the workflow has encountered a failure
+
+### Example Comment (Failure)
+
+```markdown
+## ❌ Workflow Step Failure
+
+**Step:** implement
+**Phase:** build
+**Status:** Failed
+
+**Error Message:** TypeScript compilation failed
+
+**Errors:**
+- TS2307: Cannot find module './utils'
+- TS2304: Cannot find name 'UserConfig'
+
+**Analysis:** Missing import statements for utility functions and type definitions.
+
+**Suggested Fixes:**
+- Add import statement: `import { helper } from './utils'`
+- Add import statement: `import { UserConfig } from './types'`
+
+The workflow has encountered a failure. Please review and take appropriate action.
+```
+
+### Disabling Automatic Comments
+
+Automatic issue comments cannot be disabled through configuration. If `work_id` is not available (e.g., running without a linked issue), no comment is posted.
+
+If commenting fails (e.g., network error, permission issue), the failure is logged but does not affect workflow execution.
+
 ## Intelligent Prompts
 
 When `on_warning: "prompt"` or a failure occurs, FABER displays intelligent prompts with analysis and options.
