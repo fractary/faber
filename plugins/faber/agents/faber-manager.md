@@ -545,6 +545,108 @@ function write_context_file(run_id, step_id, context):
     RETURN { success: false, error: "Failed to write context file: {write_error}" }
 ```
 
+### Helper Function: extract_recovery_plan
+
+```
+# Constants for recovery plan extraction
+RECOVERY_PLAN_START_MARKER = "RECOVERY_PLAN_START"
+RECOVERY_PLAN_END_MARKER = "RECOVERY_PLAN_END"
+
+function extract_recovery_plan(skill_output):
+  # Extract recovery plan JSON from skill output text
+  # Looks for RECOVERY_PLAN_START and RECOVERY_PLAN_END markers
+  #
+  # Returns: { found: true, plan: {...} } or { found: false, error: "..." }
+
+  IF skill_output is null OR skill_output is undefined THEN
+    RETURN { found: false, error: "Skill output is null or undefined" }
+
+  # Convert to string if needed
+  output_text = String(skill_output)
+
+  # Find start marker
+  start_index = output_text.indexOf(RECOVERY_PLAN_START_MARKER)
+  IF start_index == -1 THEN
+    RETURN { found: false, error: "No RECOVERY_PLAN_START marker found" }
+
+  # Find end marker (must be after start)
+  end_index = output_text.indexOf(RECOVERY_PLAN_END_MARKER, start_index)
+  IF end_index == -1 THEN
+    RETURN { found: false, error: "No RECOVERY_PLAN_END marker found after start" }
+
+  # Extract content between markers
+  json_start = start_index + RECOVERY_PLAN_START_MARKER.length
+  json_content = output_text.substring(json_start, end_index).trim()
+
+  # Parse JSON
+  TRY:
+    parsed = JSON.parse(json_content)
+
+    # Expect { recovery_plan: {...} } structure
+    IF parsed.recovery_plan THEN
+      RETURN { found: true, plan: parsed.recovery_plan }
+    ELSE:
+      # Maybe the content IS the recovery plan directly
+      IF parsed.action THEN
+        RETURN { found: true, plan: parsed }
+      ELSE:
+        RETURN { found: false, error: "Parsed JSON does not contain recovery_plan or action field" }
+
+  CATCH parse_error:
+    RETURN { found: false, error: "Failed to parse recovery plan JSON: {parse_error}" }
+```
+
+### Helper Function: validate_target_step_exists
+
+```
+function validate_target_step_exists(resolved_workflow, target_phase, target_step):
+  # Validate that the target step exists in the workflow
+  # Returns: { exists: true } or { exists: false, error: "..." }
+
+  IF resolved_workflow is null THEN
+    RETURN { exists: false, error: "Workflow not loaded" }
+
+  # Get phase definition
+  phase_def = resolved_workflow.phases?[target_phase]
+  IF phase_def is null OR phase_def is undefined THEN
+    RETURN { exists: false, error: "Phase '{target_phase}' not found in workflow" }
+
+  # Check if phase is enabled
+  IF phase_def.enabled == false THEN
+    RETURN { exists: false, error: "Phase '{target_phase}' is disabled in workflow" }
+
+  # Get all steps (pre_steps + steps + post_steps merged)
+  all_steps = []
+  IF phase_def.pre_steps THEN
+    all_steps = all_steps.concat(phase_def.pre_steps)
+  IF phase_def.steps THEN
+    all_steps = all_steps.concat(phase_def.steps)
+  IF phase_def.post_steps THEN
+    all_steps = all_steps.concat(phase_def.post_steps)
+
+  # Search for target step
+  FOR step IN all_steps:
+    IF step.id == target_step THEN
+      RETURN { exists: true }
+
+  # Step not found - provide helpful error with available steps
+  available_steps = all_steps.map(s => s.id).join(", ")
+  RETURN {
+    exists: false,
+    error: "Step '{target_step}' not found in phase '{target_phase}'. Available steps: [{available_steps}]"
+  }
+```
+
+### Constants: Skill Invocation
+
+```
+# Timeout for recovery handler skill invocations (in milliseconds)
+RECOVERY_HANDLER_TIMEOUT_MS = 300000  # 5 minutes
+
+# Delay before context file cleanup to avoid TOCTOU race (in milliseconds)
+CONTEXT_FILE_CLEANUP_DELAY_MS = 1000  # 1 second
+```
+
 ### Helper Function: validate_recovery_plan
 
 ```
@@ -553,9 +655,14 @@ VALID_RECOVERY_ACTIONS = ["goto_step", "retry", "stop"]
 VALID_PHASE_NAMES = ["frame", "architect", "build", "evaluate", "release"]
 MAX_GLOBAL_RECOVERY_ATTEMPTS = 10  # Prevent infinite recovery loops
 
-function validate_recovery_plan(plan, current_recovery_count):
+function validate_recovery_plan(plan, current_recovery_count, resolved_workflow=null):
   # Validate recovery plan structure and content
   # Returns: { valid: true } or { valid: false, errors: [...] }
+  #
+  # Parameters:
+  #   plan: The recovery plan object to validate
+  #   current_recovery_count: Number of recovery attempts so far
+  #   resolved_workflow: Optional - if provided, validates target_step exists
 
   errors = []
 
@@ -565,8 +672,7 @@ function validate_recovery_plan(plan, current_recovery_count):
 
   IF plan.action is null OR plan.action is undefined THEN
     errors.append("Missing required field: action")
-
-  IF plan.action not in VALID_RECOVERY_ACTIONS THEN
+  ELSE IF plan.action not in VALID_RECOVERY_ACTIONS THEN
     errors.append("Invalid action: '{plan.action}'. Must be one of: {VALID_RECOVERY_ACTIONS}")
 
   # Validate goto_step specific fields
@@ -580,6 +686,11 @@ function validate_recovery_plan(plan, current_recovery_count):
       errors.append("goto_step action requires target_step")
     ELSE IF not /^[a-z][a-z0-9-]*$/.test(plan.target_step) THEN
       errors.append("Invalid target_step format: '{plan.target_step}'")
+    ELSE IF resolved_workflow is not null THEN
+      # Validate target step actually exists in workflow
+      step_check = validate_target_step_exists(resolved_workflow, plan.target_phase, plan.target_step)
+      IF not step_check.exists THEN
+        errors.append("Target step validation failed: {step_check.error}")
 
   # Validate rationale exists for audit trail
   IF plan.rationale is null OR plan.rationale == "" THEN
@@ -676,10 +787,26 @@ function set_workflow_position(run_id, target_phase, target_step):
       state.failed_at = null
       state.status = "running"
 
-      # Increment version for conflict detection
+      # VERSION CONFLICT DETECTION: Re-read state to check for concurrent modifications
+      # This detects if another process modified the state while we were processing
+      TRY:
+        current_state_check = parse_json(read(state_path))
+        current_version = current_state_check.version ?? 0
+
+        IF current_version != original_version THEN
+          # Version mismatch - concurrent modification detected
+          RETURN {
+            success: false,
+            error: "Version conflict detected: state was modified by another process (expected v{original_version}, found v{current_version}). Please retry the operation."
+          }
+      CATCH read_error:
+        # If we can't read the file, it may have been deleted - proceed cautiously
+        LOG "⚠️ Warning: Could not verify state version: {read_error}"
+
+      # Increment version for future conflict detection
       state.version = original_version + 1
 
-      # Write updated state
+      # Write updated state (atomic write)
       write(state_path, JSON.stringify(state, null, 2))
 
       # Clean up backup on success
@@ -1784,11 +1911,17 @@ SWITCH result.status:
 
       # Invoke the slash command skill with context file reference
       # SECURITY: Context is passed via file path, not inline JSON
+      # RELIABILITY: Timeout prevents hung handlers from stalling indefinitely
       TRY:
         recovery_result = Skill(
           skill: skill_parts.skill,
-          args: "{skill_parts.args} --step-context-file '{context_file_path}'"
+          args: "{skill_parts.args} --step-context-file '{context_file_path}'",
+          timeout: RECOVERY_HANDLER_TIMEOUT_MS
         )
+
+        # TOCTOU FIX: Delay before cleanup to ensure skill has finished reading
+        # This prevents race condition where we delete file while skill is still reading
+        sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
 
         # Clean up context file after skill execution
         TRY:
@@ -1796,12 +1929,25 @@ SWITCH result.status:
         CATCH:
           LOG "⚠️ Warning: Could not delete context file: {context_file_path}"
 
-        # Check if handler returned a recovery plan
+        # Extract recovery plan from skill output (handles RECOVERY_PLAN_START/END markers)
+        plan = null
         IF recovery_result.recovery_plan THEN
+          # Direct recovery_plan in result object
           plan = recovery_result.recovery_plan
+        ELSE IF recovery_result.output OR recovery_result.message THEN
+          # Try to extract from output text using markers
+          extraction = extract_recovery_plan(recovery_result.output ?? recovery_result.message)
+          IF extraction.found THEN
+            plan = extraction.plan
+            LOG "📋 Extracted recovery plan from skill output"
+          ELSE:
+            LOG "ℹ️ No recovery plan markers found in output: {extraction.error}"
 
+        # Check if handler returned a recovery plan
+        IF plan is not null THEN
           # VALIDATION: Validate recovery plan before execution
-          validation_result = validate_recovery_plan(plan, recovery_count)
+          # Pass resolved_workflow to validate target_step exists
+          validation_result = validate_recovery_plan(plan, recovery_count, resolved_workflow)
 
           IF not validation_result.valid THEN
             LOG "❌ Invalid recovery plan:"
@@ -1945,13 +2091,30 @@ SWITCH result.status:
             errors: result.errors
 
       CATCH handler_error:
-        # Handler invocation failed - fall back to stop
-        LOG "❌ Recovery handler failed: {handler_error}"
-        ABORT workflow with:
-          status: "failed"
-          failed_at: "{phase}:{step_name}"
-          reason: "Recovery handler failed: {handler_error}"
-          errors: result.errors
+        # Clean up context file even on error
+        TRY:
+          sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
+          delete(context_file_path)
+        CATCH:
+          pass  # Ignore cleanup errors
+
+        # Differentiate between timeout and other errors
+        IF handler_error.type == "timeout" OR handler_error.message.includes("timeout") THEN
+          LOG "❌ Recovery handler timed out after {RECOVERY_HANDLER_TIMEOUT_MS / 1000} seconds"
+          ABORT workflow with:
+            status: "failed"
+            failed_at: "{phase}:{step_name}"
+            reason: "Recovery handler timed out - may be stuck or taking too long"
+            errors: result.errors
+            timeout: true
+        ELSE:
+          # Handler invocation failed - fall back to stop
+          LOG "❌ Recovery handler failed: {handler_error}"
+          ABORT workflow with:
+            status: "failed"
+            failed_at: "{phase}:{step_name}"
+            reason: "Recovery handler failed: {handler_error}"
+            errors: result.errors
 
     ELSE:
       # STANDARD HANDLER - "stop" (default behavior)
@@ -2028,11 +2191,16 @@ SWITCH result.status:
             --data '{"handler": "{warning_handler}", "context_file": "{context_file_path}"}'
 
           # Invoke the slash command skill with context file reference
+          # RELIABILITY: Timeout prevents hung handlers from stalling indefinitely
           TRY:
             handler_result = Skill(
               skill: skill_parts.skill,
-              args: "{skill_parts.args} --step-context-file '{context_file_path}'"
+              args: "{skill_parts.args} --step-context-file '{context_file_path}'",
+              timeout: RECOVERY_HANDLER_TIMEOUT_MS
             )
+
+            # TOCTOU FIX: Delay before cleanup to ensure skill has finished reading
+            sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
 
             # Clean up context file
             TRY:
@@ -2040,21 +2208,29 @@ SWITCH result.status:
             CATCH:
               pass  # Ignore cleanup errors for warnings
 
-            # Check if handler returned a recovery plan
+            # Extract recovery plan (same as failure handler)
+            plan = null
             IF handler_result.recovery_plan THEN
               plan = handler_result.recovery_plan
+            ELSE IF handler_result.output OR handler_result.message THEN
+              extraction = extract_recovery_plan(handler_result.output ?? handler_result.message)
+              IF extraction.found THEN
+                plan = extraction.plan
+
+            # Check if handler returned a recovery plan
+            IF plan is not null THEN
               recovery_count = state.recovery_history?.length ?? 0
 
-              # Validate recovery plan
-              validation_result = validate_recovery_plan(plan, recovery_count)
+              # Validate recovery plan (with workflow for step existence check)
+              validation_result = validate_recovery_plan(plan, recovery_count, resolved_workflow)
 
               IF validation_result.valid THEN
-                LOG "📋 Warning handler returned recovery plan"
+                LOG "📋 Warning handler returned valid recovery plan"
                 # Execute recovery plan using same logic as failure case
                 # (goto_step, retry, or stop actions)
                 # Note: For warnings, user can still choose to ignore
               ELSE:
-                LOG "⚠️ Invalid recovery plan from warning handler, continuing"
+                LOG "⚠️ Invalid recovery plan from warning handler: {validation_result.errors.join(', ')}"
 
             ELSE:
               # Handler completed without recovery plan - continue
@@ -2067,10 +2243,20 @@ SWITCH result.status:
               --phase "{phase}" \
               --step "{step_id}" \
               --message "Warning handler completed" \
-              --data '{"has_recovery_plan": {handler_result.recovery_plan != null}}'
+              --data '{"has_recovery_plan": {plan != null}}'
 
           CATCH handler_error:
-            LOG "⚠️ Warning handler failed: {handler_error}, continuing anyway"
+            # Clean up context file even on error
+            TRY:
+              sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
+              delete(context_file_path)
+            CATCH:
+              pass
+
+            IF handler_error.type == "timeout" OR handler_error.message.includes("timeout") THEN
+              LOG "⚠️ Warning handler timed out, continuing anyway"
+            ELSE:
+              LOG "⚠️ Warning handler failed: {handler_error}, continuing anyway"
             # Continue to next step
 
       # Continue to next step (warnings don't block by default)
@@ -2141,11 +2327,16 @@ SWITCH result.status:
             --message "Invoking success handler: {skill_parts.skill}" \
             --data '{"handler": "{success_handler}", "context_file": "{context_file_path}"}'
 
+          # RELIABILITY: Timeout prevents hung handlers from stalling indefinitely
           TRY:
             Skill(
               skill: skill_parts.skill,
-              args: "{skill_parts.args} --step-context-file '{context_file_path}'"
+              args: "{skill_parts.args} --step-context-file '{context_file_path}'",
+              timeout: RECOVERY_HANDLER_TIMEOUT_MS
             )
+
+            # TOCTOU FIX: Delay before cleanup to ensure skill has finished reading
+            sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
 
             # Clean up context file
             TRY:
@@ -2162,7 +2353,17 @@ SWITCH result.status:
               --message "Success handler completed"
 
           CATCH handler_error:
-            LOG "⚠️ Success handler failed: {handler_error}, continuing anyway"
+            # Clean up context file even on error
+            TRY:
+              sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
+              delete(context_file_path)
+            CATCH:
+              pass
+
+            IF handler_error.type == "timeout" OR handler_error.message.includes("timeout") THEN
+              LOG "⚠️ Success handler timed out, continuing anyway"
+            ELSE:
+              LOG "⚠️ Success handler failed: {handler_error}, continuing anyway"
 
       # Continue to next step
 
