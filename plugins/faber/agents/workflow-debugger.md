@@ -26,6 +26,7 @@ Diagnoses FABER workflow issues and proposes solutions by:
 | `phase` | string | No | Focus on specific phase: frame, architect, build, evaluate, release |
 | `step` | string | No | Focus on specific step within phase |
 | `agent` | string | No | Agent name for context (used with onFailure hooks) |
+| `step-context` | JSON | No | Step context object passed by workflow manager via result_handling. Contains work_id, run_id, phase, step_id, error details, retry count, etc. |
 | `create-spec` | boolean | No | Force specification creation for complex issues (default: false) |
 | `learn` | boolean | No | Add successful resolution to knowledge base (default: false) |
 | `auto-fix` | boolean | No | Automatically apply fixes if confidence is high (default: false) |
@@ -1436,6 +1437,134 @@ When invoked by workflow onFailure hook with full context:
   --max-retries 3 \
   --retry-count 1
 ```
+
+## Recovery Plan Output
+
+When invoked via `result_handling.on_failure` slash command, the debugger receives step context and can return a **recovery plan** that instructs the workflow manager how to proceed.
+
+### Step Context (Received)
+
+The debugger receives step context via `--step-context` parameter:
+
+```json
+{
+  "work_id": "ISSUE-123",
+  "run_id": "run_abc123",
+  "phase": "build",
+  "step_id": "implement",
+  "step_name": "Implement solution",
+  "agent": "software-engineer",
+  "status": "failure",
+  "error": "TypeScript compilation failed",
+  "errors": ["TS2307: Cannot find module './utils'"],
+  "output": {},
+  "retry_count": 0,
+  "max_retries": 3,
+  "workflow_id": "default",
+  "timestamp": "2026-01-28T10:30:00Z"
+}
+```
+
+### Recovery Plan Format (Returned)
+
+When diagnosing an issue, output a recovery plan as part of the response:
+
+```json
+{
+  "recovery_plan": {
+    "action": "goto_step",
+    "target_phase": "build",
+    "target_step": "implement",
+    "modifications": [
+      {
+        "file": "src/index.ts",
+        "description": "Add missing import for utils module"
+      }
+    ],
+    "rationale": "Missing import statement caused TypeScript compilation to fail. The import can be added and the step retried.",
+    "requires_approval": true
+  }
+}
+```
+
+### Recovery Actions
+
+| Action | Description |
+|--------|-------------|
+| `goto_step` | Resume workflow from a specific step (can go backwards to earlier phases) |
+| `retry` | Retry the current step immediately (respects max_retries limit) |
+| `stop` | Stop workflow - manual intervention required |
+
+### Output Protocol
+
+When invoked as a result handler, structure your output to include the recovery plan:
+
+**Step 1**: Perform normal diagnostic analysis (problems, root causes, solutions)
+
+**Step 2**: If a fix can be attempted, output the recovery plan:
+
+```
+🔍 FABER WORKFLOW DEBUGGER
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[... diagnostic output ...]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 RECOVERY PLAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RECOVERY_PLAN_START
+{
+  "recovery_plan": {
+    "action": "retry",
+    "target_phase": "build",
+    "target_step": "implement",
+    "modifications": [
+      {
+        "file": "src/utils/index.ts",
+        "description": "Create missing utils module"
+      }
+    ],
+    "rationale": "The utils module does not exist. Creating it will resolve the import error.",
+    "requires_approval": true
+  }
+}
+RECOVERY_PLAN_END
+```
+
+The `RECOVERY_PLAN_START` and `RECOVERY_PLAN_END` markers help the workflow manager extract the plan from the output.
+
+### Example: Auto-Fix Configuration
+
+Configure a workflow step to use the debugger for automatic recovery:
+
+```json
+{
+  "id": "implement",
+  "name": "Implement solution",
+  "prompt": "Implement the feature according to specification",
+  "agent": "software-engineer",
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+  }
+}
+```
+
+With `--auto-fix`, the debugger attempts fixes automatically for high-confidence issues. Add `--auto-learn` to also log successful resolutions to the knowledge base.
+
+### Example: Manual Approval Configuration
+
+For more conservative workflows, require user approval:
+
+```json
+{
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger"
+  }
+}
+```
+
+Without `--auto-fix`, the debugger will set `requires_approval: true` in the recovery plan, and the workflow manager will prompt the user before applying any changes.
 
 ## Performance Considerations
 

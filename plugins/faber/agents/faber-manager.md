@@ -65,19 +65,19 @@ You have direct tool access for reading files, executing operations, and user in
 
 7. **Result Handling - NEVER IMPROVISE**
    - ALWAYS evaluate step result status: "success", "warning", "failure", or "pending_input"
-   - On "failure": STOP workflow immediately - no exceptions, no improvisation
-   - On "warning": Check result_handling config (continue, prompt, or stop)
-   - On "success": Check result_handling config (continue or prompt)
+   - On "failure": Check result_handling.on_failure - either STOP or invoke slash command handler
+   - On "warning": Check result_handling config (continue, prompt, stop, or slash command)
+   - On "success": Check result_handling config (continue, prompt, or slash command)
    - On "pending_input": HALT workflow, save state, wait for user input (see Section 4.2.5)
-   - NEVER assume a failed step can be worked around
-   - NEVER proceed if status is "failure" - this is IMMUTABLE
+   - NEVER assume a failed step can be worked around unless a recovery handler succeeds
    - ALWAYS report failures clearly with error details
    - ALWAYS update state BEFORE and AFTER every step (see rule #3)
 
 8. **Default Result Handling**
    - ALWAYS apply defaults when result_handling is not specified:
      - Steps: `{ on_success: "continue", on_warning: "continue", on_failure: "stop" }`
-   - `on_failure: "stop"` is IMMUTABLE for steps - always enforced regardless of config
+   - Default `on_failure` is "stop" - can be overridden with slash command for recovery
+   - Slash commands (values starting with `/`) invoke recovery handlers with step context
    - Merge user's partial config with defaults (user values override defaults)
 
 9. **Execute, Don't Interpret - CRITICAL DISTINCTION**
@@ -398,7 +398,7 @@ When a step does not specify `result_handling`, apply these defaults:
 DEFAULT_STEP_RESULT_HANDLING = {
   on_success: "continue",       // Proceed automatically to next step
   on_warning: "continue",       // Log warning, proceed to next step
-  on_failure: "stop",           // IMMUTABLE - always stop on failure
+  on_failure: "stop",           // Default stop - can be slash command for recovery
   on_pending_input: "wait"      // Save state, halt workflow, wait for user
 }
 ```
@@ -416,14 +416,139 @@ function applyResultHandlingDefaults(step):
     RETURN defaults
 
   # Merge user's partial config with defaults
+  # Note: on_failure can now be "stop" OR a slash command (e.g., "/fractary-faber:workflow-debugger")
   merged = {
     on_success: step.result_handling.on_success ?? defaults.on_success,
     on_warning: step.result_handling.on_warning ?? defaults.on_warning,
-    on_failure: "stop",             # IMMUTABLE - always stop on failure
+    on_failure: step.result_handling.on_failure ?? defaults.on_failure,
     on_pending_input: "wait"        # IMMUTABLE - always wait for user input
   }
 
   RETURN merged
+```
+
+## Slash Command Handlers
+
+Result handlers can invoke slash commands instead of using predefined actions.
+Detection: if the value starts with `/`, it's a slash command to invoke.
+
+**Example:**
+```json
+{
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+  }
+}
+```
+
+### Helper Function: parse_slash_command
+
+```
+function parse_slash_command(handler):
+  # Parse a slash command string into skill name and args
+  # Input: "/fractary-faber:workflow-debugger --auto-fix --escalate"
+  # Output: { skill: "fractary-faber:workflow-debugger", args: "--auto-fix --escalate" }
+
+  IF not handler.startsWith("/") THEN
+    RETURN null  # Not a slash command
+
+  # Remove leading slash
+  command_string = handler.substring(1)
+
+  # Split on first space to separate skill from args
+  space_index = command_string.indexOf(" ")
+
+  IF space_index == -1 THEN
+    # No args, just skill name
+    RETURN {
+      skill: command_string,
+      args: ""
+    }
+  ELSE
+    RETURN {
+      skill: command_string.substring(0, space_index),
+      args: command_string.substring(space_index + 1).trim()
+    }
+```
+
+### Helper Function: build_step_context
+
+```
+function build_step_context(state, phase, step, result):
+  # Build context object to pass to slash command handler
+  RETURN {
+    work_id: state.work_id,
+    run_id: state.run_id,
+    phase: phase,
+    step_id: step.id,
+    step_name: step.name ?? step.id,
+    agent: step.agent ?? "unknown",
+    status: result.status,
+    error: result.message,
+    errors: result.errors ?? [],
+    output: result.details ?? {},
+    retry_count: step.retry_count ?? 0,
+    max_retries: step.max_retries ?? 3,
+    workflow_id: state.workflow_id,
+    timestamp: now()
+  }
+```
+
+### Helper Function: set_workflow_position
+
+```
+function set_workflow_position(run_id, target_phase, target_step):
+  # Reset workflow state to target step for recovery
+  # This allows the workflow to resume from an earlier step
+
+  # Load current state
+  state_path = ".fractary/plugins/faber/runs/{run_id}/state.json"
+  state = parse_json(read(state_path))
+
+  # Find target phase and step indices
+  phase_names = ["frame", "architect", "build", "evaluate", "release"]
+  target_phase_index = phase_names.indexOf(target_phase)
+
+  IF target_phase_index == -1 THEN
+    ERROR "Invalid target phase: {target_phase}"
+    RETURN false
+
+  # Reset phases after target to pending
+  FOR i = target_phase_index TO phase_names.length - 1:
+    phase_name = phase_names[i]
+    IF state.phases[phase_name] THEN
+      state.phases[phase_name].status = "pending"
+      state.phases[phase_name].current_step_index = 0
+
+  # Find step index within target phase
+  target_step_index = 0
+  FOR i, step IN enumerate(state.phases[target_phase].steps ?? []):
+    IF step.id == target_step THEN
+      target_step_index = i
+      BREAK
+
+  # Set current position
+  state.current_phase = target_phase
+  state.phases[target_phase].current_step_index = target_step_index
+  state.phases[target_phase].status = "in_progress"
+
+  # Mark that this is a recovery resume
+  state.recovery = {
+    from_phase: state.failed_at?.phase ?? state.current_phase,
+    from_step: state.failed_at?.step ?? "unknown",
+    to_phase: target_phase,
+    to_step: target_step,
+    timestamp: now()
+  }
+
+  # Clear failed state
+  state.failed_at = null
+  state.status = "running"
+
+  # Write updated state
+  write(state_path, JSON.stringify(state, null, 2))
+
+  RETURN true
 ```
 
 ## Backward Compatibility
@@ -431,6 +556,8 @@ function applyResultHandlingDefaults(step):
 - Existing configs with explicit result_handling continue to work unchanged
 - New configs can omit result_handling entirely to use defaults
 - Partial result_handling (e.g., only on_warning) is allowed - missing fields use defaults
+- String values "continue", "prompt", "stop" work as before
+- Slash commands (values starting with `/`) invoke the specified skill with step context
 </DEFAULT_RESULT_HANDLING>
 
 <INPUTS>
@@ -1440,7 +1567,9 @@ result_handling = applyResultHandlingDefaults(step, isHook=false)
 SWITCH result.status:
 
   CASE "failure":
-    # ALWAYS STOP - THIS IS IMMUTABLE (on_failure is always "stop" for steps)
+    # Check if on_failure is a slash command or standard action
+    failure_handler = result_handling.on_failure
+
     # Update state to failed
     Invoke Skill: faber-state
     Operation: update-step
@@ -1456,49 +1585,245 @@ SWITCH result.status:
       --message "Step failed: {step_display} - {result.message}" \
       --data '{"errors": {result.errors}}'
 
-    # Display intelligent failure prompt with options
-    USE AskUserQuestion with FAILURE_PROMPT_TEMPLATE (see below)
+    # Check if handler is a slash command
+    IF failure_handler.startsWith("/") THEN
+      # SLASH COMMAND HANDLER - Invoke skill with step context
+      LOG "🔧 Invoking recovery handler: {failure_handler}"
 
-    # Handle user selection
-    SWITCH user_selection:
-      CASE "Suggested fix" (if available):
-        # Record recovery attempt in state
-        Invoke Skill: faber-state
-        Operation: record-failure-recovery
-        Parameters: run_id={run_id}, step={step_name}, action="suggested_fix"
-        # Execute suggested fix, then retry step
-        RETRY step with fix applied
+      # Parse slash command
+      skill_parts = parse_slash_command(failure_handler)
 
-      CASE "Run diagnostic" (if available):
-        # Execute diagnostic command
-        Invoke Skill: faber-state
-        Operation: record-failure-recovery
-        Parameters: run_id={run_id}, step={step_name}, action="diagnostic"
-        # Show diagnostic results, ask again
+      # Build step context for the handler
+      step_context = build_step_context(state, phase, step, result)
 
-      CASE "Continue anyway (NOT RECOMMENDED)":
-        # Log explicit warning about continuing past failure
-        LOG "⚠️ WARNING: User chose to continue past failure in step '{step_name}'. This is NOT RECOMMENDED."
-        Invoke Skill: faber-state
-        Operation: record-failure-recovery
-        Parameters: run_id={run_id}, step={step_name}, action="force_continue", acknowledged=true
-        # Continue to next step (exceptional case)
+      # Emit recovery_handler_invoked event
+      Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+        --run-id "{run_id}" \
+        --type "recovery_handler_invoked" \
+        --phase "{phase}" \
+        --step "{step_id}" \
+        --message "Invoking recovery handler: {skill_parts.skill}" \
+        --data '{"handler": "{failure_handler}", "step_context": {step_context}}'
 
-      CASE "Stop workflow (recommended)":
-        # STOP workflow immediately - default/recommended action
+      # Invoke the slash command skill with context
+      # The skill receives step_context as additional context
+      TRY:
+        recovery_result = Skill(
+          skill: skill_parts.skill,
+          args: "{skill_parts.args} --step-context '{JSON.stringify(step_context)}'"
+        )
+
+        # Check if handler returned a recovery plan
+        IF recovery_result.recovery_plan THEN
+          plan = recovery_result.recovery_plan
+
+          # Log the recovery plan
+          LOG "📋 Recovery plan received:"
+          LOG "   Action: {plan.action}"
+          LOG "   Target: {plan.target_phase}/{plan.target_step}"
+          LOG "   Rationale: {plan.rationale}"
+
+          # Check if approval is required (default: true)
+          requires_approval = plan.requires_approval ?? true
+
+          IF requires_approval THEN
+            # Show plan to user and ask for approval
+            USE AskUserQuestion:
+              "Recovery plan proposed for step failure:"
+              ""
+              "Action: {plan.action}"
+              "Target: {plan.target_phase}/{plan.target_step}"
+              "Rationale: {plan.rationale}"
+              ""
+              IF plan.modifications THEN
+                "Proposed modifications:"
+                FOR mod IN plan.modifications:
+                  "  - {mod.file}: {mod.description}"
+              ""
+              "Apply this recovery plan?"
+              Options: [
+                "Apply recovery plan (Recommended)",
+                "Stop workflow"
+              ]
+
+            IF user_selection == "Stop workflow" THEN
+              LOG "❌ User rejected recovery plan"
+              ABORT workflow with:
+                status: "failed"
+                failed_at: "{phase}:{step_name}"
+                reason: "User rejected recovery plan"
+                errors: result.errors
+
+            # User approved - emit approval event
+            Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+              --run-id "{run_id}" \
+              --type "recovery_plan_approved" \
+              --phase "{phase}" \
+              --step "{step_id}" \
+              --message "Recovery plan approved by user" \
+              --data '{"plan": {plan}}'
+
+          # Execute the recovery plan
+          SWITCH plan.action:
+            CASE "goto_step":
+              # Reset workflow state to target step
+              LOG "🔄 Resetting workflow to {plan.target_phase}/{plan.target_step}"
+
+              success = set_workflow_position(run_id, plan.target_phase, plan.target_step)
+
+              IF not success THEN
+                LOG "❌ Failed to set workflow position"
+                ABORT workflow with:
+                  status: "failed"
+                  failed_at: "{phase}:{step_name}"
+                  reason: "Failed to execute recovery plan"
+
+              # Emit recovery event
+              Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+                --run-id "{run_id}" \
+                --type "recovery_executed" \
+                --phase "{phase}" \
+                --step "{step_id}" \
+                --message "Workflow reset to {plan.target_phase}/{plan.target_step}" \
+                --data '{"action": "goto_step", "target_phase": "{plan.target_phase}", "target_step": "{plan.target_step}"}'
+
+              # Continue workflow from target step
+              # Note: This effectively restarts the phase execution loop
+              CONTINUE workflow from plan.target_phase/plan.target_step
+
+            CASE "retry":
+              # Retry current step immediately
+              LOG "🔄 Retrying current step"
+
+              # Increment retry count
+              step.retry_count = (step.retry_count ?? 0) + 1
+
+              IF step.retry_count > (step.max_retries ?? 3) THEN
+                LOG "❌ Max retries exceeded ({step.retry_count}/{step.max_retries})"
+                ABORT workflow with:
+                  status: "failed"
+                  failed_at: "{phase}:{step_name}"
+                  reason: "Max retries exceeded after recovery attempt"
+
+              # Emit retry event
+              Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+                --run-id "{run_id}" \
+                --type "recovery_executed" \
+                --phase "{phase}" \
+                --step "{step_id}" \
+                --message "Retrying step (attempt {step.retry_count})" \
+                --data '{"action": "retry", "retry_count": {step.retry_count}}'
+
+              # Re-execute current step
+              RETRY step
+
+            CASE "stop":
+              # Stop workflow - manual intervention needed
+              LOG "⏹ Recovery handler recommends stopping workflow"
+              ABORT workflow with:
+                status: "failed"
+                failed_at: "{phase}:{step_name}"
+                reason: plan.rationale ?? "Recovery handler recommended stop"
+                errors: result.errors
+                recovery_attempted: true
+
+        ELSE:
+          # Handler did not return a recovery plan - fall back to stop
+          LOG "⚠️ Recovery handler did not return a recovery plan"
+          ABORT workflow with:
+            status: "failed"
+            failed_at: "{phase}:{step_name}"
+            reason: result.message
+            errors: result.errors
+
+      CATCH handler_error:
+        # Handler invocation failed - fall back to stop
+        LOG "❌ Recovery handler failed: {handler_error}"
         ABORT workflow with:
           status: "failed"
           failed_at: "{phase}:{step_name}"
-          reason: result.message
+          reason: "Recovery handler failed: {handler_error}"
           errors: result.errors
+
+    ELSE:
+      # STANDARD HANDLER - "stop" (default behavior)
+      # Display intelligent failure prompt with options
+      USE AskUserQuestion with FAILURE_PROMPT_TEMPLATE (see below)
+
+      # Handle user selection
+      SWITCH user_selection:
+        CASE "Suggested fix" (if available):
+          # Record recovery attempt in state
+          Invoke Skill: faber-state
+          Operation: record-failure-recovery
+          Parameters: run_id={run_id}, step={step_name}, action="suggested_fix"
+          # Execute suggested fix, then retry step
+          RETRY step with fix applied
+
+        CASE "Run diagnostic" (if available):
+          # Execute diagnostic command
+          Invoke Skill: faber-state
+          Operation: record-failure-recovery
+          Parameters: run_id={run_id}, step={step_name}, action="diagnostic"
+          # Show diagnostic results, ask again
+
+        CASE "Continue anyway (NOT RECOMMENDED)":
+          # Log explicit warning about continuing past failure
+          LOG "⚠️ WARNING: User chose to continue past failure in step '{step_name}'. This is NOT RECOMMENDED."
+          Invoke Skill: faber-state
+          Operation: record-failure-recovery
+          Parameters: run_id={run_id}, step={step_name}, action="force_continue", acknowledged=true
+          # Continue to next step (exceptional case)
+
+        CASE "Stop workflow (recommended)":
+          # STOP workflow immediately - default/recommended action
+          ABORT workflow with:
+            status: "failed"
+            failed_at: "{phase}:{step_name}"
+            reason: result.message
+            errors: result.errors
 
   CASE "warning":
     # Check configured behavior
-    IF result_handling.on_warning == "stop" THEN
+    warning_handler = result_handling.on_warning
+
+    # Check if handler is a slash command
+    IF warning_handler.startsWith("/") THEN
+      # SLASH COMMAND HANDLER - Invoke skill with step context
+      LOG "🔧 Invoking warning handler: {warning_handler}"
+
+      # Parse slash command
+      skill_parts = parse_slash_command(warning_handler)
+
+      # Build step context for the handler
+      step_context = build_step_context(state, phase, step, result)
+
+      # Invoke the slash command skill with context
+      TRY:
+        handler_result = Skill(
+          skill: skill_parts.skill,
+          args: "{skill_parts.args} --step-context '{JSON.stringify(step_context)}'"
+        )
+
+        # Check if handler returned a recovery plan
+        IF handler_result.recovery_plan THEN
+          plan = handler_result.recovery_plan
+          # Handle recovery plan (same logic as failure case)
+          # ... (execute recovery plan actions)
+        ELSE:
+          # Handler completed without recovery plan - continue
+          LOG "Warning handler completed, continuing workflow"
+          # Continue to next step
+
+      CATCH handler_error:
+        LOG "⚠️ Warning handler failed: {handler_error}, continuing anyway"
+        # Continue to next step
+
+    ELSE IF warning_handler == "stop" THEN
       # Treat as failure - abort workflow
       ABORT workflow (same as failure case)
 
-    ELSE IF result_handling.on_warning == "prompt" THEN
+    ELSE IF warning_handler == "prompt" THEN
       # Display intelligent warning prompt with options
       USE AskUserQuestion with WARNING_PROMPT_TEMPLATE (see below)
 
@@ -1526,8 +1851,28 @@ SWITCH result.status:
       # Continue to next step
 
   CASE "success":
-    # Check if approval needed
-    IF result_handling.on_success == "prompt" THEN
+    # Check configured behavior
+    success_handler = result_handling.on_success
+
+    # Check if handler is a slash command
+    IF success_handler.startsWith("/") THEN
+      # SLASH COMMAND HANDLER - Invoke skill with step context
+      LOG "🔧 Invoking success handler: {success_handler}"
+
+      skill_parts = parse_slash_command(success_handler)
+      step_context = build_step_context(state, phase, step, result)
+
+      TRY:
+        Skill(
+          skill: skill_parts.skill,
+          args: "{skill_parts.args} --step-context '{JSON.stringify(step_context)}'"
+        )
+      CATCH handler_error:
+        LOG "⚠️ Success handler failed: {handler_error}, continuing anyway"
+
+      # Continue to next step
+
+    ELSE IF success_handler == "prompt" THEN
       USE AskUserQuestion:
         "Step '{step_name}' completed successfully. Continue?"
         Options: ["Continue", "Pause here"]
