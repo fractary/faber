@@ -375,25 +375,32 @@
     },
     "step_result_handling": {
       "type": "object",
-      "description": "Defines behavior for step execution outcomes. Optional - if omitted, defaults are: on_success='continue', on_warning='continue', on_failure='stop'. on_failure is ALWAYS 'stop' (immutable).",
+      "description": "Defines behavior for step execution outcomes. Optional - if omitted, defaults are: on_success='continue', on_warning='continue', on_failure='stop'. Values can be action strings ('continue', 'prompt', 'stop') or slash commands (e.g., '/fractary-faber:workflow-debugger') that are invoked with step context.",
       "additionalProperties": false,
       "properties": {
         "on_success": {
-          "type": "string",
-          "enum": ["continue", "prompt"],
+          "oneOf": [
+            { "enum": ["continue", "prompt"] },
+            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger')" }
+          ],
           "default": "continue",
-          "description": "Action when step succeeds: 'continue' proceeds automatically (default), 'prompt' asks user"
+          "description": "Action when step succeeds: 'continue' proceeds automatically (default), 'prompt' asks user, or a slash command to invoke"
         },
         "on_warning": {
-          "type": "string",
-          "enum": ["continue", "prompt", "stop"],
+          "oneOf": [
+            { "enum": ["continue", "prompt", "stop"] },
+            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger')" }
+          ],
           "default": "continue",
-          "description": "Action when step has warnings: 'continue' proceeds (default), 'prompt' asks user with options, 'stop' halts workflow"
+          "description": "Action when step has warnings: 'continue' proceeds (default), 'prompt' asks user, 'stop' halts workflow, or a slash command to invoke"
         },
         "on_failure": {
-          "const": "stop",
+          "oneOf": [
+            { "const": "stop" },
+            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger --auto-fix')" }
+          ],
           "default": "stop",
-          "description": "IMMUTABLE: Failure ALWAYS stops workflow execution. This cannot be changed. Default: 'stop'"
+          "description": "Action when step fails: 'stop' halts workflow (default), or a slash command to invoke for recovery. The command receives step context and can return a recovery plan."
         }
       }
     },

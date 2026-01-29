@@ -6,6 +6,8 @@ Complete guide to step and hook result handling in FABER workflow.
 
 FABER v2.1 introduces **default result handling configuration** for steps and hooks. This allows workflow configurations to be more concise by omitting result_handling when using standard defaults.
 
+FABER v2.2 extends result handling to support **slash command handlers**. Instead of using predefined actions like `"stop"` or `"continue"`, you can specify a slash command (e.g., `/fractary-faber:workflow-debugger`) that is invoked with step context to provide dynamic recovery behavior.
+
 ## Default Configuration
 
 When a step or hook does not specify `result_handling`, these defaults are applied:
@@ -24,9 +26,9 @@ When a step or hook does not specify `result_handling`, these defaults are appli
 |-------|---------|-------------|
 | `on_success` | `"continue"` | Proceed automatically to next step |
 | `on_warning` | `"continue"` | Log warning and proceed |
-| `on_failure` | `"stop"` | **IMMUTABLE** - Always stops workflow |
+| `on_failure` | `"stop"` | Default behavior - can be overridden with slash command |
 
-**Important**: `on_failure` is **IMMUTABLE** for steps. It is always enforced as `"stop"` regardless of what is configured. This ensures workflow integrity.
+**Important**: `on_failure` defaults to `"stop"` but can be configured with a **slash command** (e.g., `/fractary-faber:workflow-debugger`) to enable dynamic recovery. When a slash command is specified, it is invoked with step context and can return a recovery plan to modify workflow execution.
 
 ### Hook Defaults
 
@@ -370,9 +372,161 @@ If your workflow files have explicit result_handling that matches the defaults, 
 
 Existing configurations with explicit result_handling will continue to work unchanged (backward compatibility).
 
+## Slash Command Handlers
+
+In addition to predefined actions (`continue`, `prompt`, `stop`), result handlers can invoke **slash commands** for dynamic recovery behavior.
+
+### Detection
+
+If a handler value starts with `/`, it's treated as a slash command to invoke:
+
+```json
+{
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger"
+  }
+}
+```
+
+### Configuration Examples
+
+#### Basic Recovery Handler
+
+```json
+{
+  "id": "implement",
+  "name": "Implement solution",
+  "prompt": "Implement based on specification",
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger"
+  }
+}
+```
+
+On failure, the workflow-debugger is invoked to diagnose the issue and propose a recovery plan.
+
+#### Auto-Fix for Trusted Workflows
+
+```json
+{
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+  }
+}
+```
+
+With `--auto-fix`, high-confidence fixes are applied automatically without user approval.
+
+#### Auto-Fix with Learning
+
+```json
+{
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger --auto-fix --auto-learn"
+  }
+}
+```
+
+Successful resolutions are automatically logged to the knowledge base for future reference.
+
+#### Escalation After Retries
+
+```json
+{
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger --escalate --max-retries 3"
+  }
+}
+```
+
+If the issue persists after 3 retries, a GitHub issue is created with full diagnostic context.
+
+### Context Injection
+
+When a slash command handler is invoked, the workflow manager automatically injects **step context**:
+
+```json
+{
+  "work_id": "ISSUE-123",
+  "run_id": "run_abc123",
+  "phase": "build",
+  "step_id": "implement",
+  "step_name": "Implement solution",
+  "agent": "software-engineer",
+  "status": "failure",
+  "error": "TypeScript compilation failed",
+  "errors": ["TS2307: Cannot find module './utils'"],
+  "output": {},
+  "retry_count": 0,
+  "max_retries": 3,
+  "workflow_id": "default",
+  "timestamp": "2026-01-28T10:30:00Z"
+}
+```
+
+**Security Note:** Context is passed via `--step-context-file` parameter (path to a JSON file) rather than inline JSON arguments. This prevents command injection vulnerabilities from malicious content in error messages or step outputs. The handler reads the context from the file path provided.
+
+### Recovery Plans
+
+Slash command handlers can return a **recovery plan** to modify workflow execution:
+
+```json
+{
+  "recovery_plan": {
+    "action": "goto_step",
+    "target_phase": "build",
+    "target_step": "implement",
+    "modifications": [
+      {
+        "file": "src/index.ts",
+        "description": "Fix import statement"
+      }
+    ],
+    "rationale": "Missing import caused compilation error",
+    "requires_approval": true
+  }
+}
+```
+
+#### Recovery Actions
+
+| Action | Description |
+|--------|-------------|
+| `goto_step` | Resume workflow from a specific step (can go backwards to earlier phases) |
+| `retry` | Retry the current step immediately (respects `max_retries` limit) |
+| `stop` | Stop workflow - manual intervention required |
+
+### User Approval
+
+By default (`requires_approval: true`), the user is prompted before applying a recovery plan:
+
+```
+Recovery plan proposed for step failure:
+
+Action: goto_step
+Target: build/implement
+Rationale: Missing import caused compilation error
+
+Proposed modifications:
+  - src/index.ts: Fix import statement
+
+Apply this recovery plan?
+  [1] Apply recovery plan (Recommended)
+  [2] Stop workflow
+```
+
+With `--auto-fix` flag, high-confidence fixes bypass the approval prompt.
+
+### Backward Compatibility
+
+- Existing string values (`continue`, `prompt`, `stop`) work unchanged
+- Slash commands are an additive feature - no migration required
+- `on_failure: "stop"` remains the default behavior
+
 ## See Also
 
 - [configuration.md](./configuration.md) - Complete configuration guide
 - [HOOKS.md](./HOOKS.md) - Phase-level hooks guide
 - [STATE-TRACKING.md](./STATE-TRACKING.md) - Workflow state tracking
+- [workflow-debugger.md](../agents/workflow-debugger.md) - Recovery handler agent
 - Schema: `plugins/faber/config/workflow.schema.json`

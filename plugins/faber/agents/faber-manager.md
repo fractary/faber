@@ -65,19 +65,19 @@ You have direct tool access for reading files, executing operations, and user in
 
 7. **Result Handling - NEVER IMPROVISE**
    - ALWAYS evaluate step result status: "success", "warning", "failure", or "pending_input"
-   - On "failure": STOP workflow immediately - no exceptions, no improvisation
-   - On "warning": Check result_handling config (continue, prompt, or stop)
-   - On "success": Check result_handling config (continue or prompt)
+   - On "failure": Check result_handling.on_failure - either STOP or invoke slash command handler
+   - On "warning": Check result_handling config (continue, prompt, stop, or slash command)
+   - On "success": Check result_handling config (continue, prompt, or slash command)
    - On "pending_input": HALT workflow, save state, wait for user input (see Section 4.2.5)
-   - NEVER assume a failed step can be worked around
-   - NEVER proceed if status is "failure" - this is IMMUTABLE
+   - NEVER assume a failed step can be worked around unless a recovery handler succeeds
    - ALWAYS report failures clearly with error details
    - ALWAYS update state BEFORE and AFTER every step (see rule #3)
 
 8. **Default Result Handling**
    - ALWAYS apply defaults when result_handling is not specified:
      - Steps: `{ on_success: "continue", on_warning: "continue", on_failure: "stop" }`
-   - `on_failure: "stop"` is IMMUTABLE for steps - always enforced regardless of config
+   - Default `on_failure` is "stop" - can be overridden with slash command for recovery
+   - Slash commands (values starting with `/`) invoke recovery handlers with step context
    - Merge user's partial config with defaults (user values override defaults)
 
 9. **Execute, Don't Interpret - CRITICAL DISTINCTION**
@@ -398,7 +398,7 @@ When a step does not specify `result_handling`, apply these defaults:
 DEFAULT_STEP_RESULT_HANDLING = {
   on_success: "continue",       // Proceed automatically to next step
   on_warning: "continue",       // Log warning, proceed to next step
-  on_failure: "stop",           // IMMUTABLE - always stop on failure
+  on_failure: "stop",           // Default stop - can be slash command for recovery
   on_pending_input: "wait"      // Save state, halt workflow, wait for user
 }
 ```
@@ -416,14 +416,433 @@ function applyResultHandlingDefaults(step):
     RETURN defaults
 
   # Merge user's partial config with defaults
+  # Note: on_failure can now be "stop" OR a slash command (e.g., "/fractary-faber:workflow-debugger")
   merged = {
     on_success: step.result_handling.on_success ?? defaults.on_success,
     on_warning: step.result_handling.on_warning ?? defaults.on_warning,
-    on_failure: "stop",             # IMMUTABLE - always stop on failure
+    on_failure: step.result_handling.on_failure ?? defaults.on_failure,
     on_pending_input: "wait"        # IMMUTABLE - always wait for user input
   }
 
   RETURN merged
+```
+
+## Slash Command Handlers
+
+Result handlers can invoke slash commands instead of using predefined actions.
+Detection: if the value starts with `/`, it's a slash command to invoke.
+
+**Example:**
+```json
+{
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+  }
+}
+```
+
+### Helper Function: parse_slash_command
+
+```
+# Regex pattern for valid skill names (plugin:command format)
+VALID_SKILL_PATTERN = /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/
+
+function parse_slash_command(handler):
+  # Parse a slash command string into skill name and args
+  # Input: "/fractary-faber:workflow-debugger --auto-fix --escalate"
+  # Output: { skill: "fractary-faber:workflow-debugger", args: "--auto-fix --escalate" }
+  # Returns: { valid: true, skill, args } or { valid: false, error }
+
+  IF not handler.startsWith("/") THEN
+    RETURN { valid: false, error: "Not a slash command (must start with /)" }
+
+  # Remove leading slash
+  command_string = handler.substring(1)
+
+  # Split on first space to separate skill from args
+  space_index = command_string.indexOf(" ")
+
+  IF space_index == -1 THEN
+    # No args, just skill name
+    skill_name = command_string
+    args = ""
+  ELSE
+    skill_name = command_string.substring(0, space_index)
+    args = command_string.substring(space_index + 1).trim()
+
+  # SECURITY: Validate skill name format to prevent path traversal and injection
+  IF not VALID_SKILL_PATTERN.test(skill_name) THEN
+    RETURN {
+      valid: false,
+      error: "Invalid skill name format: '{skill_name}'. Must match pattern: plugin-name:command-name"
+    }
+
+  # SECURITY: Check for dangerous patterns in args
+  dangerous_patterns = ["$(", "`", "${", "&&", "||", ";", "|", ">", "<", "\n", "\r"]
+  FOR pattern IN dangerous_patterns:
+    IF args.includes(pattern) THEN
+      RETURN {
+        valid: false,
+        error: "Invalid characters in arguments: shell metacharacters not allowed"
+      }
+
+  RETURN {
+    valid: true,
+    skill: skill_name,
+    args: args
+  }
+```
+
+### Helper Function: build_step_context
+
+```
+function build_step_context(state, phase, step, result):
+  # Build context object to pass to slash command handler
+  RETURN {
+    work_id: state.work_id,
+    run_id: state.run_id,
+    phase: phase,
+    step_id: step.id,
+    step_name: step.name ?? step.id,
+    agent: step.agent ?? "unknown",
+    status: result.status,
+    error: result.message,
+    errors: result.errors ?? [],
+    output: result.details ?? {},
+    retry_count: step.retry_count ?? 0,
+    max_retries: step.max_retries ?? 3,
+    workflow_id: state.workflow_id,
+    timestamp: now()
+  }
+```
+
+### Helper Function: write_context_file
+
+```
+function write_context_file(run_id, step_id, context):
+  # SECURITY: Write context to file instead of passing via command line
+  # This prevents command injection vulnerabilities from JSON content
+  #
+  # Returns: { success: true, path } or { success: false, error }
+
+  # Sanitize step_id for filename (allow only alphanumeric and hyphens)
+  safe_step_id = step_id.replace(/[^a-z0-9-]/gi, '-')
+
+  # Create context file path within run directory
+  context_dir = ".fractary/plugins/faber/runs/{run_id}/context/"
+  context_file = "{context_dir}{safe_step_id}-recovery-context.json"
+
+  TRY:
+    # Ensure directory exists
+    ensure_directory_exists(context_dir)
+
+    # Write context as JSON (this is safe - no shell interpolation)
+    write(context_file, JSON.stringify(context, null, 2))
+
+    RETURN { success: true, path: context_file }
+
+  CATCH write_error:
+    RETURN { success: false, error: "Failed to write context file: {write_error}" }
+```
+
+### Helper Function: extract_recovery_plan
+
+```
+# Constants for recovery plan extraction
+RECOVERY_PLAN_START_MARKER = "RECOVERY_PLAN_START"
+RECOVERY_PLAN_END_MARKER = "RECOVERY_PLAN_END"
+
+function extract_recovery_plan(skill_output):
+  # Extract recovery plan JSON from skill output text
+  # Looks for RECOVERY_PLAN_START and RECOVERY_PLAN_END markers
+  #
+  # Returns: { found: true, plan: {...} } or { found: false, error: "..." }
+
+  IF skill_output is null OR skill_output is undefined THEN
+    RETURN { found: false, error: "Skill output is null or undefined" }
+
+  # Convert to string if needed
+  output_text = String(skill_output)
+
+  # Find start marker
+  start_index = output_text.indexOf(RECOVERY_PLAN_START_MARKER)
+  IF start_index == -1 THEN
+    RETURN { found: false, error: "No RECOVERY_PLAN_START marker found" }
+
+  # Find end marker (must be after start)
+  end_index = output_text.indexOf(RECOVERY_PLAN_END_MARKER, start_index)
+  IF end_index == -1 THEN
+    RETURN { found: false, error: "No RECOVERY_PLAN_END marker found after start" }
+
+  # Extract content between markers
+  json_start = start_index + RECOVERY_PLAN_START_MARKER.length
+  json_content = output_text.substring(json_start, end_index).trim()
+
+  # Parse JSON
+  TRY:
+    parsed = JSON.parse(json_content)
+
+    # Expect { recovery_plan: {...} } structure
+    IF parsed.recovery_plan THEN
+      RETURN { found: true, plan: parsed.recovery_plan }
+    ELSE:
+      # Maybe the content IS the recovery plan directly
+      IF parsed.action THEN
+        RETURN { found: true, plan: parsed }
+      ELSE:
+        RETURN { found: false, error: "Parsed JSON does not contain recovery_plan or action field" }
+
+  CATCH parse_error:
+    RETURN { found: false, error: "Failed to parse recovery plan JSON: {parse_error}" }
+```
+
+### Helper Function: validate_target_step_exists
+
+```
+function validate_target_step_exists(resolved_workflow, target_phase, target_step):
+  # Validate that the target step exists in the workflow
+  # Returns: { exists: true } or { exists: false, error: "..." }
+
+  IF resolved_workflow is null THEN
+    RETURN { exists: false, error: "Workflow not loaded" }
+
+  # Get phase definition
+  phase_def = resolved_workflow.phases?[target_phase]
+  IF phase_def is null OR phase_def is undefined THEN
+    RETURN { exists: false, error: "Phase '{target_phase}' not found in workflow" }
+
+  # Check if phase is enabled
+  IF phase_def.enabled == false THEN
+    RETURN { exists: false, error: "Phase '{target_phase}' is disabled in workflow" }
+
+  # Get all steps (pre_steps + steps + post_steps merged)
+  all_steps = []
+  IF phase_def.pre_steps THEN
+    all_steps = all_steps.concat(phase_def.pre_steps)
+  IF phase_def.steps THEN
+    all_steps = all_steps.concat(phase_def.steps)
+  IF phase_def.post_steps THEN
+    all_steps = all_steps.concat(phase_def.post_steps)
+
+  # Search for target step
+  FOR step IN all_steps:
+    IF step.id == target_step THEN
+      RETURN { exists: true }
+
+  # Step not found - provide helpful error with available steps
+  available_steps = all_steps.map(s => s.id).join(", ")
+  RETURN {
+    exists: false,
+    error: "Step '{target_step}' not found in phase '{target_phase}'. Available steps: [{available_steps}]"
+  }
+```
+
+### Constants: Skill Invocation
+
+```
+# Timeout for recovery handler skill invocations (in milliseconds)
+RECOVERY_HANDLER_TIMEOUT_MS = 300000  # 5 minutes
+
+# Delay before context file cleanup to avoid TOCTOU race (in milliseconds)
+CONTEXT_FILE_CLEANUP_DELAY_MS = 1000  # 1 second
+```
+
+### Helper Function: validate_recovery_plan
+
+```
+# Constants for recovery plan validation
+VALID_RECOVERY_ACTIONS = ["goto_step", "retry", "stop"]
+VALID_PHASE_NAMES = ["frame", "architect", "build", "evaluate", "release"]
+MAX_GLOBAL_RECOVERY_ATTEMPTS = 10  # Prevent infinite recovery loops
+
+function validate_recovery_plan(plan, current_recovery_count, resolved_workflow=null):
+  # Validate recovery plan structure and content
+  # Returns: { valid: true } or { valid: false, errors: [...] }
+  #
+  # Parameters:
+  #   plan: The recovery plan object to validate
+  #   current_recovery_count: Number of recovery attempts so far
+  #   resolved_workflow: Optional - if provided, validates target_step exists
+
+  errors = []
+
+  # Check required fields
+  IF plan is null OR plan is undefined THEN
+    RETURN { valid: false, errors: ["Recovery plan is null or undefined"] }
+
+  IF plan.action is null OR plan.action is undefined THEN
+    errors.append("Missing required field: action")
+  ELSE IF plan.action not in VALID_RECOVERY_ACTIONS THEN
+    errors.append("Invalid action: '{plan.action}'. Must be one of: {VALID_RECOVERY_ACTIONS}")
+
+  # Validate goto_step specific fields
+  IF plan.action == "goto_step" THEN
+    IF plan.target_phase is null OR plan.target_phase is undefined THEN
+      errors.append("goto_step action requires target_phase")
+    ELSE IF plan.target_phase not in VALID_PHASE_NAMES THEN
+      errors.append("Invalid target_phase: '{plan.target_phase}'")
+
+    IF plan.target_step is null OR plan.target_step is undefined THEN
+      errors.append("goto_step action requires target_step")
+    ELSE IF not /^[a-z][a-z0-9-]*$/.test(plan.target_step) THEN
+      errors.append("Invalid target_step format: '{plan.target_step}'")
+    ELSE IF resolved_workflow is not null THEN
+      # Validate target step actually exists in workflow
+      step_check = validate_target_step_exists(resolved_workflow, plan.target_phase, plan.target_step)
+      IF not step_check.exists THEN
+        errors.append("Target step validation failed: {step_check.error}")
+
+  # Validate rationale exists for audit trail
+  IF plan.rationale is null OR plan.rationale == "" THEN
+    errors.append("Missing rationale - required for audit trail")
+
+  # Check global recovery limit to prevent infinite loops
+  IF current_recovery_count >= MAX_GLOBAL_RECOVERY_ATTEMPTS THEN
+    errors.append("Global recovery limit ({MAX_GLOBAL_RECOVERY_ATTEMPTS}) exceeded - stopping to prevent infinite loop")
+
+  IF length(errors) > 0 THEN
+    RETURN { valid: false, errors: errors }
+
+  RETURN { valid: true }
+```
+
+### Helper Function: set_workflow_position
+
+```
+function set_workflow_position(run_id, target_phase, target_step):
+  # Reset workflow state to target step for recovery
+  # This allows the workflow to resume from an earlier step
+  #
+  # SAFETY: Uses file locking and backup for atomic updates
+  # Returns: { success: true } or { success: false, error, rolled_back }
+
+  state_path = ".fractary/plugins/faber/runs/{run_id}/state.json"
+  backup_path = ".fractary/plugins/faber/runs/{run_id}/state.json.backup"
+  lock_path = ".fractary/plugins/faber/runs/{run_id}/state.lock"
+
+  # Acquire file lock to prevent race conditions
+  TRY:
+    # Atomic lock acquisition with timeout
+    lock_acquired = acquire_file_lock(lock_path, timeout_ms=5000)
+    IF not lock_acquired THEN
+      RETURN { success: false, error: "Could not acquire state lock - another operation in progress" }
+
+    # Load current state
+    state = parse_json(read(state_path))
+
+    # Store original state version for conflict detection
+    original_version = state.version ?? 0
+
+    # Create backup before modification
+    write(backup_path, JSON.stringify(state, null, 2))
+
+    TRY:
+      # Validate target phase
+      phase_names = ["frame", "architect", "build", "evaluate", "release"]
+      target_phase_index = phase_names.indexOf(target_phase)
+
+      IF target_phase_index == -1 THEN
+        RETURN { success: false, error: "Invalid target phase: {target_phase}" }
+
+      # Reset phases after target to pending
+      FOR i = target_phase_index TO phase_names.length - 1:
+        phase_name = phase_names[i]
+        IF state.phases[phase_name] THEN
+          state.phases[phase_name].status = "pending"
+          state.phases[phase_name].current_step_index = 0
+
+      # Find step index within target phase
+      # IMPORTANT: Must search all three arrays (pre_steps + steps + post_steps)
+      # to be consistent with validate_target_step_exists and workflow execution order
+      target_step_index = 0
+      step_found = false
+
+      # Build merged steps array (same order as workflow execution)
+      phase_data = state.phases[target_phase]
+      all_phase_steps = []
+      IF phase_data.pre_steps THEN
+        all_phase_steps = all_phase_steps.concat(phase_data.pre_steps)
+      IF phase_data.steps THEN
+        all_phase_steps = all_phase_steps.concat(phase_data.steps)
+      IF phase_data.post_steps THEN
+        all_phase_steps = all_phase_steps.concat(phase_data.post_steps)
+
+      # Search for target step in merged array
+      FOR i, step IN enumerate(all_phase_steps):
+        IF step.id == target_step THEN
+          target_step_index = i
+          step_found = true
+          BREAK
+
+      IF not step_found THEN
+        available_steps = all_phase_steps.map(s => s.id).join(", ")
+        RETURN { success: false, error: "Target step '{target_step}' not found in phase '{target_phase}'. Available steps: [{available_steps}]" }
+
+      # Set current position
+      state.current_phase = target_phase
+      state.phases[target_phase].current_step_index = target_step_index
+      state.phases[target_phase].status = "in_progress"
+
+      # Track recovery history (append, don't overwrite)
+      IF state.recovery_history is null THEN
+        state.recovery_history = []
+
+      state.recovery_history.append({
+        from_phase: state.failed_at?.phase ?? state.current_phase,
+        from_step: state.failed_at?.step ?? "unknown",
+        to_phase: target_phase,
+        to_step: target_step,
+        timestamp: now()
+      })
+
+      # Set current recovery marker
+      state.recovery = state.recovery_history[length(state.recovery_history) - 1]
+
+      # Clear failed state
+      state.failed_at = null
+      state.status = "running"
+
+      # VERSION CONFLICT DETECTION: Re-read state to check for concurrent modifications
+      # This detects if another process modified the state while we were processing
+      TRY:
+        current_state_check = parse_json(read(state_path))
+        current_version = current_state_check.version ?? 0
+
+        IF current_version != original_version THEN
+          # Version mismatch - concurrent modification detected
+          RETURN {
+            success: false,
+            error: "Version conflict detected: state was modified by another process (expected v{original_version}, found v{current_version}). Please retry the operation."
+          }
+      CATCH read_error:
+        # If we can't read the file, it may have been deleted - proceed cautiously
+        LOG "⚠️ Warning: Could not verify state version: {read_error}"
+
+      # Increment version for future conflict detection
+      state.version = original_version + 1
+
+      # Write updated state (atomic write)
+      write(state_path, JSON.stringify(state, null, 2))
+
+      # Clean up backup on success
+      delete(backup_path)
+
+      RETURN { success: true }
+
+    CATCH modification_error:
+      # Rollback: restore from backup
+      LOG "Error during state modification, rolling back: {modification_error}"
+      TRY:
+        backup_state = read(backup_path)
+        write(state_path, backup_state)
+        delete(backup_path)
+        RETURN { success: false, error: modification_error, rolled_back: true }
+      CATCH rollback_error:
+        RETURN { success: false, error: modification_error, rollback_error: rollback_error, rolled_back: false }
+
+  FINALLY:
+    # Always release lock
+    release_file_lock(lock_path)
 ```
 
 ## Backward Compatibility
@@ -431,6 +850,8 @@ function applyResultHandlingDefaults(step):
 - Existing configs with explicit result_handling continue to work unchanged
 - New configs can omit result_handling entirely to use defaults
 - Partial result_handling (e.g., only on_warning) is allowed - missing fields use defaults
+- String values "continue", "prompt", "stop" work as before
+- Slash commands (values starting with `/`) invoke the specified skill with step context
 </DEFAULT_RESULT_HANDLING>
 
 <INPUTS>
@@ -1440,7 +1861,9 @@ result_handling = applyResultHandlingDefaults(step, isHook=false)
 SWITCH result.status:
 
   CASE "failure":
-    # ALWAYS STOP - THIS IS IMMUTABLE (on_failure is always "stop" for steps)
+    # Check if on_failure is a slash command or standard action
+    failure_handler = result_handling.on_failure
+
     # Update state to failed
     Invoke Skill: faber-state
     Operation: update-step
@@ -1456,49 +1879,408 @@ SWITCH result.status:
       --message "Step failed: {step_display} - {result.message}" \
       --data '{"errors": {result.errors}}'
 
-    # Display intelligent failure prompt with options
-    USE AskUserQuestion with FAILURE_PROMPT_TEMPLATE (see below)
+    # Check if handler is a slash command
+    IF failure_handler.startsWith("/") THEN
+      # SLASH COMMAND HANDLER - Invoke skill with step context
+      LOG "🔧 Invoking recovery handler: {failure_handler}"
 
-    # Handle user selection
-    SWITCH user_selection:
-      CASE "Suggested fix" (if available):
-        # Record recovery attempt in state
-        Invoke Skill: faber-state
-        Operation: record-failure-recovery
-        Parameters: run_id={run_id}, step={step_name}, action="suggested_fix"
-        # Execute suggested fix, then retry step
-        RETRY step with fix applied
+      # Parse and validate slash command (SECURITY: prevents injection)
+      skill_parts = parse_slash_command(failure_handler)
 
-      CASE "Run diagnostic" (if available):
-        # Execute diagnostic command
-        Invoke Skill: faber-state
-        Operation: record-failure-recovery
-        Parameters: run_id={run_id}, step={step_name}, action="diagnostic"
-        # Show diagnostic results, ask again
-
-      CASE "Continue anyway (NOT RECOMMENDED)":
-        # Log explicit warning about continuing past failure
-        LOG "⚠️ WARNING: User chose to continue past failure in step '{step_name}'. This is NOT RECOMMENDED."
-        Invoke Skill: faber-state
-        Operation: record-failure-recovery
-        Parameters: run_id={run_id}, step={step_name}, action="force_continue", acknowledged=true
-        # Continue to next step (exceptional case)
-
-      CASE "Stop workflow (recommended)":
-        # STOP workflow immediately - default/recommended action
+      IF not skill_parts.valid THEN
+        LOG "❌ Invalid recovery handler: {skill_parts.error}"
         ABORT workflow with:
           status: "failed"
           failed_at: "{phase}:{step_name}"
-          reason: result.message
+          reason: "Invalid recovery handler configuration: {skill_parts.error}"
           errors: result.errors
+
+      # Build step context for the handler
+      step_context = build_step_context(state, phase, step, result)
+
+      # Track recovery attempts to prevent infinite loops
+      recovery_count = state.recovery_history?.length ?? 0
+
+      # SECURITY: Write context to file instead of command-line argument
+      # This prevents command injection from JSON content
+      context_result = write_context_file(run_id, step.id, step_context)
+
+      IF not context_result.success THEN
+        LOG "❌ Failed to write context file: {context_result.error}"
+        ABORT workflow with:
+          status: "failed"
+          failed_at: "{phase}:{step_name}"
+          reason: "Failed to prepare recovery context: {context_result.error}"
+          errors: result.errors
+
+      context_file_path = context_result.path
+
+      # Emit recovery_handler_invoked event
+      Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+        --run-id "{run_id}" \
+        --type "recovery_handler_invoked" \
+        --phase "{phase}" \
+        --step "{step_id}" \
+        --message "Invoking recovery handler: {skill_parts.skill}" \
+        --data '{"handler": "{failure_handler}", "context_file": "{context_file_path}", "recovery_attempt": {recovery_count + 1}}'
+
+      # Invoke the slash command skill with context file reference
+      # SECURITY: Context is passed via file path, not inline JSON
+      # RELIABILITY: Timeout prevents hung handlers from stalling indefinitely
+      TRY:
+        recovery_result = Skill(
+          skill: skill_parts.skill,
+          args: "{skill_parts.args} --step-context-file '{context_file_path}'",
+          timeout: RECOVERY_HANDLER_TIMEOUT_MS
+        )
+
+        # TOCTOU FIX: Delay before cleanup to ensure skill has finished reading
+        # This prevents race condition where we delete file while skill is still reading
+        sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
+
+        # Clean up context file after skill execution
+        TRY:
+          delete(context_file_path)
+        CATCH:
+          LOG "⚠️ Warning: Could not delete context file: {context_file_path}"
+
+        # Extract recovery plan from skill output (handles RECOVERY_PLAN_START/END markers)
+        plan = null
+        IF recovery_result.recovery_plan THEN
+          # Direct recovery_plan in result object
+          plan = recovery_result.recovery_plan
+        ELSE IF recovery_result.output OR recovery_result.message THEN
+          # Try to extract from output text using markers
+          extraction = extract_recovery_plan(recovery_result.output ?? recovery_result.message)
+          IF extraction.found THEN
+            plan = extraction.plan
+            LOG "📋 Extracted recovery plan from skill output"
+          ELSE:
+            LOG "ℹ️ No recovery plan markers found in output: {extraction.error}"
+
+        # Check if handler returned a recovery plan
+        IF plan is not null THEN
+          # VALIDATION: Validate recovery plan before execution
+          # Pass resolved_workflow to validate target_step exists
+          validation_result = validate_recovery_plan(plan, recovery_count, resolved_workflow)
+
+          IF not validation_result.valid THEN
+            LOG "❌ Invalid recovery plan:"
+            FOR error IN validation_result.errors:
+              LOG "   - {error}"
+
+            # Emit validation failure event
+            Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+              --run-id "{run_id}" \
+              --type "recovery_plan_invalid" \
+              --phase "{phase}" \
+              --step "{step_id}" \
+              --message "Recovery plan validation failed" \
+              --data '{"errors": {JSON.stringify(validation_result.errors)}}'
+
+            ABORT workflow with:
+              status: "failed"
+              failed_at: "{phase}:{step_name}"
+              reason: "Recovery plan validation failed: {validation_result.errors.join(', ')}"
+              errors: result.errors
+
+          # Log the validated recovery plan
+          LOG "📋 Recovery plan received (validated):"
+          LOG "   Action: {plan.action}"
+          IF plan.action == "goto_step" THEN
+            LOG "   Target: {plan.target_phase}/{plan.target_step}"
+          LOG "   Rationale: {plan.rationale}"
+          LOG "   Recovery attempt: {recovery_count + 1}/{MAX_GLOBAL_RECOVERY_ATTEMPTS}"
+
+          # Check if approval is required (default: true)
+          requires_approval = plan.requires_approval ?? true
+
+          IF requires_approval THEN
+            # Show plan to user and ask for approval
+            USE AskUserQuestion:
+              "Recovery plan proposed for step failure:"
+              ""
+              "Action: {plan.action}"
+              "Target: {plan.target_phase}/{plan.target_step}"
+              "Rationale: {plan.rationale}"
+              ""
+              IF plan.modifications THEN
+                "Proposed modifications:"
+                FOR mod IN plan.modifications:
+                  "  - {mod.file}: {mod.description}"
+              ""
+              "Apply this recovery plan?"
+              Options: [
+                "Apply recovery plan (Recommended)",
+                "Stop workflow"
+              ]
+
+            IF user_selection == "Stop workflow" THEN
+              LOG "❌ User rejected recovery plan"
+              ABORT workflow with:
+                status: "failed"
+                failed_at: "{phase}:{step_name}"
+                reason: "User rejected recovery plan"
+                errors: result.errors
+
+            # User approved - emit approval event
+            Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+              --run-id "{run_id}" \
+              --type "recovery_plan_approved" \
+              --phase "{phase}" \
+              --step "{step_id}" \
+              --message "Recovery plan approved by user" \
+              --data '{"plan": {plan}}'
+
+          # Execute the recovery plan
+          SWITCH plan.action:
+            CASE "goto_step":
+              # Reset workflow state to target step
+              LOG "🔄 Resetting workflow to {plan.target_phase}/{plan.target_step}"
+
+              success = set_workflow_position(run_id, plan.target_phase, plan.target_step)
+
+              IF not success THEN
+                LOG "❌ Failed to set workflow position"
+                ABORT workflow with:
+                  status: "failed"
+                  failed_at: "{phase}:{step_name}"
+                  reason: "Failed to execute recovery plan"
+
+              # Emit recovery event
+              Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+                --run-id "{run_id}" \
+                --type "recovery_executed" \
+                --phase "{phase}" \
+                --step "{step_id}" \
+                --message "Workflow reset to {plan.target_phase}/{plan.target_step}" \
+                --data '{"action": "goto_step", "target_phase": "{plan.target_phase}", "target_step": "{plan.target_step}"}'
+
+              # Continue workflow from target step
+              # Note: This effectively restarts the phase execution loop
+              CONTINUE workflow from plan.target_phase/plan.target_step
+
+            CASE "retry":
+              # Retry current step immediately
+              LOG "🔄 Retrying current step"
+
+              # Increment retry count
+              step.retry_count = (step.retry_count ?? 0) + 1
+
+              IF step.retry_count > (step.max_retries ?? 3) THEN
+                LOG "❌ Max retries exceeded ({step.retry_count}/{step.max_retries})"
+                ABORT workflow with:
+                  status: "failed"
+                  failed_at: "{phase}:{step_name}"
+                  reason: "Max retries exceeded after recovery attempt"
+
+              # Emit retry event
+              Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+                --run-id "{run_id}" \
+                --type "recovery_executed" \
+                --phase "{phase}" \
+                --step "{step_id}" \
+                --message "Retrying step (attempt {step.retry_count})" \
+                --data '{"action": "retry", "retry_count": {step.retry_count}}'
+
+              # Re-execute current step
+              RETRY step
+
+            CASE "stop":
+              # Stop workflow - manual intervention needed
+              LOG "⏹ Recovery handler recommends stopping workflow"
+              ABORT workflow with:
+                status: "failed"
+                failed_at: "{phase}:{step_name}"
+                reason: plan.rationale ?? "Recovery handler recommended stop"
+                errors: result.errors
+                recovery_attempted: true
+
+        ELSE:
+          # Handler did not return a recovery plan - fall back to stop
+          LOG "⚠️ Recovery handler did not return a recovery plan"
+          ABORT workflow with:
+            status: "failed"
+            failed_at: "{phase}:{step_name}"
+            reason: result.message
+            errors: result.errors
+
+      CATCH handler_error:
+        # Clean up context file even on error
+        TRY:
+          sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
+          delete(context_file_path)
+        CATCH:
+          pass  # Ignore cleanup errors
+
+        # Differentiate between timeout and other errors
+        IF handler_error.type == "timeout" OR handler_error.message.includes("timeout") THEN
+          LOG "❌ Recovery handler timed out after {RECOVERY_HANDLER_TIMEOUT_MS / 1000} seconds"
+          ABORT workflow with:
+            status: "failed"
+            failed_at: "{phase}:{step_name}"
+            reason: "Recovery handler timed out - may be stuck or taking too long"
+            errors: result.errors
+            timeout: true
+        ELSE:
+          # Handler invocation failed - fall back to stop
+          LOG "❌ Recovery handler failed: {handler_error}"
+          ABORT workflow with:
+            status: "failed"
+            failed_at: "{phase}:{step_name}"
+            reason: "Recovery handler failed: {handler_error}"
+            errors: result.errors
+
+    ELSE:
+      # STANDARD HANDLER - "stop" (default behavior)
+      # Display intelligent failure prompt with options
+      USE AskUserQuestion with FAILURE_PROMPT_TEMPLATE (see below)
+
+      # Handle user selection
+      SWITCH user_selection:
+        CASE "Suggested fix" (if available):
+          # Record recovery attempt in state
+          Invoke Skill: faber-state
+          Operation: record-failure-recovery
+          Parameters: run_id={run_id}, step={step_name}, action="suggested_fix"
+          # Execute suggested fix, then retry step
+          RETRY step with fix applied
+
+        CASE "Run diagnostic" (if available):
+          # Execute diagnostic command
+          Invoke Skill: faber-state
+          Operation: record-failure-recovery
+          Parameters: run_id={run_id}, step={step_name}, action="diagnostic"
+          # Show diagnostic results, ask again
+
+        CASE "Continue anyway (NOT RECOMMENDED)":
+          # Log explicit warning about continuing past failure
+          LOG "⚠️ WARNING: User chose to continue past failure in step '{step_name}'. This is NOT RECOMMENDED."
+          Invoke Skill: faber-state
+          Operation: record-failure-recovery
+          Parameters: run_id={run_id}, step={step_name}, action="force_continue", acknowledged=true
+          # Continue to next step (exceptional case)
+
+        CASE "Stop workflow (recommended)":
+          # STOP workflow immediately - default/recommended action
+          ABORT workflow with:
+            status: "failed"
+            failed_at: "{phase}:{step_name}"
+            reason: result.message
+            errors: result.errors
 
   CASE "warning":
     # Check configured behavior
-    IF result_handling.on_warning == "stop" THEN
+    warning_handler = result_handling.on_warning
+
+    # Check if handler is a slash command
+    IF warning_handler.startsWith("/") THEN
+      # SLASH COMMAND HANDLER - Invoke skill with step context
+      LOG "🔧 Invoking warning handler: {warning_handler}"
+
+      # Parse and validate slash command (SECURITY: prevents injection)
+      skill_parts = parse_slash_command(warning_handler)
+
+      IF not skill_parts.valid THEN
+        LOG "⚠️ Invalid warning handler: {skill_parts.error}, continuing anyway"
+        # Continue to next step (warnings don't block)
+      ELSE:
+        # Build step context for the handler
+        step_context = build_step_context(state, phase, step, result)
+
+        # SECURITY: Write context to file instead of command-line argument
+        context_result = write_context_file(run_id, step.id + "-warning", step_context)
+
+        IF not context_result.success THEN
+          LOG "⚠️ Failed to write context file: {context_result.error}, continuing anyway"
+        ELSE:
+          context_file_path = context_result.path
+
+          # Emit warning_handler_invoked event
+          Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+            --run-id "{run_id}" \
+            --type "warning_handler_invoked" \
+            --phase "{phase}" \
+            --step "{step_id}" \
+            --message "Invoking warning handler: {skill_parts.skill}" \
+            --data '{"handler": "{warning_handler}", "context_file": "{context_file_path}"}'
+
+          # Invoke the slash command skill with context file reference
+          # RELIABILITY: Timeout prevents hung handlers from stalling indefinitely
+          TRY:
+            handler_result = Skill(
+              skill: skill_parts.skill,
+              args: "{skill_parts.args} --step-context-file '{context_file_path}'",
+              timeout: RECOVERY_HANDLER_TIMEOUT_MS
+            )
+
+            # TOCTOU FIX: Delay before cleanup to ensure skill has finished reading
+            sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
+
+            # Clean up context file
+            TRY:
+              delete(context_file_path)
+            CATCH:
+              pass  # Ignore cleanup errors for warnings
+
+            # Extract recovery plan (same as failure handler)
+            plan = null
+            IF handler_result.recovery_plan THEN
+              plan = handler_result.recovery_plan
+            ELSE IF handler_result.output OR handler_result.message THEN
+              extraction = extract_recovery_plan(handler_result.output ?? handler_result.message)
+              IF extraction.found THEN
+                plan = extraction.plan
+
+            # Check if handler returned a recovery plan
+            IF plan is not null THEN
+              recovery_count = state.recovery_history?.length ?? 0
+
+              # Validate recovery plan (with workflow for step existence check)
+              validation_result = validate_recovery_plan(plan, recovery_count, resolved_workflow)
+
+              IF validation_result.valid THEN
+                LOG "📋 Warning handler returned valid recovery plan"
+                # Execute recovery plan using same logic as failure case
+                # (goto_step, retry, or stop actions)
+                # Note: For warnings, user can still choose to ignore
+              ELSE:
+                LOG "⚠️ Invalid recovery plan from warning handler: {validation_result.errors.join(', ')}"
+
+            ELSE:
+              # Handler completed without recovery plan - continue
+              LOG "Warning handler completed, continuing workflow"
+
+            # Emit warning_handler_completed event
+            Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+              --run-id "{run_id}" \
+              --type "warning_handler_completed" \
+              --phase "{phase}" \
+              --step "{step_id}" \
+              --message "Warning handler completed" \
+              --data '{"has_recovery_plan": {plan != null}}'
+
+          CATCH handler_error:
+            # Clean up context file even on error
+            TRY:
+              sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
+              delete(context_file_path)
+            CATCH:
+              pass
+
+            IF handler_error.type == "timeout" OR handler_error.message.includes("timeout") THEN
+              LOG "⚠️ Warning handler timed out, continuing anyway"
+            ELSE:
+              LOG "⚠️ Warning handler failed: {handler_error}, continuing anyway"
+            # Continue to next step
+
+      # Continue to next step (warnings don't block by default)
+
+    ELSE IF warning_handler == "stop" THEN
       # Treat as failure - abort workflow
       ABORT workflow (same as failure case)
 
-    ELSE IF result_handling.on_warning == "prompt" THEN
+    ELSE IF warning_handler == "prompt" THEN
       # Display intelligent warning prompt with options
       USE AskUserQuestion with WARNING_PROMPT_TEMPLATE (see below)
 
@@ -1526,8 +2308,81 @@ SWITCH result.status:
       # Continue to next step
 
   CASE "success":
-    # Check if approval needed
-    IF result_handling.on_success == "prompt" THEN
+    # Check configured behavior
+    success_handler = result_handling.on_success
+
+    # Check if handler is a slash command
+    IF success_handler.startsWith("/") THEN
+      # SLASH COMMAND HANDLER - Invoke skill with step context
+      LOG "🔧 Invoking success handler: {success_handler}"
+
+      # Parse and validate slash command (SECURITY: prevents injection)
+      skill_parts = parse_slash_command(success_handler)
+
+      IF not skill_parts.valid THEN
+        LOG "⚠️ Invalid success handler: {skill_parts.error}, continuing anyway"
+      ELSE:
+        # Build step context for the handler
+        step_context = build_step_context(state, phase, step, result)
+
+        # SECURITY: Write context to file instead of command-line argument
+        context_result = write_context_file(run_id, step.id + "-success", step_context)
+
+        IF not context_result.success THEN
+          LOG "⚠️ Failed to write context file: {context_result.error}, continuing anyway"
+        ELSE:
+          context_file_path = context_result.path
+
+          # Emit success_handler_invoked event
+          Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+            --run-id "{run_id}" \
+            --type "success_handler_invoked" \
+            --phase "{phase}" \
+            --step "{step_id}" \
+            --message "Invoking success handler: {skill_parts.skill}" \
+            --data '{"handler": "{success_handler}", "context_file": "{context_file_path}"}'
+
+          # RELIABILITY: Timeout prevents hung handlers from stalling indefinitely
+          TRY:
+            Skill(
+              skill: skill_parts.skill,
+              args: "{skill_parts.args} --step-context-file '{context_file_path}'",
+              timeout: RECOVERY_HANDLER_TIMEOUT_MS
+            )
+
+            # TOCTOU FIX: Delay before cleanup to ensure skill has finished reading
+            sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
+
+            # Clean up context file
+            TRY:
+              delete(context_file_path)
+            CATCH:
+              pass  # Ignore cleanup errors
+
+            # Emit success_handler_completed event
+            Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+              --run-id "{run_id}" \
+              --type "success_handler_completed" \
+              --phase "{phase}" \
+              --step "{step_id}" \
+              --message "Success handler completed"
+
+          CATCH handler_error:
+            # Clean up context file even on error
+            TRY:
+              sleep(CONTEXT_FILE_CLEANUP_DELAY_MS)
+              delete(context_file_path)
+            CATCH:
+              pass
+
+            IF handler_error.type == "timeout" OR handler_error.message.includes("timeout") THEN
+              LOG "⚠️ Success handler timed out, continuing anyway"
+            ELSE:
+              LOG "⚠️ Success handler failed: {handler_error}, continuing anyway"
+
+      # Continue to next step
+
+    ELSE IF success_handler == "prompt" THEN
       USE AskUserQuestion:
         "Step '{step_name}' completed successfully. Continue?"
         Options: ["Continue", "Pause here"]
