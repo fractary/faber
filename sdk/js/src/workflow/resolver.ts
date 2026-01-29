@@ -19,6 +19,28 @@ import { promisify } from 'util';
 // ============================================================================
 
 /**
+ * Result handling configuration for steps.
+ * Defines behavior for different execution outcomes.
+ */
+export interface StepResultHandling {
+  /** Action on success: 'continue' (default) or 'prompt', or slash command */
+  on_success?: 'continue' | 'prompt' | string;
+  /** Action on warning: 'continue' (default), 'prompt', 'stop', or slash command */
+  on_warning?: 'continue' | 'prompt' | 'stop' | string;
+  /** Action on failure: 'stop' (default) or slash command for recovery */
+  on_failure?: 'stop' | string;
+}
+
+/**
+ * Default result handling values (schema defaults).
+ */
+export const DEFAULT_RESULT_HANDLING: Required<Omit<StepResultHandling, 'on_pending_input'>> = {
+  on_success: 'continue',
+  on_warning: 'continue',
+  on_failure: 'stop',
+};
+
+/**
  * Step definition in a workflow phase
  */
 export interface WorkflowStep {
@@ -30,6 +52,8 @@ export interface WorkflowStep {
     skip_if?: string;
     require_if?: string;
   };
+  /** Result handling configuration for this step */
+  result_handling?: StepResultHandling;
   /** Source workflow ID (added during merge) */
   source?: string;
   /** Position type (added during merge) */
@@ -47,6 +71,8 @@ export interface WorkflowPhaseConfig {
   post_steps?: WorkflowStep[];
   require_approval?: boolean;
   max_retries?: number;
+  /** Default result handling for all steps in this phase */
+  result_handling?: StepResultHandling;
 }
 
 /**
@@ -123,6 +149,8 @@ export interface WorkflowFileConfig {
   integrations?: Record<string, unknown>;
   /** Context overlays for injecting additional instructions into inherited steps */
   context?: ContextOverlays;
+  /** Default result handling for all steps in all phases (workflow-level global default) */
+  result_handling?: StepResultHandling;
 }
 
 /**
@@ -147,6 +175,8 @@ export interface ResolvedWorkflow {
   integrations?: Record<string, unknown>;
   /** Merged context overlays from inheritance chain */
   context?: ContextOverlays;
+  /** Global result handling default for all steps */
+  result_handling?: StepResultHandling;
 }
 
 /**
@@ -159,6 +189,8 @@ export interface ResolvedPhase {
   steps: WorkflowStep[];
   require_approval?: boolean;
   max_retries?: number;
+  /** Default result handling for steps in this phase */
+  result_handling?: StepResultHandling;
 }
 
 // ============================================================================
@@ -441,6 +473,11 @@ export class WorkflowResolver {
     // Include context overlays if any were defined
     if (context && (context.global || Object.keys(context.phases || {}).length > 0 || Object.keys(context.steps || {}).length > 0)) {
       resolved.context = context;
+    }
+
+    // Include workflow-level result_handling if defined
+    if (childWorkflow.result_handling) {
+      resolved.result_handling = childWorkflow.result_handling;
     }
 
     return resolved;
@@ -738,6 +775,7 @@ export class WorkflowResolver {
         steps: filteredSteps,
         require_approval: childPhase?.require_approval,
         max_retries: phaseName === 'evaluate' ? childPhase?.max_retries ?? 3 : undefined,
+        result_handling: childPhase?.result_handling,
       };
     }
 
@@ -912,4 +950,85 @@ export class WorkflowResolver {
   clearCache(): void {
     this.workflowCache.clear();
   }
+}
+
+// ============================================================================
+// Result Handling Resolution
+// ============================================================================
+
+/**
+ * Resolve result handling configuration for a step.
+ *
+ * Cascades configuration from multiple levels with the following precedence
+ * (highest to lowest):
+ *   1. Step-level (inline result_handling on the step)
+ *   2. Phase-level (result_handling in phase definition)
+ *   3. Workflow-level (result_handling at workflow root)
+ *   4. Schema defaults
+ *
+ * This allows defining common error handlers (like workflow-debugger) once
+ * at the workflow level instead of repeating on every step.
+ *
+ * @param workflow - The resolved workflow configuration
+ * @param phaseName - Current phase name (frame, architect, build, evaluate, release)
+ * @param step - The step configuration
+ * @returns Merged result handling with all levels applied
+ */
+export function resolveStepResultHandling(
+  workflow: ResolvedWorkflow | WorkflowFileConfig,
+  phaseName: 'frame' | 'architect' | 'build' | 'evaluate' | 'release',
+  step: WorkflowStep
+): Required<Omit<StepResultHandling, 'on_pending_input'>> & { on_pending_input: 'wait' } {
+  // Start with schema defaults
+  const result = {
+    on_success: DEFAULT_RESULT_HANDLING.on_success,
+    on_warning: DEFAULT_RESULT_HANDLING.on_warning,
+    on_failure: DEFAULT_RESULT_HANDLING.on_failure,
+    on_pending_input: 'wait' as const, // Immutable - always wait for user input
+  };
+
+  // Layer 1: Apply workflow-level global defaults
+  const workflowResultHandling = workflow.result_handling;
+  if (workflowResultHandling) {
+    if (workflowResultHandling.on_success !== undefined) {
+      result.on_success = workflowResultHandling.on_success;
+    }
+    if (workflowResultHandling.on_warning !== undefined) {
+      result.on_warning = workflowResultHandling.on_warning;
+    }
+    if (workflowResultHandling.on_failure !== undefined) {
+      result.on_failure = workflowResultHandling.on_failure;
+    }
+  }
+
+  // Layer 2: Apply phase-level defaults
+  const phase = workflow.phases?.[phaseName];
+  const phaseResultHandling = phase?.result_handling;
+  if (phaseResultHandling) {
+    if (phaseResultHandling.on_success !== undefined) {
+      result.on_success = phaseResultHandling.on_success;
+    }
+    if (phaseResultHandling.on_warning !== undefined) {
+      result.on_warning = phaseResultHandling.on_warning;
+    }
+    if (phaseResultHandling.on_failure !== undefined) {
+      result.on_failure = phaseResultHandling.on_failure;
+    }
+  }
+
+  // Layer 3: Apply step-level config (highest priority)
+  const stepResultHandling = step.result_handling;
+  if (stepResultHandling) {
+    if (stepResultHandling.on_success !== undefined) {
+      result.on_success = stepResultHandling.on_success;
+    }
+    if (stepResultHandling.on_warning !== undefined) {
+      result.on_warning = stepResultHandling.on_warning;
+    }
+    if (stepResultHandling.on_failure !== undefined) {
+      result.on_failure = stepResultHandling.on_failure;
+    }
+  }
+
+  return result;
 }

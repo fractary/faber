@@ -8,6 +8,8 @@ FABER v2.1 introduces **default result handling configuration** for steps and ho
 
 FABER v2.2 extends result handling to support **slash command handlers**. Instead of using predefined actions like `"stop"` or `"continue"`, you can specify a slash command (e.g., `/fractary-faber:workflow-debugger`) that is invoked with step context to provide dynamic recovery behavior.
 
+FABER v2.3 adds **cascading result handling** at workflow and phase levels. Define common handlers once instead of repeating them on every step. Configuration cascades: step > phase > workflow > schema defaults.
+
 ## Default Configuration
 
 When a step or hook does not specify `result_handling`, these defaults are applied:
@@ -47,6 +49,59 @@ When a step or hook does not specify `result_handling`, these defaults are appli
 | `on_failure` | `"stop"` | Default; can be `"continue"` for informational hooks |
 
 **Note**: Unlike steps, hooks CAN set `on_failure: "continue"` for informational hooks that should not block workflow execution.
+
+## Cascading Configuration (v2.3+)
+
+Result handling can be defined at multiple levels, cascading down to steps:
+
+**Precedence (highest to lowest):**
+1. **Step-level** - `step.result_handling` (highest priority)
+2. **Phase-level** - `phases.build.result_handling`
+3. **Workflow-level** - `result_handling` at workflow root
+4. **Schema defaults** - `on_success: "continue"`, `on_warning: "continue"`, `on_failure: "stop"`
+
+**SDK Function:** `@fractary/core` → `resolveStepResultHandling(workflow, phaseName, step)`
+
+### Example: Define Handler Once
+
+Instead of repeating the same handler on every step:
+
+```json
+{
+  "id": "my-workflow",
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger"
+  },
+  "phases": {
+    "build": {
+      "enabled": true,
+      "result_handling": {
+        "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+      },
+      "steps": [
+        { "id": "implement", "prompt": "Implement solution" },
+        { "id": "test", "prompt": "Run tests" }
+      ]
+    },
+    "release": {
+      "enabled": true,
+      "steps": [
+        {
+          "id": "deploy",
+          "prompt": "Deploy to production",
+          "result_handling": { "on_failure": "stop" }
+        }
+      ]
+    }
+  }
+}
+```
+
+**Resolution:**
+- `build/implement` → `/fractary-faber:workflow-debugger --auto-fix` (from phase)
+- `build/test` → `/fractary-faber:workflow-debugger --auto-fix` (from phase)
+- `release/deploy` → `stop` (step override)
+- Other release steps → `/fractary-faber:workflow-debugger` (from workflow)
 
 ## Result Types
 

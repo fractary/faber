@@ -61,6 +61,10 @@
     "context": {
       "$ref": "#/definitions/context_overlays",
       "description": "Context overlays that inject additional instructions into inherited steps without forking. Context cascades: global → phase → step. Accumulates across inheritance chain (ancestor prepends to child)."
+    },
+    "result_handling": {
+      "$ref": "#/definitions/step_result_handling",
+      "description": "Default result handling for all steps in all phases. Cascades: step-level > phase-level > workflow-level > schema defaults. Define common handlers (like workflow-debugger) once instead of per-step."
     }
   },
   "definitions": {
@@ -126,6 +130,10 @@
             "type": "string"
           },
           "description": "Validation checks for phase completion"
+        },
+        "result_handling": {
+          "$ref": "#/definitions/step_result_handling",
+          "description": "Default result handling for all steps in this phase. Overrides workflow-level default. Can be overridden by step-level config."
         }
       }
     },

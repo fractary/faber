@@ -389,43 +389,64 @@ fi
 </EXECUTION_GUARDS>
 
 <DEFAULT_RESULT_HANDLING>
-## Default Configuration Constants
+## Result Handling Resolution
 
-When a step does not specify `result_handling`, apply these defaults:
+Result handling cascades from multiple levels (step > phase > workflow > defaults).
+The resolution logic is centralized in the SDK for consistency across CLI, MCP, and agents.
 
-**Step Defaults:**
+**SDK Function:** `@fractary/core` → `resolveStepResultHandling(workflow, phaseName, step)`
+
+**Schema Defaults:**
 ```
 DEFAULT_STEP_RESULT_HANDLING = {
   on_success: "continue",       // Proceed automatically to next step
   on_warning: "continue",       // Log warning, proceed to next step
   on_failure: "stop",           // Default stop - can be slash command for recovery
-  on_pending_input: "wait"      // Save state, halt workflow, wait for user
+  on_pending_input: "wait"      // Save state, halt workflow, wait for user (IMMUTABLE)
 }
 ```
 
-## Applying Defaults
+**Cascade Precedence (highest to lowest):**
+1. Step-level (`step.result_handling`)
+2. Phase-level (`workflow.phases[phase].result_handling`)
+3. Workflow-level (`workflow.result_handling`)
+4. Schema defaults
 
-When loading step configuration, merge user config with defaults:
-
-```
-function applyResultHandlingDefaults(step):
-  defaults = DEFAULT_STEP_RESULT_HANDLING
-
-  # If no result_handling defined, use full defaults
-  IF step.result_handling is null OR undefined THEN
-    RETURN defaults
-
-  # Merge user's partial config with defaults
-  # Note: on_failure can now be "stop" OR a slash command (e.g., "/fractary-faber:workflow-debugger")
-  merged = {
-    on_success: step.result_handling.on_success ?? defaults.on_success,
-    on_warning: step.result_handling.on_warning ?? defaults.on_warning,
-    on_failure: step.result_handling.on_failure ?? defaults.on_failure,
-    on_pending_input: "wait"        # IMMUTABLE - always wait for user input
+**Example Configuration:**
+```json
+{
+  "id": "my-workflow",
+  "result_handling": {
+    "on_failure": "/fractary-faber:workflow-debugger"
+  },
+  "phases": {
+    "build": {
+      "enabled": true,
+      "result_handling": {
+        "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+      },
+      "steps": [
+        {
+          "id": "implement",
+          "prompt": "Implement solution"
+        },
+        {
+          "id": "critical-step",
+          "prompt": "Critical operation",
+          "result_handling": {
+            "on_failure": "stop"
+          }
+        }
+      ]
+    }
   }
-
-  RETURN merged
+}
 ```
+
+In this example:
+- `implement` inherits build phase default: `/fractary-faber:workflow-debugger --auto-fix`
+- `critical-step` overrides to `stop`
+- Other phases inherit workflow default: `/fractary-faber:workflow-debugger`
 
 ## Slash Command Handlers
 
@@ -1853,9 +1874,10 @@ ELSE IF result.status == "warning" AND (result.warnings is null OR result.warnin
 
 **Evaluate result status (MANDATORY):**
 ```
-# Get result_handling config (with defaults applied)
-result_handling = applyResultHandlingDefaults(step, isHook=false)
-# Result: { on_success, on_warning, on_failure } with defaults filled in
+# Get result_handling config (cascaded from workflow > phase > step > defaults)
+# Uses SDK function for consistency across CLI, MCP, and agents
+result_handling = resolveStepResultHandling(resolved_workflow, phase, step)
+# Result: { on_success, on_warning, on_failure, on_pending_input } with cascade applied
 
 # Evaluate based on status
 SWITCH result.status:

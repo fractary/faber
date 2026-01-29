@@ -8,7 +8,7 @@ export { FaberWorkflow } from './faber.js';
 export * from './types.js';
 
 // Workflow inheritance resolution
-export { WorkflowResolver } from './resolver.js';
+export { WorkflowResolver, resolveStepResultHandling, DEFAULT_RESULT_HANDLING } from './resolver.js';
 export type {
   WorkflowStep,
   WorkflowPhaseConfig,
@@ -19,6 +19,7 @@ export type {
   ResolvedWorkflow,
   ResolvedPhase,
   WorkflowResolverOptions,
+  StepResultHandling,
 } from './resolver.js';
 export {
   WorkflowNotFoundError,
