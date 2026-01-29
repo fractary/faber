@@ -752,16 +752,31 @@ function set_workflow_position(run_id, target_phase, target_step):
           state.phases[phase_name].current_step_index = 0
 
       # Find step index within target phase
+      # IMPORTANT: Must search all three arrays (pre_steps + steps + post_steps)
+      # to be consistent with validate_target_step_exists and workflow execution order
       target_step_index = 0
       step_found = false
-      FOR i, step IN enumerate(state.phases[target_phase].steps ?? []):
+
+      # Build merged steps array (same order as workflow execution)
+      phase_data = state.phases[target_phase]
+      all_phase_steps = []
+      IF phase_data.pre_steps THEN
+        all_phase_steps = all_phase_steps.concat(phase_data.pre_steps)
+      IF phase_data.steps THEN
+        all_phase_steps = all_phase_steps.concat(phase_data.steps)
+      IF phase_data.post_steps THEN
+        all_phase_steps = all_phase_steps.concat(phase_data.post_steps)
+
+      # Search for target step in merged array
+      FOR i, step IN enumerate(all_phase_steps):
         IF step.id == target_step THEN
           target_step_index = i
           step_found = true
           BREAK
 
       IF not step_found THEN
-        RETURN { success: false, error: "Target step '{target_step}' not found in phase '{target_phase}'" }
+        available_steps = all_phase_steps.map(s => s.id).join(", ")
+        RETURN { success: false, error: "Target step '{target_step}' not found in phase '{target_phase}'. Available steps: [{available_steps}]" }
 
       # Set current position
       state.current_phase = target_phase
