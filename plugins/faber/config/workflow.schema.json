@@ -381,7 +381,7 @@
         "on_success": {
           "oneOf": [
             { "enum": ["continue", "prompt"] },
-            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger')" }
+            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger')" }
           ],
           "default": "continue",
           "description": "Action when step succeeds: 'continue' proceeds automatically (default), 'prompt' asks user, or a slash command to invoke"
@@ -389,7 +389,7 @@
         "on_warning": {
           "oneOf": [
             { "enum": ["continue", "prompt", "stop"] },
-            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger')" }
+            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger')" }
           ],
           "default": "continue",
           "description": "Action when step has warnings: 'continue' proceeds (default), 'prompt' asks user, 'stop' halts workflow, or a slash command to invoke"
@@ -397,7 +397,7 @@
         "on_failure": {
           "oneOf": [
             { "const": "stop" },
-            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger --auto-fix')" }
+            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger --auto-fix')" }
           ],
           "default": "stop",
           "description": "Action when step fails: 'stop' halts workflow (default), or a slash command to invoke for recovery. The command receives step context and can return a recovery plan."

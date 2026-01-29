@@ -26,7 +26,7 @@ Diagnoses FABER workflow issues and proposes solutions by:
 | `phase` | string | No | Focus on specific phase: frame, architect, build, evaluate, release |
 | `step` | string | No | Focus on specific step within phase |
 | `agent` | string | No | Agent name for context (used with onFailure hooks) |
-| `step-context` | JSON | No | Step context object passed by workflow manager via result_handling. Contains work_id, run_id, phase, step_id, error details, retry count, etc. |
+| `step-context-file` | path | No | Path to JSON file containing step context (secure alternative to inline JSON). Written by workflow manager when invoked via result_handling. Contains work_id, run_id, phase, step_id, error details, retry count, etc. |
 | `create-spec` | boolean | No | Force specification creation for complex issues (default: false) |
 | `learn` | boolean | No | Add successful resolution to knowledge base (default: false) |
 | `auto-fix` | boolean | No | Automatically apply fixes if confidence is high (default: false) |
@@ -1444,7 +1444,7 @@ When invoked via `result_handling.on_failure` slash command, the debugger receiv
 
 ### Step Context (Received)
 
-The debugger receives step context via `--step-context` parameter:
+The debugger receives step context via `--step-context-file` parameter (path to a JSON file for security):
 
 ```json
 {

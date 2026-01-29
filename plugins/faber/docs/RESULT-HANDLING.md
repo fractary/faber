@@ -464,7 +464,7 @@ When a slash command handler is invoked, the workflow manager automatically inje
 }
 ```
 
-This context is passed via `--step-context` parameter, allowing the handler to understand exactly what failed and why.
+**Security Note:** Context is passed via `--step-context-file` parameter (path to a JSON file) rather than inline JSON arguments. This prevents command injection vulnerabilities from malicious content in error messages or step outputs. The handler reads the context from the file path provided.
 
 ### Recovery Plans
 
