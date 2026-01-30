@@ -499,7 +499,7 @@ Most steps don't need explicit result_handling:
 
 This uses defaults: continue on success/warning, stop on failure.
 
-### Example: Custom Warning Behavior
+### Example: Prompt on Warning
 
 Override only what you need:
 
@@ -508,16 +508,16 @@ Override only what you need:
   "name": "security-scan",
   "description": "Run security scan",
   "result_handling": {
-    "on_warning": "prompt"
+    "on_warning": "stop"
   }
 }
 ```
 
-This prompts the user on warnings, but uses defaults for success/failure.
+With `on_warning: "stop"`, warnings display an intelligent prompt with options (continue, fix, stop).
 
 ### Intelligent Prompts
 
-When warnings or failures occur with `prompt` behavior, FABER displays intelligent prompts with:
+When `stop` is configured for warnings or failures, FABER displays intelligent prompts with:
 - Analysis of what went wrong
 - Suggested fixes or actions
 - Options ordered by recommendation (ignore and continue first for warnings, stop workflow recommended for failures)

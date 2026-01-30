@@ -2413,11 +2413,8 @@ SWITCH result.status:
       # Continue to next step (warnings don't block by default)
 
     ELSE IF warning_handler == "stop" THEN
-      # Treat as failure - abort workflow
-      ABORT workflow (same as failure case)
-
-    ELSE IF warning_handler == "prompt" THEN
       # Display intelligent warning prompt with options
+      # Note: 'stop' consistently shows a prompt with options (same behavior as failures)
       USE AskUserQuestion with WARNING_PROMPT_TEMPLATE (see below)
 
       # Handle user selection
@@ -3299,7 +3296,7 @@ This records the failure history for debugging and prevents infinite loops.
 
 ## Warning Prompt Template
 
-When `on_warning: "prompt"` is configured, display an intelligent warning prompt:
+When `on_warning: "stop"` is configured, display an intelligent warning prompt:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

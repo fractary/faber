@@ -21,13 +21,21 @@ import { promisify } from 'util';
 /**
  * Result handling configuration for steps.
  * Defines behavior for different execution outcomes.
+ *
+ * Options:
+ * - on_success: 'continue' (default) or slash command
+ * - on_warning: 'continue' (default), 'stop' (shows prompt), or slash command
+ * - on_failure: 'stop' (shows prompt, default) or slash command
+ *
+ * Note: 'stop' consistently shows an intelligent prompt with options
+ * (continue, fix, stop) for both warnings and failures.
  */
 export interface StepResultHandling {
-  /** Action on success: 'continue' (default) or 'prompt', or slash command */
-  on_success?: 'continue' | 'prompt' | string;
-  /** Action on warning: 'continue' (default), 'prompt', 'stop', or slash command */
-  on_warning?: 'continue' | 'prompt' | 'stop' | string;
-  /** Action on failure: 'stop' (default) or slash command for recovery */
+  /** Action on success: 'continue' (default) or slash command */
+  on_success?: 'continue' | string;
+  /** Action on warning: 'continue' (default), 'stop' (shows prompt with options), or slash command */
+  on_warning?: 'continue' | 'stop' | string;
+  /** Action on failure: 'stop' (shows prompt with options, default) or slash command for recovery */
   on_failure?: 'stop' | string;
 }
 

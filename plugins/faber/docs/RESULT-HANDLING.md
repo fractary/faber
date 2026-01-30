@@ -24,13 +24,13 @@ When a step or hook does not specify `result_handling`, these defaults are appli
 }
 ```
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `on_success` | `"continue"` | Proceed automatically to next step |
-| `on_warning` | `"continue"` | Log warning and proceed |
-| `on_failure` | `"stop"` | Default behavior - can be overridden with slash command |
+| Field | Default | Options | Description |
+|-------|---------|---------|-------------|
+| `on_success` | `"continue"` | `continue`, slash command | Proceed automatically to next step |
+| `on_warning` | `"continue"` | `continue`, `stop`, slash command | Log warning and proceed, or `stop` to show prompt with options |
+| `on_failure` | `"stop"` | `stop`, slash command | Show prompt with options, or use slash command for dynamic recovery |
 
-**Important**: `on_failure` defaults to `"stop"` but can be configured with a **slash command** (e.g., `/fractary-faber:workflow-debugger`) to enable dynamic recovery. When a slash command is specified, it is invoked with step context and can return a recovery plan to modify workflow execution.
+**Note**: The `stop` option consistently shows an intelligent prompt with options (continue, fix, stop) for both warnings and failures. This provides a unified user experience. Slash commands (e.g., `/fractary-faber:workflow-debugger`) can be used for automated recovery.
 
 ### Hook Defaults
 
@@ -42,11 +42,11 @@ When a step or hook does not specify `result_handling`, these defaults are appli
 }
 ```
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `on_success` | `"continue"` | Proceed automatically |
-| `on_warning` | `"continue"` | Log warning and proceed |
-| `on_failure` | `"stop"` | Default; can be `"continue"` for informational hooks |
+| Field | Default | Options | Description |
+|-------|---------|---------|-------------|
+| `on_success` | `"continue"` | `continue` | Proceed automatically |
+| `on_warning` | `"continue"` | `continue`, `stop` | Log warning and proceed, or `stop` to show prompt |
+| `on_failure` | `"stop"` | `stop`, `continue` | Show prompt with options; `continue` for informational hooks |
 
 **Note**: Unlike steps, hooks CAN set `on_failure: "continue"` for informational hooks that should not block workflow execution.
 
@@ -130,7 +130,6 @@ Step completed successfully without issues.
 
 **Behaviors:**
 - `on_success: "continue"` (default) - Proceed to next step automatically
-- `on_success: "prompt"` - Ask user before proceeding
 
 ### Status: Warning
 
@@ -138,22 +137,23 @@ Step completed but with warnings that may need attention.
 
 **Behaviors:**
 - `on_warning: "continue"` (default) - Log warnings, proceed automatically
-- `on_warning: "prompt"` - Show intelligent warning prompt with options
-- `on_warning: "stop"` - Treat as failure and stop workflow
+- `on_warning: "stop"` - Show intelligent warning prompt with options (continue, fix, stop)
 
 ### Status: Failure
 
 Step failed to complete successfully.
 
 **Behaviors:**
-- `on_failure: "stop"` (default, IMMUTABLE for steps) - Show intelligent failure prompt
+- `on_failure: "stop"` (default) - Show intelligent failure prompt with options
 - `on_failure: "continue"` (hooks only) - Log failure, proceed anyway
+
+**Note:** The `stop` option consistently shows an intelligent prompt with options for both warnings and failures. This provides a unified experience where stopping always gives the user actionable choices.
 
 ## Automatic Issue Comments (v2.4+)
 
 When a step completes with **warning** or **failure** status, FABER automatically posts a comment to the linked GitHub issue (if `work_id` is available). This provides stakeholders with visibility into workflow problems without requiring manual notification.
 
-**This behavior is automatic and independent of `result_handling` configuration.** Whether you use `continue`, `prompt`, `stop`, or a slash command handler, the issue comment is always posted first.
+**This behavior is automatic and independent of `result_handling` configuration.** Whether you use `continue`, `stop`, or a slash command handler, the issue comment is always posted first.
 
 ### Warning Comment
 
@@ -205,7 +205,7 @@ If commenting fails (e.g., network error, permission issue), the failure is logg
 
 ## Intelligent Prompts
 
-When `on_warning: "prompt"` or a failure occurs, FABER displays intelligent prompts with analysis and options.
+When `on_warning: "stop"` or a failure occurs, FABER displays intelligent prompts with analysis and options.
 
 ### Warning Prompt
 
@@ -293,7 +293,7 @@ When `on_warning: "prompt"` or a failure occurs, FABER displays intelligent prom
 
 Both steps use default result_handling: continue on success/warning, stop on failure.
 
-### Custom Warning Behavior
+### Prompt on Warning
 
 ```json
 {
@@ -303,25 +303,6 @@ Both steps use default result_handling: continue on success/warning, stop on fai
       "description": "Run security scan",
       "skill": "fractary-security:scanner",
       "result_handling": {
-        "on_warning": "prompt"
-      }
-    }
-  ]
-}
-```
-
-Only `on_warning` is customized. `on_success` and `on_failure` use defaults.
-
-### Strict Warning Mode
-
-```json
-{
-  "steps": [
-    {
-      "name": "lint",
-      "description": "Run linter",
-      "prompt": "Run project linter",
-      "result_handling": {
         "on_warning": "stop"
       }
     }
@@ -329,7 +310,7 @@ Only `on_warning` is customized. `on_success` and `on_failure` use defaults.
 }
 ```
 
-Warnings are treated as failures - workflow stops immediately.
+With `on_warning: "stop"`, warnings display an intelligent prompt with options (continue, fix, stop). Only `on_warning` is customized; `on_success` and `on_failure` use defaults.
 
 ### Informational Hook (Continue on Failure)
 
@@ -383,7 +364,7 @@ Notification failure doesn't block the workflow.
 {
   "name": "test",
   "result_handling": {
-    "on_warning": "prompt"
+    "on_warning": "stop"
   }
 }
 
@@ -392,22 +373,22 @@ Notification failure doesn't block the workflow.
   "name": "test",
   "result_handling": {
     "on_success": "continue",
-    "on_warning": "prompt",
+    "on_warning": "stop",
     "on_failure": "stop"
   }
 }
 ```
 
-### 3. Use Prompt for Critical Steps
+### 3. Use Stop for Critical Steps
 
-For steps where warnings might indicate serious issues:
+For steps where warnings might indicate serious issues, use `stop` to show a prompt with options:
 
 ```json
 {
   "name": "deploy",
   "description": "Deploy to production",
   "result_handling": {
-    "on_warning": "prompt"
+    "on_warning": "stop"
   }
 }
 ```
@@ -483,7 +464,7 @@ Existing configurations with explicit result_handling will continue to work unch
 
 ## Slash Command Handlers
 
-In addition to predefined actions (`continue`, `prompt`, `stop`), result handlers can invoke **slash commands** for dynamic recovery behavior.
+In addition to predefined actions (`continue`, `stop`), result handlers can invoke **slash commands** for dynamic recovery behavior.
 
 ### Detection
 
@@ -628,7 +609,7 @@ With `--auto-fix` flag, high-confidence fixes bypass the approval prompt.
 
 ### Backward Compatibility
 
-- Existing string values (`continue`, `prompt`, `stop`) work unchanged
+- Existing string values (`continue`, `stop`) work unchanged
 - Slash commands are an additive feature - no migration required
 - `on_failure: "stop"` remains the default behavior
 

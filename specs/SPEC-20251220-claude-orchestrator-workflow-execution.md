@@ -426,7 +426,7 @@ if (plan.autonomy.require_approval_for.includes(phase.name)) {
   },
   "result_handling": {
     "on_success": "continue",
-    "on_warning": "prompt",
+    "on_warning": "stop",
     "on_failure": "stop"
   }
 }
