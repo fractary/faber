@@ -1837,12 +1837,30 @@ Commands are invoked via Skill tool, which executes them as slash commands. Each
 1. Commands are designed as slash commands - Skill tool is their natural invocation method
 2. Commands internally decide whether to delegate to agents or run inline
 3. No need to maintain a separate COMMAND_AGENT_MAP routing table
-4. Aligns with how users invoke commands directly (e.g., `/fractary-work:issue-fetch`)
+4. Aligns with how users invoke commands directly (e.g., `/fractary-faber:workflow-run`)
 
 **Command Naming Convention:**
 - Commands use full namespaced names: `fractary-{plugin}:{command-name}`
-- Examples: `fractary-work:issue-fetch`, `fractary-repo:commit`, `fractary-spec:generate`
+- Examples from this plugin: `fractary-faber:workflow-run`, `fractary-faber:workflow-create`, `fractary-faber:agent-create`
+- External plugins follow the same pattern (e.g., `fractary-work:issue-fetch`, `fractary-repo:commit`)
 - The Skill tool accepts commands with or without leading slash
+
+**Argument Handling:**
+
+Commands receive context via the `args` parameter of the Skill tool. Arguments are passed as a space-separated string:
+
+```
+args = "{target} --work-id {work_id} --run-id {run_id}"
+args += " --config '{JSON.stringify(step.config)}'"      # Optional: step configuration
+args += " --instructions '{additional_instructions}'"    # Optional: AI guidance
+```
+
+Commands parse these arguments in their implementation. Standard arguments:
+- `target`: The primary target (issue number, file path, etc.)
+- `--work-id`: FABER work tracking ID
+- `--run-id`: Current workflow run ID
+- `--config`: JSON string with step-specific configuration
+- `--instructions`: Additional context for AI-driven steps
 
 **Execution Guidelines:**
 - ALWAYS include `additional_instructions` in args for AI-driven steps
