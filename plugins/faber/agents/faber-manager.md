@@ -1746,7 +1746,7 @@ IF step.arguments exists THEN
 
 **Execute step (CRITICAL - use correct tool for each type):**
 
-**MANDATORY**: Steps can be executed in two ways (in priority order):
+**MANDATORY**: Steps can be executed in three ways (in priority order):
 1. **Command-based (preferred)**: Uses Skill tool to invoke slash commands
 2. **Skill-based (legacy)**: Uses Skill tool for backward compatibility (same as command-based)
 3. **Prompt-based**: Inline LLM interpretation for steps without dedicated commands
@@ -1770,11 +1770,16 @@ IF step.command exists THEN
     command = "/" + command
 
   # Build arguments string with context
+  # SECURITY: Escape single quotes in values to prevent command injection
   args = "{target} --work-id {work_id} --run-id {run_id}"
   IF step.config exists THEN
-    args += " --config '{JSON.stringify(step.config)}'"
+    # Escape single quotes: replace ' with '\'' (end quote, escaped quote, start quote)
+    escaped_config = JSON.stringify(step.config).replace(/'/g, "'\\''")
+    args += " --config '{escaped_config}'"
   IF additional_instructions exists THEN
-    args += " --instructions '{additional_instructions}'"
+    # Escape single quotes in instructions
+    escaped_instructions = additional_instructions.replace(/'/g, "'\\''")
+    args += " --instructions '{escaped_instructions}'"
 
   # Invoke command via Skill tool
   # Skill tool executes the slash command, which handles its own execution
@@ -1798,16 +1803,22 @@ IF step.command exists THEN
 # BACKWARD COMPATIBILITY: Legacy skill-based execution
 ELSE IF step.skill exists THEN
   # MUST use Skill tool - DO NOT interpret or improvise
-  Skill(skill="{step.skill}")
+  # Use same argument format as command-based execution for consistency
 
-  # Pass context in your invocation message:
-  "Invoking {step.skill} with context:
-   - target: {target}
-   - work_id: {work_id}
-   - run_id: {run_id}
-   - issue_data: {issue_data}
-   - config: {step.config}
-   - additional_instructions: {additional_instructions}"
+  # Build arguments string with context (same as command execution)
+  # SECURITY: Escape single quotes in values to prevent command injection
+  args = "{target} --work-id {work_id} --run-id {run_id}"
+  IF step.config exists THEN
+    escaped_config = JSON.stringify(step.config).replace(/'/g, "'\\''")
+    args += " --config '{escaped_config}'"
+  IF additional_instructions exists THEN
+    escaped_instructions = additional_instructions.replace(/'/g, "'\\''")
+    args += " --instructions '{escaped_instructions}'"
+
+  result = Skill(
+    skill="{step.skill}",
+    args=args
+  )
 
   # AFTER skill completes: Log skill invocation for audit trail (Guard 4)
   Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
@@ -1816,8 +1827,7 @@ ELSE IF step.skill exists THEN
     --phase "{phase}" \
     --step "{step_id}" \
     --skill_name "{step.skill}" \
-    --skill_config '{step.config}' \
-    --message "Invoked skill: {step.skill}"
+    --message "Invoked skill: {step.skill} via Skill tool"
 
 ELSE IF step.prompt exists THEN
   # Execute the prompt as an instruction
@@ -1851,16 +1861,24 @@ Commands receive context via the `args` parameter of the Skill tool. Arguments a
 
 ```
 args = "{target} --work-id {work_id} --run-id {run_id}"
-args += " --config '{JSON.stringify(step.config)}'"      # Optional: step configuration
-args += " --instructions '{additional_instructions}'"    # Optional: AI guidance
+
+# SECURITY: Always escape single quotes in user-controlled values
+# Replace ' with '\'' (end quote, literal escaped quote, start quote)
+escaped_config = JSON.stringify(step.config).replace(/'/g, "'\\''")
+args += " --config '{escaped_config}'"
+
+escaped_instructions = additional_instructions.replace(/'/g, "'\\''")
+args += " --instructions '{escaped_instructions}'"
 ```
+
+**Security Note:** Single quotes in `step.config` and `additional_instructions` MUST be escaped before concatenation to prevent command injection. The pattern `'\''` safely embeds a literal single quote within a single-quoted shell string.
 
 Commands parse these arguments in their implementation. Standard arguments:
 - `target`: The primary target (issue number, file path, etc.)
 - `--work-id`: FABER work tracking ID
 - `--run-id`: Current workflow run ID
-- `--config`: JSON string with step-specific configuration
-- `--instructions`: Additional context for AI-driven steps
+- `--config`: JSON string with step-specific configuration (single quotes escaped)
+- `--instructions`: Additional context for AI-driven steps (single quotes escaped)
 
 **Execution Guidelines:**
 - ALWAYS include `additional_instructions` in args for AI-driven steps

@@ -265,3 +265,60 @@ step:
 # Expected error (if command missing): "Skill not found" or "Command not found"
 # NOT expected: "Agent type not found"
 ```
+
+---
+
+## Security Test: Command Injection Prevention
+
+**Scenario**: Verify that special characters in arguments are properly escaped
+
+**Setup**:
+```yaml
+step:
+  id: "injection-test"
+  name: "Test Command Injection Prevention"
+  command: "fractary-faber:workflow-inspect"
+  config:
+    path: "'; rm -rf / #"  # Malicious payload in config
+  additional_instructions: "Test with 'single quotes' and $(command substitution)"
+```
+
+**Expected Behavior**:
+- Single quotes in config are escaped as `'\''`
+- Single quotes in additional_instructions are escaped as `'\''`
+- Shell does NOT interpret special characters as commands
+- Malicious payloads are treated as literal strings
+- Command receives escaped values and handles them safely
+
+**Security Requirement**:
+Arguments MUST be escaped before concatenation:
+```
+# CORRECT: Escape single quotes
+escaped_config = JSON.stringify(step.config).replace(/'/g, "'\\''")
+args += " --config '{escaped_config}'"
+
+# INCORRECT: Direct concatenation (vulnerable)
+args += " --config '{step.config}'"  # DO NOT DO THIS
+```
+
+**Verification**:
+```bash
+# Test with payload containing single quotes
+test_config='{"path": "'\''test'\''"}';
+echo "Config after escaping: $test_config"
+
+# Expected: The quotes are escaped, not interpreted
+# The shell should NOT execute embedded commands
+```
+
+---
+
+## Test Note: Documentation vs Executable Tests
+
+This test file serves as **specification documentation** for command execution behavior. The tests describe expected behavior patterns and can be used to:
+
+1. **Manual verification**: Developers can follow the test scenarios manually
+2. **Code review**: Reviewers can verify implementation matches spec
+3. **Future automation**: Test scenarios can be automated with appropriate tooling
+
+For automated testing, implement these scenarios using the project's test framework (e.g., shell scripts in `scripts/test/` or integration test harness).
