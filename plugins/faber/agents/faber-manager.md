@@ -1746,38 +1746,50 @@ IF step.arguments exists THEN
 
 **Execute step (CRITICAL - use correct tool for each type):**
 
-**MANDATORY**: Steps can be executed in two ways (in priority order):
-1. **Command-based (NEW - preferred)**: Uses Task tool for deterministic execution
-2. **Skill-based (legacy)**: Uses Skill tool for backward compatibility
+**MANDATORY**: Steps can be executed in three ways (in priority order):
+1. **Command-based (preferred)**: Uses Skill tool to invoke slash commands
+2. **Skill-based (legacy)**: Uses Skill tool for backward compatibility (same as command-based)
+3. **Prompt-based**: Inline LLM interpretation for steps without dedicated commands
 
 **Priority logic**: If step has `command` field, use it. Otherwise fall back to `skill` or `prompt`.
 
+**Why commands use Skill tool (not Task tool)**:
+- Commands are slash commands designed for Skill tool invocation
+- Commands internally decide their execution strategy (some delegate to agents, some run inline)
+- Removes need for a COMMAND_AGENT_MAP routing table
+- Aligns with how commands work when invoked directly by users
+
 ```
-# DETERMINISTIC EXECUTION: Command-based (NEW)
+# COMMAND EXECUTION: Via Skill tool
+# Commands are slash commands that handle their own execution strategy internally.
+# Some commands delegate to agents, some run inline - the command decides.
 IF step.command exists THEN
-  # Map command to agent for Task invocation
-  agent_name = map_command_to_agent(step.command)
+  # Normalize command: ensure it has leading slash for Skill tool
+  command = step.command
+  IF NOT command starts with "/" THEN
+    command = "/" + command
 
-  # Invoke via Task tool for HARD EXECUTION BOUNDARY
-  # Task tool returns only when agent completes - LLM cannot skip this
-  task_result = Task(
-    subagent_type=agent_name,
-    description="Execute step: {step.name}",
-    prompt="Execute command: {step.command}
+  # Build arguments string with context
+  # SECURITY: Escape single quotes in values to prevent command injection
+  args = "{target} --work-id {work_id} --run-id {run_id}"
+  IF step.config exists THEN
+    # Escape single quotes: replace ' with '\'' (end quote, escaped quote, start quote)
+    escaped_config = JSON.stringify(step.config).replace(/'/g, "'\\''")
+    args += " --config '{escaped_config}'"
+  IF additional_instructions exists THEN
+    # Escape single quotes in instructions
+    escaped_instructions = additional_instructions.replace(/'/g, "'\\''")
+    args += " --instructions '{escaped_instructions}'"
 
-    Context:
-    - target: {target}
-    - work_id: {work_id}
-    - run_id: {run_id}
-    - issue_data: {issue_data}
-    - config: {step.config}
-    - additional_instructions: {additional_instructions}"
+  # Invoke command via Skill tool
+  # Skill tool executes the slash command, which handles its own execution
+  result = Skill(
+    skill=command,
+    args=args
   )
 
-  # Task tool returns result directly - use it as the step result
-  # The Task tool response contains the agent's output, which should include
-  # a standard FABER response format (status, message, details)
-  result = task_result  # Direct assignment - no extraction needed
+  # The command returns a standard FABER response format
+  # (status, message, details) - use it directly as step result
 
   # Log command invocation for audit trail
   Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
@@ -1786,21 +1798,27 @@ IF step.command exists THEN
     --phase "{phase}" \
     --step "{step_id}" \
     --command_name "{step.command}" \
-    --message "Invoked command: {step.command} via Task tool"
+    --message "Invoked command: {command} via Skill tool"
 
 # BACKWARD COMPATIBILITY: Legacy skill-based execution
 ELSE IF step.skill exists THEN
   # MUST use Skill tool - DO NOT interpret or improvise
-  Skill(skill="{step.skill}")
+  # Use same argument format as command-based execution for consistency
 
-  # Pass context in your invocation message:
-  "Invoking {step.skill} with context:
-   - target: {target}
-   - work_id: {work_id}
-   - run_id: {run_id}
-   - issue_data: {issue_data}
-   - config: {step.config}
-   - additional_instructions: {additional_instructions}"
+  # Build arguments string with context (same as command execution)
+  # SECURITY: Escape single quotes in values to prevent command injection
+  args = "{target} --work-id {work_id} --run-id {run_id}"
+  IF step.config exists THEN
+    escaped_config = JSON.stringify(step.config).replace(/'/g, "'\\''")
+    args += " --config '{escaped_config}'"
+  IF additional_instructions exists THEN
+    escaped_instructions = additional_instructions.replace(/'/g, "'\\''")
+    args += " --instructions '{escaped_instructions}'"
+
+  result = Skill(
+    skill="{step.skill}",
+    args=args
+  )
 
   # AFTER skill completes: Log skill invocation for audit trail (Guard 4)
   Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
@@ -1809,8 +1827,7 @@ ELSE IF step.skill exists THEN
     --phase "{phase}" \
     --step "{step_id}" \
     --skill_name "{step.skill}" \
-    --skill_config '{step.config}' \
-    --message "Invoked skill: {step.skill}"
+    --message "Invoked skill: {step.skill} via Skill tool"
 
 ELSE IF step.prompt exists THEN
   # Execute the prompt as an instruction
@@ -1822,88 +1839,52 @@ ELSE
   ERROR "Step '{step.name}' has no 'command', 'skill', or 'prompt' field"
 ```
 
-**Command-to-Agent Mapping Function:**
+**Command Execution Notes:**
 
-Commands are mapped to their agents using an **explicit routing table**. This ensures reliable routing and provides clear error messages for unknown commands.
+Commands are invoked via Skill tool, which executes them as slash commands. Each command handles its own execution strategy internally - some delegate to agents, some run inline logic.
+
+**Why Skill tool (not Task tool with agent mapping)?**
+1. Commands are designed as slash commands - Skill tool is their natural invocation method
+2. Commands internally decide whether to delegate to agents or run inline
+3. No need to maintain a separate COMMAND_AGENT_MAP routing table
+4. Aligns with how users invoke commands directly (e.g., `/fractary-faber:workflow-run`)
+
+**Command Naming Convention:**
+- Commands use full namespaced names: `fractary-{plugin}:{command-name}`
+- Examples from this plugin: `fractary-faber:workflow-run`, `fractary-faber:workflow-create`, `fractary-faber:agent-create`
+- External plugins follow the same pattern (e.g., `fractary-work:issue-fetch`, `fractary-repo:commit`)
+- The Skill tool accepts commands with or without leading slash
+
+**Argument Handling:**
+
+Commands receive context via the `args` parameter of the Skill tool. Arguments are passed as a space-separated string:
 
 ```
-# Explicit command-to-agent routing table
-COMMAND_AGENT_MAP = {
-  # Spec plugin commands
-  "fractary-spec:generate": "fractary-spec:spec-manager",
-  "fractary-spec:refine": "fractary-spec:spec-manager",
+args = "{target} --work-id {work_id} --run-id {run_id}"
 
-  # Repo plugin commands
-  "fractary-repo:commit": "fractary-repo:repo-manager",
-  "fractary-repo:pr-create": "fractary-repo:repo-manager",
-  "fractary-repo:pr-review": "fractary-repo:repo-manager",
-  "fractary-repo:pr-merge": "fractary-repo:repo-manager",
-  "fractary-repo:branch-create": "fractary-repo:repo-manager",
+# SECURITY: Always escape single quotes in user-controlled values
+# Replace ' with '\'' (end quote, literal escaped quote, start quote)
+escaped_config = JSON.stringify(step.config).replace(/'/g, "'\\''")
+args += " --config '{escaped_config}'"
 
-  # Work plugin commands
-  "fractary-work:issue-fetch": "fractary-work:work-manager",
-  "fractary-work:issue-create": "fractary-work:work-manager",
-  "fractary-work:comment-create": "fractary-work:work-manager",
-
-  # FABER plugin commands
-  "fractary-faber:build": "fractary-faber:faber-manager",
-  "fractary-faber:review": "fractary-faber:faber-manager",
-
-  # Docs plugin commands
-  "fractary-docs:update": "fractary-docs:docs-manager",
-
-  # Logs plugin commands
-  "fractary-logs:emit": "fractary-logs:log-manager"
-}
-
-function map_command_to_agent(command: string) -> string:
-  # Normalize command: remove leading slash if present
-  IF command starts with "/" THEN
-    command = command.slice(1)
-
-  # Look up in explicit routing table
-  IF command in COMMAND_AGENT_MAP THEN
-    RETURN COMMAND_AGENT_MAP[command]
-
-  # UNKNOWN COMMAND - fail fast with clear error
-  ERROR "Unknown command: '{command}'
-
-  The command '{command}' is not in the routing table.
-
-  To add support for this command:
-  1. Add an entry to COMMAND_AGENT_MAP in faber-manager.md
-  2. Ensure the target agent exists and accepts this command
-
-  Available commands:
-  {list keys from COMMAND_AGENT_MAP}"
+escaped_instructions = additional_instructions.replace(/'/g, "'\\''")
+args += " --instructions '{escaped_instructions}'"
 ```
 
-**Routing Table Maintenance:**
-- Add new commands to `COMMAND_AGENT_MAP` when creating new plugin commands
-- Commands must be exact matches (case-sensitive)
-- Unknown commands fail immediately with helpful error message
+**Security Note:** Single quotes in `step.config` and `additional_instructions` MUST be escaped before concatenation to prevent command injection. The pattern `'\''` safely embeds a literal single quote within a single-quoted shell string.
 
-**Example Mappings:**
-| Command | Agent |
-|---------|-------|
-| `fractary-spec:generate` | `fractary-spec:spec-manager` |
-| `fractary-spec:refine` | `fractary-spec:spec-manager` |
-| `fractary-repo:commit` | `fractary-repo:repo-manager` |
-| `fractary-repo:pr-create` | `fractary-repo:repo-manager` |
-| `fractary-work:issue-fetch` | `fractary-work:work-manager` |
-| `fractary-faber:build` | `fractary-faber:faber-manager` |
+Commands parse these arguments in their implementation. Standard arguments:
+- `target`: The primary target (issue number, file path, etc.)
+- `--work-id`: FABER work tracking ID
+- `--run-id`: Current workflow run ID
+- `--config`: JSON string with step-specific configuration (single quotes escaped)
+- `--instructions`: Additional context for AI-driven steps (single quotes escaped)
 
-**Why Command-based Execution is Deterministic:**
-1. Task tool spawns a separate agent context
-2. Parent (faber-manager) is blocked until child agent completes
-3. When Task returns, parent receives explicit result object
-4. Parent cannot "accidentally skip" the next step - Task return is a hard boundary
-5. Small context overhead per step is worth the guarantee of deterministic execution
-
-- ALWAYS include `additional_instructions` in context for AI-driven steps
-- NEVER substitute your own implementation for a defined step
-- Commands have well-defined agent handlers - trust them
-- ALWAYS log command/skill invocations to events/ directory for audit trail
+**Execution Guidelines:**
+- ALWAYS include `additional_instructions` in args for AI-driven steps
+- NEVER substitute your own implementation for a defined command
+- Commands handle their own execution - trust them
+- ALWAYS log command invocations to events/ directory for audit trail
 - NEVER skip logging - this is how we verify execution actually happened
 
 **Capture and validate result (CRITICAL - see CRITICAL_RULE #8):**

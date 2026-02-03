@@ -620,6 +620,11 @@ If `create_command` is true:
 
 ### For Create Mode:
 
+**Invocation Pattern Notes:**
+- Commands are invoked via **Skill tool** by workflows (e.g., `Skill(skill="fractary-faber:my-command")`)
+- Commands that delegate to agents use **Task tool** internally (as shown below)
+- This separation allows workflows to invoke commands uniformly while commands decide their own execution strategy
+
 ```markdown
 ---
 name: fractary-{plugin}:{agent_name}
