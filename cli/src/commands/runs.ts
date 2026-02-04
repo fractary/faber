@@ -7,15 +7,20 @@
  * All run files are stored in: .fractary/faber/runs/{run_id}/
  * - plan.json: The execution plan
  * - state.json: The workflow state
+ *
+ * Active workflow tracking: .fractary/faber/runs/.active-run-id
+ * - Contains the run ID of the currently active workflow in this worktree
  */
 
 import { Command } from 'commander';
 import {
   FABER_RUNS_DIR,
+  ACTIVE_RUN_ID_FILE,
   getRunsDir,
   getRunDir,
   getPlanPath,
   getStatePath,
+  getActiveRunIdPath,
   RELATIVE_PATHS,
 } from '@fractary/faber';
 
@@ -117,6 +122,29 @@ export function createRunsCommand(): Command {
     });
 
   runsCmd
+    .command('active-run-id-path')
+    .description('Show active run ID file path')
+    .option('--relative', 'Output relative path instead of absolute')
+    .option('--json', 'Output as JSON')
+    .action((options) => {
+      try {
+        const absPath = getActiveRunIdPath();
+
+        if (options.json) {
+          console.log(JSON.stringify({
+            absolute: absPath,
+            relative: ACTIVE_RUN_ID_FILE,
+          }, null, 2));
+        } else {
+          console.log(options.relative ? ACTIVE_RUN_ID_FILE : absPath);
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
+      }
+    });
+
+  runsCmd
     .command('paths')
     .description('Show all path templates')
     .option('--json', 'Output as JSON')
@@ -125,10 +153,11 @@ export function createRunsCommand(): Command {
         console.log(JSON.stringify(RELATIVE_PATHS, null, 2));
       } else {
         console.log('FABER Run Path Templates:');
-        console.log(`  Runs Directory:  ${RELATIVE_PATHS.RUNS_DIR}`);
-        console.log(`  Run Directory:   ${RELATIVE_PATHS.RUN_DIR_TEMPLATE}`);
-        console.log(`  Plan File:       ${RELATIVE_PATHS.PLAN_PATH_TEMPLATE}`);
-        console.log(`  State File:      ${RELATIVE_PATHS.STATE_PATH_TEMPLATE}`);
+        console.log(`  Runs Directory:     ${RELATIVE_PATHS.RUNS_DIR}`);
+        console.log(`  Run Directory:      ${RELATIVE_PATHS.RUN_DIR_TEMPLATE}`);
+        console.log(`  Plan File:          ${RELATIVE_PATHS.PLAN_PATH_TEMPLATE}`);
+        console.log(`  State File:         ${RELATIVE_PATHS.STATE_PATH_TEMPLATE}`);
+        console.log(`  Active Run ID File: ${RELATIVE_PATHS.ACTIVE_RUN_ID_FILE}`);
       }
     });
 

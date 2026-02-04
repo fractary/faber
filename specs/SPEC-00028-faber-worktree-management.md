@@ -224,7 +224,7 @@ Would you like to create a new worktree? [Y/n]: y
 ```bash
 /fractary-faber:workflow-run --work-id 259
 
-→ Check .fractary/faber/.active-run-id in current worktree
+→ Check .fractary/faber/runs/.active-run-id in current worktree
 → If exists and different: Conflict detected
 → Prompt user:
     1. Create new worktree (recommended)

@@ -41,9 +41,9 @@ if run_id_parameter:
 else if work_id_parameter:
   # Find run for this work ID
   run_id = find_run_by_work_id(work_id_parameter)
-else if exists(".fractary/faber/.active-run-id"):
+else if exists(".fractary/faber/runs/.active-run-id"):
   # Use active workflow run
-  run_id = read(".fractary/faber/.active-run-id").strip()
+  run_id = read(".fractary/faber/runs/.active-run-id").strip()
 else:
   # Search for any active workflow runs
   state_files = glob(".fractary/faber/runs/*/state.json")

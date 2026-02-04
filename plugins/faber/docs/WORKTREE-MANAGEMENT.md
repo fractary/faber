@@ -69,7 +69,7 @@ claude
 
 ### Workflow Start: Conflict Detection
 
-When you start a workflow (`/fractary-faber:workflow-run`), FABER checks if another workflow is already active in the current worktree by reading `.fractary/faber/.active-run-id`.
+When you start a workflow (`/fractary-faber:workflow-run`), FABER checks if another workflow is already active in the current worktree by reading `.fractary/faber/runs/.active-run-id`.
 
 **If conflict detected:**
 ```

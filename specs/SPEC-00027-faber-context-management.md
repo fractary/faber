@@ -37,7 +37,7 @@ Implement **hook-based context management** for FABER workflows using Claude Cod
 **Design Decision**: FABER workflows are limited to **one active workflow per worktree** at a time.
 
 **Rationale**:
-- Uses a single `.fractary/faber/.active-run-id` file to track which workflow is active in the worktree
+- Uses a single `.fractary/faber/runs/.active-run-id` file to track which workflow is active in the worktree
 - When hooks fire (PreCompact, SessionStart, SessionEnd), they read this file to know which workflow to operate on
 - If multiple workflows ran simultaneously in the same worktree, they would overwrite each other's `.active-run-id` file, causing conflicts
 
@@ -68,7 +68,7 @@ cd ../myproject-issue-259
 
 ### Active Run ID Tracking Mechanism
 
-**File**: `.fractary/faber/.active-run-id`
+**File**: `.fractary/faber/runs/.active-run-id`
 
 **Format**: Single line containing the active workflow run ID
 ```
@@ -76,14 +76,14 @@ fractary-faber-258-20260105-143022-a1b2c3
 ```
 
 **Lifecycle**:
-1. **Workflow Start**: `workflow-run` command writes run ID to `.fractary/faber/.active-run-id`
-2. **During Execution**: Hooks read `.fractary/faber/.active-run-id` to know which workflow to operate on
+1. **Workflow Start**: `workflow-run` command writes run ID to `.fractary/faber/runs/.active-run-id`
+2. **During Execution**: Hooks read `.fractary/faber/runs/.active-run-id` to know which workflow to operate on
 3. **Workflow End**: File remains for manual operations, overwritten by next workflow
 
 **Hook Access**:
 ```bash
 # In PreCompact hook
-ACTIVE_RUN_ID=$(cat .fractary/faber/.active-run-id 2>/dev/null)
+ACTIVE_RUN_ID=$(cat .fractary/faber/runs/.active-run-id 2>/dev/null)
 if [ -z "$ACTIVE_RUN_ID" ]; then
   echo "No active workflow found, skipping session-end"
   exit 0
@@ -91,7 +91,7 @@ fi
 /fractary-faber:session-end --run-id "$ACTIVE_RUN_ID" --reason compaction
 
 # In SessionStart hook
-ACTIVE_RUN_ID=$(cat .fractary/faber/.active-run-id 2>/dev/null)
+ACTIVE_RUN_ID=$(cat .fractary/faber/runs/.active-run-id 2>/dev/null)
 if [ -z "$ACTIVE_RUN_ID" ]; then
   echo "No active workflow found, skipping prime-context"
   exit 0
@@ -312,7 +312,7 @@ SESSION 1                    COMPACTION EVENT              SESSION 2
 
 1. **Detect active workflow**:
    - If `--run-id` provided, use it
-   - Otherwise, read from `.fractary/faber/.active-run-id`
+   - Otherwise, read from `.fractary/faber/runs/.active-run-id`
    - If neither exists, use existing auto-detection (search `.fractary/runs/`)
 2. Load `state.json` and workflow config
 3. Check `sessions.current_session_id`
@@ -349,7 +349,7 @@ SESSION 1                    COMPACTION EVENT              SESSION 2
 
 1. **Detect active workflow**:
    - If `--run-id` provided, use it
-   - Otherwise, read from `.fractary/faber/.active-run-id`
+   - Otherwise, read from `.fractary/faber/runs/.active-run-id`
    - If neither exists, exit gracefully (no active workflow)
 2. Load `state.json`
 3. Get current session info from `state.sessions.current_session_id`
@@ -370,11 +370,11 @@ SESSION 1                    COMPACTION EVENT              SESSION 2
 mkdir -p .fractary/faber
 
 # At workflow start, write active run ID to tracking file
-echo "$RUN_ID" > .fractary/faber/.active-run-id
+echo "$RUN_ID" > .fractary/faber/runs/.active-run-id
 
 # Before starting, check if another workflow is active
-if [ -f .fractary/faber/.active-run-id ]; then
-  EXISTING_RUN_ID=$(cat .fractary/faber/.active-run-id)
+if [ -f .fractary/faber/runs/.active-run-id ]; then
+  EXISTING_RUN_ID=$(cat .fractary/faber/runs/.active-run-id)
   if [ "$EXISTING_RUN_ID" != "$RUN_ID" ]; then
     echo "⚠️  WARNING: Another workflow is active in this worktree"
     echo "   Active: $EXISTING_RUN_ID"
@@ -384,7 +384,7 @@ if [ -f .fractary/faber/.active-run-id ]; then
     echo "  git worktree add ../myproject-issue-259 -b feature/259"
     echo ""
     # Ask user if they want to proceed
-    # If yes: overwrite .fractary/faber/.active-run-id
+    # If yes: overwrite .fractary/faber/runs/.active-run-id
     # If no: exit
   fi
 fi
@@ -529,7 +529,7 @@ fi
 - `plugins/faber/skills/faber-manager/` (Add `.active-run-id` tracking to workflow-run)
 
 **Files created automatically:**
-- `.fractary/faber/.active-run-id` (created by workflow-run)
+- `.fractary/faber/runs/.active-run-id` (created by workflow-run)
 
 ### Phase 3: Enhance Prime-Context Command
 
@@ -575,9 +575,9 @@ fi
 ### Phase 8: Git Configuration
 
 **Files to modify:**
-- `.gitignore` - Should NOT ignore `.fractary/faber/.active-run-id` (needs to be tracked for cross-environment workflows)
+- `.gitignore` - Should NOT ignore `.fractary/faber/runs/.active-run-id` (needs to be tracked for cross-environment workflows)
 
-**Note**: The `.fractary/faber/.active-run-id` file should be committed to git so that workflows can be resumed across machines.
+**Note**: The `.fractary/faber/runs/.active-run-id` file should be committed to git so that workflows can be resumed across machines.
 
 ## Files to Create/Modify
 
@@ -590,7 +590,7 @@ fi
 | `plugins/faber/commands/session-end.md` | Create | Session-end command documentation | TODO |
 | `plugins/faber/skills/context-manager/workflow/session-end.md` | Create | Session-end workflow algorithm | TODO |
 | `plugins/faber/skills/faber-manager/` | Modify | Add .active-run-id tracking to workflow-run | TODO |
-| `.fractary/faber/.active-run-id` | Create | Track active workflow run ID (created by workflow-run) | AUTO |
+| `.fractary/faber/runs/.active-run-id` | Create | Track active workflow run ID (created by workflow-run) | AUTO |
 | **Phase 3: Enhance Prime-Context** |
 | `plugins/faber/commands/prime-context.md` | Modify | Add --trigger parameter, session detection | TODO |
 | `plugins/faber/skills/context-manager/workflow/prime-context.md` | Modify | Add session detection logic | TODO |
@@ -613,7 +613,7 @@ fi
 | `specs/SPEC-00027-faber-context-management.md` | Modify | This file - updated with hook integration | DONE |
 | `plugins/faber/skills/context-manager/SKILL.md` | Modify | Add session-end reference | TODO |
 | **Phase 8: Git Configuration** |
-| `.gitignore` | Verify | Ensure .fractary/faber/.active-run-id is NOT ignored | TODO |
+| `.gitignore` | Verify | Ensure .fractary/faber/runs/.active-run-id is NOT ignored | TODO |
 
 ## User Experience Examples
 
@@ -623,14 +623,14 @@ fi
 # User starts workflow
 user$ /fractary-faber:workflow-run --work-id 258
 
-# Workflow creates: .fractary/faber/.active-run-id with "fractary-faber-258-20260105-143022"
+# Workflow creates: .fractary/faber/runs/.active-run-id with "fractary-faber-258-20260105-143022"
 # Frame phase: auto-reload-context runs (initial context load)
 # Architect phase: spec generated
 # Build phase: long implementation, many messages...
 
 # [Context fills up, auto-compact triggered]
 # PreCompact Hook executes:
-#   ACTIVE_RUN_ID=$(cat .fractary/faber/.active-run-id)
+#   ACTIVE_RUN_ID=$(cat .fractary/faber/runs/.active-run-id)
 #   → /fractary-faber:session-end --run-id $ACTIVE_RUN_ID --reason compaction
 #   ✓ Saves session metadata to state.json
 #   ✓ Marks session as ended
@@ -639,7 +639,7 @@ user$ /fractary-faber:workflow-run --work-id 258
 # [COMPACTION OCCURS - context cleared]
 
 # SessionStart Hook (matcher: "compact") executes:
-#   ACTIVE_RUN_ID=$(cat .fractary/faber/.active-run-id)
+#   ACTIVE_RUN_ID=$(cat .fractary/faber/runs/.active-run-id)
 #   → /fractary-faber:prime-context --run-id $ACTIVE_RUN_ID --trigger session_start
 #   ✓ Detects new session
 #   ✓ Creates new session record in state.json
@@ -658,7 +658,7 @@ user$ /fractary-faber:workflow-run --work-id 258
 ```bash
 # Day 1: Start workflow on laptop
 user@laptop$ /fractary-faber:workflow-run --work-id 258
-# Creates: .fractary/faber/.active-run-id with "fractary-faber-258-20260105-143022"
+# Creates: .fractary/faber/runs/.active-run-id with "fractary-faber-258-20260105-143022"
 # ... Frame, Architect phases complete
 # ... User closes laptop
 
@@ -671,9 +671,9 @@ user@desktop$ cd /path/to/project
 user@desktop$ git pull  # sync state files and .active-run-id
 user@desktop$ /fractary-faber:workflow-run --resume fractary-faber-258-20260105-143022
 
-# Updates .fractary/faber/.active-run-id (already matches, no warning)
+# Updates .fractary/faber/runs/.active-run-id (already matches, no warning)
 # SessionStart Hook (matcher: "resume") executes:
-#   ACTIVE_RUN_ID=$(cat .fractary/faber/.active-run-id)
+#   ACTIVE_RUN_ID=$(cat .fractary/faber/runs/.active-run-id)
 #   → /fractary-faber:prime-context --run-id $ACTIVE_RUN_ID --trigger session_start
 #   ✓ Detects new session (different machine)
 #   ✓ Creates session record with new environment:
@@ -707,7 +707,7 @@ user$ /fractary-faber:prime-context --force
 ```bash
 # Terminal 1: Start workflow for issue 258
 user$ /fractary-faber:workflow-run --work-id 258
-# Creates: .fractary/faber/.active-run-id with "fractary-faber-258-20260105-143022"
+# Creates: .fractary/faber/runs/.active-run-id with "fractary-faber-258-20260105-143022"
 # Workflow starts...
 
 # Terminal 2: Try to start workflow for issue 259 in SAME worktree
@@ -732,7 +732,7 @@ Workflow start cancelled. Use separate worktrees for concurrent workflows.
 user$ git worktree add ../myproject-issue-259 -b feature/259
 user$ cd ../myproject-issue-259
 user$ /fractary-faber:workflow-run --work-id 259
-# Creates separate: ../myproject-issue-259/.fractary/faber/.active-run-id
+# Creates separate: ../myproject-issue-259/.fractary/faber/runs/.active-run-id
 # Now both workflows can run in parallel without conflicts
 ```
 
@@ -791,7 +791,7 @@ This enhancement makes worktrees transparent to users while maintaining the simp
 - [ ] Default workflows declare critical artifacts
 - [ ] `/fractary-faber:prime-context` command works with `--run-id` and `--trigger` parameters
 - [ ] `/fractary-faber:session-end` command saves session metadata
-- [ ] `workflow-run` command writes `.fractary/faber/.active-run-id`
+- [ ] `workflow-run` command writes `.fractary/faber/runs/.active-run-id`
 - [ ] `workflow-run` command detects and warns about workflow conflicts
 - [ ] PreCompact hook saves session before compaction
 - [ ] SessionStart hook restores context after compaction
@@ -799,7 +799,7 @@ This enhancement makes worktrees transparent to users while maintaining the simp
 - [ ] Auto-reload only on Frame phase (not all phases)
 - [ ] Session history tracked across environments
 - [ ] Portable paths resolve correctly
-- [ ] `.fractary/faber/.active-run-id` committed to git
+- [ ] `.fractary/faber/runs/.active-run-id` committed to git
 - [ ] Documentation complete (including hook setup guide)
 - [ ] Backward compatible with existing workflows
 

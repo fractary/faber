@@ -196,7 +196,7 @@ cat .claude/settings.json | jq '.hooks'
 **Action**: Calls `/fractary-faber:session-save --reason compaction`
 
 **What it does**:
-1. Reads `.fractary/faber/.active-run-id` to detect active workflow
+1. Reads `.fractary/faber/runs/.active-run-id` to detect active workflow
 2. Loads current state.json
 3. Updates current session with:
    - `ended_at` timestamp
@@ -218,7 +218,7 @@ cat .claude/settings.json | jq '.hooks'
 **Action**: Calls `/fractary-faber:session-load --trigger session_start`
 
 **What it does**:
-1. Reads `.fractary/faber/.active-run-id` to detect active workflow
+1. Reads `.fractary/faber/runs/.active-run-id` to detect active workflow
 2. Loads state.json and workflow config
 3. Detects new session (generates new session ID)
 4. Creates new session record with environment info
@@ -272,10 +272,10 @@ jq . .claude/settings.json
 **Check**:
 ```bash
 # Check if active run ID file exists
-cat .fractary/faber/.active-run-id
+cat .fractary/faber/runs/.active-run-id
 
 # Check if state file exists
-ls -l .fractary/faber/runs/$(cat .fractary/faber/.active-run-id)/state.json
+ls -l .fractary/faber/runs/$(cat .fractary/faber/runs/.active-run-id)/state.json
 ```
 
 **Fix**:
@@ -289,10 +289,10 @@ ls -l .fractary/faber/runs/$(cat .fractary/faber/.active-run-id)/state.json
 **Check**:
 ```bash
 # Check if artifacts were loaded
-cat .fractary/faber/runs/$(cat .fractary/faber/.active-run-id)/state.json | jq '.context_metadata.artifacts_in_context'
+cat .fractary/faber/runs/$(cat .fractary/faber/runs/.active-run-id)/state.json | jq '.context_metadata.artifacts_in_context'
 
 # Check if session was created
-cat .fractary/faber/runs/$(cat .fractary/faber/.active-run-id)/state.json | jq '.sessions.current_session_id'
+cat .fractary/faber/runs/$(cat .fractary/faber/runs/.active-run-id)/state.json | jq '.sessions.current_session_id'
 ```
 
 **Fix**:
@@ -327,7 +327,7 @@ If hooks fail or aren't configured, you can manually trigger the commands:
 
 **Check which workflow is active**:
 ```bash
-cat .fractary/faber/.active-run-id
+cat .fractary/faber/runs/.active-run-id
 ```
 
 ## Best Practices
@@ -346,21 +346,21 @@ cat .fractary/faber/.active-run-id
 
 ## Git Configuration
 
-**Important**: The `.fractary/faber/.active-run-id` file should be committed to git for cross-environment workflow continuity.
+**Important**: The `.fractary/faber/runs/.active-run-id` file should be committed to git for cross-environment workflow continuity.
 
 **Check .gitignore**:
 ```bash
 # This should NOT be in .gitignore
-grep ".fractary/faber/.active-run-id" .gitignore
+grep ".fractary/faber/runs/.active-run-id" .gitignore
 ```
 
 **If it is ignored, update .gitignore**:
 ```bash
 # Remove this line if present:
-# .fractary/faber/.active-run-id
+# .fractary/faber/runs/.active-run-id
 
 # Or add exception:
-!.fractary/faber/.active-run-id
+!.fractary/faber/runs/.active-run-id
 ```
 
 **Why commit .active-run-id**:

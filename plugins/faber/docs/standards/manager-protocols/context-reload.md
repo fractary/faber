@@ -60,8 +60,8 @@ IF run_id is provided THEN
   LOG "Using specified run_id: ${target_run_id}"
 
 # Priority 2: Active run ID file (hook-based detection)
-ELSE IF file_exists(".fractary/faber/.active-run-id") THEN
-  target_run_id = read(".fractary/faber/.active-run-id").trim()
+ELSE IF file_exists(".fractary/faber/runs/.active-run-id") THEN
+  target_run_id = read(".fractary/faber/runs/.active-run-id").trim()
   LOG "✓ Auto-detected from .active-run-id: ${target_run_id}"
 
 # Priority 3: Search for active workflows
@@ -89,7 +89,7 @@ ELSE
 ```
 
 **Active Run ID File**:
-- **Path**: `.fractary/faber/.active-run-id`
+- **Path**: `.fractary/faber/runs/.active-run-id`
 - **Format**: Single line containing run ID (e.g., `fractary-faber-258-20260105-143022`)
 - **Purpose**: Enables hooks to know which workflow to operate on
 - **Created by**: `/fractary-faber:workflow-run` command
@@ -770,7 +770,7 @@ See **[HOOKS-SETUP.md](../HOOKS-SETUP.md)** for complete setup instructions.
 
 ### Reads
 
-- `.fractary/faber/.active-run-id` - Active workflow detection (hook-based execution)
+- `.fractary/faber/runs/.active-run-id` - Active workflow detection (hook-based execution)
 
 ## See Also
 
