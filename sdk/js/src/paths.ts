@@ -19,6 +19,12 @@ import * as path from 'path';
 export const FABER_RUNS_DIR = '.fractary/faber/runs';
 
 /**
+ * Path to the active run ID file (relative to project root)
+ * This file tracks which workflow run is currently active in the worktree
+ */
+export const ACTIVE_RUN_ID_FILE = '.fractary/faber/runs/.active-run-id';
+
+/**
  * Get the runs directory path
  * @param projectRoot - Optional project root path (defaults to current working directory)
  * @returns Absolute path to the runs directory
@@ -60,6 +66,16 @@ export function getStatePath(runId: string, projectRoot?: string): string {
 }
 
 /**
+ * Get the active run ID file path
+ * @param projectRoot - Optional project root path (defaults to current working directory)
+ * @returns Absolute path to the .active-run-id file
+ */
+export function getActiveRunIdPath(projectRoot?: string): string {
+  const root = projectRoot || process.cwd();
+  return path.join(root, ACTIVE_RUN_ID_FILE);
+}
+
+/**
  * Get relative path constants (for documentation and gitignore)
  */
 export const RELATIVE_PATHS = {
@@ -71,4 +87,6 @@ export const RELATIVE_PATHS = {
   PLAN_PATH_TEMPLATE: `${FABER_RUNS_DIR}/{run_id}/plan.json`,
   /** Template for state file path */
   STATE_PATH_TEMPLATE: `${FABER_RUNS_DIR}/{run_id}/state.json`,
+  /** Path to active run ID file */
+  ACTIVE_RUN_ID_FILE: ACTIVE_RUN_ID_FILE,
 } as const;
