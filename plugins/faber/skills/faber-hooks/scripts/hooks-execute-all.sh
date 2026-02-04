@@ -22,7 +22,8 @@ set -euo pipefail
 # Arguments
 BOUNDARY="${1:?Boundary required}"
 CONTEXT_JSON="${2:-{}}"
-CONFIG_PATH="${3:-.fractary/plugins/faber/config.json}"
+# Legacy argument - kept for backward compatibility but deprecated
+CONFIG_PATH="${3:-}"
 
 # Resolve paths robustly (works regardless of execution context)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -53,17 +54,26 @@ case "$BOUNDARY" in
         ;;
 esac
 
-# Check config exists
-if [ ! -f "$CONFIG_PATH" ]; then
-    echo -e "${YELLOW}⚠ No config file found, skipping hooks${NC}" >&2
-    echo '{"status": "success", "boundary": "'"$BOUNDARY"'", "hooks_executed": 0, "message": "No config file"}'
-    exit 0
+# Load config using helper (supports unified YAML config)
+CONFIG_HELPER="$CORE_SCRIPTS/lib/load-faber-config.sh"
+if [ -f "$CONFIG_HELPER" ]; then
+    CONFIG_JSON=$("$CONFIG_HELPER" 2>/dev/null) || CONFIG_JSON='{}'
+else
+    # Fallback: try legacy config path
+    if [ -n "$CONFIG_PATH" ] && [ -f "$CONFIG_PATH" ]; then
+        CONFIG_JSON=$(cat "$CONFIG_PATH")
+    else
+        echo -e "${YELLOW}⚠ No config file found, skipping hooks${NC}" >&2
+        echo '{"status": "success", "boundary": "'"$BOUNDARY"'", "hooks_executed": 0, "message": "No config file"}'
+        exit 0
+    fi
 fi
 
 # Get hooks for this boundary from config
-HOOKS=$(jq -r --arg boundary "$BOUNDARY" '
-    .workflows[0].hooks[$boundary] // []
-' "$CONFIG_PATH" 2>/dev/null || echo "[]")
+# Try faber.workflows[0].hooks first (unified config), then workflows[0].hooks (legacy)
+HOOKS=$(echo "$CONFIG_JSON" | jq -r --arg boundary "$BOUNDARY" '
+    (.faber.workflows[0].hooks[$boundary] // .workflows[0].hooks[$boundary]) // []
+' 2>/dev/null || echo "[]")
 
 HOOK_COUNT=$(echo "$HOOKS" | jq 'length')
 

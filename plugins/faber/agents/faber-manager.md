@@ -1066,7 +1066,7 @@ Operation: load-config
 ```
 
 **Validate:**
-- Config file exists at `.fractary/plugins/faber/config.json`
+- Config file exists at `.fractary/config.yaml` with a `faber:` section
 - Valid JSON format
 - Required fields present
 
@@ -3082,7 +3082,7 @@ To skip default workflow steps, use `skip_steps` in your workflow:
 Configuration loading, validation, and workflow resolution.
 
 **Operations:**
-- `load-config`: Load `.fractary/plugins/faber/config.json`
+- `load-config`: Load `faber:` section from `.fractary/config.yaml`
 - `load-workflow`: Load specific workflow definition (raw, without inheritance)
 - `resolve-workflow`: **Primary** - Resolve workflow with full inheritance chain merged
 - `validate-config`: Validate config against schema

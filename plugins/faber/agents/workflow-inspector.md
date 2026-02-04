@@ -26,7 +26,7 @@ Reports issues with severity levels (ERROR, WARNING, INFO) and calculates a conf
 | `verbose` | boolean | No | Show detailed validation output. Default: false |
 | `fix` | boolean | No | Auto-fix simple issues. Default: false |
 | `check` | string | No | Check specific aspect: `phases`, `hooks`, `integrations`, or `all` (default) |
-| `config-path` | string | No | Path to config file. Default: `.fractary/faber/config.json` |
+| `config-path` | string | No | Path to config file. Default: `.fractary/config.yaml` |
 
 **Examples**:
 - No argument: `/fractary-faber:workflow-inspect` → Shows usage and lists workflows
@@ -99,10 +99,9 @@ if verbose:
 
 # MODE: no_target - Show usage and list workflows
 if inspect_mode == "no_target":
-  # Load default config to list workflows
+  # Load default config to list workflows (unified YAML)
   default_config_paths = [
-    ".fractary/faber/config.json",
-    ".fractary/plugins/faber/config.json"
+    ".fractary/config.yaml"
   ]
 
   config_file = find_first_existing(default_config_paths)
@@ -193,8 +192,7 @@ else if inspect_mode == "workflow_id":
     config_paths = [config_path_override]
   else:
     config_paths = [
-      ".fractary/faber/config.json",
-      ".fractary/plugins/faber/config.json"
+      ".fractary/config.yaml"
     ]
 
   config_file = find_first_existing(config_paths)
@@ -238,8 +236,7 @@ else:
     config_paths = [config_path_override]
   else:
     config_paths = [
-      ".fractary/faber/config.json",
-      ".fractary/plugins/faber/config.json"
+      ".fractary/config.yaml"
     ]
 
   config_file = find_first_existing(config_paths)
@@ -1115,9 +1112,8 @@ else:
 ```
 ❌ ERROR: Configuration file not found
 
-Expected locations:
-  - .fractary/faber/config.json (preferred)
-  - .fractary/plugins/faber/config.json (deprecated)
+Expected location:
+  - .fractary/config.yaml (with faber: section)
 
 Recovery:
 1. Initialize FABER configuration: /fractary-faber:configure

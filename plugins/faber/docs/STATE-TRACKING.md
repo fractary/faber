@@ -250,19 +250,17 @@ echo "$RECENT_LOGS" | jq -r '.[] | "  [\(.timestamp)] \(.event_type) - \(.messag
 
 ## Configuration
 
-Enable logging in `.fractary/plugins/faber/config.json`:
+Enable logging in the `faber:` section of `.fractary/config.yaml`:
 
-```json
-{
-  "logging": {
-    "use_logs_plugin": true,
-    "log_type": "workflow",
-    "log_level": "info",
-    "log_phases": true,
-    "log_sub_steps": true,
-    "log_hooks": true
-  }
-}
+```yaml
+faber:
+  logging:
+    use_logs_plugin: true
+    log_type: workflow
+    log_level: info
+    log_phases: true
+    log_sub_steps: true
+    log_hooks: true
 ```
 
 **Fields**:

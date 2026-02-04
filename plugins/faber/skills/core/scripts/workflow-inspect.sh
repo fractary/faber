@@ -13,7 +13,26 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE=".fractary/plugins/faber/config.json"
+
+# Find config file (unified config first, then legacy paths)
+find_config_file() {
+    local paths=(
+        ".fractary/config.yaml"
+        ".fractary/faber/config.yaml"
+        ".fractary/faber/config.json"
+        ".fractary/plugins/faber/config.yaml"
+        ".fractary/plugins/faber/config.json"
+    )
+    for p in "${paths[@]}"; do
+        if [[ -f "$p" ]]; then
+            echo "$p"
+            return 0
+        fi
+    done
+    echo ""
+}
+
+CONFIG_FILE=$(find_config_file)
 
 # Colors
 GREEN='\033[0;32m'
@@ -24,8 +43,9 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Check configuration exists
-if [ ! -f "$CONFIG_FILE" ]; then
+if [ -z "$CONFIG_FILE" ] || [ ! -f "$CONFIG_FILE" ]; then
     echo -e "${RED}✗ Configuration file not found${NC}" >&2
+    echo "  Expected: .fractary/config.yaml (unified config)" >&2
     "$SCRIPT_DIR/error-report.sh" FABER-001
     exit 1
 fi

@@ -126,18 +126,15 @@ faber plan --work-label "status:backlog" --order-by priority --order-direction a
 
 ## Configuration
 
-Add to `.fractary/plugins/faber/config.json`:
+Add to the `faber:` section of `.fractary/config.yaml`:
 
-```json
-{
-  "backlog_management": {
-    "default_limit": 20,
-    "default_order_by": "priority",
-    "priority_config": {
-      "label_prefix": "priority"
-    }
-  }
-}
+```yaml
+faber:
+  backlog_management:
+    default_limit: 20
+    default_order_by: priority
+    priority_config:
+      label_prefix: priority
 ```
 
 ### Configuration Options
@@ -150,14 +147,11 @@ Add to `.fractary/plugins/faber/config.json`:
 
 If your project uses a different priority label format (e.g., `p1`, `p2`):
 
-```json
-{
-  "backlog_management": {
-    "priority_config": {
-      "label_prefix": "p"
-    }
-  }
-}
+```yaml
+faber:
+  backlog_management:
+    priority_config:
+      label_prefix: p
 ```
 
 Then labels like `p1`, `p2`, `p3` will be recognized as priorities.
@@ -291,7 +285,7 @@ faber plan --work-label "status:backlog,type:docs" --order-by created --order-di
 **Solution**:
 - Check your labels: `gh issue view <issue-number>`
 - Verify label format matches: `priority-1`, `priority-2`, etc.
-- Check config for custom prefix: `cat .fractary/plugins/faber/config.json`
+- Check config for custom prefix: `yq '.faber.backlog_management' .fractary/config.yaml`
 
 ### Wrong order direction
 

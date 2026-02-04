@@ -320,18 +320,20 @@ faber-manager invokes architect skill...
 ### Configuration Flow
 
 ```
-1. Configuration File (.fractary/plugins/faber/config.json)
-   ├─ schema_version: "2.0"
-   ├─ workflows[]: Array of workflow configurations
-   ├─ integrations: Plugin references (work, repo, spec, logs)
-   ├─ logging: Workflow logging configuration
-   └─ safety: Protected paths and confirmation rules
+1. Configuration File (.fractary/config.yaml)
+   └─ faber:
+      ├─ schema_version: "2.0"
+      ├─ workflows[]: Array of workflow configurations
+      ├─ integrations: Plugin references (work, repo, spec, logs)
+      ├─ logging: Workflow logging configuration
+      └─ safety: Protected paths and confirmation rules
 
 2. Config Loader (skills/core/scripts/config-loader.sh)
-   ├─ Reads JSON file from .fractary/plugins/faber/config.json
+   ├─ Reads YAML file from .fractary/config.yaml
+   ├─ Extracts faber: section
    ├─ Validates schema version and required fields
    ├─ Expands environment variables
-   └─ Returns validated JSON
+   └─ Returns validated JSON (for tool compatibility)
 
 3. Config Consumption
    Agents/Skills read config:
@@ -383,24 +385,25 @@ Phase Transitions:
 
 ### Why JSON for Configuration?
 
-**Decision**: Use JSON format for `.fractary/plugins/faber/config.json` (v2.0)
+**Decision**: Use unified YAML configuration at `.fractary/config.yaml` with a `faber:` section
 
 **Rationale**:
-- Native processing without conversion (direct jq usage)
-- Standard plugin configuration format across all Fractary plugins
+- Unified configuration across all Fractary plugins in a single file
+- Human-readable format with clear structure
 - Supports complex nested structures (workflows array, phase configurations)
-- Easy validation with JSON Schema
-- No parsing errors from indentation or special characters
+- Easy validation with JSON Schema (YAML is JSON-compatible)
+- Native processing via yq utility
 - Consistent with plugin ecosystem standards
 
-**Evolution from v1.x**:
+**Evolution**:
 - v1.x used TOML (`.faber.config.toml`) for human-readability
-- v2.0 switched to JSON for consistency, validation, and zero-conversion overhead
+- v2.0 switched to JSON at `.fractary/plugins/faber/config.json` (now deprecated)
+- v3.0+ uses unified YAML at `.fractary/config.yaml` with a `faber:` section
 - Migration guide available at MIGRATION-v2.md
 
 **Alternatives Considered**:
 - TOML: Requires Python conversion, inconsistent with plugin ecosystem
-- YAML: Indentation issues, complex spec, parsing complexity
+- Separate JSON files per plugin: File proliferation, harder to manage
 - Custom format: Non-standard, reinventing wheel
 
 ### Why Dual-State Tracking?
@@ -601,7 +604,7 @@ mkdir -p domains/design/
 
 **Step 2: Update Configuration**
 ```json
-// .fractary/plugins/faber/config.json
+// .fractary/config.yaml (faber: section)
 {
   "workflows": [{
     "id": "design-workflow",

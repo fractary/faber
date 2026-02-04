@@ -11,7 +11,7 @@ Specialized FABER plugins (like `faber-cloud`, `faber-app`) extend the core FABE
 2. Providing specialized **workflows** that use those skills
 3. Adding workflows to the **core FABER config** (not separate configs)
 
-**Key principle**: All workflows centralize in `.fractary/plugins/faber/config.json` for unified management and easy GitHub app integration.
+**Key principle**: All workflows centralize in the `faber:` section of `.fractary/config.yaml` for unified management and easy GitHub app integration.
 
 ## ⚠️ Critical: Preserve the Default Workflow
 
@@ -23,37 +23,29 @@ Specialized FABER plugins (like `faber-cloud`, `faber-app`) extend the core FABE
 - ✅ Serves as a reference implementation for custom workflows
 - ✅ Ensures FABER works out-of-the-box even with custom plugins installed
 
-**Example of correct workflows array in config.json:**
-```json
-{
-  "workflows": [
-    {
-      "id": "default",
-      "file": "./workflows/default.json",
-      "description": "Standard FABER workflow (Frame → Architect → Build → Evaluate → Release)"
-      // ... default workflow is RETAINED
-    },
-    {
-      "id": "cloud",
-      "file": "./workflows/cloud.json",
-      "description": "Infrastructure workflow (Terraform → Deploy → Monitor)"
-      // ... custom workflow is ADDED
-    },
-    {
-      "id": "hotfix",
-      "file": "./workflows/hotfix.json",
-      "description": "Expedited workflow for critical patches"
-      // ... another custom workflow is ADDED
-    }
-  ]
-}
+**Example of correct workflows array in config.yaml:**
+```yaml
+faber:
+  workflows:
+    - id: default
+      file: ./workflows/default.json
+      description: "Standard FABER workflow (Frame -> Architect -> Build -> Evaluate -> Release)"
+      # default workflow is RETAINED
+    - id: cloud
+      file: ./workflows/cloud.json
+      description: "Infrastructure workflow (Terraform -> Deploy -> Monitor)"
+      # custom workflow is ADDED
+    - id: hotfix
+      file: ./workflows/hotfix.json
+      description: "Expedited workflow for critical patches"
+      # another custom workflow is ADDED
 ```
 
 **Workflow files structure:**
 ```
-.fractary/plugins/faber/
-├── config.json              # Main config (references all workflows)
-└── workflows/               # Workflow definition files
+.fractary/
+├── config.yaml              # Main config (with faber: section referencing workflows)
+└── plugins/faber/workflows/ # Workflow definition files
     ├── default.json         # Standard FABER workflow
     ├── cloud.json           # Infrastructure workflow (from faber-cloud plugin)
     └── hotfix.json          # Hotfix workflow
@@ -102,7 +94,7 @@ faber-cloud/
           └── README.md         # Workflow documentation
 ```
 
-**Template-Copy Pattern**: During plugin initialization, workflow templates are copied from `plugins/faber-cloud/config/workflows/` to `.fractary/plugins/faber/workflows/` and referenced in the main config.
+**Template-Copy Pattern**: During plugin initialization, workflow templates are copied from `plugins/faber-cloud/config/workflows/` to `.fractary/plugins/faber/workflows/` and referenced in the main `faber:` section of `.fractary/config.yaml`.
 
 ## Creating a Specialized Plugin
 
@@ -131,7 +123,7 @@ plugins/faber-{type}/
 └── README.md
 ```
 
-**Note**: Workflow templates are stored in `config/workflows/` in the plugin and copied to `.fractary/plugins/faber/workflows/` during project initialization.
+**Note**: Workflow templates are stored in `config/workflows/` in the plugin and copied to `.fractary/plugins/faber/workflows/` during project initialization. References are added to the `faber:` section of `.fractary/config.yaml`.
 
 ### Step 2: Define Specialized Skills
 
@@ -329,13 +321,13 @@ Initialize cloud infrastructure workflow for FABER.
 ## What This Does
 
 1. Copies workflow template from plugin to project
-2. Adds workflow reference to `.fractary/plugins/faber/config.json`
+2. Adds workflow reference to `.fractary/config.yaml` (faber: section)
 
 **Files created:**
 - `.fractary/plugins/faber/workflows/cloud.json` (workflow definition)
 
 **Files modified:**
-- `.fractary/plugins/faber/config.json` (adds workflow reference)
+- `.fractary/config.yaml` (adds workflow reference to faber: section)
 
 ## Prerequisites
 
@@ -360,17 +352,15 @@ This command should:
 3. Copy workflow template:
    - From: `plugins/faber-cloud/config/workflows/cloud.json`
    - To: `.fractary/plugins/faber/workflows/cloud.json`
-4. Load existing config from `.fractary/plugins/faber/config.json`
-5. Check if "cloud" workflow reference already exists (warn if duplicate)
-6. Add workflow reference to config's `workflows` array:
-   ```json
-   {
-     "id": "cloud",
-     "file": "./workflows/cloud.json",
-     "description": "Infrastructure workflow (Terraform → Deploy → Monitor)"
-   }
+4. Load existing config from `.fractary/config.yaml`
+5. Check if "cloud" workflow reference already exists in faber.workflows (warn if duplicate)
+6. Add workflow reference to faber.workflows array:
+   ```yaml
+   - id: cloud
+     file: ./workflows/cloud.json
+     description: "Infrastructure workflow (Terraform -> Deploy -> Monitor)"
    ```
-7. Write updated config back to `.fractary/plugins/faber/config.json`
+7. Write updated config back to `.fractary/config.yaml`
 8. Validate configuration and workflow file
 9. Report success with usage instructions
 
@@ -542,7 +532,7 @@ function initFaberCloudWorkflow() {
     - .github/ISSUE_TEMPLATE/cloud.yml (issue template)
 
   Files modified:
-    - .fractary/plugins/faber/config.json (added workflow reference)
+    - .fractary/config.yaml (added workflow reference to faber: section)
 
   Usage:
     1. Create issue using "Cloud Infrastructure Change" template
@@ -664,8 +654,8 @@ The init command should programmatically copy workflow templates and add referen
 
 function initFaberCloudWorkflow() {
   // 1. Check prerequisites
-  const coreConfigPath = '.fractary/plugins/faber/config.json'
-  if (!exists(coreConfigPath)) {
+  const unifiedConfigPath = '.fractary/config.yaml'
+  if (!exists(unifiedConfigPath)) {
     error("Core FABER not initialized. Run /fractary-faber:configure first")
     return
   }
@@ -687,8 +677,9 @@ function initFaberCloudWorkflow() {
     log("Copied cloud workflow template")
   }
 
-  // 4. Load existing config
-  const config = readJSON(coreConfigPath)
+  // 4. Load existing config (extract faber section from YAML)
+  const fullConfig = readYAML(unifiedConfigPath)
+  const config = fullConfig.faber
 
   // 5. CRITICAL: Verify default workflow reference exists
   const defaultWorkflow = config.workflows.find(w => w.id === 'default')
@@ -708,14 +699,15 @@ function initFaberCloudWorkflow() {
   const workflowRef = {
     "id": "cloud",
     "file": "./workflows/cloud.json",
-    "description": "Infrastructure workflow (Terraform → Deploy → Monitor)"
+    "description": "Infrastructure workflow (Terraform -> Deploy -> Monitor)"
   }
 
   // 8. Add reference to workflows array (PRESERVE default workflow)
   config.workflows.push(workflowRef)
 
-  // 9. Write updated config
-  writeJSON(coreConfigPath, config)
+  // 9. Write updated config back to YAML
+  fullConfig.faber = config
+  writeYAML(unifiedConfigPath, fullConfig)
 
   // 10. Validate configuration
   const configValidation = validateConfig(config)
@@ -738,7 +730,7 @@ function initFaberCloudWorkflow() {
     - .fractary/plugins/faber/workflows/cloud.json
 
   Files modified:
-    - .fractary/plugins/faber/config.json (added workflow reference)
+    - .fractary/config.yaml (added workflow reference to faber: section)
 
   Usage:
     /fractary-faber:run <work-id> --workflow cloud
@@ -764,7 +756,7 @@ When testing your plugin integration, verify both workflow and issue template in
 4. ls .github/ISSUE_TEMPLATE/              # Should show cloud.yml
 
 # Verify config
-5. cat .fractary/plugins/faber/config.json # Should reference cloud workflow
+5. yq '.faber' .fractary/config.yaml    # Should reference cloud workflow
 
 # Test issue template
 6. Create test issue using "Cloud Infrastructure Change" template on GitHub
@@ -881,8 +873,8 @@ Show users how to customize your workflows:
 
 3. Verify config:
    ```bash
-   cat .fractary/plugins/faber/config.json
-   # Should show both "default" and "cloud" workflows
+   yq '.faber' .fractary/config.yaml
+   # Should show both "default" and "cloud" workflows in faber.workflows
    ```
 
 4. Run audit:

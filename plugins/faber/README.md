@@ -118,23 +118,18 @@ Claude Code will automatically discover the plugin.
 /fractary-faber:configure
 ```
 
-Creates `.fractary/plugins/faber/config.json` with default workflow configuration.
+Creates the `faber:` section in `.fractary/config.yaml` with default workflow configuration.
 
 **Option 2: Use Templates**
 
 ```bash
-# Create config directory
-mkdir -p .fractary/plugins/faber
-
-# Choose a template:
+# Choose a template and merge faber: section into .fractary/config.yaml:
 # Minimal - Bare essentials
-cp plugins/faber/config/templates/minimal.json .fractary/plugins/faber/config.json
-
 # Standard - Recommended for production (includes plugin integrations)
-cp plugins/faber/config/templates/standard.json .fractary/plugins/faber/config.json
-
 # Enterprise - Full-featured with hook examples
-cp plugins/faber/config/templates/enterprise.json .fractary/plugins/faber/config.json
+
+# Copy the faber: section from the template into your .fractary/config.yaml
+# Templates available at: plugins/faber/config/templates/
 ```
 
 ### Configuration Structure
@@ -185,7 +180,7 @@ If you have an existing `.faber.config.toml` file, see [MIGRATION-v2.md](docs/MI
 **Setup** (one-time):
 1. Add `.github/workflows/faber.yml` to your repository
 2. Add `CLAUDE_CODE_OAUTH_TOKEN` secret
-3. Create `.fractary/plugins/faber/config.json` in repository root
+3. Create `.fractary/config.yaml` with a `faber:` section in repository root
 4. Add the `faber:run` label to any issue!
 
 Status updates post automatically to GitHub issues. See [GitHub Integration Guide](docs/github-integration.md) for complete setup instructions and examples.
@@ -298,17 +293,14 @@ FABER supports 4 autonomy levels:
 
 ⭐ **Recommended**: `guarded` provides the best balance of automation and control.
 
-Set default in `.fractary/plugins/faber/config.json`:
+Set default in the `faber:` section of `.fractary/config.yaml`:
 
-```json
-{
-  "workflows": [{
-    "autonomy": {
-      "level": "guarded",
-      "pause_before_release": true
-    }
-  }]
-}
+```yaml
+faber:
+  workflows:
+    - autonomy:
+        level: guarded
+        pause_before_release: true
 ```
 
 Override per workflow:
@@ -531,37 +523,30 @@ FABER includes multiple safety mechanisms:
 ### Protected Paths
 Prevents modification of critical files:
 
-```json
-{
-  "safety": {
-    "protected_paths": [
-      ".git/",
-      "node_modules/",
-      ".env",
-      "*.key",
-      "*.pem"
-    ]
-  }
-}
+```yaml
+faber:
+  safety:
+    protected_paths:
+      - ".git/"
+      - "node_modules/"
+      - ".env"
+      - "*.key"
+      - "*.pem"
 ```
 
 ### Confirmation Gates
 Requires approval before critical operations:
 
-```json
-{
-  "workflows": [{
-    "phases": {
-      "release": {
-        "require_approval": true
-      }
-    },
-    "autonomy": {
-      "pause_before_release": true,
-      "require_approval_for": ["release"]
-    }
-  }]
-}
+```yaml
+faber:
+  workflows:
+    - phases:
+        release:
+          require_approval: true
+      autonomy:
+        pause_before_release: true
+        require_approval_for:
+          - release
 ```
 
 ### Audit Trail
@@ -570,16 +555,12 @@ All workflow steps are logged via fractary-logs plugin with complete history.
 ### Retry Limits
 Prevents infinite loops with configurable retry limits:
 
-```json
-{
-  "workflows": [{
-    "phases": {
-      "evaluate": {
-        "max_retries": 3
-      }
-    }
-  }]
-}
+```yaml
+faber:
+  workflows:
+    - phases:
+        evaluate:
+          max_retries: 3
 ```
 
 ## Documentation

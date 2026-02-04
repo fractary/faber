@@ -2,17 +2,21 @@
 # match-target.sh - Match a target against configured patterns
 #
 # This script matches a target string against the patterns defined in
-# FABER's config.json targets section and returns the best matching
-# target definition with its metadata.
+# FABER's targets configuration and returns the best matching target
+# definition with its metadata.
+#
+# Configuration is loaded from (in order of preference):
+#   1. .fractary/config.yaml (unified config - faber.targets section)
+#   2. .fractary/faber/config.yaml (faber-specific - targets section)
+#   3. .fractary/plugins/faber/config.json (DEPRECATED)
 #
 # Usage:
-#   match-target.sh <target> [--config <path>] [--project-root <path>]
+#   match-target.sh <target> [--project-root <path>]
 #
 # Arguments:
 #   target            The target string to match (e.g., "ipeds/admissions", "src/auth/**")
 #
 # Options:
-#   --config          Path to config.json (default: .fractary/plugins/faber/config.json)
 #   --project-root    Project root directory (default: current directory)
 #
 # Output (JSON):
@@ -43,20 +47,24 @@
 
 set -euo pipefail
 
+# Get script directory for loading helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HELPER_PATH="$SCRIPT_DIR/../../core/scripts/lib/load-faber-config.sh"
+
 # Defaults
-CONFIG_PATH=".fractary/plugins/faber/config.json"
 PROJECT_ROOT="$(pwd)"
 TARGET=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --config)
-            CONFIG_PATH="$2"
-            shift 2
-            ;;
         --project-root)
             PROJECT_ROOT="$2"
+            shift 2
+            ;;
+        --config)
+            # Legacy option - ignored, config is auto-loaded
+            echo "Warning: --config option is deprecated. Config is auto-loaded from .fractary/config.yaml" >&2
             shift 2
             ;;
         -*)
@@ -76,39 +84,54 @@ if [[ -z "$TARGET" ]]; then
     exit 1
 fi
 
-# Resolve config path relative to project root
-if [[ ! "$CONFIG_PATH" = /* ]]; then
-    CONFIG_PATH="$PROJECT_ROOT/$CONFIG_PATH"
+# Load configuration using helper script
+if [[ -f "$HELPER_PATH" ]]; then
+    CONFIG=$("$HELPER_PATH" --project-root "$PROJECT_ROOT" 2>/dev/null) || CONFIG='{}'
+else
+    # Fallback: try to load config directly with Python
+    CONFIG=$(python3 - "$PROJECT_ROOT" <<'PYTHON_EOF' 2>/dev/null || echo '{}')
+import sys
+import json
+import os
+
+project_root = sys.argv[1]
+
+# Try unified config first
+for config_path in [
+    os.path.join(project_root, '.fractary', 'config.yaml'),
+    os.path.join(project_root, '.fractary', 'faber', 'config.yaml'),
+    os.path.join(project_root, '.fractary', 'plugins', 'faber', 'config.json'),
+]:
+    if os.path.exists(config_path):
+        try:
+            if config_path.endswith('.yaml'):
+                import yaml
+                with open(config_path, 'r') as f:
+                    data = yaml.safe_load(f) or {}
+                # Extract faber section if this is unified config
+                if 'faber' in data:
+                    print(json.dumps({'faber': data['faber']}))
+                else:
+                    print(json.dumps({'faber': data}))
+            else:
+                with open(config_path, 'r') as f:
+                    data = json.load(f)
+                print(json.dumps({'faber': data}))
+            sys.exit(0)
+        except Exception:
+            continue
+
+print('{}')
+PYTHON_EOF
 fi
 
-# Check config exists
-if [[ ! -f "$CONFIG_PATH" ]]; then
-    # No config - return no_match with default type
-    cat <<EOF
-{
-  "status": "no_match",
-  "input": "$TARGET",
-  "match": {
-    "name": null,
-    "pattern": null,
-    "type": "file",
-    "description": "Default target type (no config found)",
-    "metadata": {},
-    "workflow_override": null
-  },
-  "all_matches": [],
-  "message": "No FABER config found at $CONFIG_PATH, using default type 'file'"
-}
-EOF
-    exit 0
-fi
+# Extract targets configuration from faber section
+# Config structure is: {"faber": {"targets": {...}}}
+TARGETS_CONFIG=$(echo "$CONFIG" | jq -c '.faber.targets // {}')
 
-# Read config
-CONFIG=$(cat "$CONFIG_PATH")
-
-# Check if targets section exists
-if ! echo "$CONFIG" | jq -e '.targets' > /dev/null 2>&1; then
-    # No targets section - return no_match with default type
+# Check if targets section exists and has definitions
+if ! echo "$TARGETS_CONFIG" | jq -e '.definitions' > /dev/null 2>&1; then
+    # No targets configured - return no_match with default type
     cat <<EOF
 {
   "status": "no_match",
@@ -122,16 +145,16 @@ if ! echo "$CONFIG" | jq -e '.targets' > /dev/null 2>&1; then
     "workflow_override": null
   },
   "all_matches": [],
-  "message": "No targets section in config, using default type 'file'"
+  "message": "No targets configured in .fractary/config.yaml (faber.targets section), using default type 'file'"
 }
 EOF
     exit 0
 fi
 
 # Extract targets configuration
-DEFINITIONS=$(echo "$CONFIG" | jq -c '.targets.definitions // []')
-DEFAULT_TYPE=$(echo "$CONFIG" | jq -r '.targets.default_type // "file"')
-REQUIRE_MATCH=$(echo "$CONFIG" | jq -r '.targets.require_match // false')
+DEFINITIONS=$(echo "$TARGETS_CONFIG" | jq -c '.definitions // []')
+DEFAULT_TYPE=$(echo "$TARGETS_CONFIG" | jq -r '.default_type // "file"')
+REQUIRE_MATCH=$(echo "$TARGETS_CONFIG" | jq -r '.require_match // false')
 
 # Function to calculate specificity score
 # Formula: (literal_prefix_length * 100) - (wildcard_count * 10) - definition_index
@@ -237,7 +260,7 @@ if [[ "$MATCH_COUNT" -eq 0 ]]; then
   "input": "$TARGET",
   "match": null,
   "all_matches": [],
-  "message": "No target definition matches '$TARGET'. Configure targets in .fractary/plugins/faber/config.json"
+  "message": "No target definition matches '$TARGET'. Configure targets in .fractary/config.yaml (faber.targets section)"
 }
 EOF
         exit 1

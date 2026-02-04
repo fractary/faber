@@ -16,7 +16,26 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE=".fractary/plugins/faber/config.json"
+
+# Find config file (unified config first, then legacy paths)
+find_config_file() {
+    local paths=(
+        ".fractary/config.yaml"
+        ".fractary/faber/config.yaml"
+        ".fractary/faber/config.json"
+        ".fractary/plugins/faber/config.yaml"
+        ".fractary/plugins/faber/config.json"
+    )
+    for p in "${paths[@]}"; do
+        if [[ -f "$p" ]]; then
+            echo "$p"
+            return 0
+        fi
+    done
+    echo ""
+}
+
+CONFIG_FILE=$(find_config_file)
 
 # Colors
 GREEN='\033[0;32m'

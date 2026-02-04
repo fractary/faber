@@ -9,8 +9,29 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FABER_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-CONFIG_FILE=".fractary/plugins/faber/config.json"
-STATE_FILE=".fractary/plugins/faber/state.json"
+
+# Find config file (unified config first, then legacy paths)
+find_config_file() {
+    local paths=(
+        ".fractary/config.yaml"
+        ".fractary/faber/config.yaml"
+        ".fractary/faber/config.json"
+        ".fractary/plugins/faber/config.yaml"
+        ".fractary/plugins/faber/config.json"
+    )
+    for p in "${paths[@]}"; do
+        if [[ -f "$p" ]]; then
+            echo "$p"
+            return 0
+        fi
+    done
+    echo ""
+}
+
+CONFIG_FILE=$(find_config_file)
+STATE_FILE=".fractary/faber/state.json"
+# Legacy state file fallback
+[[ ! -f "$STATE_FILE" ]] && [[ -f ".fractary/plugins/faber/state.json" ]] && STATE_FILE=".fractary/plugins/faber/state.json"
 VERBOSE=false
 
 # Parse args
@@ -44,7 +65,7 @@ fi
 # Check configuration
 echo ""
 echo "Configuration:"
-if [ -f "$CONFIG_FILE" ]; then
+if [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
     echo -e "  ${GREEN}✓${NC} Config file exists: $CONFIG_FILE"
     if "$SCRIPT_DIR/config-validate.sh" "$CONFIG_FILE" > /dev/null 2>&1; then
         echo -e "  ${GREEN}✓${NC} Configuration is valid"

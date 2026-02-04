@@ -80,13 +80,16 @@ ELSE:
 
 ## Step 2: Load Configuration
 
-Read `.fractary/plugins/faber/config.json`:
-- Extract `default_workflow` (or use "fractary-faber:default")
-- Extract `default_autonomy` (or use "guarded")
-- Extract `targets` configuration (for target-based planning)
+Read `.fractary/config.yaml` (unified config):
+- Extract `faber.default_workflow` (or use "fractary-faber:default")
+- Extract `faber.default_autonomy` (or use "guarded")
+- Extract `faber.targets` configuration (for target-based planning)
+- Extract `logs.log_directory` (or use default "logs")
 
-Also check for logs directory configuration in `.fractary/plugins/logs/config.json`:
-- Extract `log_directory` (or use default "logs")
+**Config Loading Priority:**
+1. `.fractary/config.yaml` (unified config - PREFERRED)
+2. `.fractary/faber/config.yaml` (faber-specific - legacy)
+3. `.fractary/plugins/faber/config.json` (DEPRECATED - will warn)
 
 ## Step 2b: Match Target (if no work_id)
 
@@ -95,10 +98,9 @@ Also check for logs directory configuration in `.fractary/plugins/logs/config.js
 For each target, run the target matcher to determine context:
 
 ```bash
-# Execute target matching
+# Execute target matching (uses unified config automatically)
 plugins/faber/skills/target-matcher/scripts/match-target.sh \
   "$TARGET" \
-  --config ".fractary/plugins/faber/config.json" \
   --project-root "$(pwd)"
 ```
 
@@ -729,28 +731,24 @@ When no `work_id` is provided, the planner operates in **target mode**:
 
 ### Configuration Example
 
-In `.fractary/plugins/faber/config.json`:
-```json
-{
-  "targets": {
-    "definitions": [
-      {
-        "name": "ipeds-datasets",
-        "pattern": "ipeds/*",
-        "type": "dataset",
-        "description": "IPEDS education datasets for ETL processing",
-        "metadata": {
-          "entity_type": "dataset",
-          "processing_type": "etl",
-          "expected_artifacts": ["processed_data", "validation_report"]
-        },
-        "workflow_override": "data-pipeline"
-      }
-    ],
-    "default_type": "file",
-    "require_match": false
-  }
-}
+In `.fractary/config.yaml` (faber: section):
+```yaml
+faber:
+  targets:
+    definitions:
+      - name: ipeds-datasets
+        pattern: "ipeds/*"
+        type: dataset
+        description: "IPEDS education datasets for ETL processing"
+        metadata:
+          entity_type: dataset
+          processing_type: etl
+          expected_artifacts:
+            - processed_data
+            - validation_report
+        workflow_override: data-pipeline
+    default_type: file
+    require_match: false
 ```
 
 ### Type-Specific Plan Emphasis
@@ -913,7 +911,7 @@ Available workflows: fractary-faber:default, fractary-faber:core
 Target Match Failed
 
 No target definition matches 'unknown/path'.
-Configure targets in .fractary/plugins/faber/config.json
+Configure targets in .fractary/config.yaml (faber.targets section)
 
 Available patterns:
   - ipeds/* (dataset)

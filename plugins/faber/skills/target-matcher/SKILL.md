@@ -25,8 +25,13 @@ determines what type of entity the target represents and retrieves associated me
 <INPUTS>
 **Parameters:**
 - `target` (string, required): The target string to match (e.g., "ipeds/admissions", "src/auth/**")
-- `config_path` (string, optional): Path to config.json (default: .fractary/plugins/faber/config.json)
 - `project_root` (string, optional): Project root directory (default: current directory)
+
+**Configuration Loading:**
+Config is automatically loaded from (in order of preference):
+1. `.fractary/config.yaml` (unified config - faber.targets section)
+2. `.fractary/faber/config.yaml` (faber-specific)
+3. `.fractary/plugins/faber/config.json` (DEPRECATED)
 </INPUTS>
 
 <WORKFLOW>
@@ -38,9 +43,10 @@ Run the match-target.sh script:
 ```bash
 plugins/faber/skills/target-matcher/scripts/match-target.sh \
   "$TARGET" \
-  --config "$CONFIG_PATH" \
   --project-root "$PROJECT_ROOT"
 ```
+
+The script automatically loads config from the unified `.fractary/config.yaml`.
 
 ## Step 2: Parse Result
 
@@ -149,7 +155,7 @@ A warning is logged about the ambiguity.
   "input": "unknown/path",
   "match": null,
   "all_matches": [],
-  "message": "No target definition matches 'unknown/path'. Configure targets in .fractary/plugins/faber/config.json"
+  "message": "No target definition matches 'unknown/path'. Configure targets in .fractary/config.yaml (faber.targets section)"
 }
 ```
 
@@ -172,27 +178,21 @@ A warning is logged about the ambiguity.
 - `faber-planner` agent - To resolve target context before creating plans
 
 ## Configuration
-Targets are configured in `.fractary/plugins/faber/config.json`:
+Targets are configured in `.fractary/config.yaml` (faber.targets section):
 
-```json
-{
-  "targets": {
-    "definitions": [
-      {
-        "name": "ipeds-datasets",
-        "pattern": "ipeds/*",
-        "type": "dataset",
-        "description": "IPEDS education datasets",
-        "metadata": {
-          "entity_type": "dataset",
-          "processing_type": "etl"
-        }
-      }
-    ],
-    "default_type": "file",
-    "require_match": false
-  }
-}
+```yaml
+faber:
+  targets:
+    definitions:
+      - name: ipeds-datasets
+        pattern: "ipeds/*"
+        type: dataset
+        description: "IPEDS education datasets"
+        metadata:
+          entity_type: dataset
+          processing_type: etl
+    default_type: file
+    require_match: false
 ```
 
 See the config schema at `plugins/faber/config/config.schema.json` for full documentation.

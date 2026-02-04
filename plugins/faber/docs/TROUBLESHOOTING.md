@@ -32,7 +32,7 @@ plugins/faber/skills/core/scripts/diagnostics.sh --verbose
 /fractary-faber:configure
 ```
 
-This creates `.fractary/plugins/faber/config.json` with default settings.
+This creates the `faber:` section in `.fractary/config.yaml` with default settings.
 
 **Related Error Codes:** FABER-001
 
@@ -54,13 +54,11 @@ This creates `.fractary/plugins/faber/config.json` with default settings.
 /fractary-repo:init
 
 # Update FABER configuration
-# Edit .fractary/plugins/faber/config.json:
-{
-  "integrations": {
-    "work_plugin": "fractary-work",
-    "repo_plugin": "fractary-repo"
-  }
-}
+# Edit .fractary/config.yaml:
+faber:
+  integrations:
+    work_plugin: fractary-work
+    repo_plugin: fractary-repo
 ```
 
 **Related Error Codes:** FABER-400, FABER-401
@@ -79,25 +77,25 @@ This creates `.fractary/plugins/faber/config.json` with default settings.
 **Diagnosis:**
 ```bash
 # Validate configuration
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/plugins/faber/config.json
+plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
 ```
 
 **Solutions:**
 
 **Option 1:** Fix syntax errors
 ```bash
-# Use a JSON validator to identify errors
-# Fix missing commas, brackets, quotes
+# Use a YAML validator to identify errors
+# Fix indentation issues, colons, quotes
 # Re-run validation
 ```
 
 **Option 2:** Restore from template
 ```bash
 # Backup current config
-cp .fractary/plugins/faber/config.json .fractary/plugins/faber/config.json.backup
+cp .fractary/config.yaml .fractary/config.yaml.backup
 
-# Restore from template
-cp plugins/faber/config/templates/standard.json .fractary/plugins/faber/config.json
+# Restore FABER section from template
+# (Copy the faber: section from plugins/faber/config/templates/standard.yaml)
 
 # Re-apply your customizations
 ```
@@ -113,21 +111,18 @@ cp plugins/faber/config/templates/standard.json .fractary/plugins/faber/config.j
 - Typo in autonomy level setting
 
 **Solution:**
-Edit `.fractary/plugins/faber/config.json` and use one of these values:
+Edit the `faber:` section in `.fractary/config.yaml` and use one of these values:
 - `dry-run` - Preview only, no changes
 - `assist` - Execute through Build, pause before Release
 - `guarded` - Execute all phases, require approval for Release (recommended)
 - `autonomous` - Full automation, no approvals
 
 Example:
-```json
-{
-  "workflows": [{
-    "autonomy": {
-      "level": "guarded"
-    }
-  }]
-}
+```yaml
+faber:
+  workflows:
+    - autonomy:
+        level: guarded
 ```
 
 **Related Error Codes:** FABER-005
@@ -467,8 +462,8 @@ plugins/path/to/hook-script.sh
 # Check hook has execute permissions
 ls -la plugins/path/to/hook-script.sh
 
-# Review hook configuration
-jq '.workflows[0].hooks' .fractary/plugins/faber/config.json
+# Review hook configuration (using yq for YAML)
+yq '.faber.workflows[0].hooks' .fractary/config.yaml
 ```
 
 **Solutions:**
@@ -594,10 +589,10 @@ plugins/faber/skills/core/scripts/state-read.sh .phase_results
 
 ```bash
 # Validate configuration
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/plugins/faber/config.json
+plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
 
-# View configuration
-cat .fractary/plugins/faber/config.json | jq
+# View FABER configuration
+yq '.faber' .fractary/config.yaml
 ```
 
 ### Review logs
@@ -631,7 +626,7 @@ plugins/faber/skills/core/scripts/diagnostics.sh --verbose
 
 ```bash
 # Configuration status
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/plugins/faber/config.json
+plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
 
 # State status
 plugins/faber/skills/core/scripts/state-validate.sh .fractary/plugins/faber/state.json
@@ -661,7 +656,7 @@ When reporting issues, include:
 
 3. **Configuration (sanitized):**
    ```bash
-   cat .fractary/plugins/faber/config.json | jq 'del(.integrations.tokens)' > config-sanitized.json
+   yq 'del(.faber.integrations.tokens)' .fractary/config.yaml > config-sanitized.yaml
    ```
 
 4. **State (if relevant):**
@@ -697,7 +692,7 @@ When reporting issues, include:
 
 1. **Use version control for configuration:**
    ```bash
-   git add .fractary/plugins/faber/config.json
+   git add .fractary/config.yaml
    git commit -m "docs: update FABER configuration"
    ```
 
@@ -719,7 +714,7 @@ When reporting issues, include:
 
 5. **Validate after configuration changes:**
    ```bash
-   plugins/faber/skills/core/scripts/config-validate.sh .fractary/plugins/faber/config.json
+   plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
    ```
 
 ---

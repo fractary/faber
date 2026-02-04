@@ -46,7 +46,7 @@ Errors related to FABER configuration files and settings.
 **Category:** Configuration
 
 **Description:**
-The FABER configuration file `.fractary/plugins/faber/config.json` does not exist.
+The FABER configuration (the `faber:` section in `.fractary/config.yaml`) does not exist.
 
 **Common Causes:**
 - First time using FABER in this project
@@ -76,16 +76,16 @@ The configuration file exists but contains invalid JSON syntax.
 - Missing commas, brackets, or quotes
 
 **Recovery:**
-1. Validate JSON syntax using a JSON validator
+1. Validate YAML syntax using a YAML validator
 2. Restore from template if errors are extensive
-3. Check `.fractary/plugins/faber/backups/` for recent backups
+3. Check `.fractary/backups/` for recent backups
 
 ```bash
 # Validate configuration
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/plugins/faber/config.json
+plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
 
-# Restore from template
-cp plugins/faber/config/templates/standard.json .fractary/plugins/faber/config.json
+# Restore faber section from template
+# (Copy the faber: section from plugins/faber/config/templates/standard.yaml)
 ```
 
 ---
@@ -107,7 +107,7 @@ The configuration file is valid JSON but does not conform to the FABER configura
 **Recovery:**
 ```bash
 # Get detailed validation errors
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/plugins/faber/config.json
+plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
 
 # Review error output and fix issues
 # Reference: plugins/faber/config/config.schema.json
@@ -131,10 +131,11 @@ A required field is missing from the configuration.
 - `integrations` (object)
 
 **Recovery:**
-Add the missing field or use a complete template:
+Add the missing field or restore the faber section from a template:
 
 ```bash
-cp plugins/faber/config/templates/standard.json .fractary/plugins/faber/config.json
+# Copy the faber: section from plugins/faber/config/templates/standard.yaml
+# into your .fractary/config.yaml
 ```
 
 ---
@@ -154,7 +155,7 @@ The autonomy level in configuration is not one of the valid values.
 - `autonomous` - Execute all phases without human approval
 
 **Recovery:**
-Edit `.fractary/plugins/faber/config.json` and set `workflows[].autonomy.level` to one of the valid values above.
+Edit the `faber:` section in `.fractary/config.yaml` and set `workflows[].autonomy.level` to one of the valid values above.
 
 ---
 
@@ -397,7 +398,7 @@ A configured hook script or document failed to execute successfully.
 - Hook path incorrect
 
 **Recovery:**
-1. Check hook configuration in `.fractary/plugins/faber/config.json`
+1. Check hook configuration in the `faber:` section of `.fractary/config.yaml`
 2. Verify hook script has execute permissions:
    ```bash
    chmod +x path/to/hook-script.sh
@@ -496,13 +497,11 @@ The work tracking plugin is not configured but is required for this operation.
 /fractary-work:init
 ```
 
-Then update FABER configuration to specify work plugin:
-```json
-{
-  "integrations": {
-    "work_plugin": "fractary-work"
-  }
-}
+Then update FABER configuration to specify work plugin in `.fractary/config.yaml`:
+```yaml
+faber:
+  integrations:
+    work_plugin: fractary-work
 ```
 
 ---
@@ -525,13 +524,11 @@ The repository plugin is not configured but is required for this operation.
 /fractary-repo:init
 ```
 
-Then update FABER configuration to specify repo plugin:
-```json
-{
-  "integrations": {
-    "repo_plugin": "fractary-repo"
-  }
-}
+Then update FABER configuration to specify repo plugin in `.fractary/config.yaml`:
+```yaml
+faber:
+  integrations:
+    repo_plugin: fractary-repo
 ```
 
 ---
@@ -741,8 +738,8 @@ echo "$RECOVERY"
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Check for configuration
-if [ ! -f ".fractary/plugins/faber/config.json" ]; then
+# Check for configuration (unified YAML)
+if [ ! -f ".fractary/config.yaml" ]; then
     "$SCRIPT_DIR/error-report.sh" FABER-001
     exit 1
 fi

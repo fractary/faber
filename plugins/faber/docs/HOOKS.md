@@ -37,23 +37,21 @@ FABER v2.0 provides **10 phase-level hooks** (pre/post for each of 5 phases) for
 
 ## Hook Structure
 
-Hooks are defined in `.fractary/plugins/faber/config.json`:
+Hooks are defined in the `faber:` section of `.fractary/config.yaml`:
 
-```json
-{
-  "hooks": {
-    "pre_frame": [],
-    "post_frame": [],
-    "pre_architect": [],
-    "post_architect": [],
-    "pre_build": [],
-    "post_build": [],
-    "pre_evaluate": [],
-    "post_evaluate": [],
-    "pre_release": [],
-    "post_release": []
-  }
-}
+```yaml
+faber:
+  hooks:
+    pre_frame: []
+    post_frame: []
+    pre_architect: []
+    post_architect: []
+    pre_build: []
+    post_build: []
+    pre_evaluate: []
+    post_evaluate: []
+    pre_release: []
+    post_release: []
 ```
 
 ## Hook Types

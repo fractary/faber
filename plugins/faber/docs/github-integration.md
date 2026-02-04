@@ -143,23 +143,18 @@ Add your Claude Code OAuth token to repository secrets:
 
 ### 3. Create FABER Configuration
 
-Create `.fractary/plugins/faber/config.json` in your repository:
+Create or update `.fractary/config.yaml` in your repository with a `faber:` section:
 
-```json
-{
-  "schema_version": "2.0",
-  "workflows": [
-    {
-      "id": "default",
-      "file": "./workflows/default.json",
-      "description": "Standard FABER workflow"
-    }
-  ],
-  "integrations": {
-    "work_plugin": "fractary-work",
-    "repo_plugin": "fractary-repo"
-  }
-}
+```yaml
+faber:
+  schema_version: "2.0"
+  workflows:
+    - id: default
+      file: ./workflows/default.json
+      description: Standard FABER workflow
+  integrations:
+    work_plugin: fractary-work
+    repo_plugin: fractary-repo
 ```
 
 **Quick setup:**
@@ -168,7 +163,7 @@ Create `.fractary/plugins/faber/config.json` in your repository:
 /fractary-faber:configure
 
 # Commit configuration
-git add .fractary/plugins/faber/
+git add .fractary/config.yaml
 git commit -m "Add FABER configuration"
 git push
 ```
@@ -196,7 +191,7 @@ Control automation level in your workflow configuration:
 | `guarded` | Approval gates | Pauses at Release for approval |
 | `autonomous` | Fully automated | Creates PR without pausing |
 
-Configure in `.fractary/plugins/faber/workflows/default.json`:
+Configure in the `faber:` section of `.fractary/config.yaml` or in referenced workflow files:
 
 ```json
 {
@@ -400,7 +395,7 @@ permissions:
 **Solution:**
 ```bash
 /fractary-faber:configure
-git add .fractary/plugins/faber/
+git add .fractary/config.yaml
 git commit -m "Add FABER configuration"
 git push
 ```
