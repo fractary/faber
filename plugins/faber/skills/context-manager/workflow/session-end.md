@@ -36,8 +36,8 @@ Output: Success message
 ```
 IF --run-id parameter provided:
   run_id = --run-id
-ELSE IF .fractary/faber/.active-run-id exists:
-  run_id = read(.fractary/faber/.active-run-id)
+ELSE IF .fractary/faber/runs/.active-run-id exists:
+  run_id = read(.fractary/faber/runs/.active-run-id)
 ELSE:
   PRINT "No active workflow found"
   EXIT 0 (gracefully, not an error)
@@ -276,8 +276,8 @@ PRINT "  Artifacts loaded: {length(current_session.artifacts_loaded)}"
 def session_end(run_id=None, reason="manual"):
     # Step 1: Detect Active Workflow
     if run_id is None:
-        if exists(".fractary/faber/.active-run-id"):
-            run_id = read(".fractary/faber/.active-run-id").strip()
+        if exists(".fractary/faber/runs/.active-run-id"):
+            run_id = read(".fractary/faber/runs/.active-run-id").strip()
         else:
             print("ℹ️  No active workflow found")
             return 0
@@ -385,7 +385,7 @@ def get_environment():
 ## Testing Checklist
 
 - [ ] Works with --run-id parameter
-- [ ] Works with .fractary/faber/.active-run-id auto-detection
+- [ ] Works with .fractary/faber/runs/.active-run-id auto-detection
 - [ ] Gracefully handles no active workflow
 - [ ] Handles missing state file with clear error
 - [ ] Handles corrupted JSON with clear error
@@ -426,7 +426,7 @@ def get_environment():
 - `.fractary/faber/runs/{run_id}/state.json` - Session metadata
 
 **Reads**:
-- `.fractary/faber/.active-run-id` - Active workflow detection
+- `.fractary/faber/runs/.active-run-id` - Active workflow detection
 
 **Coordinates with**:
 - `/fractary-faber:prime-context` - Session start (opposite operation)

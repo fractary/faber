@@ -51,8 +51,8 @@ else if work_id_parameter:
   run_id = find_latest_run_by_work_id(work_id_parameter)
 else:
   # Use active workflow
-  if exists(".fractary/faber/.active-run-id"):
-    run_id = read(".fractary/faber/.active-run-id").strip()
+  if exists(".fractary/faber/runs/.active-run-id"):
+    run_id = read(".fractary/faber/runs/.active-run-id").strip()
   else:
     ERROR "No run ID or work ID specified, and no active workflow found"
     PRINT "Usage: /fractary-faber:workflow-debugger --work-id <id>"

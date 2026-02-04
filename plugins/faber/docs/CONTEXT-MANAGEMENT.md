@@ -146,7 +146,7 @@ SESSION 1                    COMPACTION EVENT              SESSION 2
 
 **Design Limitation**: FABER supports **one active workflow per git worktree** at a time.
 
-**Why**: Hooks use a single `.fractary/faber/.active-run-id` file to track which workflow is active. Multiple workflows in the same worktree would conflict.
+**Why**: Hooks use a single `.fractary/faber/runs/.active-run-id` file to track which workflow is active. Multiple workflows in the same worktree would conflict.
 
 **Solution for Concurrent Workflows**: Use **git worktrees**:
 
@@ -176,12 +176,12 @@ Recommendation: Use separate worktrees for concurrent workflows
 
 ### Cross-Environment Workflow Continuity
 
-The `.fractary/faber/.active-run-id` file enables workflows to resume across machines:
+The `.fractary/faber/runs/.active-run-id` file enables workflows to resume across machines:
 
 **On Machine A**:
 ```bash
 /fractary-faber:workflow-run <plan-id>
-# Creates: .fractary/faber/.active-run-id
+# Creates: .fractary/faber/runs/.active-run-id
 # Workflow progresses through Frame, Architect phases
 ```
 
@@ -193,7 +193,7 @@ git pull  # Syncs .active-run-id and state files
 # Continue workflow seamlessly
 ```
 
-**Important**: Commit `.fractary/faber/.active-run-id` to git (not in `.gitignore`) for cross-environment continuity.
+**Important**: Commit `.fractary/faber/runs/.active-run-id` to git (not in `.gitignore`) for cross-environment continuity.
 
 ## Quick Start
 

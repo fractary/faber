@@ -12,7 +12,7 @@ Reloads critical artifacts for an active or resuming FABER workflow to ensure al
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `run_id` | string | No | Specific run ID to reload. If omitted, auto-detects from `.fractary/faber/.active-run-id` or searches for active workflows |
+| `run_id` | string | No | Specific run ID to reload. If omitted, auto-detects from `.fractary/faber/runs/.active-run-id` or searches for active workflows |
 | `trigger` | string | No | What triggered this reload: `session_start`, `manual`, `phase_start`. Default: `manual` |
 | `artifacts` | string | No | Comma-separated list of specific artifact IDs to load. If omitted, loads all configured artifacts |
 | `force` | boolean | No | Force reload even if recently loaded. Default: false |
@@ -24,14 +24,14 @@ Reloads critical artifacts for an active or resuming FABER workflow to ensure al
 
 **Priority order:**
 1. If `run_id` parameter provided → Use it directly
-2. Else if `.fractary/faber/.active-run-id` exists → Read run ID from file
+2. Else if `.fractary/faber/runs/.active-run-id` exists → Read run ID from file
 3. Else search `.fractary/faber/runs/` for state.json files with status "in_progress" or "paused"
    - If none found: Return error "No active workflow found"
    - If one found: Use that run_id
    - If multiple found: Prompt user to select which workflow
 
 **Active run ID file format:**
-- Path: `.fractary/faber/.active-run-id`
+- Path: `.fractary/faber/runs/.active-run-id`
 - Content: Single line containing run ID (e.g., `fractary-faber-258-20260105-143022`)
 
 ### Step 2: Load State and Workflow Config

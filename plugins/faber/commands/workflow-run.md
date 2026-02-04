@@ -401,14 +401,14 @@ await Write({
 This enables hooks (PreCompact, SessionStart, SessionEnd) to know which workflow to operate on without requiring explicit run_id parameters.
 
 ```javascript
-// Ensure .fractary/faber directory exists
+// Ensure .fractary/faber/runs directory exists
 await Bash({
-  command: "mkdir -p .fractary/faber",
-  description: "Create faber tracking directory"
+  command: "mkdir -p .fractary/faber/runs",
+  description: "Create faber runs directory"
 });
 
 // Check if another workflow is active
-const activeRunIdPath = ".fractary/faber/.active-run-id";
+const activeRunIdPath = ".fractary/faber/runs/.active-run-id";
 let existingRunId = null;
 
 try {
