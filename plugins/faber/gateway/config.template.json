@@ -8,7 +8,7 @@
       "enabled": true,
       "description": "Store events in local filesystem",
       "config": {
-        "base_path": ".fractary/plugins/faber/runs",
+        "base_path": ".fractary/faber/runs",
         "sync_writes": true
       }
     },

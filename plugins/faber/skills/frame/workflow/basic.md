@@ -176,7 +176,7 @@ The repo-manager will:
 **Benefits of Worktree Execution**:
 - Prevents workflow interference (can run #123, pause, run #124 without conflicts)
 - Enables resume (restarting #123 reuses same worktree)
-- Isolates state files (each worktree has own `.fractary/plugins/faber/state.json`)
+- Isolates state files (each worktree has own `.fractary/faber/state.json`)
 - Stays within Claude's working directory scope (`.worktrees/` is subfolder, not parallel dir)
 
 **Store Branch Information**:
@@ -237,7 +237,7 @@ EOF
 "$CORE_SKILL/state-update-phase.sh" "frame" "completed" "$FRAME_DATA"
 ```
 
-This stores all Frame results in `.fractary/plugins/faber/state.json` for use by subsequent phases.
+This stores all Frame results in `.fractary/faber/state.json` for use by subsequent phases.
 
 ### Step 7: Post Frame Complete Notification
 
@@ -305,7 +305,7 @@ Frame phase succeeds when:
 
 ### State Update Failure
 - **Action**: Log error, retry once, exit with code 1 if persistent
-- **Recovery**: Check state file permissions and ensure `.fractary/plugins/faber/` directory exists
+- **Recovery**: Check state file permissions and ensure `.fractary/faber/` directory exists
 
 ## Configuration
 

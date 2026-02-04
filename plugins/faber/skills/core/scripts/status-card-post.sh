@@ -38,7 +38,7 @@ if [ "$POST_STATUS_CARDS" != "true" ]; then
 fi
 
 # Load workflow state to get context
-STATE_FILE=".fractary/plugins/faber/state.json"
+STATE_FILE=".fractary/faber/state.json"
 
 if [ ! -f "$STATE_FILE" ]; then
     echo "Warning: State file not found, posting without workflow context" >&2

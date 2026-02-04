@@ -24,7 +24,7 @@ Use **Task** tool with `fractary-faber:workflow-engineer` agent to update an exi
 **Workflow Location**:
 The agent searches for workflows in:
 1. `.fractary/faber/workflows/<name>.json`
-2. `.fractary/plugins/faber/workflows/<name>.json`
+2. `.fractary/faber/workflows/<name>.json`
 3. Plugin marketplace workflows
 
 ```

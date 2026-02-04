@@ -33,7 +33,7 @@ SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FABER_ROOT="$(cd "$SKILL_ROOT/../.." && pwd)"
 
 # Default knowledge base location
-KB_PATH="${KB_PATH:-.fractary/plugins/faber/debugger/knowledge-base}"
+KB_PATH="${KB_PATH:-.fractary/faber/debugger/knowledge-base}"
 INDEX_FILE="$KB_PATH/index.json"
 
 # =============================================================================

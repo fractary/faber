@@ -13,7 +13,7 @@
 set -euo pipefail
 
 TIMEOUT="${1:-30}"
-LOCK_FILE=".fractary/plugins/faber/state.json.lock"
+LOCK_FILE=".fractary/faber/state.json.lock"
 LOCK_DIR=$(dirname "$LOCK_FILE")
 
 # Create lock directory

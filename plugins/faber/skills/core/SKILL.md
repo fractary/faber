@@ -46,13 +46,13 @@ Reads the current FABER workflow state.
 ```
 
 **Parameters:**
-- `state_file`: Path to state file (`.fractary/plugins/faber/state.json`)
+- `state_file`: Path to state file (`.fractary/faber/state.json`)
 
 **Returns:** State JSON with workflow progress
 
 **Example:**
 ```bash
-state_json=$(./scripts/state-read.sh ".fractary/plugins/faber/state.json")
+state_json=$(./scripts/state-read.sh ".fractary/faber/state.json")
 ```
 
 ### Update Phase State
@@ -84,14 +84,14 @@ Writes the complete FABER workflow state.
 ```
 
 **Parameters:**
-- `state_file`: Path to state file (`.fractary/plugins/faber/state.json`)
+- `state_file`: Path to state file (`.fractary/faber/state.json`)
 - Input: State JSON via stdin
 
 **Returns:** Success/failure status
 
 **Example:**
 ```bash
-echo "$STATE_JSON" | ./scripts/state-write.sh ".fractary/plugins/faber/state.json"
+echo "$STATE_JSON" | ./scripts/state-write.sh ".fractary/faber/state.json"
 ```
 
 ### Post Status Card
@@ -218,8 +218,8 @@ Error messages are written to stderr, results to stdout.
 
 ## File Locations
 
-- **Config file**: `.fractary/plugins/faber/config.json` (v2.0)
-- **State file**: `.fractary/plugins/faber/state.json`
+- **Config file**: `.fractary/faber/config.json` (v2.0)
+- **State file**: `.fractary/faber/state.json`
 - **Logs**: Managed by `fractary-logs` plugin (workflow log type)
 - **Templates**: `skills/core/templates/`
 

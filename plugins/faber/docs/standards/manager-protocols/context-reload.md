@@ -99,7 +99,7 @@ ELSE
 ```bash
 function find_active_runs():
   runs = []
-  for state_file in glob(".fractary/runs/*/state.json"):
+  for state_file in glob(".fractary/faber/runs/*/state.json"):
     state = read(state_file)
     if state.status in ["in_progress", "paused", "awaiting_feedback"]:
       runs.append({
@@ -115,14 +115,14 @@ function find_active_runs():
 
 ```bash
 # Read run state
-RUN_DIR = ".fractary/runs/${target_run_id}"
+RUN_DIR = ".fractary/faber/runs/${target_run_id}"
 STATE_FILE = "${RUN_DIR}/state.json"
 
 # Validate run exists
 IF not file_exists(STATE_FILE) THEN
   ERROR: "Run not found: ${target_run_id}"
   ERROR: "Path: ${STATE_FILE}"
-  SUGGEST: "Check available runs: ls .fractary/runs/"
+  SUGGEST: "Check available runs: ls .fractary/faber/runs/"
   EXIT 1
 
 # Load and validate state
@@ -150,7 +150,7 @@ IF workflow_id.startsWith("fractary-faber:") THEN
   config_path = "plugins/faber/config/workflows/${workflow_name}.json"
 ELSE
   # Custom workflow
-  config_path = ".fractary/plugins/faber/workflows/${workflow_id}.json"
+  config_path = ".fractary/faber/workflows/${workflow_id}.json"
 
 workflow_config = read(config_path)
 
@@ -766,7 +766,7 @@ See **[HOOKS-SETUP.md](../HOOKS-SETUP.md)** for complete setup instructions.
 
 ### Updates
 
-- `.fractary/runs/{run_id}/state.json` - State metadata, session tracking, context metadata
+- `.fractary/faber/runs/{run_id}/state.json` - State metadata, session tracking, context metadata
 
 ### Reads
 

@@ -26,9 +26,9 @@ WORKFLOW_ID="${2:-default}"
 
 # Compute state file path
 if [ -n "$RUN_ID" ]; then
-    STATE_FILE=".fractary/plugins/faber/runs/$RUN_ID/state.json"
+    STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
 else
-    STATE_FILE="${3:-.fractary/plugins/faber/state.json}"
+    STATE_FILE="${3:-.fractary/faber/state.json}"
 fi
 
 # Create state directory if needed

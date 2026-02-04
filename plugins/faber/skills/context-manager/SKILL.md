@@ -80,7 +80,7 @@ Artifacts are configured per-workflow in the `critical_artifacts` section:
       {
         "id": "workflow-state",
         "type": "json",
-        "path": ".fractary/runs/{run_id}/state.json",
+        "path": ".fractary/faber/runs/{run_id}/state.json",
         "required": true,
         "reload_triggers": ["session_start", "manual"]
       }
@@ -118,7 +118,7 @@ Paths can include placeholders that are resolved at runtime:
 - `{project_root}` - Git repository root directory
 - `{work_id}` - Work item ID from state
 
-Example: `.fractary/runs/{run_id}/state.json` → `.fractary/runs/fractary-faber-258-20260104/state.json`
+Example: `.fractary/faber/runs/{run_id}/state.json` → `.fractary/faber/runs/fractary-faber-258-20260104/state.json`
 
 ## Load Triggers
 
@@ -189,7 +189,7 @@ The skill updates state.json with:
         "artifact_id": "workflow-state",
         "loaded_at": "2025-12-01T12:00:00Z",
         "load_trigger": "session_start",
-        "source": ".fractary/runs/xyz/state.json",
+        "source": ".fractary/faber/runs/xyz/state.json",
         "size_bytes": 4096
       }
     ]

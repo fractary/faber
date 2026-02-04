@@ -169,7 +169,7 @@ Errors related to workflow state management.
 **Category:** State
 
 **Description:**
-The workflow state file `.fractary/plugins/faber/state.json` does not exist when attempting to read or update state.
+The workflow state file `.fractary/faber/state.json` does not exist when attempting to read or update state.
 
 **Common Causes:**
 - No workflow has been started yet
@@ -203,8 +203,8 @@ The state file exists but contains invalid JSON syntax.
 **Recovery:**
 ```bash
 # Restore from most recent backup
-ls -lt .fractary/plugins/faber/backups/
-cp .fractary/plugins/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/plugins/faber/state.json
+ls -lt .fractary/faber/backups/
+cp .fractary/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/faber/state.json
 
 # If no backups available, start new workflow
 plugins/faber/skills/core/scripts/state-init.sh <work-id>
@@ -230,10 +230,10 @@ State file is corrupted. Restore from backup or start new workflow:
 
 ```bash
 # Check available backups
-ls -lt .fractary/plugins/faber/backups/
+ls -lt .fractary/faber/backups/
 
 # Restore from backup
-cp .fractary/plugins/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/plugins/faber/state.json
+cp .fractary/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/faber/state.json
 
 # Or reinitialize
 plugins/faber/skills/core/scripts/state-init.sh <work-id>
@@ -272,14 +272,14 @@ Unable to write to the state file.
 
 **Common Causes:**
 - Disk full
-- No write permissions on `.fractary/plugins/faber/`
+- No write permissions on `.fractary/faber/`
 - File system error
 - Directory does not exist
 
 **Recovery:**
 1. Check disk space: `df -h`
-2. Check permissions: `ls -la .fractary/plugins/faber/`
-3. Ensure directory exists: `mkdir -p .fractary/plugins/faber/`
+2. Check permissions: `ls -la .fractary/faber/`
+3. Ensure directory exists: `mkdir -p .fractary/faber/`
 
 ---
 

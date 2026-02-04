@@ -24,10 +24,10 @@ RUN_ID=""
 if [[ "${1:-}" == "--run-id" ]]; then
     RUN_ID="${2:?Run ID required with --run-id flag}"
     shift 2
-    STATE_FILE=".fractary/plugins/faber/runs/$RUN_ID/state.json"
+    STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
     JQ_QUERY="${1:-.}"
 else
-    STATE_FILE="${1:-.fractary/plugins/faber/state.json}"
+    STATE_FILE="${1:-.fractary/faber/state.json}"
     JQ_QUERY="${2:-.}"
 
     # Legacy: Shift if first arg is a jq query (starts with .)
@@ -36,7 +36,7 @@ else
     elif [[ "$STATE_FILE" == .* ]]; then
         # First arg is a query, use default file
         JQ_QUERY="$STATE_FILE"
-        STATE_FILE=".fractary/plugins/faber/state.json"
+        STATE_FILE=".fractary/faber/state.json"
     fi
 fi
 

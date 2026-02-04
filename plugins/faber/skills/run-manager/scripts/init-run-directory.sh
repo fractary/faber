@@ -6,7 +6,7 @@
 #   init-run-directory.sh --run-id <run_id> --work-id <work_id> [options]
 #
 # Creates the run directory structure:
-#   .fractary/plugins/faber/runs/{org}/{project}/{uuid}/
+#   .fractary/faber/runs/{org}/{project}/{uuid}/
 #   ├── state.json         # Initial workflow state
 #   ├── metadata.json      # Run metadata (params, timing, relations)
 #   └── events/
@@ -27,7 +27,7 @@ SOURCE_TYPE="github"
 PHASES=""
 PARENT_RUN_ID=""
 RERUN_OF=""
-BASE_PATH=".fractary/plugins/faber/runs"
+BASE_PATH=".fractary/faber/runs"
 
 print_usage() {
     cat <<EOF
@@ -47,7 +47,7 @@ Optional:
   --phases <phases>     Comma-separated phases to execute
   --parent-run <id>     Parent run ID (for resume)
   --rerun-of <id>       Original run ID (for rerun)
-  --base-path <path>    Base path for runs (default: .fractary/plugins/faber/runs)
+  --base-path <path>    Base path for runs (default: .fractary/faber/runs)
 
 Output:
   JSON object with initialization result

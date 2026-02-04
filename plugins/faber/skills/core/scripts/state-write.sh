@@ -22,9 +22,9 @@ LOCK_TIMEOUT=30  # seconds to wait for lock
 # Parse arguments
 if [[ "${1:-}" == "--run-id" ]]; then
     RUN_ID="${2:?Run ID required with --run-id flag}"
-    STATE_FILE=".fractary/plugins/faber/runs/$RUN_ID/state.json"
+    STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
 else
-    STATE_FILE="${1:-.fractary/plugins/faber/state.json}"
+    STATE_FILE="${1:-.fractary/faber/state.json}"
 fi
 
 LOCK_FILE="${STATE_FILE}.lock"

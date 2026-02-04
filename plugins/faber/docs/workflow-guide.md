@@ -217,7 +217,7 @@ Pull Request / Production
 3. Classify work type based on labels/content
 4. Generate branch name (e.g., `feat/123-add-authentication`)
 5. Create git branch from default branch
-6. Create state file (`.fractary/plugins/faber/state.json`)
+6. Create state file (`.fractary/faber/state.json`)
 7. Post Frame start status card
 8. Update state with Frame complete
 
@@ -587,7 +587,7 @@ FABER v2.0 uses a dual-state tracking approach for optimal workflow management:
 
 #### Current State
 
-**Location**: `.fractary/plugins/faber/state.json`
+**Location**: `.fractary/faber/state.json`
 
 **Purpose**:
 - Track current workflow state
@@ -685,7 +685,7 @@ See [STATE-TRACKING.md](STATE-TRACKING.md) for detailed implementation.
 /fractary-faber:status
 
 # Raw state file
-cat .fractary/plugins/faber/state.json
+cat .fractary/faber/state.json
 
 # View historical logs
 # (via fractary-logs plugin commands)
@@ -816,7 +816,7 @@ To approve:
 /fractary-faber:status abc12345
 
 # View state details
-cat .fractary/plugins/faber/state.json | jq .
+cat .fractary/faber/state.json | jq .
 
 # Fix issues manually
 

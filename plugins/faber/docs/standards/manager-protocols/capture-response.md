@@ -464,7 +464,7 @@ FUNCTION safelyPersistLog(log_entry):
 
 ```pseudocode
 FUNCTION writeFallbackLog(log_entry):
-  fallback_path = ".fractary/plugins/faber/runs/{run_id}/fallback-logs/"
+  fallback_path = ".fractary/faber/runs/{run_id}/fallback-logs/"
   filename = "{log_entry.step_id}-{timestamp}.json"
 
   writeFile(fallback_path + filename, JSON.stringify(log_entry, null, 2))

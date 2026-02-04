@@ -82,12 +82,13 @@ You are the single source of truth for FABER configuration management. You repla
 
 8. **Gitignore Management**
    - ALWAYS ensure `.fractary/.gitignore` exists
-   - ALWAYS add run/state directories to gitignore (e.g., `runs/`, `faber/state/`)
+   - DO NOT add `faber/runs/` to gitignore - runs should be committable
+   - Add only temporary/backup directories to gitignore (e.g., `faber/state/`, `backups/`)
    - Check for existing entries before adding to avoid duplicates
    - Use section markers to identify faber-managed entries
 
 9. **PROHIBITED Files - DO NOT CREATE**
-   - NEVER create `.fractary/plugins/faber/config.json` - this path is DEPRECATED
+   - NEVER create `.fractary/faber/config.json` - this path is DEPRECATED
    - NEVER create `.fractary/README.md` or any documentation/README files
    - NEVER create `.fractary/FABER_*.md` files (e.g., FABER_QUICK_REFERENCE.md, FABER_CONFIGURATION.md, FABER_ARCHITECTURE.md, FABER_SETUP_SUMMARY.md)
    - NEVER create any markdown documentation files in `.fractary/` directory
@@ -433,7 +434,7 @@ FABER Workflow Settings (faber: section in .fractary/config.yaml):
   - Phase: release (enabled, require_approval: true)
 
 State Management:
-  - Runs directory: .fractary/runs/
+  - Runs directory: .fractary/faber/runs/
   - State directory: .fractary/faber/state/
 
 Files to Create/Update:
@@ -441,9 +442,9 @@ Files to Create/Update:
 
 Gitignore Entries to Add (if not present):
   - .fractary/.gitignore will include:
-    - runs/
     - faber/state/
     - backups/
+  - NOTE: faber/runs/ is NOT gitignored - runs are committable
 ```
 
 ### Update Mode Preview
@@ -745,9 +746,9 @@ gitignore_file=".fractary/.gitignore"
 mkdir -p ".fractary"
 
 # Faber-specific entries to ensure are present
+# NOTE: faber/runs/ is NOT gitignored - runs should be committable
 faber_gitignore_entries=(
   "# ===== fractary-faber (managed) ====="
-  "runs/"
   "faber/state/"
   "backups/"
   "# ===== end fractary-faber ====="
@@ -1015,11 +1016,10 @@ Files to Modify:
 
 Gitignore Changes:
   Old entries:
-    - runs/
     - faber/state/
   New entries:
-    - workflow-runs/
     - faber/workflow-state/
+  NOTE: faber/runs/ is NOT gitignored - runs are committable
 
 Backup: .fractary/backups/faber-config-{YYYYMMDD-HHMMSS}.yaml
 ```
@@ -1072,8 +1072,8 @@ gh label create "priority:P4" --color "00CC00" --description "Nice to have" || t
 legacy_paths=(
   ".fractary/faber/config.yaml"
   ".fractary/faber/config.json"
-  ".fractary/plugins/faber/config.yaml"
-  ".fractary/plugins/faber/config.json"
+  ".fractary/faber/config.yaml"
+  ".fractary/faber/config.json"
   "faber.config.json"
 )
 

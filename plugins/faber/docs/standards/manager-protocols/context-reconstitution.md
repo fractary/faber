@@ -18,7 +18,7 @@ Execute these steps IN ORDER before any workflow step execution:
 
 ```bash
 # Read run state
-RUN_DIR=".fractary/plugins/faber/runs/${RUN_ID}"
+RUN_DIR=".fractary/faber/runs/${RUN_ID}"
 STATE_FILE="${RUN_DIR}/state.json"
 METADATA_FILE="${RUN_DIR}/metadata.json"
 
@@ -441,7 +441,7 @@ After reconstitution, output a brief summary for visibility:
 **For CRITICAL errors:**
 ```
 ❌ CRITICAL: Cannot reconstitute context
-Error: Run directory not found: .fractary/plugins/faber/runs/org/project/uuid
+Error: Run directory not found: .fractary/faber/runs/org/project/uuid
 Action: Verify run_id is correct or start a new run with /faber run <work_id>
 ```
 
@@ -494,10 +494,10 @@ This allows workflows to resume even with partial context, while critical errors
 - faber-manager agent (Step 0 before any workflow execution)
 
 **Reads From:**
-- `.fractary/plugins/faber/runs/{run_id}/state.json`
-- `.fractary/plugins/faber/runs/{run_id}/metadata.json`
-- `.fractary/plugins/faber/runs/{run_id}/events/`
-- `.fractary/plugins/faber/runs/{run_id}/session-summaries/` (cross-session context)
+- `.fractary/faber/runs/{run_id}/state.json`
+- `.fractary/faber/runs/{run_id}/metadata.json`
+- `.fractary/faber/runs/{run_id}/events/`
+- `.fractary/faber/runs/{run_id}/session-summaries/` (cross-session context)
 - Spec file (path from state.artifacts.spec_path)
 - Work plugin (issue fetch)
 - Git (branch inspection)

@@ -181,10 +181,10 @@ cat .claude/settings.json | jq '.hooks'
 2. Check state file was updated:
    ```bash
    # Find your most recent workflow run
-   ls -lt .fractary/runs/
+   ls -lt .fractary/faber/runs/
 
    # Check that session has ended_at timestamp
-   cat .fractary/runs/fractary-faber-XXX-YYYYMMDD-HHMMSS/state.json | jq '.sessions.session_history[-1].ended_at'
+   cat .fractary/faber/runs/fractary-faber-XXX-YYYYMMDD-HHMMSS/state.json | jq '.sessions.session_history[-1].ended_at'
    ```
 
 ## Hook Details
@@ -275,12 +275,12 @@ jq . .claude/settings.json
 cat .fractary/faber/.active-run-id
 
 # Check if state file exists
-ls -l .fractary/runs/$(cat .fractary/faber/.active-run-id)/state.json
+ls -l .fractary/faber/runs/$(cat .fractary/faber/.active-run-id)/state.json
 ```
 
 **Fix**:
 - Ensure workflow was started with `/fractary-faber:workflow-run` (creates `.active-run-id` file)
-- Verify state file is valid JSON: `jq . .fractary/runs/{run_id}/state.json`
+- Verify state file is valid JSON: `jq . .fractary/faber/runs/{run_id}/state.json`
 
 ### Context Still Lost After Compaction
 
@@ -289,10 +289,10 @@ ls -l .fractary/runs/$(cat .fractary/faber/.active-run-id)/state.json
 **Check**:
 ```bash
 # Check if artifacts were loaded
-cat .fractary/runs/$(cat .fractary/faber/.active-run-id)/state.json | jq '.context_metadata.artifacts_in_context'
+cat .fractary/faber/runs/$(cat .fractary/faber/.active-run-id)/state.json | jq '.context_metadata.artifacts_in_context'
 
 # Check if session was created
-cat .fractary/runs/$(cat .fractary/faber/.active-run-id)/state.json | jq '.sessions.current_session_id'
+cat .fractary/faber/runs/$(cat .fractary/faber/.active-run-id)/state.json | jq '.sessions.current_session_id'
 ```
 
 **Fix**:
@@ -308,7 +308,7 @@ cat .fractary/runs/$(cat .fractary/faber/.active-run-id)/state.json | jq '.sessi
 
 **Fix**:
 - Increase timeout in hook configuration: `"timeout": 120`
-- Check state file size: `ls -lh .fractary/runs/{run_id}/state.json`
+- Check state file size: `ls -lh .fractary/faber/runs/{run_id}/state.json`
 - Consider archiving old sessions if state file >1MB
 
 ## Manual Fallback

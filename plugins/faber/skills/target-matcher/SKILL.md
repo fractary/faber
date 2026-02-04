@@ -31,7 +31,7 @@ determines what type of entity the target represents and retrieves associated me
 Config is automatically loaded from (in order of preference):
 1. `.fractary/config.yaml` (unified config - faber.targets section)
 2. `.fractary/faber/config.yaml` (faber-specific)
-3. `.fractary/plugins/faber/config.json` (DEPRECATED)
+3. `.fractary/faber/config.json` (DEPRECATED)
 </INPUTS>
 
 <WORKFLOW>

@@ -87,7 +87,7 @@ Steps:
 ```
 
 ───────────────────────────────────────
-Diagnosis logged to: .fractary/plugins/faber/debugger/logs/2025-12-05.log
+Diagnosis logged to: .fractary/faber/debugger/logs/2025-12-05.log
 GitHub comment: Added to issue #244
 ```
 
@@ -191,7 +191,7 @@ Type annotations in `src/auth.ts:45` are incorrect. The function returns `AuthRe
 
 Create detailed log entry for audit trail:
 
-**Log Location:** `.fractary/plugins/faber/debugger/logs/{YYYY-MM-DD}.log`
+**Log Location:** `.fractary/faber/debugger/logs/{YYYY-MM-DD}.log`
 
 **Log Format (JSONL):**
 ```json
@@ -236,7 +236,7 @@ Create detailed log entry for audit trail:
 
 **Write Operation:**
 ```bash
-LOG_DIR=".fractary/plugins/faber/debugger/logs"
+LOG_DIR=".fractary/faber/debugger/logs"
 LOG_FILE="$LOG_DIR/$(date +%Y-%m-%d).log"
 
 mkdir -p "$LOG_DIR"
@@ -290,7 +290,7 @@ Return summary of logging operations:
       "work_id": "244"
     },
     "log_file": {
-      "path": ".fractary/plugins/faber/debugger/logs/2025-12-05.log",
+      "path": ".fractary/faber/debugger/logs/2025-12-05.log",
       "entry_added": true
     },
     "kb_update": {
@@ -340,7 +340,7 @@ Return logging status:
   "details": {
     "terminal": "displayed",
     "github": "posted",
-    "log_file": ".fractary/plugins/faber/debugger/logs/2025-12-05.log"
+    "log_file": ".fractary/faber/debugger/logs/2025-12-05.log"
   }
 }
 ```

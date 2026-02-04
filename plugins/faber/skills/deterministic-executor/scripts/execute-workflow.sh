@@ -10,8 +10,8 @@
 #   ./execute-workflow.sh --plan <plan.json> --run-id <run-id> [--resume-from <step-index>]
 #
 # Example:
-#   ./execute-workflow.sh --plan logs/fractary/plugins/faber/plans/my-plan.json \
-#     --run-id "fractary/claude-plugins/abc123"
+#   ./execute-workflow.sh --plan .fractary/faber/runs/my-run-id/plan.json \
+#     --run-id "my-run-id"
 #
 
 # Note: Not using set -e because we need fine-grained control over error handling
@@ -107,7 +107,7 @@ if [[ -z "$RUN_ID" ]]; then
 fi
 
 # Setup paths
-RUNS_DIR="$PROJECT_ROOT/.fractary/plugins/faber/runs/$RUN_ID"
+RUNS_DIR="$PROJECT_ROOT/.fractary/faber/runs/$RUN_ID"
 EVENTS_DIR="$RUNS_DIR/events"
 STATE_FILE="$RUNS_DIR/state.json"
 LOG_FILE="$RUNS_DIR/executor.log"

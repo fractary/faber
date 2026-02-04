@@ -214,7 +214,7 @@ Ensure command is valid before returning:
 escaped_prompt=$(printf '%s' "$PROMPT" | sed "s/'/'\\\\''/g")
 
 # Validate workflow exists
-if ! jq -e ".phases.${RESUME_PHASE}" ".fractary/plugins/faber/workflows/${WORKFLOW_ID}.json" >/dev/null 2>&1; then
+if ! jq -e ".phases.${RESUME_PHASE}" ".fractary/faber/workflows/${WORKFLOW_ID}.json" >/dev/null 2>&1; then
   echo "Warning: Could not validate phase '$RESUME_PHASE' in workflow"
 fi
 ```

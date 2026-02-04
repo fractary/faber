@@ -155,7 +155,7 @@ Create a session summary for potential cross-session continuity.
 **Store summary:**
 
 The session summary is included in the build results returned to faber-manager. It will be saved to:
-`.fractary/plugins/faber/runs/{run_id}/session-summaries/session-{timestamp}.json`
+`.fractary/faber/runs/{run_id}/session-summaries/session-{timestamp}.json`
 
 ### Action 5: Return Checkpoint Results
 
@@ -272,7 +272,7 @@ fi
 
 **4. Session Summary Directory:**
 ```bash
-SUMMARY_DIR=".fractary/plugins/faber/runs/${RUN_ID}/session-summaries"
+SUMMARY_DIR=".fractary/faber/runs/${RUN_ID}/session-summaries"
 
 # Ensure directory exists
 if ! mkdir -p "$SUMMARY_DIR" 2>/dev/null; then

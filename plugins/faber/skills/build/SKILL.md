@@ -276,7 +276,7 @@ After build completes, verify checkpoint actions:
 grep "✅ Complete" specs/WORK-*-test.md
 
 # Check session summary was created
-ls -la .fractary/plugins/faber/runs/*/session-summaries/
+ls -la .fractary/faber/runs/*/session-summaries/
 
 # Check progress comment was posted
 gh issue view <work_id> --comments

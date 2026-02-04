@@ -323,7 +323,7 @@ Artifacts in `always_load` are loaded every time context is reloaded:
     {
       "id": "workflow-state",
       "type": "json",
-      "path": ".fractary/runs/{run_id}/state.json",
+      "path": ".fractary/faber/runs/{run_id}/state.json",
       "description": "Current workflow state - essential for continuation",
       "required": true,
       "reload_triggers": ["session_start", "manual"]
@@ -415,11 +415,11 @@ Artifact paths can include placeholders that are resolved at runtime:
 
 ```json
 {
-  "path": ".fractary/runs/{run_id}/state.json"
+  "path": ".fractary/faber/runs/{run_id}/state.json"
 }
 ```
 
-Resolves to: `.fractary/runs/fractary-faber-258-20260104/state.json`
+Resolves to: `.fractary/faber/runs/fractary-faber-258-20260104/state.json`
 
 **Why this matters**: Path placeholders enable workflows to be portable across different environments and machines. State files can reference artifacts using placeholders, and they'll resolve correctly regardless of the absolute path.
 
@@ -559,7 +559,7 @@ Context metadata tracks what artifacts are currently in context:
         "artifact_id": "workflow-state",
         "loaded_at": "2026-01-05T14:30:00Z",
         "load_trigger": "manual",
-        "source": ".fractary/runs/fractary-faber-258-20260104/state.json",
+        "source": ".fractary/faber/runs/fractary-faber-258-20260104/state.json",
         "size_bytes": 4096
       },
       {
@@ -731,12 +731,12 @@ Always use placeholders instead of absolute paths:
 ```json
 // ✅ Good - Portable across environments
 {
-  "path": ".fractary/runs/{run_id}/state.json"
+  "path": ".fractary/faber/runs/{run_id}/state.json"
 }
 
 // ❌ Bad - Breaks on different machines
 {
-  "path": "/home/user/projects/myapp/.fractary/runs/fractary-faber-258/state.json"
+  "path": "/home/user/projects/myapp/.fractary/faber/runs/fractary-faber-258/state.json"
 }
 ```
 
@@ -792,7 +792,7 @@ This helps debug context issues without actually loading artifacts.
 **Solutions**:
 ```bash
 # 1. Check for available runs
-ls .fractary/runs/
+ls .fractary/faber/runs/
 
 # 2. If runs exist, specify run ID explicitly
 /fractary-faber:session-load --run-id fractary-faber-258-20260104
@@ -821,10 +821,10 @@ Path: specs/WORK-00258.md
 ls -la specs/WORK-00258.md
 
 # 2. Check state for path information
-cat .fractary/runs/{run_id}/state.json | jq '.artifacts.spec_path'
+cat .fractary/faber/runs/{run_id}/state.json | jq '.artifacts.spec_path'
 
 # 3. If using path_from_state, verify state field exists
-cat .fractary/runs/{run_id}/state.json | jq '.artifacts'
+cat .fractary/faber/runs/{run_id}/state.json | jq '.artifacts'
 
 # 4. If spec doesn't exist yet, mark as optional in config
 # Edit workflow config: "required": false
@@ -835,7 +835,7 @@ cat .fractary/runs/{run_id}/state.json | jq '.artifacts'
 **Error**:
 ```
 ❌ ERROR: Cannot read state file
-Path: .fractary/runs/{run_id}/state.json
+Path: .fractary/faber/runs/{run_id}/state.json
 Error: Invalid JSON at line 42
 ```
 
@@ -847,13 +847,13 @@ Error: Invalid JSON at line 42
 **Solutions**:
 ```bash
 # 1. Check for backup
-ls -la .fractary/runs/{run_id}/state.backup.json
+ls -la .fractary/faber/runs/{run_id}/state.backup.json
 
 # 2. Restore from backup if available
-cp .fractary/runs/{run_id}/state.backup.json .fractary/runs/{run_id}/state.json
+cp .fractary/faber/runs/{run_id}/state.backup.json .fractary/faber/runs/{run_id}/state.json
 
 # 3. Validate JSON syntax
-cat .fractary/runs/{run_id}/state.json | jq '.'
+cat .fractary/faber/runs/{run_id}/state.json | jq '.'
 
 # 4. If no backup, manually fix JSON errors
 # Open in editor and fix syntax issues

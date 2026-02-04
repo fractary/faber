@@ -20,11 +20,11 @@ This simplicity is by design - so simple it can't fail.
 </CONTEXT>
 
 <CRITICAL_RULES>
-1. **READ PLAN** - Load plan from `logs/fractary/plugins/faber/plans/{plan_id}.json`
+1. **READ PLAN** - Load plan from `.fractary/faber/runs/{plan_id}/plan.json`
 2. **SPAWN MANAGERS** - Use Task tool to invoke faber-manager for each item
 3. **FAIL-SAFE** - If one item fails, continue others, aggregate at end
 4. **NO PLANNING** - You execute existing plans, you don't create them
-5. **LOG RUNS** - Save run state to `logs/fractary/plugins/faber/runs/{plan_id}/`
+5. **LOG RUNS** - Save run state to `.fractary/faber/runs/{plan_id}/`
 </CRITICAL_RULES>
 
 <INPUTS>
@@ -49,14 +49,14 @@ if plan_id contains ".." or "/" or "\" or special characters:
   ERROR: Invalid plan_id format
 ```
 
-Read plan from `logs/fractary/plugins/faber/plans/{plan_id}.json`
+Read plan from `.fractary/faber/runs/{plan_id}/plan.json`
 
 If not found, error:
 ```
 ❌ Plan not found: {plan_id}
 
 Check available plans:
-  ls logs/fractary/plugins/faber/plans/
+  ls .fractary/faber/runs/
 ```
 
 ## Step 2: Filter Items (if --items specified)
@@ -75,7 +75,7 @@ items_to_run = plan.items
 If `resume` is true:
 ```
 For each item in items_to_run:
-  state_path = "logs/fractary/plugins/faber/runs/{plan_id}/items/{item.work_id}/state.json"
+  state_path = ".fractary/faber/runs/{plan_id}/items/{item.work_id}/state.json"
 
   IF state file exists:
     state = read(state_path)
@@ -253,7 +253,7 @@ Check individual errors above for details.
 ❌ Plan not found: invalid-plan-id
 
 Check available plans:
-  ls logs/fractary/plugins/faber/plans/
+  ls .fractary/faber/runs/
 
 Or create a new plan:
   /fractary-faber:plan --work-id 123
@@ -302,7 +302,7 @@ Complexity is in the planning phase (faber-planner).
 The `--resume` flag enables resuming execution from the **exact step** where it stopped:
 
 **How it works:**
-1. Load state from `logs/fractary/plugins/faber/runs/{plan_id}/items/{work_id}/state.json`
+1. Load state from `.fractary/faber/runs/{plan_id}/items/{work_id}/state.json`
 2. Extract `current_phase` and `current_step_index`
 3. Pass resume context to faber-manager
 4. Manager skips completed steps, continues from exact position
@@ -341,19 +341,24 @@ This uses the existing `/repo:pr-merge --worktree-cleanup` behavior.
 
 ## Storage Structure
 
-**Plans:** `logs/fractary/plugins/faber/plans/{plan_id}.json`
-- One file per plan
-- Created by faber-planner
-- Updated by faber-executor with execution results
+**All run files consolidated in:** `.fractary/faber/runs/{run_id}/`
 
-**Runs:** `logs/fractary/plugins/faber/runs/{plan_id}/`
-- Directory per plan execution
-- Contains per-item state files: `items/{work_id}/state.json`
-- Contains aggregate state: `aggregate.json`
+- `plan.json` - Execution plan created by faber-planner
+- `state.json` - Workflow state, updated during execution
+- `items/{work_id}/state.json` - Per-item state files
+- `aggregate.json` - Aggregate state
 
 **Lookup by issue:**
-- Issue labels contain `faber:plan={plan_id}`
-- Find plan_id from issue → load state from `runs/{plan_id}/items/{work_id}/`
+- Issue labels contain `faber:run={run_id}`
+- Find run_id from issue → load files from `.fractary/faber/runs/{run_id}/`
+
+**CLI commands for paths:**
+```bash
+fractary-faber runs dir              # Base runs directory
+fractary-faber runs dir {run_id}     # Specific run directory
+fractary-faber runs plan-path {run_id}   # Path to plan.json
+fractary-faber runs state-path {run_id}  # Path to state.json
+```
 
 ## Integration
 

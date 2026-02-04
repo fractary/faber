@@ -41,7 +41,7 @@ Check that the update request is valid:
 Retrieve the original debug session:
 
 ```bash
-LOG_FILE=".fractary/plugins/faber/debugger/logs/$(date +%Y-%m-%d).log"
+LOG_FILE=".fractary/faber/debugger/logs/$(date +%Y-%m-%d).log"
 SESSION_DATA=$(grep "$DIAGNOSIS_ID" "$LOG_FILE")
 ```
 
@@ -280,7 +280,7 @@ esac
 Save the entry to the knowledge base:
 
 ```bash
-KB_PATH=".fractary/plugins/faber/debugger/knowledge-base"
+KB_PATH=".fractary/faber/debugger/knowledge-base"
 ENTRY_DIR="$KB_PATH/$CATEGORY"
 ENTRY_FILE="$ENTRY_DIR/$KB_ID-$SLUG.md"
 
@@ -379,7 +379,7 @@ IF entry file exists at path:
 IF cannot write to KB directory:
   Log error
   Return failure with suggested fix:
-    "Check permissions on .fractary/plugins/faber/debugger/"
+    "Check permissions on .fractary/faber/debugger/"
 ```
 
 ## Output
@@ -392,7 +392,7 @@ IF cannot write to KB directory:
     "kb_id": "faber-debug-048",
     "category": "build",
     "issue_pattern": "Type mismatch in implementation",
-    "path": ".fractary/plugins/faber/debugger/knowledge-base/build/faber-debug-048-type-mismatch.md"
+    "path": ".fractary/faber/debugger/knowledge-base/build/faber-debug-048-type-mismatch.md"
   }
 }
 ```

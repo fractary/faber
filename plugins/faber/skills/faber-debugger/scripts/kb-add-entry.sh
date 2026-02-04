@@ -32,7 +32,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Default knowledge base location
-KB_PATH="${KB_PATH:-.fractary/plugins/faber/debugger/knowledge-base}"
+KB_PATH="${KB_PATH:-.fractary/faber/debugger/knowledge-base}"
 INDEX_FILE="$KB_PATH/index.json"
 LOCK_FILE="$INDEX_FILE.lock"
 

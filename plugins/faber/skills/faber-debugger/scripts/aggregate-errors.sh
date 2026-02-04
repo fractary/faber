@@ -75,7 +75,7 @@ fi
 validate_run_id "$RUN_ID"
 
 # Paths
-RUN_DIR=".fractary/plugins/faber/runs/$RUN_ID"
+RUN_DIR=".fractary/faber/runs/$RUN_ID"
 STATE_FILE="$RUN_DIR/state.json"
 EVENTS_FILE="$RUN_DIR/events.jsonl"
 

@@ -20,8 +20,8 @@ find_config_file() {
         ".fractary/config.yaml"
         ".fractary/faber/config.yaml"
         ".fractary/faber/config.json"
-        ".fractary/plugins/faber/config.yaml"
-        ".fractary/plugins/faber/config.json"
+        ".fractary/faber/config.yaml"
+        ".fractary/faber/config.json"
     )
     for p in "${paths[@]}"; do
         if [[ -f "$p" ]]; then

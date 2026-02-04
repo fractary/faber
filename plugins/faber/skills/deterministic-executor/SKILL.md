@@ -76,18 +76,18 @@ Initializes Claude session with workflow context, returns SESSION_ID.
 
 # Direct script execution (standard mode - one message per step)
 ./plugins/faber/skills/deterministic-executor/scripts/execute-workflow.sh \
-  --plan logs/fractary/plugins/faber/plans/my-plan.json \
+  --plan .fractary/faber/runs/my-plan.json \
   --run-id "fractary/claude-plugins/abc123"
 
 # Serialized input mode (all steps in single message)
 ./plugins/faber/skills/deterministic-executor/scripts/execute-workflow.sh \
-  --plan logs/fractary/plugins/faber/plans/my-plan.json \
+  --plan .fractary/faber/runs/my-plan.json \
   --run-id "fractary/claude-plugins/abc123" \
   --serialized-input
 
 # Resume from a specific step (after failure)
 ./plugins/faber/skills/deterministic-executor/scripts/execute-workflow.sh \
-  --plan logs/fractary/plugins/faber/plans/my-plan.json \
+  --plan .fractary/faber/runs/my-plan.json \
   --run-id "fractary/claude-plugins/abc123" \
   --resume-from 5
 ```

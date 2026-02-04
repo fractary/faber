@@ -253,7 +253,7 @@ autonomy = "guarded"
 - Manual state management
 
 **After (v2.0)**:
-- `.fractary/plugins/faber/state.json`
+- `.fractary/faber/state.json`
 - Current workflow state
 - Atomic updates via scripts
 - Automatic backups
@@ -373,7 +373,7 @@ Users with existing v1.x installations should:
    - Copy relevant settings from v1.x TOML
    - Validate new configuration:
      ```bash
-     plugins/faber/skills/core/scripts/config-validate.sh .fractary/plugins/faber/config.json
+     plugins/faber/skills/core/scripts/config-validate.sh .fractary/faber/config.json
      ```
 
 See `docs/MIGRATION-v2.md` for detailed migration guide.
@@ -421,7 +421,7 @@ All functionality is accessed via core scripts:
 
 **Validate Configuration**:
 ```bash
-./skills/core/scripts/config-validate.sh .fractary/plugins/faber/config.json
+./skills/core/scripts/config-validate.sh .fractary/faber/config.json
 ```
 
 **Check System Health**:

@@ -143,7 +143,7 @@ Create detailed analysis report.
 - Recommendations
 
 **Report Location:**
-`.fractary/plugins/faber/reviews/{work_id}-{timestamp}.md`
+`.fractary/faber/reviews/{work_id}-{timestamp}.md`
 
 ---
 
@@ -185,7 +185,7 @@ If configured, post summary to GitHub issue.
     "requirements_total": 8,
     "quality_issues": [],
     "test_coverage": 92,
-    "report_path": ".fractary/plugins/faber/reviews/233-20251205143000.md"
+    "report_path": ".fractary/faber/reviews/233-20251205143000.md"
   },
   "recommendation": "Ready for release"
 }
@@ -208,7 +208,7 @@ If configured, post summary to GitHub issue.
       {"severity": "minor", "description": "...", "location": "file:line"}
     ],
     "test_coverage": 85,
-    "report_path": ".fractary/plugins/faber/reviews/233-20251205143000.md"
+    "report_path": ".fractary/faber/reviews/233-20251205143000.md"
   },
   "recommendation": "Address minor issues before release"
 }
@@ -233,7 +233,7 @@ If configured, post summary to GitHub issue.
     ],
     "quality_issues": [...],
     "test_coverage": 0,
-    "report_path": ".fractary/plugins/faber/reviews/233-20251205143000.md"
+    "report_path": ".fractary/faber/reviews/233-20251205143000.md"
   },
   "recommendation": "Return to Build phase to address gaps"
 }
@@ -323,7 +323,7 @@ plugins/faber/skills/issue-reviewer/
 ## Reports
 
 Reports are saved to:
-`.fractary/plugins/faber/reviews/{work_id}-{timestamp}.md`
+`.fractary/faber/reviews/{work_id}-{timestamp}.md`
 
 Format: `{work_id}-{YYYYMMDDHHmmss}.md`
 

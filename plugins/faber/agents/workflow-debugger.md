@@ -58,13 +58,13 @@ else:
     PRINT "Usage: /fractary-faber:workflow-debugger --work-id <id>"
     EXIT 1
 
-state_path = ".fractary/runs/{run_id}/state.json"
+state_path = ".fractary/faber/runs/{run_id}/state.json"
 ```
 
 **Helper Function**: `find_latest_run_by_work_id(work_id)`
 ```
 # Search all state files for matching work_id
-state_files = glob(".fractary/runs/*/state.json")
+state_files = glob(".fractary/faber/runs/*/state.json")
 matching_runs = []
 
 for state_file in state_files:
@@ -185,7 +185,7 @@ CATCH:
 ```
 # If focusing on specific phase, read phase output/artifacts
 if phase_parameter:
-  phase_artifacts_path = ".fractary/runs/{run_id}/phases/{phase_parameter}/"
+  phase_artifacts_path = ".fractary/faber/runs/{run_id}/phases/{phase_parameter}/"
 
   if exists(phase_artifacts_path):
     phase_files = glob("{phase_artifacts_path}/*")
@@ -842,7 +842,7 @@ if escalate_mode:
     # Use gh CLI to create issue (using files and env vars to avoid ALL shell interpolation)
     TRY:
       # Write issue body AND title to temp files to completely avoid shell interpolation
-      temp_dir = ".fractary/runs/{run_id}/escalation/"
+      temp_dir = ".fractary/faber/runs/{run_id}/escalation/"
       ensure_directory_exists(temp_dir)
 
       temp_body_file = "{temp_dir}issue-body.md"
@@ -858,8 +858,8 @@ if escalate_mode:
       # Use a shell script that reads from files - NO variable interpolation in bash command
       # This completely avoids command injection as no user input is in the command string
       result = bash("""
-        ISSUE_TITLE=$(cat .fractary/runs/*/escalation/issue-title.txt 2>/dev/null | head -1)
-        ISSUE_BODY_FILE=$(ls .fractary/runs/*/escalation/issue-body.md 2>/dev/null | head -1)
+        ISSUE_TITLE=$(cat .fractary/faber/runs/*/escalation/issue-title.txt 2>/dev/null | head -1)
+        ISSUE_BODY_FILE=$(ls .fractary/faber/runs/*/escalation/issue-body.md 2>/dev/null | head -1)
 
         if [ -z "$ISSUE_TITLE" ] || [ -z "$ISSUE_BODY_FILE" ]; then
           echo "Error: Could not find issue title or body files"

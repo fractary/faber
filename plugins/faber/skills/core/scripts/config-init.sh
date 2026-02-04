@@ -45,7 +45,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FABER_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TEMPLATES_DIR="$FABER_ROOT/config/templates"
 WORKFLOWS_DIR="$FABER_ROOT/config/workflows"
-# DEPRECATED: .fractary/plugins/faber/config.json is no longer used
+# DEPRECATED: .fractary/faber/config.json is no longer used
 # FABER config is now stored in the 'faber:' section of .fractary/config.yaml
 # This script is DEPRECATED - use /fractary-faber:configure command instead
 DEFAULT_OUTPUT=".fractary/config.yaml"

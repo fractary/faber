@@ -21,7 +21,7 @@
 #   2 - Invalid input or usage error
 #
 # Example:
-#   validate-step-ids.sh .fractary/plugins/faber/workflows/default.json
+#   validate-step-ids.sh .fractary/faber/workflows/default.json
 #   validate-step-ids.sh --json '{"phases":{"build":{"steps":[{"id":"impl"}]}}}'
 
 set -euo pipefail

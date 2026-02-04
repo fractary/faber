@@ -573,7 +573,7 @@ FUNCTION displayReport(report, format):
 ```pseudocode
 FUNCTION saveReport(report, context):
   # Save to run directory
-  report_path = ".fractary/plugins/faber/runs/{context.run_id}/report.md"
+  report_path = ".fractary/faber/runs/{context.run_id}/report.md"
   writeFile(report_path, report)
 
   # Also save to workflow execution log

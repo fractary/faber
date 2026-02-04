@@ -57,7 +57,7 @@ vim .fractary/config.yaml  # Add/edit faber: section
 
 **Old locations (DEPRECATED - NO LONGER USED)**:
 ```
-.fractary/plugins/faber/     # Legacy location - migrate to .fractary/faber/
+.fractary/faber/     # Legacy location - migrate to .fractary/faber/
 .fractary/faber/config.yaml  # Legacy standalone config - use unified config instead
 .faber.config.toml           # v1.x location - no longer used
 ```
@@ -528,34 +528,36 @@ For complete documentation, see [RESULT-HANDLING.md](./RESULT-HANDLING.md).
 
 ### Storage Locations
 
-FABER stores operational artifacts in the `logs/` directory:
+FABER stores run artifacts in a consolidated directory structure:
 
 ```
-logs/fractary/plugins/faber/
-|-- plans/                   # Plan artifacts from /fractary-faber:plan
-|   |-- {plan-id}.json       # Individual plan files
-|-- runs/                    # Run state and events
-    |-- {run-id}/
-        |-- state.json       # Current workflow state
-        |-- metadata.json    # Run metadata
-        |-- events/          # Event log files
+.fractary/faber/runs/
+|-- {run-id}/
+    |-- plan.json        # Execution plan
+    |-- state.json       # Current workflow state
+    |-- metadata.json    # Run metadata
+    |-- events/          # Event log files
 ```
 
-**Why `logs/` instead of `.fractary/`?**
+**Why `.fractary/faber/runs/` is committable:**
 
-- `.fractary/` is for **committed configuration** (version controlled)
-- `logs/` is for **operational artifacts** (gitignored)
-- Plans and runs are operational data, not source code
-- Can be synced/archived via fractary-logs plugin
+- Enables workflow state persistence across sessions
+- Provides team visibility into workflow progress
+- Allows historical tracking of workflow runs
+- Use `fractary-faber runs` CLI commands to query paths
 
 ### Listing Plans
 
 ```bash
-# List available plans
-ls logs/fractary/plugins/faber/plans/
+# List available plans/runs
+ls .fractary/faber/runs/
 
 # View a specific plan
-cat logs/fractary/plugins/faber/plans/{plan-id}.json
+cat .fractary/faber/runs/{run-id}/plan.json
+
+# Use CLI for paths
+fractary-faber runs dir              # Base runs directory
+fractary-faber runs plan-path {id}   # Path to specific plan
 ```
 
 ### Plan Lifecycle
@@ -563,7 +565,7 @@ cat logs/fractary/plugins/faber/plans/{plan-id}.json
 1. **Created** by `/fractary-faber:plan` or `/fractary-faber:run`
 2. **Read** by `/fractary-faber:workflow-run`
 3. **Updated** with execution results
-4. **Archived** (optionally) via fractary-logs plugin
+4. **Committed** to git for team visibility and persistence
 
 ## See Also
 

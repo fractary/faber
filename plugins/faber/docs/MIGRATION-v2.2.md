@@ -79,7 +79,7 @@ If you're using the default workflow without modifications:
 
 2. **Delete local workflow copy** (if present):
    ```bash
-   rm .fractary/plugins/faber/workflows/default.json
+   rm .fractary/faber/workflows/default.json
    ```
 
 3. **Done!** The plugin's default workflow will be used directly.
@@ -189,7 +189,7 @@ If you have multiple custom workflows:
 
 ### 4. Workflow File Location
 
-**v2.1**: Workflow files copied to `.fractary/plugins/faber/workflows/`
+**v2.1**: Workflow files copied to `.fractary/faber/workflows/`
 
 **v2.2**: Plugin workflows accessed via namespace (e.g., `fractary-faber:default`)
 

@@ -141,7 +141,7 @@ Examples:
     ↓
 faber-planner agent (invoked via Task tool)
     ↓
-Plan artifact saved to logs/fractary/plugins/faber/plans/
+Plan artifact saved to .fractary/faber/runs/
     ↓
 User reviews plan
     ↓

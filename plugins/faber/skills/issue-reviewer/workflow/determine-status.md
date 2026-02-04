@@ -294,7 +294,7 @@ scripts/generate-report.sh \
 ```
 
 **Report saved to:**
-`.fractary/plugins/faber/reviews/{work_id}-{timestamp}.md`
+`.fractary/faber/reviews/{work_id}-{timestamp}.md`
 
 **Report Format:**
 ```markdown

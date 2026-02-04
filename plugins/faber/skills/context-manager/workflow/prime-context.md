@@ -25,7 +25,7 @@ Reloads critical artifacts for an active or resuming FABER workflow to ensure al
 **Priority order:**
 1. If `run_id` parameter provided → Use it directly
 2. Else if `.fractary/faber/.active-run-id` exists → Read run ID from file
-3. Else search `.fractary/runs/` for state.json files with status "in_progress" or "paused"
+3. Else search `.fractary/faber/runs/` for state.json files with status "in_progress" or "paused"
    - If none found: Return error "No active workflow found"
    - If one found: Use that run_id
    - If multiple found: Prompt user to select which workflow
@@ -36,11 +36,11 @@ Reloads critical artifacts for an active or resuming FABER workflow to ensure al
 
 ### Step 2: Load State and Workflow Config
 
-1. Read `.fractary/runs/{run_id}/state.json`
+1. Read `.fractary/faber/runs/{run_id}/state.json`
 2. Extract `workflow_id` from state
 3. Load workflow configuration:
    - If workflow_id starts with "fractary-faber:": Load from `plugins/faber/config/workflows/{name}.json`
-   - Otherwise: Load from `.fractary/plugins/faber/workflows/{name}.json`
+   - Otherwise: Load from `.fractary/faber/workflows/{name}.json`
 4. Extract `critical_artifacts` configuration
 
 Validate state integrity:
@@ -164,7 +164,7 @@ Update `state.json` with:
         "artifact_id": "workflow-state",
         "loaded_at": "<timestamp>",
         "load_trigger": "<trigger parameter value: session_start, manual, or phase_start>",
-        "source": ".fractary/runs/xyz/state.json",
+        "source": ".fractary/faber/runs/xyz/state.json",
         "size_bytes": 4096
       }
     ]
@@ -227,7 +227,7 @@ Context metadata:
 ```
 ❌ ERROR: Run not found
 Run ID: {run_id}
-Path: .fractary/runs/{run_id}/state.json
+Path: .fractary/faber/runs/{run_id}/state.json
 
 Recovery:
 1. List active runs: find .fractary/runs -name state.json
@@ -237,10 +237,10 @@ Recovery:
 **State file corrupted:**
 ```
 ❌ ERROR: Cannot read state file
-Path: .fractary/runs/{run_id}/state.json
+Path: .fractary/faber/runs/{run_id}/state.json
 
 Recovery:
-1. Check if backup exists: .fractary/runs/{run_id}/state.backup.json
+1. Check if backup exists: .fractary/faber/runs/{run_id}/state.backup.json
 2. Restore from backup if available
 ```
 
@@ -287,7 +287,7 @@ Workflow: fractary-faber:default
 Artifacts that would be loaded:
   ✓ workflow-state
     Type: json
-    Path: .fractary/runs/{run_id}/state.json
+    Path: .fractary/faber/runs/{run_id}/state.json
     Required: yes
     Exists: yes
     Size: 4.2 KB

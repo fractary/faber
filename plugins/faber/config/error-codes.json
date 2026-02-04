@@ -39,7 +39,7 @@
     "message": "Invalid JSON in state file",
     "severity": "error",
     "category": "state",
-    "recovery": "Restore from backup in .fractary/plugins/faber/backups/"
+    "recovery": "Restore from backup in .fractary/faber/backups/"
   },
   "FABER-102": {
     "message": "State schema validation failed",

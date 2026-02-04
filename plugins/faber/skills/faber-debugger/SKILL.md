@@ -350,11 +350,11 @@ This skill is complete when:
 
 ## Knowledge Base Structure
 
-Located at: `.fractary/plugins/faber/debugger/knowledge-base/`
+Located at: `.fractary/faber/debugger/knowledge-base/`
 
 **Directory Layout:**
 ```
-.fractary/plugins/faber/debugger/
+.fractary/faber/debugger/
 ├── config.json           # Debugger configuration
 ├── knowledge-base/
 │   ├── index.json        # Searchable index of all entries
@@ -441,11 +441,11 @@ The debugger can be invoked:
 
 ## Configuration
 
-`.fractary/plugins/faber/debugger/config.json`:
+`.fractary/faber/debugger/config.json`:
 ```json
 {
   "enabled": true,
-  "knowledge_base_path": ".fractary/plugins/faber/debugger/knowledge-base",
+  "knowledge_base_path": ".fractary/faber/debugger/knowledge-base",
   "auto_detect_errors": true,
   "create_specs_for_complex": true,
   "complex_threshold": 5,
@@ -486,6 +486,6 @@ plugins/faber/skills/faber-debugger/
 ## Debug Logs
 
 Session logs saved to:
-`.fractary/plugins/faber/debugger/logs/{YYYY-MM-DD}.log`
+`.fractary/faber/debugger/logs/{YYYY-MM-DD}.log`
 
 </DOCUMENTATION>

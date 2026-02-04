@@ -179,7 +179,7 @@ function extractPlanIdFromIssue(issue) {
 
 **Validation:**
 - If no `plan_id` resolved: Show error and usage
-- Plan file must exist at `logs/fractary/plugins/faber/plans/{plan_id}.json`
+- Plan file must exist at `.fractary/faber/runs/{plan_id}.json`
 - Cannot specify both `--phase` and `--step` simultaneously
 - If phase filter specified: validate phase names exist in workflow
 - If step filter specified: validate step IDs exist in workflow
@@ -232,7 +232,7 @@ Protocol: ${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/docs/workflow-orchest
 
 ```javascript
 // Read the plan file created by /fractary-faber:plan
-const planPath = `logs/fractary/plugins/faber/plans/${plan_id}.json`;
+const planPath = `.fractary/faber/runs/${plan_id}/plan.json`;
 const planContent = await Read({ file_path: planPath });
 const fullPlan = JSON.parse(planContent);
 
@@ -259,7 +259,7 @@ if (!resume_run_id && !force_new) {
 
   // Find all state files for this plan_id
   const findOutput = await Bash({
-    command: `find .fractary/runs -name "state.json" -type f 2>/dev/null || true`,
+    command: `find .fractary/faber/runs -name "state.json" -type f 2>/dev/null || true`,
     description: "Find all workflow state files"
   });
 
@@ -313,7 +313,7 @@ if (!resume_run_id && !force_new) {
 ```javascript
 // Resume from previous run
 const runId = resume_run_id;
-const statePath = `.fractary/runs/${runId}/state.json`;
+const statePath = `.fractary/faber/runs/${runId}/state.json`;
 
 // Read existing state
 const state = JSON.parse(await Read({ file_path: statePath }));
@@ -337,7 +337,7 @@ if (state.plan_id !== plan_id) {
 // Generate unique run ID
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
 const runId = `${plan_id}-run-${timestamp}`;
-const statePath = `.fractary/runs/${runId}/state.json`;
+const statePath = `.fractary/faber/runs/${runId}/state.json`;
 
 console.log("✓ Starting new workflow execution");
 console.log(`Run ID: ${runId}`);
@@ -372,7 +372,7 @@ const initialState = {
 
 // Create state directory
 await Bash({
-  command: `mkdir -p .fractary/runs/${runId}`,
+  command: `mkdir -p .fractary/faber/runs/${runId}`,
   description: "Create run directory"
 });
 
@@ -776,7 +776,7 @@ Run ID: default-123-1703001234567
 Total duration: 245s
 Phases completed: 5/5
 
-State file: .fractary/runs/default-123-1703001234567/state.json
+State file: .fractary/faber/runs/default-123-1703001234567/state.json
 ```
 
 **Failure with Resume Instructions:**
@@ -790,7 +790,7 @@ Error: Tests failed (3 failures)
 To resume after fixing:
   /fractary-faber:workflow-run 123 --resume default-123-1703001234567
 
-State file: .fractary/runs/default-123-1703001234567/state.json
+State file: .fractary/faber/runs/default-123-1703001234567/state.json
 ```
 
 **Missing Work ID Error:**
@@ -886,7 +886,7 @@ The orchestration protocol (`plugins/faber/docs/workflow-orchestration-protocol.
 
 ## State File Structure
 
-State is persisted to `.fractary/runs/{run_id}/state.json`:
+State is persisted to `.fractary/faber/runs/{run_id}/state.json`:
 
 ```json
 {
@@ -986,6 +986,6 @@ The protocol is comprehensive and prescriptive. Trust it.
 - `/fractary-faber:workflow-plan` - Resolve and merge workflow definitions
 - `plugins/faber/docs/workflow-orchestration-protocol.md` - Complete orchestration protocol
 - `plugins/faber/config/workflows/` - Workflow definitions
-- `.fractary/runs/{run-id}/state.json` - Workflow execution state
+- `.fractary/faber/runs/{run-id}/state.json` - Workflow execution state
 
 </SEE_ALSO>

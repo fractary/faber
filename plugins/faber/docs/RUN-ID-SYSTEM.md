@@ -46,7 +46,7 @@ The org and project are automatically detected:
 Each run gets its own isolated directory:
 
 ```
-.fractary/plugins/faber/runs/
+.fractary/faber/runs/
 └── {org}/
     └── {project}/
         └── {uuid}/
@@ -280,7 +280,7 @@ Re-run:
 
 ## Event Gateway
 
-Events are routed through the FABER Event Gateway, configured in `.fractary/plugins/faber/gateway.json`:
+Events are routed through the FABER Event Gateway, configured in `.fractary/faber/gateway.json`:
 
 ```json
 {
@@ -289,7 +289,7 @@ Events are routed through the FABER Event Gateway, configured in `.fractary/plug
     "local_files": {
       "enabled": true,
       "config": {
-        "base_path": ".fractary/plugins/faber/runs",
+        "base_path": ".fractary/faber/runs",
         "sync_writes": true
       }
     },
@@ -405,12 +405,12 @@ Create a re-run:
 ### Run Directory Not Found
 
 ```
-Error: Run directory not found: .fractary/plugins/faber/runs/org/project/uuid
+Error: Run directory not found: .fractary/faber/runs/org/project/uuid
 ```
 
 The run ID may be incorrect, or the run was cleaned up. Check available runs:
 ```bash
-ls -la .fractary/plugins/faber/runs/
+ls -la .fractary/faber/runs/
 ```
 
 ### Cannot Resume Completed Run
@@ -426,7 +426,7 @@ Completed runs cannot be resumed. Use `--rerun` to create a new run based on the
 If events appear out of order, the `.next-id` file may be corrupted. Reconstruct it:
 ```bash
 # Find highest event ID
-ls .fractary/plugins/faber/runs/{run_id}/events/ | grep -E '^[0-9]+' | sort -n | tail -1
+ls .fractary/faber/runs/{run_id}/events/ | grep -E '^[0-9]+' | sort -n | tail -1
 # Update .next-id to next value
 ```
 

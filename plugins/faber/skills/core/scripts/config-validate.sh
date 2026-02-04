@@ -223,7 +223,7 @@ main() {
         echo "Validates FABER configuration file against JSON Schema."
         echo ""
         echo "Examples:"
-        echo "  config-validate.sh .fractary/plugins/faber/config.json"
+        echo "  config-validate.sh .fractary/faber/config.json"
         echo "  config-validate.sh config/templates/standard.json"
         exit 2
     fi

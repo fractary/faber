@@ -32,7 +32,7 @@ RESPONSE=""
 USER=""
 SOURCE=""
 COMMENT_URL=""
-BASE_PATH=".fractary/plugins/faber/runs"
+BASE_PATH=".fractary/faber/runs"
 
 print_usage() {
     cat <<EOF
@@ -66,7 +66,7 @@ Options for add-history:
   --source <source>       Feedback source (cli, issue_comment)
 
 Common:
-  --base-path <path>      Base path for runs (default: .fractary/plugins/faber/runs)
+  --base-path <path>      Base path for runs (default: .fractary/faber/runs)
 EOF
 }
 

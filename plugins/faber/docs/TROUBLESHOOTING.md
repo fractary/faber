@@ -259,10 +259,10 @@ git remote -v
 **Option 1:** Restore from backup
 ```bash
 # List available backups
-ls -lt .fractary/plugins/faber/backups/
+ls -lt .fractary/faber/backups/
 
 # Restore most recent backup
-cp .fractary/plugins/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/plugins/faber/state.json
+cp .fractary/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/faber/state.json
 
 # Resume workflow
 /fractary-faber:run <work-id> --resume
@@ -271,7 +271,7 @@ cp .fractary/plugins/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/plugins/
 **Option 2:** Start fresh
 ```bash
 # Backup corrupted state for analysis
-mv .fractary/plugins/faber/state.json .fractary/plugins/faber/state.json.corrupted
+mv .fractary/faber/state.json .fractary/faber/state.json.corrupted
 
 # Initialize new state
 plugins/faber/skills/core/scripts/state-init.sh <work-id>
@@ -297,7 +297,7 @@ plugins/faber/skills/core/scripts/state-init.sh <work-id>
 plugins/faber/skills/core/scripts/state-migrate.sh
 
 # Verify migration
-plugins/faber/skills/core/scripts/state-validate.sh .fractary/plugins/faber/state.json
+plugins/faber/skills/core/scripts/state-validate.sh .fractary/faber/state.json
 ```
 
 **Related Error Codes:** FABER-103
@@ -317,10 +317,10 @@ plugins/faber/skills/core/scripts/state-validate.sh .fractary/plugins/faber/stat
 df -h
 
 # Check permissions
-ls -la .fractary/plugins/faber/
+ls -la .fractary/faber/
 
 # Check directory exists
-ls -d .fractary/plugins/faber/
+ls -d .fractary/faber/
 ```
 
 **Solutions:**
@@ -329,22 +329,22 @@ ls -d .fractary/plugins/faber/
 ```bash
 # Free up disk space
 # Clean old backups
-find .fractary/plugins/faber/backups/ -type f -mtime +30 -delete
+find .fractary/faber/backups/ -type f -mtime +30 -delete
 ```
 
 **If permission issues:**
 ```bash
 # Fix directory permissions
-chmod -R u+w .fractary/plugins/faber/
+chmod -R u+w .fractary/faber/
 
 # Verify ownership
-ls -la .fractary/plugins/faber/
+ls -la .fractary/faber/
 ```
 
 **If directory missing:**
 ```bash
 # Create directory structure
-mkdir -p .fractary/plugins/faber/{backups,logs}
+mkdir -p .fractary/faber/{backups,logs}
 ```
 
 **Related Error Codes:** FABER-104
@@ -540,17 +540,17 @@ bash -x plugins/path/to/hook-script.sh
 **Clean old backups:**
 ```bash
 # Remove backups older than 30 days
-find .fractary/plugins/faber/backups/ -type f -mtime +30 -delete
+find .fractary/faber/backups/ -type f -mtime +30 -delete
 
 # Keep only last 10 backups
-ls -t .fractary/plugins/faber/backups/ | tail -n +11 | xargs -I {} rm .fractary/plugins/faber/backups/{}
+ls -t .fractary/faber/backups/ | tail -n +11 | xargs -I {} rm .fractary/faber/backups/{}
 ```
 
 **Clean logs:**
 ```bash
 # Review and remove old logs
-ls -la .fractary/plugins/faber/logs/
-rm .fractary/plugins/faber/logs/old-log-file.txt
+ls -la .fractary/faber/logs/
+rm .fractary/faber/logs/old-log-file.txt
 ```
 
 **Check disk usage:**
@@ -577,7 +577,7 @@ plugins/faber/skills/core/scripts/diagnostics.sh --verbose
 
 ```bash
 # View entire state
-cat .fractary/plugins/faber/state.json | jq
+cat .fractary/faber/state.json | jq
 
 # Query specific fields
 plugins/faber/skills/core/scripts/state-read.sh .work_id
@@ -599,10 +599,10 @@ yq '.faber' .fractary/config.yaml
 
 ```bash
 # List recent logs
-ls -lt .fractary/plugins/faber/logs/
+ls -lt .fractary/faber/logs/
 
 # View specific log
-cat .fractary/plugins/faber/logs/workflow-YYYYMMDD-HHMMSS.log
+cat .fractary/faber/logs/workflow-YYYYMMDD-HHMMSS.log
 ```
 
 ### Test in dry-run mode
@@ -629,7 +629,7 @@ plugins/faber/skills/core/scripts/diagnostics.sh --verbose
 plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
 
 # State status
-plugins/faber/skills/core/scripts/state-validate.sh .fractary/plugins/faber/state.json
+plugins/faber/skills/core/scripts/state-validate.sh .fractary/faber/state.json
 
 # Lock status
 plugins/faber/skills/core/scripts/lock-check.sh
@@ -661,7 +661,7 @@ When reporting issues, include:
 
 4. **State (if relevant):**
    ```bash
-   cat .fractary/plugins/faber/state.json > state.json
+   cat .fractary/faber/state.json > state.json
    ```
 
 5. **Steps to reproduce**
@@ -704,7 +704,7 @@ When reporting issues, include:
 3. **Keep backups:**
    ```bash
    # Automatic backups are created, verify they exist
-   ls -la .fractary/plugins/faber/backups/
+   ls -la .fractary/faber/backups/
    ```
 
 4. **Monitor disk space:**

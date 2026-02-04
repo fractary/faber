@@ -27,7 +27,7 @@ This enables work-ID-free planning with contextual awareness.
 
 <CRITICAL_RULES>
 1. **NO EXECUTION** - You create plans, you do NOT invoke faber-manager
-2. **SAVE PLAN** - Save plan to `logs/fractary/plugins/faber/plans/{plan_id}.json`
+2. **SAVE PLAN** - Save plan to `.fractary/faber/runs/{plan_id}/plan.json`
 3. **PROMPT USER** - After saving, use AskUserQuestion to prompt for execution
 4. **WORKFLOW SNAPSHOT** - Resolve and snapshot the complete workflow in the plan
 5. **RESUME MODE** - If target already has branch, include resume context in plan
@@ -89,7 +89,7 @@ Read `.fractary/config.yaml` (unified config):
 **Config Loading Priority:**
 1. `.fractary/config.yaml` (unified config - PREFERRED)
 2. `.fractary/faber/config.yaml` (faber-specific - legacy)
-3. `.fractary/plugins/faber/config.json` (DEPRECATED - will warn)
+3. `.fractary/faber/config.json` (DEPRECATED - will warn)
 
 ## Step 2b: Match Target (if no work_id)
 
@@ -453,17 +453,17 @@ Store these in `metadata` object for S3/Athena partitioning:
 
 ## Step 7: Save Plan
 
-**Storage Location:** `logs/fractary/plugins/faber/plans/{plan_id}.json`
+**Storage Location:** `.fractary/faber/runs/{plan_id}/plan.json`
 
 This location:
-- Is outside `.fractary/` (which is for committed config only)
-- Is in the centralized `logs/` directory for all operational artifacts
-- Can be synced/archived with cloud storage via fractary-logs plugin
-- Is gitignored (operational data, not source code)
+- Is under `.fractary/faber/runs/` for all run-related artifacts
+- Consolidates plan.json and state.json in one directory per run
+- Is committable (not gitignored) for workflow state persistence
+- Use CLI to get paths: `fractary-faber runs plan-path {plan_id}`
 
 Ensure directory exists:
 ```bash
-mkdir -p logs/fractary/plugins/faber/plans
+mkdir -p ".fractary/faber/runs/{plan_id}"
 ```
 
 Write plan file.
@@ -514,7 +514,7 @@ Output the plan summary with detailed workflow overview:
 FABER Plan Created
 
 Plan ID: {plan_id}
-Plan File: logs/fractary/plugins/faber/plans/{plan_id}.json
+Plan File: .fractary/faber/runs/{plan_id}/plan.json
 
 Workflow: {workflow_id}{extends_text}
 Autonomy: {autonomy}
@@ -532,7 +532,7 @@ Items ({count}):
 FABER Plan Created
 
 Plan ID: {plan_id}
-Plan File: logs/fractary/plugins/faber/plans/{plan_id}.json
+Plan File: .fractary/faber/runs/{plan_id}/plan.json
 
 Planning Mode: Target-based (no work_id)
 Target Type: {target_context.type}
@@ -593,7 +593,7 @@ AskUserQuestion(
    /fractary-faber:workflow-run {plan_id}
 
    Plan Location:
-   logs/fractary/plugins/faber/plans/{plan_id}.json
+   .fractary/faber/runs/{plan_id}/plan.json
 
    Plan Contents:
    ```
@@ -603,11 +603,11 @@ AskUserQuestion(
    **Error Handling for File Read:**
    ```
    TRY:
-     plan_content = Read(file_path="logs/fractary/plugins/faber/plans/{plan_id}.json")
+     plan_content = Read(file_path=".fractary/faber/runs/{plan_id}/plan.json")
      Display plan_content (pretty-printed JSON)
    CATCH FileNotFoundError:
      Output: "Error: Plan file not found at expected location. The plan may have been moved or deleted."
-     Output: "Expected: logs/fractary/plugins/faber/plans/{plan_id}.json"
+     Output: "Expected: .fractary/faber/runs/{plan_id}/plan.json"
      Include `execute: false` in response and exit flow
    CATCH JSONParseError:
      Output: "Error: Plan file exists but contains invalid JSON. Please recreate the plan."
@@ -644,7 +644,7 @@ AskUserQuestion(
 
 <COMPLETION_CRITERIA>
 This agent is complete when:
-1. Plan artifact is saved to `logs/fractary/plugins/faber/plans/{plan_id}.json`
+1. Plan artifact is saved to `.fractary/faber/runs/{plan_id}/plan.json`
 2. Plan summary with detailed workflow overview is displayed to user
 3. User is prompted whether to execute (with option to review plan inline)
 4. Response includes `execute: true|false` based on user choice
@@ -793,7 +793,7 @@ When no pattern matches:
 FABER Plan Created
 
 Plan ID: fractary-claude-plugins-csv-export-20251208T160000
-Plan File: logs/fractary/plugins/faber/plans/fractary-claude-plugins-csv-export-20251208T160000.json
+Plan File: .fractary/faber/runs/fractary-claude-plugins-csv-export-20251208T160000/plan.json
 
 Workflow: fractary-faber:default (extends fractary-faber:core)
 Autonomy: guarded
@@ -830,7 +830,7 @@ Items (3):
 FABER Plan Created
 
 Plan ID: fractary-claude-plugins-ipeds-admissions-20251208T160000
-Plan File: logs/fractary/plugins/faber/plans/fractary-claude-plugins-ipeds-admissions-20251208T160000.json
+Plan File: .fractary/faber/runs/fractary-claude-plugins-ipeds-admissions-20251208T160000/plan.json
 
 Planning Mode: Target-based (no work_id)
 Target Type: dataset
@@ -867,7 +867,7 @@ Execute Command:
 /fractary-faber:workflow-run fractary-claude-plugins-csv-export-20251208T160000
 
 Plan Location:
-logs/fractary/plugins/faber/plans/fractary-claude-plugins-csv-export-20251208T160000.json
+.fractary/faber/runs/fractary-claude-plugins-csv-export-20251208T160000/plan.json
 
 Plan Contents:
 {
@@ -940,18 +940,19 @@ Available patterns:
 
 ## Storage Locations
 
-**Plans:** `logs/fractary/plugins/faber/plans/`
-**Runs:** `logs/fractary/plugins/faber/runs/`
+**All run files:** `.fractary/faber/runs/{run_id}/`
+- `plan.json` - Execution plan
+- `state.json` - Workflow state
 
-These are in `logs/` (not `.fractary/`) because:
-- `.fractary/` is for persistent config that gets committed to git
-- `logs/` is for operational artifacts that are gitignored
-- Centralized logs can be synced/archived via fractary-logs plugin
+This location:
+- Consolidates all run-related files in one directory
+- Is committable (not gitignored) for team visibility
+- Use CLI to get paths: `fractary-faber runs dir {run_id}`
 
 ## Resume Detection
 
 When a branch already exists for a work item:
-1. Check for existing state file in `logs/fractary/plugins/faber/runs/`
+1. Check for existing state file in `.fractary/faber/runs/{run_id}/state.json`
 2. If found, extract last checkpoint (phase/step)
 3. Mark item for resume in plan
 

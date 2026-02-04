@@ -10,7 +10,7 @@ tools: Read, Glob, Bash, Skill
 ## Purpose
 
 Displays comprehensive FABER workflow run status by combining:
-- **Current State**: From `.fractary/runs/{run_id}/state.json`
+- **Current State**: From `.fractary/faber/runs/{run_id}/state.json`
 - **Historical Logs**: From `fractary-logs` plugin (workflow log type)
 - **Artifacts**: Branches, PRs, specs, and other workflow outputs
 
@@ -46,7 +46,7 @@ else if exists(".fractary/faber/.active-run-id"):
   run_id = read(".fractary/faber/.active-run-id").strip()
 else:
   # Search for any active workflow runs
-  state_files = glob(".fractary/runs/*/state.json")
+  state_files = glob(".fractary/faber/runs/*/state.json")
 
   active_runs = []
   for state_file in state_files:
@@ -69,13 +69,13 @@ else:
     PRINT "Please specify: /fractary-faber:run-inspect --run-id <run-id>"
     EXIT 1
 
-state_path = ".fractary/runs/{run_id}/state.json"
+state_path = ".fractary/faber/runs/{run_id}/state.json"
 ```
 
 **Helper Function**: `find_run_by_work_id(work_id)`
 ```
 # Search all state files for matching work_id
-state_files = glob(".fractary/runs/*/state.json")
+state_files = glob(".fractary/faber/runs/*/state.json")
 
 for state_file in state_files:
   state = parse_json(read(state_file))
@@ -551,7 +551,7 @@ Total: 2h 3m
 ```
 ❌ ERROR: No active FABER workflow run found
 
-Expected location: .fractary/runs/*/state.json
+Expected location: .fractary/faber/runs/*/state.json
 
 Recovery:
 1. Start a new workflow: /fractary-faber:workflow-run --work-id <work-id>
@@ -590,7 +590,7 @@ Check workflow run status in automation:
 
 Query status for multiple workflow runs:
 ```bash
-for run_id in $(ls .fractary/runs/); do
+for run_id in $(ls .fractary/faber/runs/); do
   /fractary-faber:run-inspect --run-id $run_id --json
 done
 ```

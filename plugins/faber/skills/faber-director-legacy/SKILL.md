@@ -225,12 +225,12 @@ Use the TodoWrite tool NOW with this EXACT todo list:
 
 **CRITICAL**: Load configuration and resolve workflow FIRST before any other processing.
 
-**Config Location**: `.fractary/plugins/faber/config.json` (in project working directory)
+**Config Location**: `.fractary/faber/config.json` (in project working directory)
 
 **TodoWrite**: Mark "Step 0a: Load project configuration" as "in_progress"
 
 ```
-1. Check if `.fractary/plugins/faber/config.json` exists
+1. Check if `.fractary/faber/config.json` exists
 2. If not found → use default configuration:
    - Default workflow: "fractary-faber:default"
    - Default autonomy: "guarded"

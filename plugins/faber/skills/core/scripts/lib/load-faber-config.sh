@@ -172,3 +172,104 @@ if [[ -n "$_KEY_PATH" ]] && [[ -z "$(load_via_cli 2>/dev/null || true)" ]]; then
 else
     echo "$FABER_CONFIG"
 fi
+
+# ============================================================================
+# FABER Run Path Functions
+# ============================================================================
+# These functions provide access to FABER run paths via the CLI.
+# All run files are consolidated in: .fractary/faber/runs/{run_id}/
+#
+# Usage:
+#   RUNS_DIR=$(faber_get_runs_dir)
+#   RUN_DIR=$(faber_get_run_dir "my-run-id")
+#   PLAN_PATH=$(faber_get_plan_path "my-run-id")
+#   STATE_PATH=$(faber_get_state_path "my-run-id")
+# ============================================================================
+
+# Get the base runs directory path
+# Returns absolute path if CLI available, otherwise relative path
+faber_get_runs_dir() {
+    if command -v fractary-faber &> /dev/null; then
+        fractary-faber runs dir 2>/dev/null || echo ".fractary/faber/runs"
+    else
+        # Fallback to relative path
+        echo ".fractary/faber/runs"
+    fi
+}
+
+# Get the directory path for a specific run
+# Arguments:
+#   $1 - run_id (required)
+faber_get_run_dir() {
+    local run_id="$1"
+    if [[ -z "$run_id" ]]; then
+        echo "Error: run_id is required" >&2
+        return 1
+    fi
+
+    if command -v fractary-faber &> /dev/null; then
+        fractary-faber runs dir "$run_id" 2>/dev/null || echo ".fractary/faber/runs/$run_id"
+    else
+        # Fallback to relative path
+        echo ".fractary/faber/runs/$run_id"
+    fi
+}
+
+# Get the plan file path for a specific run
+# Arguments:
+#   $1 - run_id (required)
+faber_get_plan_path() {
+    local run_id="$1"
+    if [[ -z "$run_id" ]]; then
+        echo "Error: run_id is required" >&2
+        return 1
+    fi
+
+    if command -v fractary-faber &> /dev/null; then
+        fractary-faber runs plan-path "$run_id" 2>/dev/null || echo ".fractary/faber/runs/$run_id/plan.json"
+    else
+        # Fallback to relative path
+        echo ".fractary/faber/runs/$run_id/plan.json"
+    fi
+}
+
+# Get the state file path for a specific run
+# Arguments:
+#   $1 - run_id (required)
+faber_get_state_path() {
+    local run_id="$1"
+    if [[ -z "$run_id" ]]; then
+        echo "Error: run_id is required" >&2
+        return 1
+    fi
+
+    if command -v fractary-faber &> /dev/null; then
+        fractary-faber runs state-path "$run_id" 2>/dev/null || echo ".fractary/faber/runs/$run_id/state.json"
+    else
+        # Fallback to relative path
+        echo ".fractary/faber/runs/$run_id/state.json"
+    fi
+}
+
+# Ensure the run directory exists for a given run_id
+# Arguments:
+#   $1 - run_id (required)
+faber_ensure_run_dir() {
+    local run_id="$1"
+    if [[ -z "$run_id" ]]; then
+        echo "Error: run_id is required" >&2
+        return 1
+    fi
+
+    local run_dir
+    run_dir=$(faber_get_run_dir "$run_id")
+    mkdir -p "$run_dir"
+    echo "$run_dir"
+}
+
+# Export functions for use in sourced scripts
+export -f faber_get_runs_dir 2>/dev/null || true
+export -f faber_get_run_dir 2>/dev/null || true
+export -f faber_get_plan_path 2>/dev/null || true
+export -f faber_get_state_path 2>/dev/null || true
+export -f faber_ensure_run_dir 2>/dev/null || true

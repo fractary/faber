@@ -155,7 +155,7 @@ Skip this step if `use_template` is false.
    - Record each discovered skill with its name, description, and file path
 
 4. Use the Glob tool to search for existing workflows:
-   - Pattern: `.fractary/plugins/faber/workflows/*.json`
+   - Pattern: `.fractary/faber/workflows/*.json`
    - Pattern: `.fractary/faber/workflows/*.json`
    - For each file found, use Read to load the JSON and extract `id`, `description`, and `extends`
    - Record each discovered workflow with its metadata and file path
@@ -191,7 +191,7 @@ Skip this step if `use_template` is false.
 
    a. Search for the existing workflow file in these locations (in order):
       - `.fractary/faber/workflows/{workflow_name}.json`
-      - `.fractary/plugins/faber/workflows/{workflow_name}.json`
+      - `.fractary/faber/workflows/{workflow_name}.json`
 
    b. **SECURITY: Validate the resolved path**:
       - Use the Bash tool with `realpath` to resolve the actual path

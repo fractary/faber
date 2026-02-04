@@ -11,8 +11,8 @@ You are a focused utility skill for managing FABER workflow state files.
 You provide deterministic CRUD operations for workflow state management.
 
 State is stored at:
-- **With run_id**: `.fractary/plugins/faber/runs/{run_id}/state.json`
-- **Legacy (no run_id)**: `.fractary/plugins/faber/state.json`
+- **With run_id**: `.fractary/faber/runs/{run_id}/state.json`
+- **Legacy (no run_id)**: `.fractary/faber/state.json`
 
 State tracks: current phase, phase statuses, artifacts, retry counts, errors, last_event_id
 </CONTEXT>
@@ -110,7 +110,7 @@ Initialize a new workflow state file.
   "work_id": "123",
   "run_id": "fractary/my-project/a1b2c3d4-...",
   "workflow_id": "default",
-  "state_path": ".fractary/plugins/faber/runs/fractary/my-project/a1b2c3d4-.../state.json"
+  "state_path": ".fractary/faber/runs/fractary/my-project/a1b2c3d4-.../state.json"
 }
 ```
 
@@ -379,7 +379,7 @@ Check if a state file exists for a run or work item.
   "operation": "check-exists",
   "exists": true,
   "run_id": "fractary/my-project/a1b2c3d4-...",
-  "state_path": ".fractary/plugins/faber/runs/fractary/my-project/a1b2c3d4-.../state.json",
+  "state_path": ".fractary/faber/runs/fractary/my-project/a1b2c3d4-.../state.json",
   "work_id": "123",
   "current_phase": "build"
 }
@@ -424,7 +424,7 @@ Create a backup of current state.
 {
   "status": "success",
   "operation": "backup-state",
-  "backup_path": ".fractary/plugins/faber/runs/fractary/my-project/a1b2c3d4-.../state.json.backup.20251203T110000Z"
+  "backup_path": ".fractary/faber/runs/fractary/my-project/a1b2c3d4-.../state.json.backup.20251203T110000Z"
 }
 ```
 
@@ -484,24 +484,42 @@ Current Phase: build
 </DEPENDENCIES>
 
 <FILE_LOCATIONS>
+**All run files are consolidated in:** `.fractary/faber/runs/{run_id}/`
+
 **With run_id (preferred):**
-- **State file**: `.fractary/plugins/faber/runs/{run_id}/state.json`
-- **Metadata file**: `.fractary/plugins/faber/runs/{run_id}/metadata.json`
-- **Events dir**: `.fractary/plugins/faber/runs/{run_id}/events/`
-- **Backup pattern**: `.fractary/plugins/faber/runs/{run_id}/state.json.backup.<timestamp>`
+- **Plan file**: `.fractary/faber/runs/{run_id}/plan.json`
+- **State file**: `.fractary/faber/runs/{run_id}/state.json`
+- **Metadata file**: `.fractary/faber/runs/{run_id}/metadata.json`
+- **Events dir**: `.fractary/faber/runs/{run_id}/events/`
+- **Backup pattern**: `.fractary/faber/runs/{run_id}/state.json.backup.<timestamp>`
 
 **Legacy (no run_id):**
-- **State file**: `.fractary/plugins/faber/state.json`
-- **Backup pattern**: `.fractary/plugins/faber/state.json.backup.<timestamp>`
+- **State file**: `.fractary/faber/state.json`
+- **Backup pattern**: `.fractary/faber/state.json.backup.<timestamp>`
+
+**CLI commands for paths:**
+```bash
+# Get runs directory
+fractary-faber runs dir
+
+# Get specific run directory
+fractary-faber runs dir {run_id}
+
+# Get plan path
+fractary-faber runs plan-path {run_id}
+
+# Get state path
+fractary-faber runs state-path {run_id}
+```
 
 **Helper function to compute state path:**
 ```bash
 get_state_path() {
     local run_id="$1"
     if [ -n "$run_id" ]; then
-        echo ".fractary/plugins/faber/runs/$run_id/state.json"
+        echo ".fractary/faber/runs/$run_id/state.json"
     else
-        echo ".fractary/plugins/faber/state.json"
+        echo ".fractary/faber/state.json"
     fi
 }
 ```

@@ -123,7 +123,7 @@ Get timeline of workflow events:
 
 ```bash
 # Read events from run directory
-RUN_DIR=".fractary/plugins/faber/runs/$RUN_ID"
+RUN_DIR=".fractary/faber/runs/$RUN_ID"
 cat "$RUN_DIR/events.jsonl" | tail -50
 ```
 
@@ -180,7 +180,7 @@ git log main..HEAD --oneline
 **Test Output (if evaluate failed):**
 ```bash
 # Check for test logs
-cat .fractary/plugins/faber/runs/$RUN_ID/test-output.log 2>/dev/null
+cat .fractary/faber/runs/$RUN_ID/test-output.log 2>/dev/null
 ```
 
 ---

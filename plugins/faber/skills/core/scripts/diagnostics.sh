@@ -16,8 +16,8 @@ find_config_file() {
         ".fractary/config.yaml"
         ".fractary/faber/config.yaml"
         ".fractary/faber/config.json"
-        ".fractary/plugins/faber/config.yaml"
-        ".fractary/plugins/faber/config.json"
+        ".fractary/faber/config.yaml"
+        ".fractary/faber/config.json"
     )
     for p in "${paths[@]}"; do
         if [[ -f "$p" ]]; then
@@ -31,7 +31,7 @@ find_config_file() {
 CONFIG_FILE=$(find_config_file)
 STATE_FILE=".fractary/faber/state.json"
 # Legacy state file fallback
-[[ ! -f "$STATE_FILE" ]] && [[ -f ".fractary/plugins/faber/state.json" ]] && STATE_FILE=".fractary/plugins/faber/state.json"
+[[ ! -f "$STATE_FILE" ]] && [[ -f ".fractary/faber/state.json" ]] && STATE_FILE=".fractary/faber/state.json"
 VERBOSE=false
 
 # Parse args

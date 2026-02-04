@@ -398,7 +398,7 @@ Next: Workflow will resume from design-review
 - comment-creator skill (for issue comments)
 
 **State Files:**
-- Reads/Writes: `.fractary/plugins/faber/runs/{run_id}/state.json`
+- Reads/Writes: `.fractary/faber/runs/{run_id}/state.json`
 
 **Scripts:**
 - `scripts/generate-request-id.sh` - Generate unique feedback request ID

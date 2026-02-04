@@ -89,7 +89,7 @@ Initialize a new run directory with state and metadata.
   "status": "success",
   "operation": "init-run-directory",
   "run_id": "fractary/claude-plugins/a1b2c3d4-...",
-  "run_dir": ".fractary/plugins/faber/runs/fractary/claude-plugins/a1b2c3d4-...",
+  "run_dir": ".fractary/faber/runs/fractary/claude-plugins/a1b2c3d4-...",
   "work_id": "220",
   "files_created": [
     ".../metadata.json",
@@ -101,7 +101,7 @@ Initialize a new run directory with state and metadata.
 
 **Creates:**
 ```
-.fractary/plugins/faber/runs/{run_id}/
+.fractary/faber/runs/{run_id}/
 ├── state.json         # Workflow state
 ├── metadata.json      # Run parameters and context
 └── events/
@@ -367,7 +367,7 @@ Run ID: {run_id}
 
 <DIRECTORY_STRUCTURE>
 ```
-.fractary/plugins/faber/runs/
+.fractary/faber/runs/
 └── {org}/
     └── {project}/
         └── {uuid}/

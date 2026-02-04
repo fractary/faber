@@ -6,7 +6,7 @@ This workflow step searches the troubleshooting knowledge base for similar past 
 
 Before generating a fresh diagnosis, check if similar issues have been resolved before. The knowledge base is a persistent collection of troubleshooting entries stored in source control.
 
-**Knowledge Base Location:** `.fractary/plugins/faber/debugger/knowledge-base/`
+**Knowledge Base Location:** `.fractary/faber/debugger/knowledge-base/`
 
 ## Steps
 
@@ -15,7 +15,7 @@ Before generating a fresh diagnosis, check if similar issues have been resolved 
 Verify the knowledge base exists and is accessible:
 
 ```bash
-KB_PATH=".fractary/plugins/faber/debugger/knowledge-base"
+KB_PATH=".fractary/faber/debugger/knowledge-base"
 INDEX_FILE="$KB_PATH/index.json"
 
 if [ ! -f "$INDEX_FILE" ]; then

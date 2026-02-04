@@ -284,7 +284,7 @@ faber-manager invokes architect skill...
    └─ Load configuration
 
 3. State Creation
-   └─ .fractary/plugins/faber/state.json
+   └─ .fractary/faber/state.json
        ├─ work_id
        ├─ metadata (source, domain, timestamps)
        ├─ current_phase
@@ -302,7 +302,7 @@ faber-manager invokes architect skill...
 
 5. State Updates
    After each phase:
-   ├─ .fractary/plugins/faber/state.json (current state)
+   ├─ .fractary/faber/state.json (current state)
    │   ├─ phases.frame.status = "completed"
    │   ├─ phases.frame.data = {work_type, branch_name}
    │   ├─ phases.architect.status = "completed"
@@ -397,7 +397,7 @@ Phase Transitions:
 
 **Evolution**:
 - v1.x used TOML (`.faber.config.toml`) for human-readability
-- v2.0 switched to JSON at `.fractary/plugins/faber/config.json` (now deprecated)
+- v2.0 switched to JSON at `.fractary/faber/config.json` (now deprecated)
 - v3.0+ uses unified YAML at `.fractary/config.yaml` with a `faber:` section
 - Migration guide available at MIGRATION-v2.md
 
@@ -411,7 +411,7 @@ Phase Transitions:
 **Decision**: Use both current state file and historical workflow logs (v2.0)
 
 **Rationale**:
-- **Current State** (`.fractary/plugins/faber/state.json`):
+- **Current State** (`.fractary/faber/state.json`):
   - Single-workflow state for resume/retry
   - Lightweight, always current
   - Enables workflow continuation after interruption

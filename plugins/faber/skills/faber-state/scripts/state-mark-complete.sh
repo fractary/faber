@@ -25,7 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FABER_ROOT="$(cd "$SKILL_ROOT/../.." && pwd)"
 CORE_SCRIPTS="$FABER_ROOT/skills/core/scripts"
-STATE_FILE=".fractary/plugins/faber/state.json"
+STATE_FILE=".fractary/faber/state.json"
 
 # Verify core scripts exist
 if [ ! -d "$CORE_SCRIPTS" ]; then

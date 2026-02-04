@@ -69,7 +69,7 @@ Monitor all runs until each reaches a stop state:
 ```bash
 # Poll each run's state
 FOR each run IN coordinator.runs:
-    state = read ".fractary/plugins/faber/runs/{run.run_id}/state.json"
+    state = read ".fractary/faber/runs/{run.run_id}/state.json"
     run.status = state.status
     run.last_checked = now()
 
@@ -363,7 +363,7 @@ WHILE has_pending_runs(coordinator.runs):
 
 The coordinator state is stored at:
 ```
-.fractary/plugins/faber/coordinators/{coordinator_id}/
+.fractary/faber/coordinators/{coordinator_id}/
 ├── state.json          # Coordinator state
 ├── runs.json           # All run details
 └── aggregations/       # Historical aggregation reports

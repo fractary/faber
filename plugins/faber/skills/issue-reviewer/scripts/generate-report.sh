@@ -52,7 +52,7 @@ if [[ -z "$WORK_ID" ]] || [[ -z "$STATUS" ]]; then
 fi
 
 # Setup output directory with error handling
-REVIEWS_DIR=".fractary/plugins/faber/reviews"
+REVIEWS_DIR=".fractary/faber/reviews"
 if ! mkdir -p "$REVIEWS_DIR" 2>/dev/null; then
   echo "Error: Failed to create reviews directory: $REVIEWS_DIR" >&2
   exit 1

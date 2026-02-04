@@ -22,7 +22,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BASE_PATH=".fractary/plugins/faber/runs"
+BASE_PATH=".fractary/faber/runs"
 
 # Parse arguments
 ORIGINAL_RUN_ID=""

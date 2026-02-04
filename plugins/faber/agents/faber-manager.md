@@ -223,9 +223,9 @@ For STEP-MODE execution (`--step` specified):
 **Implementation**: Check event directory before workflow_complete:
 ```bash
 # Check for at least one phase event (full or phase mode)
-if [ ! -z "$(ls .fractary/plugins/faber/runs/{run_id}/events/*-phase_start* 2>/dev/null)" ]; then
+if [ ! -z "$(ls .fractary/faber/runs/{run_id}/events/*-phase_start* 2>/dev/null)" ]; then
   # Found phase event - safe to complete
-elif [ ! -z "$(ls .fractary/plugins/faber/runs/{run_id}/events/*-step_start* 2>/dev/null)" ]; then
+elif [ ! -z "$(ls .fractary/faber/runs/{run_id}/events/*-step_start* 2>/dev/null)" ]; then
   # Found step event - safe to complete
 else
   # NO EXECUTION EVIDENCE - ERROR
@@ -322,7 +322,7 @@ fi
 1. Identify the current phase requiring approval (typically "release")
 
 2. Search for approval event in current run:
-   Bash: ls .fractary/plugins/faber/runs/{run_id}/events/*-approval_granted* 2>/dev/null
+   Bash: ls .fractary/faber/runs/{run_id}/events/*-approval_granted* 2>/dev/null
 
 3. If no approval event found:
    ❌ ERROR: Cannot execute destructive operation without approval
@@ -346,7 +346,7 @@ fi
    [ABORT WORKFLOW - FATAL ERROR]
 
 4. If approval event found, verify it's for this phase:
-   Bash: jq -r '.phase' .fractary/plugins/faber/runs/{run_id}/events/*-approval_granted*.json
+   Bash: jq -r '.phase' .fractary/faber/runs/{run_id}/events/*-approval_granted*.json
 
    IF approval_phase != current_phase THEN
      ❌ ERROR: Approval is for wrong phase
@@ -354,12 +354,12 @@ fi
 
 5. Find the MOST RECENT approval_granted and decision_point for this phase:
    # Get most recent approval timestamp for this phase
-   most_recent_approval = Bash: ls -t .fractary/plugins/faber/runs/{run_id}/events/*-approval_granted*.json | head -1
+   most_recent_approval = Bash: ls -t .fractary/faber/runs/{run_id}/events/*-approval_granted*.json | head -1
    approval_ts = Bash: jq -r '.timestamp' {most_recent_approval}
    approval_phase = Bash: jq -r '.phase' {most_recent_approval}
 
    # Get most recent decision_point timestamp for this phase
-   most_recent_decision = Bash: ls -t .fractary/plugins/faber/runs/{run_id}/events/*-decision_point*.json | head -1
+   most_recent_decision = Bash: ls -t .fractary/faber/runs/{run_id}/events/*-decision_point*.json | head -1
    decision_ts = Bash: jq -r '.timestamp' {most_recent_decision}
    decision_phase = Bash: jq -r '.phase' {most_recent_decision}
 
@@ -632,7 +632,7 @@ function write_context_file(run_id, step_id, context):
   safe_step_id = step_id.replace(/[^a-z0-9-]/gi, '-')
 
   # Create context file path within run directory
-  context_dir = ".fractary/plugins/faber/runs/{run_id}/context/"
+  context_dir = ".fractary/faber/runs/{run_id}/context/"
   context_file = "{context_dir}{safe_step_id}-recovery-context.json"
 
   TRY:
@@ -819,9 +819,9 @@ function set_workflow_position(run_id, target_phase, target_step):
   # SAFETY: Uses file locking and backup for atomic updates
   # Returns: { success: true } or { success: false, error, rolled_back }
 
-  state_path = ".fractary/plugins/faber/runs/{run_id}/state.json"
-  backup_path = ".fractary/plugins/faber/runs/{run_id}/state.json.backup"
-  lock_path = ".fractary/plugins/faber/runs/{run_id}/state.lock"
+  state_path = ".fractary/faber/runs/{run_id}/state.json"
+  backup_path = ".fractary/faber/runs/{run_id}/state.json.backup"
+  lock_path = ".fractary/faber/runs/{run_id}/state.lock"
 
   # Acquire file lock to prevent race conditions
   TRY:
@@ -1307,7 +1307,7 @@ IF work_id is provided THEN
 ```
 
 **Note:** All state operations now use `--run-id` parameter to access per-run state at:
-`.fractary/plugins/faber/runs/{run_id}/state.json`
+`.fractary/faber/runs/{run_id}/state.json`
 
 ---
 
@@ -1419,8 +1419,8 @@ be bypassed via resume scenarios.
 IF autonomy.require_approval_for contains {current_phase} THEN
   # Check if approval was already granted in THIS run for THIS phase
   # Find MOST RECENT approval and decision_point for this phase
-  most_recent_approval = Bash: ls -t .fractary/plugins/faber/runs/{run_id}/events/*-approval_granted*.json 2>/dev/null | head -1
-  most_recent_decision = Bash: ls -t .fractary/plugins/faber/runs/{run_id}/events/*-decision_point*.json 2>/dev/null | head -1
+  most_recent_approval = Bash: ls -t .fractary/faber/runs/{run_id}/events/*-approval_granted*.json 2>/dev/null | head -1
+  most_recent_decision = Bash: ls -t .fractary/faber/runs/{run_id}/events/*-decision_point*.json 2>/dev/null | head -1
 
   # Determine if approval is needed
   approval_needed = false
@@ -1673,7 +1673,7 @@ IF state_update_result.status == "failure" OR state_update_result is null THEN
       failed_at: "{phase}:{step_name}"
       reason: "State update failed before step execution - state may be corrupted"
       errors: [state_update_result.message ?? "Unknown state error", "Recovery attempt also failed"]
-      recovery_hint: "Check .fractary/plugins/faber/runs/{run_id}/state.json and restore from backup if needed"
+      recovery_hint: "Check .fractary/faber/runs/{run_id}/state.json and restore from backup if needed"
 
 # Log step ID for workflow tracking
 LOG "Executing step: {phase}:{step_name}"
@@ -2827,14 +2827,14 @@ After all phases complete:
 **Verify Execution Evidence:**
 ```bash
 # Check for phase/step events (Guard 1)
-if [ -z "$(ls .fractary/plugins/faber/runs/{run_id}/events/*-phase_start* 2>/dev/null)" ] && \
-   [ -z "$(ls .fractary/plugins/faber/runs/{run_id}/events/*-step_start* 2>/dev/null)" ]; then
+if [ -z "$(ls .fractary/faber/runs/{run_id}/events/*-phase_start* 2>/dev/null)" ] && \
+   [ -z "$(ls .fractary/faber/runs/{run_id}/events/*-step_start* 2>/dev/null)" ]; then
   echo "❌ ERROR: No workflow execution evidence found"
   echo "   - No phase_start events"
   echo "   - No step_start events"
   echo ""
   echo "This likely means the workflow was not executed mechanically."
-  echo "Check: .fractary/plugins/faber/runs/{run_id}/events/"
+  echo "Check: .fractary/faber/runs/{run_id}/events/"
   exit 1
 fi
 ```
@@ -2850,7 +2850,7 @@ if [ "$PENDING_COUNT" -eq "$TOTAL_PHASES" ]; then
   echo "   All phases still have status: pending"
   echo ""
   echo "State must show at least one phase with status != 'pending'"
-  echo "Check: .fractary/plugins/faber/runs/{run_id}/state.json"
+  echo "Check: .fractary/faber/runs/{run_id}/state.json"
   exit 1
 fi
 ```
@@ -2880,7 +2880,7 @@ fi
    - Comment posting failed silently
    - Workflow steps were skipped
 
-   Check: .fractary/plugins/faber/runs/{run_id}/events/
+   Check: .fractary/faber/runs/{run_id}/events/
 
    [ABORT WORKFLOW - Cannot mark as complete without stakeholder visibility]
 
@@ -3010,7 +3010,7 @@ Artifacts Created:
 - Spec: {spec_path}
 - PR: #{pr_number} ({pr_url})
 ───────────────────────────────────────
-Event Log: .fractary/plugins/faber/runs/{run_id}/events/
+Event Log: .fractary/faber/runs/{run_id}/events/
 ```
 
 </WORKFLOW>
@@ -3442,7 +3442,7 @@ Artifacts Created:
 - Commits: {commit_count} commits
 - PR: #{pr_number} ({pr_url})
 ───────────────────────────────────────
-Event Log: .fractary/plugins/faber/runs/{run_id}/events/
+Event Log: .fractary/faber/runs/{run_id}/events/
 ───────────────────────────────────────
 Next: PR is ready for review
 ```
@@ -3460,8 +3460,8 @@ Reason: {error_message}
 Details:
 {error_details}
 ───────────────────────────────────────
-State: .fractary/plugins/faber/runs/{run_id}/state.json
-Event Log: .fractary/plugins/faber/runs/{run_id}/events/
+State: .fractary/faber/runs/{run_id}/state.json
+Event Log: .fractary/faber/runs/{run_id}/events/
 ───────────────────────────────────────
 Next: Fix the issue and resume with:
   /fractary-faber:run {target} --work-id {work_id} --resume {run_id}
@@ -3504,7 +3504,7 @@ This agent is complete when:
 
 Each workflow run has its own directory:
 ```
-.fractary/plugins/faber/runs/{run_id}/
+.fractary/faber/runs/{run_id}/
 ├── state.json      # Current workflow state
 ├── metadata.json   # Run metadata (work_id, timestamps, relationships)
 └── events/
@@ -3517,13 +3517,13 @@ Each workflow run has its own directory:
 ```
 
 ## State Location
-- **Run State**: `.fractary/plugins/faber/runs/{run_id}/state.json`
-- **Legacy State**: `.fractary/plugins/faber/state.json` (deprecated)
-- **Backups**: `.fractary/plugins/faber/runs/{run_id}/backups/`
+- **Run State**: `.fractary/faber/runs/{run_id}/state.json`
+- **Legacy State**: `.fractary/faber/state.json` (deprecated)
+- **Backups**: `.fractary/faber/runs/{run_id}/backups/`
 
 ## Event Log
-- **Event Files**: `.fractary/plugins/faber/runs/{run_id}/events/`
-- **Consolidated**: `.fractary/plugins/faber/runs/{run_id}/events.jsonl`
+- **Event Files**: `.fractary/faber/runs/{run_id}/events/`
+- **Consolidated**: `.fractary/faber/runs/{run_id}/events.jsonl`
 
 ## Artifacts Tracked
 - `branch_name`: Git branch created

@@ -8,7 +8,7 @@
 # Configuration is loaded from (in order of preference):
 #   1. .fractary/config.yaml (unified config - faber.targets section)
 #   2. .fractary/faber/config.yaml (faber-specific - targets section)
-#   3. .fractary/plugins/faber/config.json (DEPRECATED)
+#   3. .fractary/faber/config.json (DEPRECATED)
 #
 # Usage:
 #   match-target.sh <target> [--project-root <path>]

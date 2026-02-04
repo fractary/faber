@@ -29,7 +29,7 @@ METADATA="{}"
 ARTIFACTS="[]"
 DURATION_MS=""
 ERROR_JSON=""
-BASE_PATH=".fractary/plugins/faber/runs"
+BASE_PATH=".fractary/faber/runs"
 
 print_usage() {
     cat <<EOF
@@ -50,7 +50,7 @@ Optional:
   --artifacts <json>    Artifacts array (JSON array)
   --duration-ms <ms>    Duration in milliseconds
   --error <json>        Error information (JSON object)
-  --base-path <path>    Base path for runs (default: .fractary/plugins/faber/runs)
+  --base-path <path>    Base path for runs (default: .fractary/faber/runs)
 
 Event Types:
   Workflow: workflow_start, workflow_complete, workflow_error, workflow_cancelled,
