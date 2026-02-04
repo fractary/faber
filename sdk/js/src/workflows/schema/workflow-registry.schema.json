@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fractary.dev/schemas/workflow-registry.schema.json",
+  "title": "Workflow Registry",
+  "description": "Manifest file listing available FABER workflows in a project",
+  "type": "object",
+  "required": ["workflows"],
+  "properties": {
+    "workflows": {
+      "type": "array",
+      "description": "List of available workflows",
+      "items": {
+        "type": "object",
+        "required": ["id", "file"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique workflow identifier",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "file": {
+            "type": "string",
+            "description": "Filename relative to workflows directory (e.g., 'default.yaml' or 'bug.json')",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*\\.(yaml|yml|json)$",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable workflow description",
+            "maxLength": 500
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "workflows": [
+        {
+          "id": "default",
+          "file": "default.yaml",
+          "description": "Default FABER workflow for software development"
+        },
+        {
+          "id": "bug",
+          "file": "bug.yaml",
+          "description": "Bug fix workflow with simplified evaluate phase"
+        },
+        {
+          "id": "docs",
+          "file": "docs.yaml",
+          "description": "Documentation-only workflow"
+        }
+      ]
+    }
+  ]
+}

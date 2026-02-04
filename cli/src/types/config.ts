@@ -58,11 +58,24 @@ export interface BacklogManagementConfig {
 /**
  * FABER-specific configuration (v2.0: only FABER-specific settings)
  * Note: anthropic and github are now at the top level of UnifiedConfig
+ *
+ * Supports both legacy format and new simplified format (v2.1)
  */
 export interface FaberConfig {
+  // Legacy format (deprecated)
   worktree?: WorktreeConfig;
   workflow?: WorkflowConfig;
   backlog_management?: BacklogManagementConfig;
+
+  // New simplified format (v2.1)
+  workflows?: {
+    path?: string;
+    default?: string;
+    autonomy?: AutonomyLevel;
+  };
+  runs?: {
+    path?: string;
+  };
 }
 
 /**
@@ -121,3 +134,8 @@ export interface ConfigLoadOptions {
   /** Throw error if config file doesn't exist (default: false) */
   throwIfMissing?: boolean;
 }
+
+/**
+ * Autonomy levels for FABER workflows
+ */
+export type AutonomyLevel = 'dry-run' | 'assisted' | 'guarded' | 'autonomous';

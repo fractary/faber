@@ -8,7 +8,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { FaberConfig } from '../types.js';
+import type { FaberConfig, FaberPluginConfig, AutonomyLevel } from '../types.js';
+import { FABER_DEFAULTS } from '../defaults.js';
 
 /**
  * Result of a configuration migration operation
@@ -18,6 +19,20 @@ export interface MigrationResult {
   oldPath?: string;
   newPath?: string;
   error?: string;
+}
+
+/**
+ * Options for generating plugin configuration
+ */
+export interface PluginConfigOptions {
+  /** Directory containing workflow files and manifest */
+  workflowsPath?: string;
+  /** Default workflow ID */
+  defaultWorkflow?: string;
+  /** Autonomy level */
+  autonomy?: AutonomyLevel;
+  /** Directory for run artifacts */
+  runsPath?: string;
 }
 
 /**
@@ -336,5 +351,258 @@ export class ConfigInitializer {
     this.writeConfig(config, configPath);
 
     return configPath;
+  }
+
+  // ==========================================================================
+  // Plugin Configuration (Simplified v2)
+  // ==========================================================================
+
+  /**
+   * Unified config file path
+   */
+  private static readonly UNIFIED_CONFIG_PATH = '.fractary/config.yaml';
+
+  /**
+   * Generate simplified FABER plugin configuration (v2)
+   *
+   * This generates the minimal config stored in .fractary/config.yaml under 'faber:' section.
+   *
+   * @param options - Configuration options
+   * @returns FaberPluginConfig object
+   */
+  static generatePluginConfig(options?: PluginConfigOptions): FaberPluginConfig {
+    return {
+      workflows: {
+        path: options?.workflowsPath ?? FABER_DEFAULTS.paths.workflows,
+        default: options?.defaultWorkflow ?? FABER_DEFAULTS.workflow.defaultWorkflow,
+        autonomy: options?.autonomy ?? FABER_DEFAULTS.workflow.autonomy,
+      },
+      runs: {
+        path: options?.runsPath ?? FABER_DEFAULTS.paths.runs,
+      },
+    };
+  }
+
+  /**
+   * Write plugin configuration to unified config file
+   *
+   * This writes/updates the 'faber:' section in .fractary/config.yaml,
+   * preserving other sections in the file.
+   *
+   * @param config - FaberPluginConfig to write
+   * @param projectRoot - Optional project root directory
+   */
+  static writePluginConfig(config: FaberPluginConfig, projectRoot?: string): void {
+    const root = projectRoot || process.cwd();
+    const configPath = path.join(root, this.UNIFIED_CONFIG_PATH);
+    const configDir = path.dirname(configPath);
+
+    // Ensure directory exists
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    // Load existing config or create empty
+    let existingConfig: Record<string, unknown> = {};
+    if (fs.existsSync(configPath)) {
+      try {
+        const content = fs.readFileSync(configPath, 'utf-8');
+        existingConfig = (yaml.load(content) as Record<string, unknown>) || {};
+      } catch {
+        // If file is corrupted, start fresh
+        existingConfig = {};
+      }
+    }
+
+    // Update only the faber section (surgical edit)
+    existingConfig['faber'] = config;
+
+    // Write back
+    const yamlContent = yaml.dump(existingConfig, {
+      indent: 2,
+      lineWidth: 100,
+      noRefs: true,
+      sortKeys: false,
+    });
+
+    fs.writeFileSync(configPath, yamlContent, 'utf-8');
+  }
+
+  /**
+   * Read plugin configuration from unified config file
+   *
+   * @param projectRoot - Optional project root directory
+   * @returns FaberPluginConfig or null if not found
+   */
+  static readPluginConfig(projectRoot?: string): FaberPluginConfig | null {
+    const root = projectRoot || process.cwd();
+    const configPath = path.join(root, this.UNIFIED_CONFIG_PATH);
+
+    if (!fs.existsSync(configPath)) {
+      return null;
+    }
+
+    try {
+      const content = fs.readFileSync(configPath, 'utf-8');
+      const config = yaml.load(content) as Record<string, unknown>;
+      const faber = config?.['faber'] as FaberPluginConfig | undefined;
+      return faber || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Migrate legacy config format to new simplified format
+   *
+   * Reads old format and converts to new FaberPluginConfig format.
+   *
+   * @param projectRoot - Optional project root directory
+   * @returns Migration result
+   */
+  static migratePluginConfig(projectRoot?: string): MigrationResult {
+    const root = projectRoot || process.cwd();
+    const configPath = path.join(root, this.UNIFIED_CONFIG_PATH);
+
+    if (!fs.existsSync(configPath)) {
+      return { migrated: false, error: 'Config file not found' };
+    }
+
+    try {
+      const content = fs.readFileSync(configPath, 'utf-8');
+      const config = yaml.load(content) as Record<string, unknown>;
+      const faber = config?.['faber'] as Record<string, unknown> | undefined;
+
+      if (!faber) {
+        return { migrated: false, error: 'No faber section found' };
+      }
+
+      // Check if already in new format
+      if (faber['workflows'] && typeof faber['workflows'] === 'object' && !Array.isArray(faber['workflows'])) {
+        return { migrated: false }; // Already migrated
+      }
+
+      // Detect legacy format
+      const isLegacy =
+        Array.isArray(faber['workflows']) ||
+        (faber['workflow'] as Record<string, unknown> | undefined)?.['config_path'] ||
+        faber['state'] ||
+        faber['logging'];
+
+      if (!isLegacy) {
+        return { migrated: false }; // Not legacy format
+      }
+
+      // Extract values from legacy format
+      const workflow = faber['workflow'] as Record<string, unknown> | undefined;
+      const state = faber['state'] as Record<string, unknown> | undefined;
+
+      const newConfig: FaberPluginConfig = {
+        workflows: {
+          path: (workflow?.['config_path'] as string) || FABER_DEFAULTS.paths.workflows,
+          default: FABER_DEFAULTS.workflow.defaultWorkflow,
+          autonomy: (workflow?.['autonomy'] as AutonomyLevel) || FABER_DEFAULTS.workflow.autonomy,
+        },
+        runs: {
+          path: (state?.['runs_dir'] as string) || FABER_DEFAULTS.paths.runs,
+        },
+      };
+
+      // Backup old config
+      const backupDir = path.join(root, '.fractary/backups');
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupPath = path.join(backupDir, `config-${timestamp}.yaml`);
+      fs.copyFileSync(configPath, backupPath);
+
+      // Update config with new format
+      config['faber'] = newConfig;
+
+      // Write updated config
+      const yamlContent = yaml.dump(config, {
+        indent: 2,
+        lineWidth: 100,
+        noRefs: true,
+        sortKeys: false,
+      });
+      fs.writeFileSync(configPath, yamlContent, 'utf-8');
+
+      return {
+        migrated: true,
+        oldPath: backupPath,
+        newPath: configPath,
+      };
+    } catch (error) {
+      return {
+        migrated: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Initialize plugin configuration with workflow manifest
+   *
+   * Creates:
+   * - .fractary/config.yaml (faber: section)
+   * - .fractary/faber/workflows/workflows.yaml (manifest)
+   * - .fractary/faber/workflows/ directory
+   * - .fractary/faber/runs/ directory
+   *
+   * @param projectRoot - Optional project root directory
+   * @param options - Configuration options
+   * @returns Path to created config file
+   */
+  static initializePluginConfig(
+    projectRoot?: string,
+    options?: PluginConfigOptions
+  ): string {
+    const root = projectRoot || process.cwd();
+
+    // Generate config
+    const config = this.generatePluginConfig(options);
+
+    // Resolve paths
+    const workflowsPath = config.workflows?.path || FABER_DEFAULTS.paths.workflows;
+    const runsPath = config.runs?.path || FABER_DEFAULTS.paths.runs;
+    const workflowsDir = path.isAbsolute(workflowsPath)
+      ? workflowsPath
+      : path.join(root, workflowsPath);
+    const runsDir = path.isAbsolute(runsPath)
+      ? runsPath
+      : path.join(root, runsPath);
+
+    // Create directories
+    fs.mkdirSync(workflowsDir, { recursive: true });
+    fs.mkdirSync(runsDir, { recursive: true });
+
+    // Write plugin config
+    this.writePluginConfig(config, root);
+
+    // Create workflow manifest if it doesn't exist
+    const manifestPath = path.join(workflowsDir, FABER_DEFAULTS.manifestFilename);
+    if (!fs.existsSync(manifestPath)) {
+      const manifest = {
+        workflows: [
+          {
+            id: 'default',
+            file: 'default.yaml',
+            description: 'Default FABER workflow for software development',
+          },
+        ],
+      };
+
+      const manifestContent = `# Workflow Registry - Lists available FABER workflows
+# Each workflow is defined in a separate file in this directory
+# Schema: https://fractary.dev/schemas/workflow-registry.schema.json
+
+${yaml.dump(manifest, { indent: 2, lineWidth: 100 })}`;
+
+      fs.writeFileSync(manifestPath, manifestContent, 'utf-8');
+    }
+
+    return path.join(root, this.UNIFIED_CONFIG_PATH);
   }
 }
