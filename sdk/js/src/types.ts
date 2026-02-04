@@ -700,3 +700,111 @@ export interface FaberConfig {
     modelOverrides?: Record<FaberPhase, string>;
   };
 }
+
+// ============================================================================
+// Plugin Configuration Types (Simplified)
+// ============================================================================
+
+/**
+ * Simplified FABER plugin configuration (v2)
+ *
+ * This is the new minimal configuration format stored in .fractary/config.yaml
+ * under the 'faber:' section.
+ *
+ * @example
+ * ```yaml
+ * faber:
+ *   workflows:
+ *     path: .fractary/faber/workflows
+ *     default: default
+ *     autonomy: guarded
+ *   runs:
+ *     path: .fractary/faber/runs
+ * ```
+ */
+export interface FaberPluginConfig {
+  workflows?: {
+    /** Directory containing workflows.yaml manifest and workflow files */
+    path?: string;
+    /** Default workflow ID */
+    default?: string;
+    /** Autonomy level: dry-run | assisted | guarded | autonomous */
+    autonomy?: AutonomyLevel;
+  };
+  runs?: {
+    /** Directory for all run artifacts (state, logs, manifests) */
+    path?: string;
+  };
+}
+
+// ============================================================================
+// Workflow Registry Types
+// ============================================================================
+
+/**
+ * Workflow registry manifest (workflows.yaml)
+ *
+ * Lists all available workflows in a project.
+ * Located at: {workflows.path}/workflows.yaml
+ *
+ * @example
+ * ```yaml
+ * workflows:
+ *   - id: default
+ *     file: default.yaml
+ *     description: Default FABER workflow
+ *   - id: bug
+ *     file: bug.yaml
+ *     description: Bug fix workflow
+ * ```
+ */
+export interface WorkflowRegistry {
+  workflows: WorkflowEntry[];
+}
+
+/**
+ * Entry in the workflow registry
+ */
+export interface WorkflowEntry {
+  /** Unique workflow identifier */
+  id: string;
+  /** Filename relative to workflows directory */
+  file: string;
+  /** Human-readable description */
+  description?: string;
+}
+
+// ============================================================================
+// Legacy Configuration Types (Deprecated)
+// ============================================================================
+
+/**
+ * Legacy FABER plugin configuration structure
+ *
+ * @deprecated Use FaberPluginConfig instead. This will be removed in v2.0.
+ */
+export interface LegacyFaberPluginConfig {
+  workflow?: {
+    config_path?: string;
+    autonomy?: AutonomyLevel;
+  };
+  workflows?: Array<{
+    id: string;
+    description?: string;
+    file: string;
+  }>;
+  logging?: {
+    use_logs_plugin?: boolean;
+    log_type?: string;
+    log_level?: string;
+  };
+  state?: {
+    runs_dir?: string;
+    state_dir?: string;
+  };
+  /** @deprecated Use repo plugin instead */
+  repository?: {
+    organization?: string;
+    codex_repo?: string;
+  };
+}

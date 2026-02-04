@@ -19,7 +19,7 @@ import {
   StateQueryOptions,
   RecoveryOptions,
 } from './types.js';
-import { loadStateConfig, findProjectRoot } from '../config.js';
+import { loadStateConfig, findProjectRoot, getRunsPath } from '../config.js';
 import { StateError } from '../errors.js';
 
 /**
@@ -71,7 +71,9 @@ export class StateManager {
   constructor(config?: StateConfig) {
     this.config = config || loadStateConfig();
     const projectRoot = findProjectRoot();
-    this.stateDir = this.config.localPath || path.join(projectRoot, '.faber', 'state');
+    // Use getRunsPath for new config format, fallback to legacy localPath
+    // The runs directory now holds all state artifacts
+    this.stateDir = this.config.localPath || getRunsPath(projectRoot);
   }
 
   // =========================================================================

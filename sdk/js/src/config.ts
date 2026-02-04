@@ -696,6 +696,236 @@ export function loadStateConfig(projectRoot?: string): StateConfig {
 }
 
 // ============================================================================
+// Plugin Configuration (Simplified v2)
+// ============================================================================
+
+import { FABER_DEFAULTS } from './defaults.js';
+import type { FaberPluginConfig, LegacyFaberPluginConfig } from './types.js';
+
+/** Path to unified config file */
+const UNIFIED_CONFIG_PATH = '.fractary/config.yaml';
+
+/**
+ * Schema for simplified plugin config (v2)
+ */
+const FaberPluginConfigSchema = z.object({
+  workflows: z
+    .object({
+      path: z.string().optional(),
+      default: z.string().optional(),
+      autonomy: z.enum(['dry-run', 'assisted', 'guarded', 'autonomous']).optional(),
+    })
+    .optional(),
+  runs: z
+    .object({
+      path: z.string().optional(),
+    })
+    .optional(),
+});
+
+/**
+ * Check for deprecated config fields and emit warnings
+ */
+function checkDeprecatedFields(config: Record<string, unknown>): void {
+  const faber = config['faber'] as Record<string, unknown> | undefined;
+  if (!faber) return;
+
+  // Check for deprecated workflows array format
+  if (Array.isArray(faber['workflows'])) {
+    console.warn(
+      '[DEPRECATED] faber.workflows array is deprecated.\n' +
+        'Use .fractary/faber/workflows/workflows.yaml manifest instead.\n' +
+        'Run: fractary-faber config migrate'
+    );
+  }
+
+  // Check for old workflow.config_path
+  const workflow = faber['workflow'] as Record<string, unknown> | undefined;
+  if (workflow?.['config_path']) {
+    console.warn(
+      '[DEPRECATED] faber.workflow.config_path is deprecated.\n' +
+        'Use faber.workflows.path instead.\n' +
+        'Run: fractary-faber config migrate'
+    );
+  }
+
+  // Check for deprecated repository section
+  if (faber['repository']) {
+    console.warn(
+      '[DEPRECATED] faber.repository is deprecated.\n' +
+        'Repository info is now obtained from repo/work plugins.\n' +
+        'Run: fractary-faber config migrate'
+    );
+  }
+
+  // Check for deprecated logging section
+  if (faber['logging']) {
+    console.warn(
+      '[DEPRECATED] faber.logging is deprecated.\n' +
+        'Logging settings are now hardcoded defaults.\n' +
+        'Run: fractary-faber config migrate'
+    );
+  }
+
+  // Check for deprecated state section
+  if (faber['state']) {
+    console.warn(
+      '[DEPRECATED] faber.state is deprecated.\n' +
+        'Use faber.runs.path instead.\n' +
+        'Run: fractary-faber config migrate'
+    );
+  }
+}
+
+/**
+ * Convert legacy config format to new format
+ */
+function migrateLegacyConfig(legacy: LegacyFaberPluginConfig): FaberPluginConfig {
+  const config: FaberPluginConfig = {};
+
+  // Migrate workflow settings
+  config.workflows = {
+    path: legacy.workflow?.config_path || FABER_DEFAULTS.paths.workflows,
+    default: FABER_DEFAULTS.workflow.defaultWorkflow,
+    autonomy: legacy.workflow?.autonomy || FABER_DEFAULTS.workflow.autonomy,
+  };
+
+  // Migrate state/runs path
+  config.runs = {
+    path: legacy.state?.runs_dir || FABER_DEFAULTS.paths.runs,
+  };
+
+  return config;
+}
+
+/**
+ * Load FABER plugin configuration from unified config file
+ *
+ * Supports both new simplified format and legacy format with automatic migration.
+ *
+ * @param projectRoot - Optional project root directory
+ * @param options - Loading options
+ * @returns FaberPluginConfig with defaults applied
+ */
+export function loadFaberPluginConfig(
+  projectRoot?: string,
+  options?: LoadConfigOptions
+): FaberPluginConfig {
+  const root = projectRoot || findProjectRoot();
+  const configPath = path.join(root, UNIFIED_CONFIG_PATH);
+
+  // Default config
+  const defaultConfig: FaberPluginConfig = {
+    workflows: {
+      path: FABER_DEFAULTS.paths.workflows,
+      default: FABER_DEFAULTS.workflow.defaultWorkflow,
+      autonomy: FABER_DEFAULTS.workflow.autonomy,
+    },
+    runs: {
+      path: FABER_DEFAULTS.paths.runs,
+    },
+  };
+
+  // Check if unified config exists
+  if (!fs.existsSync(configPath)) {
+    if (options?.allowMissing) {
+      return defaultConfig;
+    }
+    throw new ConfigValidationError([
+      'FABER configuration not found.',
+      '',
+      'Run the following command to initialize:',
+      '  fractary-faber config init',
+      '',
+      `Expected config at: ${configPath}`,
+    ]);
+  }
+
+  // Load config
+  let rawConfig: Record<string, unknown>;
+  try {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    rawConfig = yaml.load(content) as Record<string, unknown>;
+  } catch (error) {
+    throw new ConfigValidationError([
+      `Failed to parse config: ${error instanceof Error ? error.message : String(error)}`,
+    ]);
+  }
+
+  // Check for deprecated fields
+  checkDeprecatedFields(rawConfig);
+
+  // Get faber section
+  const faberSection = rawConfig['faber'] as Record<string, unknown> | undefined;
+  if (!faberSection) {
+    if (options?.allowMissing) {
+      return defaultConfig;
+    }
+    throw new ConfigValidationError([
+      'FABER section not found in config.',
+      '',
+      'Run the following command to initialize:',
+      '  fractary-faber config init',
+    ]);
+  }
+
+  // Check if this is legacy format (has workflow.config_path or workflows array)
+  const isLegacy =
+    Array.isArray(faberSection['workflows']) ||
+    (faberSection['workflow'] as Record<string, unknown> | undefined)?.['config_path'] ||
+    faberSection['state'] ||
+    faberSection['logging'];
+
+  if (isLegacy) {
+    // Migrate legacy config to new format
+    const migrated = migrateLegacyConfig(faberSection as unknown as LegacyFaberPluginConfig);
+    return {
+      workflows: { ...defaultConfig.workflows, ...migrated.workflows },
+      runs: { ...defaultConfig.runs, ...migrated.runs },
+    };
+  }
+
+  // Validate new format
+  const result = FaberPluginConfigSchema.safeParse(faberSection);
+  if (!result.success) {
+    const errors = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`);
+    throw new ConfigValidationError(errors);
+  }
+
+  // Merge with defaults
+  return {
+    workflows: { ...defaultConfig.workflows, ...result.data.workflows },
+    runs: { ...defaultConfig.runs, ...result.data.runs },
+  };
+}
+
+/**
+ * Get the runs directory path from config
+ *
+ * @param projectRoot - Optional project root directory
+ * @returns Absolute path to runs directory
+ */
+export function getRunsPath(projectRoot?: string): string {
+  const root = projectRoot || findProjectRoot();
+  const config = loadFaberPluginConfig(root, { allowMissing: true });
+  const runsPath = config.runs?.path || FABER_DEFAULTS.paths.runs;
+  return path.isAbsolute(runsPath) ? runsPath : path.join(root, runsPath);
+}
+
+/**
+ * Get the workflows directory path from config
+ *
+ * @param projectRoot - Optional project root directory
+ * @returns Absolute path to workflows directory
+ */
+export function getWorkflowsPath(projectRoot?: string): string {
+  const root = projectRoot || findProjectRoot();
+  const config = loadFaberPluginConfig(root, { allowMissing: true });
+  const workflowsPath = config.workflows?.path || FABER_DEFAULTS.paths.workflows;
+  return path.isAbsolute(workflowsPath) ? workflowsPath : path.join(root, workflowsPath);
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -703,6 +933,7 @@ export { ConfigInitializer } from './config/initializer.js';
 
 export {
   FaberConfigSchema,
+  FaberPluginConfigSchema,
   WorkConfigSchema,
   RepoConfigSchema,
   WorkflowConfigSchema,
