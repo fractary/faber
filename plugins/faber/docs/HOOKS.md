@@ -257,10 +257,12 @@ To prompt users when hooks complete with warnings:
   "skill": "fractary-security:scanner",
   "description": "Run security scan",
   "result_handling": {
-    "on_warning": "prompt"
+    "on_warning": "stop"
   }
 }
 ```
+
+With `on_warning: "stop"`, warnings display an intelligent prompt with options (continue, fix, stop).
 
 For complete result handling documentation, see [RESULT-HANDLING.md](./RESULT-HANDLING.md).
 

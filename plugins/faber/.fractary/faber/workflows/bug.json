@@ -29,7 +29,7 @@
           "prompt": "/fractary-spec:create --template bug --context 'Create a bug fix specification focusing on:\n1. **Root Cause Analysis** - What is causing this bug? Trace through the code path.\n2. **Minimal Scope** - What is the smallest change that fixes this bug?\n3. **Regression Prevention** - What tests will ensure this bug doesn't reoccur?\n4. **Related Areas** - What related functionality might be affected?\n\nKeep the specification focused and concise. Avoid scope creep.'",
           "result_handling": {
             "on_success": "continue",
-            "on_warning": "prompt"
+            "on_warning": "stop"
           }
         },
         {
@@ -54,7 +54,7 @@
           "context": "Verification before fixing ensures we're solving the right problem",
           "result_handling": {
             "on_success": "continue",
-            "on_warning": "prompt"
+            "on_warning": "stop"
           }
         }
       ]
@@ -69,7 +69,7 @@
           "context": "Bug validation must be explicit and thorough",
           "result_handling": {
             "on_success": "continue",
-            "on_warning": "prompt"
+            "on_warning": "stop"
           }
         }
       ]

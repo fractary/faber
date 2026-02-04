@@ -125,19 +125,12 @@ Steps can configure how different result statuses are handled.
 ```json
 {
   "result_handling": {
-    "on_warning": "prompt"
-  }
-}
-```
-
-**Strict Warning Mode** (treat warnings as failures):
-```json
-{
-  "result_handling": {
     "on_warning": "stop"
   }
 }
 ```
+
+With `on_warning: "stop"`, warnings display an intelligent prompt with options (continue, fix, stop). This is recommended for critical steps where warnings should be reviewed.
 
 ## Validation Tooling
 

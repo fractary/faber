@@ -29,7 +29,7 @@
           "prompt": "/fractary-spec:create --template feature --context 'Create a comprehensive feature specification including:\n\n1. **User Stories** - Who needs this and why? What are the use cases?\n2. **Technical Design** - How will this be implemented? What are the components?\n3. **API Changes** - New endpoints, updated contracts, data models\n4. **Data Model** - Database schema changes, data structures\n5. **Integration** - How does this integrate with existing features?\n6. **Testing Strategy** - Unit, integration, E2E test plans\n7. **Documentation Needs** - What docs need to be created/updated?\n8. **Performance Considerations** - Expected load, scaling concerns\n\nBe thorough - this spec guides the entire implementation.'",
           "result_handling": {
             "on_success": "continue",
-            "on_warning": "prompt"
+            "on_warning": "stop"
           }
         },
         {
@@ -50,7 +50,7 @@
           "context": "Technical validation prevents costly rework later",
           "result_handling": {
             "on_success": "continue",
-            "on_warning": "prompt"
+            "on_warning": "stop"
           }
         }
       ]
@@ -65,7 +65,7 @@
           "context": "Complete implementation includes code AND documentation",
           "result_handling": {
             "on_success": "continue",
-            "on_warning": "prompt"
+            "on_warning": "stop"
           }
         }
       ]
@@ -80,7 +80,7 @@
           "context": "Features require comprehensive testing across multiple dimensions",
           "result_handling": {
             "on_success": "continue",
-            "on_warning": "prompt"
+            "on_warning": "stop"
           }
         },
         {
@@ -91,7 +91,7 @@
           "context": "Explicit validation ensures nothing is missed",
           "result_handling": {
             "on_success": "continue",
-            "on_warning": "prompt"
+            "on_warning": "stop"
           }
         }
       ]

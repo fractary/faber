@@ -130,10 +130,7 @@
           "name": "Deploy to production",
           "description": "Deploy asset to production environment",
           "prompt": "Deploy the {{asset_type}} to {{#if production_environment}}{{production_environment}}{{else}}production{{/if}} environment. Use /fractary-faber-cloud:deploy-apply with production configuration. Ensure all approvals are obtained.",
-          "command": "/fractary-faber-cloud:deploy-apply",
-          "result_handling": {
-            "on_success": "prompt"
-          }
+          "command": "/fractary-faber-cloud:deploy-apply"
         }
         {{#unless skip_codex_sync}}
         ,{
