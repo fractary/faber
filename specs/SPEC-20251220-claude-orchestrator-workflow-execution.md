@@ -296,18 +296,20 @@ if (result.status === "failure") {
 if (result.status === "warning") {
   await emitEvent({ type: "step_warning", warning: result.message });
 
-  if (handling.on_warning === "prompt") {
+  if (handling.on_warning === "stop") {
+    // Show intelligent prompt with options
     const approval = await AskUserQuestion({
-      question: `Warning: ${result.message}. Continue?`,
-      options: ["Continue", "Stop"]
+      question: `Warning: ${result.message}. How would you like to proceed?`,
+      options: ["Continue anyway", "Fix and retry", "Stop workflow"]
     });
 
-    if (approval !== "Continue") {
+    if (approval === "Stop workflow") {
       await updateState({ status: "paused" });
       return; // Stop workflow
     }
+    // Handle "Fix and retry" or "Continue anyway"
   }
-  // else: continue
+  // else: on_warning === "continue" - proceed automatically
 }
 
 if (result.status === "pending_input") {
@@ -537,7 +539,7 @@ model: claude-sonnet-4-5
 │ │ • Evaluate result (success/warning/failure)            │  │
 │ │ • Handle per result_handling config                    │  │
 │ │ • If failure: STOP workflow                            │  │
-│ │ • If warning + prompt: AskUserQuestion                 │  │
+│ │ • If warning + stop: show prompt with options          │  │
 │ │ • Emit step_complete or step_failed event              │  │
 │ │ • Update state (step → completed/failed)               │  │
 │ │ • Update TodoWrite (step → completed)                  │  │

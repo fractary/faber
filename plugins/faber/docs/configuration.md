@@ -482,9 +482,9 @@ Steps and hooks can optionally define `result_handling` to control behavior base
 }
 ```
 
-- **on_success**: `"continue"` (proceed automatically) or `"prompt"` (ask user)
-- **on_warning**: `"continue"` (log and proceed), `"prompt"` (ask user with options), or `"stop"` (halt workflow)
-- **on_failure**: `"stop"` (IMMUTABLE for steps - always stops workflow)
+- **on_success**: `"continue"` (proceed automatically) or slash command
+- **on_warning**: `"continue"` (log and proceed), `"stop"` (show prompt with options), or slash command
+- **on_failure**: `"stop"` (show prompt with options) or slash command for recovery
 
 ### Example: Using Defaults
 

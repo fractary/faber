@@ -88,7 +88,6 @@ Operation completed successfully without issues.
 
 **Manager behavior:**
 - `on_success: "continue"` (default) - Proceed to next step
-- `on_success: "prompt"` - Ask user before proceeding
 
 ### Warning
 
@@ -123,8 +122,7 @@ Operation completed but with non-blocking issues that may need attention.
 
 **Manager behavior:**
 - `on_warning: "continue"` (default) - Log and proceed
-- `on_warning: "prompt"` - Show intelligent prompt with options
-- `on_warning: "stop"` - Treat as failure
+- `on_warning: "stop"` - Show intelligent prompt with options (continue, fix, stop)
 
 ### Failure
 
