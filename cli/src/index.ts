@@ -21,13 +21,14 @@ import { createInitCommand } from './commands/init.js';
 import { createMigrateCommand } from './commands/migrate.js';
 import { createPlanCommand } from './commands/plan/index.js';
 import { createAuthCommand } from './commands/auth/index.js';
+import { createConfigCommand } from './commands/config.js';
 
 // Force unbuffered output to prevent buffering issues in terminals
 if (process.stdout.isTTY) {
   (process.stdout as any)._handle?.setBlocking?.(true);
 }
 
-const version = '1.5.12';
+const version = '1.5.13';
 
 /**
  * Create and configure the main CLI program
@@ -46,6 +47,7 @@ export function createFaberCLI(): Command {
   // Workflow commands (top-level)
   program.addCommand(createInitCommand());        // init
   program.addCommand(createMigrateCommand());     // migrate
+  program.addCommand(createConfigCommand());       // config get/path/exists
   program.addCommand(createPlanCommand());         // plan
   program.addCommand(createRunCommand());          // workflow-run
   program.addCommand(createStatusCommand());       // run-inspect
