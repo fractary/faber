@@ -143,7 +143,7 @@
       {
         "id": "workflow-state",
         "type": "json",
-        "path": ".fractary/faber/runs/{run_id}/state.json",
+        "path": ".fractary/faber/runs/{plan_id}/state-{run_suffix}.json",
         "description": "Current workflow state file - essential for continuation",
         "required": true,
         "reload_triggers": ["session_start", "manual"]

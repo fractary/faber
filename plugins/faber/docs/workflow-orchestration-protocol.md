@@ -51,7 +51,9 @@ The orchestrator doesn't need to distinguish between these patterns - just invok
 - Update state when phases transition (frame → architect → build → evaluate → release)
 - Update state on errors, failures, or user-requested stops
 - Never proceed without updating state
-- State file location: `.fractary/faber/runs/{run_id}/state.json`
+- State file location: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
+  - Where `run_id = {plan_id}-run-{run_suffix}`
+  - Use the `getStatePath(runId)` helper function to compute the path
 
 ### 4. Guards Are Mandatory
 
@@ -84,9 +86,9 @@ await TodoWrite({
 });
 
 // 2. Update state file to mark step as current
-const currentState = JSON.parse(await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` }));
+const currentState = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
 await Write({
-  file_path: `.fractary/faber/runs/${runId}/state.json`,
+  file_path: `${getStatePath(runId)}`,
   content: JSON.stringify({
     ...currentState,
     current_step: step.step_id,
@@ -335,7 +337,7 @@ const updatedState = {
 };
 
 await Write({
-  file_path: `.fractary/faber/runs/${runId}/state.json`,
+  file_path: `${getStatePath(runId)}`,
   content: JSON.stringify(updatedState, null, 2)
 });
 
@@ -402,8 +404,15 @@ if (result.status === "pending_input") {
 
 All workflow execution state is stored in:
 ```
-.fractary/faber/runs/{run_id}/state.json
+.fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 ```
+
+Where:
+- `run_id = {plan_id}-run-{run_suffix}`
+- `plan_id` is the plan identifier (e.g., `org-project-feature-20260204T195356`)
+- `run_suffix` is the run timestamp (e.g., `2026-02-04T19-56-42Z`)
+
+This keeps all artifacts (plan.json + state files) together in one directory while allowing multiple runs.
 
 ### State Schema
 
@@ -467,7 +476,7 @@ interface WorkflowState {
 ```javascript
 // Read current state
 const state = JSON.parse(
-  await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` }).content
+  await Read({ file_path: `${getStatePath(runId)}` }).content
 );
 
 // Modify state
@@ -479,7 +488,7 @@ const updatedState = {
 
 // Write updated state
 await Write({
-  file_path: `.fractary/faber/runs/${runId}/state.json`,
+  file_path: `${getStatePath(runId)}`,
   content: JSON.stringify(updatedState, null, 2)
 });
 ```
@@ -547,7 +556,7 @@ if (!previousStep) {
 }
 
 // Check state for previous step result
-const state = JSON.parse(await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` }));
+const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
 const previousResult = state.steps.find(s => s.step_id === previousStep.step_id);
 
 if (!previousResult) {
@@ -576,7 +585,7 @@ if (previousStep.id.includes("create") || previousStep.id.includes("generate")) 
 // Read and validate state file
 let state;
 try {
-  const content = await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` });
+  const content = await Read({ file_path: `${getStatePath(runId)}` });
   state = JSON.parse(content);
 } catch (error) {
   throw new Error(`GUARD FAILURE: Cannot read state file: ${error.message}`);
@@ -691,7 +700,7 @@ if (isDestructive) {
     console.log(`Skipping destructive step: ${step.name}`);
     // Mark step as skipped in state
     await Write({
-      file_path: `.fractary/faber/runs/${runId}/state.json`,
+      file_path: `${getStatePath(runId)}`,
       content: JSON.stringify({
         ...state,
         steps: [
@@ -868,7 +877,7 @@ Retry is triggered when:
 ```javascript
 async function handleStepRetry(runId, step) {
   // Read current state
-  const state = JSON.parse(await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` }));
+  const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
 
   // Find the phase
   const phase = state.phases.find(p => p.name === step.phase);
@@ -889,7 +898,7 @@ async function handleStepRetry(runId, step) {
 
   // Increment retry count
   await Write({
-    file_path: `.fractary/faber/runs/${runId}/state.json`,
+    file_path: `${getStatePath(runId)}`,
     content: JSON.stringify({
       ...state,
       phases: state.phases.map(p =>
@@ -1009,9 +1018,9 @@ async function executeAutonomyGate(phase, gateType, runId) {
     console.log(`User chose to skip ${phase.name} phase`);
 
     // Update state to mark phase as skipped
-    const state = JSON.parse(await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` }));
+    const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
     await Write({
-      file_path: `.fractary/faber/runs/${runId}/state.json`,
+      file_path: `${getStatePath(runId)}`,
       content: JSON.stringify({
         ...state,
         phases: state.phases.map(p =>
@@ -1029,9 +1038,9 @@ async function executeAutonomyGate(phase, gateType, runId) {
     console.log("User chose to stop the workflow");
 
     // Update state to mark workflow as stopped
-    const state = JSON.parse(await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` }));
+    const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
     await Write({
-      file_path: `.fractary/faber/runs/${runId}/state.json`,
+      file_path: `${getStatePath(runId)}`,
       content: JSON.stringify({
         ...state,
         status: "stopped",
@@ -1091,7 +1100,7 @@ try {
 
   // Update state
   await Write({
-    file_path: `.fractary/faber/runs/${runId}/state.json`,
+    file_path: `${getStatePath(runId)}`,
     content: JSON.stringify({
       ...state,
       steps: [
@@ -1139,14 +1148,16 @@ try {
 **Recovery**:
 ```javascript
 try {
-  const content = await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` });
+  const content = await Read({ file_path: `${getStatePath(runId)}` });
   state = JSON.parse(content);
 } catch (error) {
   console.error("State file corrupted or missing:", error.message);
 
-  // Try to recover from backup
+  // Try to recover from backup (backup uses same directory as state file)
   try {
-    const backup = await Read({ file_path: `.fractary/faber/runs/${runId}/state.backup.json` });
+    const statePath = getStatePath(runId);
+    const backupPath = statePath.replace('.json', '.backup.json');
+    const backup = await Read({ file_path: backupPath });
     state = JSON.parse(backup);
     console.log("Recovered from backup state file");
   } catch (backupError) {
@@ -1173,7 +1184,7 @@ try {
 
   // Update state to failed
   await Write({
-    file_path: `.fractary/faber/runs/${runId}/state.json`,
+    file_path: `${getStatePath(runId)}`,
     content: JSON.stringify({
       ...state,
       status: "failed",
@@ -1209,7 +1220,7 @@ if (phase.retry_count >= phase.max_retries) {
 
   // Update state to failed
   await Write({
-    file_path: `.fractary/faber/runs/${runId}/state.json`,
+    file_path: `${getStatePath(runId)}`,
     content: JSON.stringify({
       ...state,
       status: "failed",
@@ -1251,7 +1262,7 @@ if (phase.retry_count >= phase.max_retries) {
 
 ```javascript
 async function handleWorkflowCompletion(runId) {
-  const state = JSON.parse(await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` }));
+  const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
 
   // Update state to completed
   const completedState = {
@@ -1261,7 +1272,7 @@ async function handleWorkflowCompletion(runId) {
   };
 
   await Write({
-    file_path: `.fractary/faber/runs/${runId}/state.json`,
+    file_path: `${getStatePath(runId)}`,
     content: JSON.stringify(completedState, null, 2)
   });
 
@@ -1292,7 +1303,7 @@ async function handleWorkflowCompletion(runId) {
 
 ```javascript
 async function handleWorkflowFailure(runId, step, result) {
-  const state = JSON.parse(await Read({ file_path: `.fractary/faber/runs/${runId}/state.json` }));
+  const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
 
   // Update state to failed
   const failedState = {
@@ -1305,7 +1316,7 @@ async function handleWorkflowFailure(runId, step, result) {
   };
 
   await Write({
-    file_path: `.fractary/faber/runs/${runId}/state.json`,
+    file_path: `${getStatePath(runId)}`,
     content: JSON.stringify(failedState, null, 2)
   });
 

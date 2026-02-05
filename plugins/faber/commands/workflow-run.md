@@ -250,6 +250,24 @@ const autonomy = fullPlan.autonomy || "guarded";
 const work_id = workItems.length === 1 ? workItems[0].work_id : null;
 ```
 
+**Helper function for state path computation:**
+
+```javascript
+// Compute state file path from run_id
+// run_id format: {plan_id}-run-{timestamp}
+// State path: .fractary/faber/runs/{plan_id}/state-{timestamp}.json
+function getStatePath(runId) {
+  const runMarker = '-run-';
+  const runMarkerIndex = runId.lastIndexOf(runMarker);
+  if (runMarkerIndex === -1) {
+    throw new Error(`Invalid run_id format: ${runId}. Expected {plan_id}-run-{timestamp}`);
+  }
+  const planId = runId.substring(0, runMarkerIndex);
+  const runSuffix = runId.substring(runMarkerIndex + runMarker.length);
+  return `.fractary/faber/runs/${planId}/state-${runSuffix}.json`;
+}
+```
+
 **Auto-Resume Detection (if `--resume` not explicitly provided and `--force-new` not set):**
 
 ```javascript
@@ -257,10 +275,11 @@ const work_id = workItems.length === 1 ? workItems[0].work_id : null;
 if (!resume_run_id && !force_new) {
   console.log("\n→ Checking for incomplete runs...");
 
-  // Find all state files for this plan_id
+  // Find all state files for this plan_id (now in same directory as plan.json)
+  const planDir = `.fractary/faber/runs/${plan_id}`;
   const findOutput = await Bash({
-    command: `find .fractary/faber/runs -name "state.json" -type f 2>/dev/null || true`,
-    description: "Find all workflow state files"
+    command: `find "${planDir}" -name "state-*.json" -type f 2>/dev/null || true`,
+    description: "Find all workflow state files for this plan"
   });
 
   if (findOutput.stdout.trim()) {
@@ -272,9 +291,8 @@ if (!resume_run_id && !force_new) {
         const stateContent = await Read({ file_path: statePath });
         const state = JSON.parse(stateContent);
 
-        // Check if this state matches our plan_id and is incomplete
-        if (state.plan_id === plan_id &&
-            (state.status === "in_progress" || state.status === "failed")) {
+        // Check if this state is incomplete
+        if (state.status === "in_progress" || state.status === "failed") {
           incompleteRuns.push(state);
         }
       } catch (error) {
@@ -313,7 +331,7 @@ if (!resume_run_id && !force_new) {
 ```javascript
 // Resume from previous run
 const runId = resume_run_id;
-const statePath = `.fractary/faber/runs/${runId}/state.json`;
+const statePath = getStatePath(runId);  // Uses helper function defined above
 
 // Read existing state
 const state = JSON.parse(await Read({ file_path: statePath }));
@@ -335,9 +353,13 @@ if (state.plan_id !== plan_id) {
 
 ```javascript
 // Generate unique run ID
+// Format: {plan_id}-run-{timestamp}
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
 const runId = `${plan_id}-run-${timestamp}`;
-const statePath = `.fractary/faber/runs/${runId}/state.json`;
+
+// State file goes in same directory as plan.json, with timestamp in filename
+// This keeps all artifacts for a plan together while allowing multiple runs
+const statePath = `.fractary/faber/runs/${plan_id}/state-${timestamp}.json`;
 
 console.log("✓ Starting new workflow execution");
 console.log(`Run ID: ${runId}`);
@@ -370,10 +392,11 @@ const initialState = {
   updated_at: new Date().toISOString()
 };
 
-// Create state directory
+// Plan directory should already exist (created by faber-planner)
+// Ensure it exists just in case
 await Bash({
-  command: `mkdir -p .fractary/faber/runs/${runId}`,
-  description: "Create run directory"
+  command: `mkdir -p ".fractary/faber/runs/${plan_id}"`,
+  description: "Ensure plan directory exists"
 });
 
 // Write initial state
@@ -886,7 +909,19 @@ The orchestration protocol (`plugins/faber/docs/workflow-orchestration-protocol.
 
 ## State File Structure
 
-State is persisted to `.fractary/faber/runs/{run_id}/state.json`:
+State is persisted to `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`:
+
+**Directory Structure:**
+```
+.fractary/faber/runs/{plan_id}/
+├── plan.json                    # Execution plan (created by faber-planner)
+├── state-2026-02-04T19-56-42Z.json  # First run state
+├── state-2026-02-04T20-30-15Z.json  # Second run state (if re-run)
+└── ...
+```
+
+This structure keeps all artifacts for a plan together while allowing multiple runs.
+The run_id (`{plan_id}-run-{timestamp}`) is stored inside the state file for identification.
 
 ```json
 {

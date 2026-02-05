@@ -43,7 +43,7 @@ ELSE:
   EXIT 0 (gracefully, not an error)
 END
 
-state_path = .fractary/faber/runs/{run_id}/state.json
+state_path = .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 ```
 
 **Tools**: Bash (read file), parameter parsing
@@ -282,7 +282,7 @@ def session_end(run_id=None, reason="manual"):
             print("ℹ️  No active workflow found")
             return 0
 
-    state_path = f".fractary/faber/runs/{run_id}/state.json"
+    state_path = f".fractary/faber/runs/{plan_id}/state-{run_suffix}.json"
 
     # Step 2: Load State File
     if not exists(state_path):
@@ -423,7 +423,7 @@ def get_environment():
 - Manual user invocation
 
 **Updates**:
-- `.fractary/faber/runs/{run_id}/state.json` - Session metadata
+- `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json` - Session metadata
 
 **Reads**:
 - `.fractary/faber/runs/.active-run-id` - Active workflow detection

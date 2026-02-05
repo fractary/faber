@@ -18,8 +18,13 @@ Execute these steps IN ORDER before any workflow step execution:
 
 ```bash
 # Read run state
-RUN_DIR=".fractary/faber/runs/${RUN_ID}"
-STATE_FILE="${RUN_DIR}/state.json"
+# Run ID format: {plan_id}-run-{suffix}
+# State path: .fractary/faber/runs/{plan_id}/state-{suffix}.json
+RUN_MARKER="-run-"
+PLAN_ID="${RUN_ID%$RUN_MARKER*}"
+RUN_SUFFIX="${RUN_ID#*$RUN_MARKER}"
+RUN_DIR=".fractary/faber/runs/${PLAN_ID}"
+STATE_FILE="${RUN_DIR}/state-${RUN_SUFFIX}.json"
 METADATA_FILE="${RUN_DIR}/metadata.json"
 
 # Validate run exists
@@ -494,7 +499,7 @@ This allows workflows to resume even with partial context, while critical errors
 - faber-manager agent (Step 0 before any workflow execution)
 
 **Reads From:**
-- `.fractary/faber/runs/{run_id}/state.json`
+- `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
 - `.fractary/faber/runs/{run_id}/metadata.json`
 - `.fractary/faber/runs/{run_id}/events/`
 - `.fractary/faber/runs/{run_id}/session-summaries/` (cross-session context)

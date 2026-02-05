@@ -357,7 +357,7 @@ This uses the existing `/repo:pr-merge --worktree-cleanup` behavior.
 fractary-faber runs dir              # Base runs directory
 fractary-faber runs dir {run_id}     # Specific run directory
 fractary-faber runs plan-path {run_id}   # Path to plan.json
-fractary-faber runs state-path {run_id}  # Path to state.json
+fractary-faber runs state-path {run_id}  # Path to state-{run_suffix}.json in plan directory
 ```
 
 ## Integration

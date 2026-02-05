@@ -40,9 +40,12 @@ PHASE="${1:?Phase name required (frame, architect, build, evaluate, release)}"
 STATUS="${2:?Status required (pending, in_progress, completed, failed)}"
 DATA_JSON="${3:-{}}"
 
+# Source shared library for centralized path computation
+source "$SCRIPT_DIR/lib/load-faber-config.sh"
+
 # Compute state file path
 if [ -n "$RUN_ID" ]; then
-    STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
+    STATE_FILE="$(faber_get_state_path "$RUN_ID")"
 else
     STATE_FILE=".fractary/faber/state.json"
 fi

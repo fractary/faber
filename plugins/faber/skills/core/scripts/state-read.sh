@@ -17,14 +17,18 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_TIMEOUT=10  # seconds to wait for shared lock
+
+# Source shared library for centralized path computation
+source "$SCRIPT_DIR/lib/load-faber-config.sh"
 
 # Parse arguments
 RUN_ID=""
 if [[ "${1:-}" == "--run-id" ]]; then
     RUN_ID="${2:?Run ID required with --run-id flag}"
     shift 2
-    STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
+    STATE_FILE="$(faber_get_state_path "$RUN_ID")"
     JQ_QUERY="${1:-.}"
 else
     STATE_FILE="${1:-.fractary/faber/state.json}"

@@ -65,7 +65,7 @@ Reloads critical artifacts into context based on workflow configuration.
 Priority order:
 1. If `run_id` parameter provided → Use it directly
 2. Else if `.fractary/faber/runs/.active-run-id` exists → Read run ID from file
-3. Else search `.fractary/faber/runs/` for state.json files with status "in_progress" or "paused"
+3. Else search `.fractary/faber/runs/` for state-*.json files with status "in_progress" or "paused"
    - If none found: Return error "No active workflow found"
    - If one found: Use that run_id
    - If multiple found: Prompt user to select which workflow
@@ -76,7 +76,7 @@ Active run ID file:
 
 **Step 2: Load State and Workflow Config**
 
-1. Read `.fractary/faber/runs/{run_id}/state.json`
+1. Read `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
 2. Extract `workflow_id` from state
 3. Load workflow configuration:
    - If workflow_id starts with "fractary-faber:": Load from `plugins/faber/config/workflows/{name}.json`
@@ -265,7 +265,7 @@ Workflow: fractary-faber:default
 Artifacts that would be loaded:
   ✓ workflow-state
     Type: json
-    Path: .fractary/faber/runs/{run_id}/state.json
+    Path: .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
     Required: yes
     Exists: yes
     Size: 4.2 KB
@@ -291,7 +291,7 @@ Run ID not found:
 ```
 ❌ ERROR: Run not found
 Run ID: {run_id}
-Path: .fractary/faber/runs/{run_id}/state.json
+Path: .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 
 Recovery:
 1. List active runs: find .fractary/runs -name state.json
@@ -301,7 +301,7 @@ Recovery:
 State file corrupted:
 ```
 ❌ ERROR: Cannot read state file
-Path: .fractary/faber/runs/{run_id}/state.json
+Path: .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 
 Recovery:
 1. Check if backup exists: .fractary/faber/runs/{run_id}/state.backup.json
@@ -370,7 +370,7 @@ ELSE:
   EXIT 0 (gracefully, not an error)
 END
 
-state_path = .fractary/faber/runs/{run_id}/state.json
+state_path = .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 ```
 
 **Step 2: Load State File**
@@ -630,7 +630,7 @@ Artifacts are configured per-workflow in the `critical_artifacts` section:
       {
         "id": "workflow-state",
         "type": "json",
-        "path": ".fractary/faber/runs/{run_id}/state.json",
+        "path": ".fractary/faber/runs/{plan_id}/state-{run_suffix}.json",
         "required": true,
         "reload_triggers": ["session_start", "manual"]
       }
@@ -668,7 +668,7 @@ Paths can include placeholders that are resolved at runtime:
 - `{project_root}` - Git repository root directory
 - `{work_id}` - Work item ID from state
 
-Example: `.fractary/faber/runs/{run_id}/state.json` → `.fractary/faber/runs/fractary-faber-258-20260104/state.json`
+Example: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json` → `.fractary/faber/runs/fractary-faber-258-20260104/state-2026-01-05T14-30-22Z.json`
 
 ## Load Triggers
 
