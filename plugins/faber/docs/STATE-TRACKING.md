@@ -5,7 +5,7 @@ Complete guide to dual-state tracking in FABER workflow (state.json + fractary-l
 ## Overview
 
 FABER v2.0 uses a **dual-state tracking approach** combining:
-1. **Current State** - `.fractary/faber/state.json` (current workflow state)
+1. **Current State** - `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json` (current workflow state)
 2. **Historical Logs** - `fractary-logs` plugin with workflow log type (complete audit trail)
 
 This provides both **operational efficiency** (fast state queries) and **complete auditability** (full historical record).
@@ -36,8 +36,10 @@ This provides both **operational efficiency** (fast state queries) and **complet
 
 ### Location
 ```
-.fractary/faber/state.json
+.fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 ```
+
+Where `run_id = {plan_id}-run-{run_suffix}`. This keeps state files alongside the plan.json in the same directory.
 
 ### Purpose
 - Track **current** workflow state
@@ -420,7 +422,7 @@ Optional fields:
 **Recent feedback for a run**:
 ```bash
 # Via state.json
-jq '.feedback_history | .[-5:]' .fractary/faber/runs/{run_id}/state.json
+jq '.feedback_history | .[-5:]' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 
 # Via event log
 ls -la .fractary/faber/runs/{run_id}/events/ | grep feedback

@@ -24,7 +24,17 @@ RUN_ID=""
 if [[ "${1:-}" == "--run-id" ]]; then
     RUN_ID="${2:?Run ID required with --run-id flag}"
     shift 2
-    STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
+    # Compute state path from run_id using pattern: {plan_id}-run-{suffix}
+    # Result: .fractary/faber/runs/{plan_id}/state-{suffix}.json
+    RUN_MARKER="-run-"
+    if [[ "$RUN_ID" == *"$RUN_MARKER"* ]]; then
+        PLAN_ID="${RUN_ID%$RUN_MARKER*}"
+        RUN_SUFFIX="${RUN_ID#*$RUN_MARKER}"
+        STATE_FILE=".fractary/faber/runs/$PLAN_ID/state-$RUN_SUFFIX.json"
+    else
+        # Fallback for legacy format
+        STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
+    fi
     JQ_QUERY="${1:-.}"
 else
     STATE_FILE="${1:-.fractary/faber/state.json}"

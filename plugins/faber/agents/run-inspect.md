@@ -10,7 +10,7 @@ tools: Read, Glob, Bash, Skill
 ## Purpose
 
 Displays comprehensive FABER workflow run status by combining:
-- **Current State**: From `.fractary/faber/runs/{run_id}/state.json`
+- **Current State**: From `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
 - **Historical Logs**: From `fractary-logs` plugin (workflow log type)
 - **Artifacts**: Branches, PRs, specs, and other workflow outputs
 
@@ -46,7 +46,7 @@ else if exists(".fractary/faber/runs/.active-run-id"):
   run_id = read(".fractary/faber/runs/.active-run-id").strip()
 else:
   # Search for any active workflow runs
-  state_files = glob(".fractary/faber/runs/*/state.json")
+  state_files = glob(".fractary/faber/runs/*/state-*.json")
 
   active_runs = []
   for state_file in state_files:
@@ -69,13 +69,13 @@ else:
     PRINT "Please specify: /fractary-faber:run-inspect --run-id <run-id>"
     EXIT 1
 
-state_path = ".fractary/faber/runs/{run_id}/state.json"
+state_path = getStatePath(run_id)  # Computes: .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 ```
 
 **Helper Function**: `find_run_by_work_id(work_id)`
 ```
 # Search all state files for matching work_id
-state_files = glob(".fractary/faber/runs/*/state.json")
+state_files = glob(".fractary/faber/runs/*/state-*.json")
 
 for state_file in state_files:
   state = parse_json(read(state_file))

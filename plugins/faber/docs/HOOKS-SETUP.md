@@ -280,7 +280,7 @@ ls -l .fractary/faber/runs/$(cat .fractary/faber/runs/.active-run-id)/state.json
 
 **Fix**:
 - Ensure workflow was started with `/fractary-faber:workflow-run` (creates `.active-run-id` file)
-- Verify state file is valid JSON: `jq . .fractary/faber/runs/{run_id}/state.json`
+- Verify state file is valid JSON: `jq . .fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
 
 ### Context Still Lost After Compaction
 
@@ -308,7 +308,7 @@ cat .fractary/faber/runs/$(cat .fractary/faber/runs/.active-run-id)/state.json |
 
 **Fix**:
 - Increase timeout in hook configuration: `"timeout": 120`
-- Check state file size: `ls -lh .fractary/faber/runs/{run_id}/state.json`
+- Check state file size: `ls -lh .fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
 - Consider archiving old sessions if state file >1MB
 
 ## Manual Fallback

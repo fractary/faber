@@ -766,7 +766,7 @@ See **[HOOKS-SETUP.md](../HOOKS-SETUP.md)** for complete setup instructions.
 
 ### Updates
 
-- `.fractary/faber/runs/{run_id}/state.json` - State metadata, session tracking, context metadata
+- `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json` - State metadata, session tracking, context metadata
 
 ### Reads
 

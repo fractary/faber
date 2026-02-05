@@ -24,9 +24,25 @@ fi
 WORK_ID="${1:?Work ID required}"
 WORKFLOW_ID="${2:-default}"
 
+# Helper: compute state path from run_id
+# run_id format: {plan_id}-run-{suffix}
+# Output: .fractary/faber/runs/{plan_id}/state-{suffix}.json
+compute_state_path() {
+    local run_id="$1"
+    local run_marker="-run-"
+    if [[ "$run_id" == *"$run_marker"* ]]; then
+        local plan_id="${run_id%$run_marker*}"
+        local run_suffix="${run_id#*$run_marker}"
+        echo ".fractary/faber/runs/$plan_id/state-$run_suffix.json"
+    else
+        # Fallback for legacy format
+        echo ".fractary/faber/runs/$run_id/state.json"
+    fi
+}
+
 # Compute state file path
 if [ -n "$RUN_ID" ]; then
-    STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
+    STATE_FILE="$(compute_state_path "$RUN_ID")"
 else
     STATE_FILE="${3:-.fractary/faber/state.json}"
 fi

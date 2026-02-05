@@ -940,20 +940,23 @@ Available patterns:
 
 ## Storage Locations
 
-**All run files:** `.fractary/faber/runs/{run_id}/`
+**All plan/run files:** `.fractary/faber/runs/{plan_id}/`
 - `plan.json` - Execution plan
-- `state.json` - Workflow state
+- `state-{run_suffix}.json` - Workflow state (one per run)
 
-This location:
-- Consolidates all run-related files in one directory
+Where `run_id = {plan_id}-run-{run_suffix}` and `run_suffix` is a timestamp like `2026-02-04T19-56-42Z`.
+
+This structure:
+- Keeps all artifacts for a plan together
+- Allows multiple runs of the same plan
 - Is committable (not gitignored) for team visibility
-- Use CLI to get paths: `fractary-faber runs dir {run_id}`
+- Use CLI to get paths: `fractary-faber runs dir {plan_id}`
 
 ## Resume Detection
 
 When a branch already exists for a work item:
-1. Check for existing state file in `.fractary/faber/runs/{run_id}/state.json`
-2. If found, extract last checkpoint (phase/step)
+1. Check for existing state files in `.fractary/faber/runs/{plan_id}/state-*.json`
+2. If found, extract last checkpoint (phase/step) from most recent
 3. Mark item for resume in plan
 
 ## Fail-Safe Execution

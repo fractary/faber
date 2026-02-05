@@ -11,7 +11,7 @@ You are a focused utility skill for managing FABER workflow state files.
 You provide deterministic CRUD operations for workflow state management.
 
 State is stored at:
-- **With run_id**: `.fractary/faber/runs/{run_id}/state.json`
+- **With run_id**: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
 - **Legacy (no run_id)**: `.fractary/faber/state.json`
 
 State tracks: current phase, phase statuses, artifacts, retry counts, errors, last_event_id
@@ -488,10 +488,10 @@ Current Phase: build
 
 **With run_id (preferred):**
 - **Plan file**: `.fractary/faber/runs/{run_id}/plan.json`
-- **State file**: `.fractary/faber/runs/{run_id}/state.json`
+- **State file**: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
 - **Metadata file**: `.fractary/faber/runs/{run_id}/metadata.json`
 - **Events dir**: `.fractary/faber/runs/{run_id}/events/`
-- **Backup pattern**: `.fractary/faber/runs/{run_id}/state.json.backup.<timestamp>`
+- **Backup pattern**: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json.backup.<timestamp>`
 
 **Legacy (no run_id):**
 - **State file**: `.fractary/faber/state.json`

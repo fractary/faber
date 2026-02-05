@@ -40,9 +40,22 @@ PHASE="${1:?Phase name required (frame, architect, build, evaluate, release)}"
 STATUS="${2:?Status required (pending, in_progress, completed, failed)}"
 DATA_JSON="${3:-{}}"
 
+# Helper: compute state path from run_id
+compute_state_path() {
+    local run_id="$1"
+    local run_marker="-run-"
+    if [[ "$run_id" == *"$run_marker"* ]]; then
+        local plan_id="${run_id%$run_marker*}"
+        local run_suffix="${run_id#*$run_marker}"
+        echo ".fractary/faber/runs/$plan_id/state-$run_suffix.json"
+    else
+        echo ".fractary/faber/runs/$run_id/state.json"
+    fi
+}
+
 # Compute state file path
 if [ -n "$RUN_ID" ]; then
-    STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
+    STATE_FILE="$(compute_state_path "$RUN_ID")"
 else
     STATE_FILE=".fractary/faber/state.json"
 fi

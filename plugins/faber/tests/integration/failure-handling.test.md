@@ -42,11 +42,11 @@ This document defines integration test scenarios for validating FABER workflow f
 **Verification**:
 ```bash
 # Check state.json shows failure
-jq '.phases.build.steps["null-returning-step"].status' .fractary/faber/runs/{run_id}/state.json
+jq '.phases.build.steps["null-returning-step"].status' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 # Expected: "failed"
 
 # Check error message
-jq '.phases.build.steps["null-returning-step"].result.errors[0]' .fractary/faber/runs/{run_id}/state.json
+jq '.phases.build.steps["null-returning-step"].result.errors[0]' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 # Expected: Contains "did not return a valid result object"
 ```
 
@@ -75,7 +75,7 @@ jq '.phases.build.steps["null-returning-step"].result.errors[0]' .fractary/faber
 **Verification**:
 ```bash
 # Check error contains the invalid status
-jq '.phases.build.steps["test-step"].result.errors[0]' .fractary/faber/runs/{run_id}/state.json
+jq '.phases.build.steps["test-step"].result.errors[0]' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 # Expected: Contains "without valid status field. Got: \"completed\""
 ```
 
@@ -104,7 +104,7 @@ jq '.phases.build.steps["test-step"].result.errors[0]' .fractary/faber/runs/{run
 **Verification**:
 ```bash
 # Check default error was added
-jq '.phases.build.steps["test-step"].result.errors' .fractary/faber/runs/{run_id}/state.json
+jq '.phases.build.steps["test-step"].result.errors' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 # Expected: ["Step failed without error details"]
 ```
 
@@ -118,7 +118,7 @@ jq '.phases.build.steps["test-step"].result.errors' .fractary/faber/runs/{run_id
 1. Start a workflow
 2. Make state.json read-only mid-execution
 ```bash
-chmod 444 .fractary/faber/runs/{run_id}/state.json
+chmod 444 .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 ```
 
 **Expected Behavior**:
@@ -130,7 +130,7 @@ chmod 444 .fractary/faber/runs/{run_id}/state.json
 **Verification**:
 ```bash
 # Check workflow output contains recovery hint
-# Expected: Contains "Check .fractary/faber/runs/{run_id}/state.json and restore from backup if needed"
+# Expected: Contains "Check .fractary/faber/runs/{plan_id}/state-{run_suffix}.json and restore from backup if needed"
 ```
 
 ---
@@ -180,11 +180,11 @@ chmod 444 .fractary/faber/runs/{run_id}/state.json
 **Verification**:
 ```bash
 # Check validation errors are specific
-jq '.phases.build.steps["deploy-step"].result.errors' .fractary/faber/runs/{run_id}/state.json
+jq '.phases.build.steps["deploy-step"].result.errors' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 # Expected: Array containing errors for both "target_env" and "app_version"
 
 # Check available keys are listed
-jq '.phases.build.steps["deploy-step"].result.details.available_context_keys' .fractary/faber/runs/{run_id}/state.json
+jq '.phases.build.steps["deploy-step"].result.details.available_context_keys' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 # Expected: ["work_id", "target", ...]
 ```
 
@@ -230,11 +230,11 @@ jq '.phases.build.steps["deploy-step"].result.details.available_context_keys' .f
 **Verification**:
 ```bash
 # Check step-3 was never executed
-jq '.phases.build.steps["step-3-never-runs"].status' .fractary/faber/runs/{run_id}/state.json
+jq '.phases.build.steps["step-3-never-runs"].status' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 # Expected: "pending"
 
 # Check workflow failed_at
-jq '.failed_at' .fractary/faber/runs/{run_id}/state.json
+jq '.failed_at' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 # Expected: "build:step-2-fails"
 ```
 
@@ -259,7 +259,7 @@ jq '.failed_at' .fractary/faber/runs/{run_id}/state.json
 **Verification**:
 ```bash
 # After resume, check all steps completed
-jq '.phases.build.steps | to_entries | map(.value.status)' .fractary/faber/runs/{run_id}/state.json
+jq '.phases.build.steps | to_entries | map(.value.status)' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 # Expected: ["completed", "completed", "completed"]
 ```
 

@@ -235,7 +235,9 @@ faber_get_plan_path() {
 
 # Get the state file path for a specific run
 # Arguments:
-#   $1 - run_id (required)
+#   $1 - run_id (required) - format: {plan_id}-run-{timestamp}
+# Returns:
+#   State path in format: .fractary/faber/runs/{plan_id}/state-{timestamp}.json
 faber_get_state_path() {
     local run_id="$1"
     if [[ -z "$run_id" ]]; then
@@ -244,9 +246,27 @@ faber_get_state_path() {
     fi
 
     if command -v fractary-faber &> /dev/null; then
-        fractary-faber runs state-path "$run_id" 2>/dev/null || echo ".fractary/faber/runs/$run_id/state.json"
+        fractary-faber runs state-path "$run_id" 2>/dev/null || faber_compute_state_path "$run_id"
     else
-        # Fallback to relative path
+        # Fallback to computed path
+        faber_compute_state_path "$run_id"
+    fi
+}
+
+# Compute state path from run_id without CLI
+# run_id format: {plan_id}-run-{timestamp}
+# Output: .fractary/faber/runs/{plan_id}/state-{timestamp}.json
+faber_compute_state_path() {
+    local run_id="$1"
+    local run_marker="-run-"
+
+    # Find the position of -run- marker
+    if [[ "$run_id" == *"$run_marker"* ]]; then
+        local plan_id="${run_id%$run_marker*}"
+        local run_suffix="${run_id#*$run_marker}"
+        echo ".fractary/faber/runs/$plan_id/state-$run_suffix.json"
+    else
+        # Fallback for legacy format (shouldn't happen but be safe)
         echo ".fractary/faber/runs/$run_id/state.json"
     fi
 }

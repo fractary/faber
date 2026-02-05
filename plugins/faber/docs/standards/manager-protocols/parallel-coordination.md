@@ -69,7 +69,7 @@ Monitor all runs until each reaches a stop state:
 ```bash
 # Poll each run's state
 FOR each run IN coordinator.runs:
-    state = read ".fractary/faber/runs/{run.run_id}/state.json"
+    state = read "getStatePath(run.run_id)"
     run.status = state.status
     run.last_checked = now()
 

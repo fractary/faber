@@ -58,13 +58,13 @@ else:
     PRINT "Usage: /fractary-faber:workflow-debugger --work-id <id>"
     EXIT 1
 
-state_path = ".fractary/faber/runs/{run_id}/state.json"
+state_path = getStatePath(run_id)  # Computes: .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
 ```
 
 **Helper Function**: `find_latest_run_by_work_id(work_id)`
 ```
 # Search all state files for matching work_id
-state_files = glob(".fractary/faber/runs/*/state.json")
+state_files = glob(".fractary/faber/runs/*/state-*.json")
 matching_runs = []
 
 for state_file in state_files:

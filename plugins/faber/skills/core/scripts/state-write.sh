@@ -19,10 +19,26 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_TIMEOUT=30  # seconds to wait for lock
 
+# Helper: compute state path from run_id
+# run_id format: {plan_id}-run-{suffix}
+# Output: .fractary/faber/runs/{plan_id}/state-{suffix}.json
+compute_state_path() {
+    local run_id="$1"
+    local run_marker="-run-"
+    if [[ "$run_id" == *"$run_marker"* ]]; then
+        local plan_id="${run_id%$run_marker*}"
+        local run_suffix="${run_id#*$run_marker}"
+        echo ".fractary/faber/runs/$plan_id/state-$run_suffix.json"
+    else
+        # Fallback for legacy format
+        echo ".fractary/faber/runs/$run_id/state.json"
+    fi
+}
+
 # Parse arguments
 if [[ "${1:-}" == "--run-id" ]]; then
     RUN_ID="${2:?Run ID required with --run-id flag}"
-    STATE_FILE=".fractary/faber/runs/$RUN_ID/state.json"
+    STATE_FILE="$(compute_state_path "$RUN_ID")"
 else
     STATE_FILE="${1:-.fractary/faber/state.json}"
 fi

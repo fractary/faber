@@ -392,7 +392,7 @@ The `@faber` trigger in issue comments is planned for future implementation:
 
 ### Workflow Not Resuming
 
-1. Check run state: `jq '.status' .fractary/faber/runs/{run_id}/state.json`
+1. Check run state: `jq '.status' .fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
 2. Verify `awaiting_feedback` status
 3. Check `feedback_request` object exists
 4. Ensure response matches expected options
