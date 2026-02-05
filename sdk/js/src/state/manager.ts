@@ -656,6 +656,15 @@ export class StateManager {
     return this.stateDir;
   }
 
+  /**
+   * Get the file path for a workflow state
+   * @param workflowId - The workflow ID
+   * @returns Absolute path to the workflow state file
+   */
+  public getWorkflowStatePath(workflowId: string): string {
+    return this.getStatePath('workflows', workflowId);
+  }
+
   // =========================================================================
   // Deprecated Methods (Backwards Compatibility)
   // =========================================================================

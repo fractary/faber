@@ -139,6 +139,10 @@ export class FaberWorkflow {
 
     // Create or resume workflow state
     let state = this.stateManager.workflow.getActive(workId);
+    // Track if this is a new workflow vs resuming an existing one.
+    // We only post "run started" comments for new workflows to avoid
+    // duplicate notifications when resuming paused/failed workflows.
+    const isNewWorkflow = !state;
     if (!state) {
       state = this.stateManager.workflow.create(workId);
     }
@@ -146,6 +150,19 @@ export class FaberWorkflow {
     const workflowId = state.workflow_id;
 
     this.emit('workflow:start', { workflowId, workId, autonomy });
+
+    // Post comment to GitHub issue when workflow run starts (new workflow only)
+    if (isNewWorkflow) {
+      const stateFilePath = this.stateManager.getWorkflowStatePath(workflowId);
+      const runStartedComment = this.generateRunStartedComment(workflowId, stateFilePath, workId);
+      try {
+        await this.workManager.createComment(Number(workId), runStartedComment);
+      } catch (error) {
+        // Comment posting is best-effort, don't fail the workflow
+        // Log for debugging purposes
+        console.error('Failed to post workflow start comment:', error);
+      }
+    }
 
     // Create run manifest
     const manifest = this.stateManager.manifest.create(workflowId, workId);
@@ -540,6 +557,30 @@ export class FaberWorkflow {
     }
 
     return { status: 'completed', outputs };
+  }
+
+  /**
+   * Generate a comment for when a workflow run starts
+   */
+  private generateRunStartedComment(workflowId: string, stateFilePath: string, workId: string): string {
+    const lines: string[] = [];
+
+    lines.push('🚀 **Workflow Run Started**');
+    lines.push('');
+    lines.push(`**Workflow ID:** \`${workflowId}\``);
+    lines.push(`**Work Item:** #${workId}`);
+    lines.push('');
+    lines.push('### State Files');
+    lines.push('');
+    lines.push('| File | Path |');
+    lines.push('|------|------|');
+    lines.push(`| State | \`${stateFilePath}\` |`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    lines.push('*This workflow run is being tracked. Check back for progress updates.*');
+
+    return lines.join('\n');
   }
 
   /**
