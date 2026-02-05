@@ -13,7 +13,8 @@ dotenv.config();
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand } from './commands/workflow/index.js';
+import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowDebuggerCommand } from './commands/workflow/index.js';
+import { createSessionLoadCommand, createSessionSaveCommand } from './commands/session.js';
 import { createWorkCommand } from './commands/work/index.js';
 import { createRepoCommand } from './commands/repo/index.js';
 import { createLogsCommand } from './commands/logs/index.js';
@@ -29,7 +30,7 @@ if (process.stdout.isTTY) {
   (process.stdout as any)._handle?.setBlocking?.(true);
 }
 
-const version = '1.5.19';
+const version = '1.5.20';
 
 /**
  * Create and configure the main CLI program
@@ -46,142 +47,23 @@ export function createFaberCLI(): Command {
   program.option('--debug', 'Enable debug output');
 
   // Workflow commands (top-level)
-  program.addCommand(createInitCommand());        // init
+  program.addCommand(createInitCommand());        // configure
   program.addCommand(createMigrateCommand());     // migrate
   program.addCommand(createConfigCommand());       // config get/path/exists
   program.addCommand(createRunsCommand());         // runs dir/plan-path/state-path
-  program.addCommand(createPlanCommand());         // plan
+  program.addCommand(createPlanCommand());         // workflow-plan
   program.addCommand(createRunCommand());          // workflow-run
   program.addCommand(createStatusCommand());       // run-inspect
   program.addCommand(createResumeCommand());       // workflow-resume
   program.addCommand(createPauseCommand());        // workflow-pause
   program.addCommand(createRecoverCommand());      // workflow-recover
   program.addCommand(createCleanupCommand());      // workflow-cleanup
-
-  // DEPRECATED: Old command names (backwards compatibility)
-  const showDeprecationWarning = (oldName: string, newName: string) => {
-    console.warn(chalk.yellow(`\n⚠️  DEPRECATED: "${oldName}" → use "${newName}"\n`));
-  };
-
-  program
-    .command('workflow-init')
-    .description('(DEPRECATED: Use init)')
-    .option('--force', 'Overwrite existing configuration')
-    .option('--json', 'Output as JSON')
-    .action((options) => {
-      showDeprecationWarning('workflow-init', 'init');
-      const initCmd = createInitCommand();
-      initCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
-        typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
-      )], { from: 'user' });
-    });
-
-  program
-    .command('run')
-    .description('(DEPRECATED: Use workflow-run)')
-    .requiredOption('--work-id <id>', 'Work item ID to process')
-    .option('--autonomy <level>', 'Autonomy level', 'supervised')
-    .option('--json', 'Output as JSON')
-    .action((options) => {
-      showDeprecationWarning('run', 'workflow-run');
-      const runCmd = createRunCommand();
-      runCmd.parse(['', '', '--work-id', options.workId,
-        ...(options.autonomy ? ['--autonomy', options.autonomy] : []),
-        ...(options.json ? ['--json'] : [])
-      ], { from: 'user' });
-    });
-
-  program
-    .command('workflow-status')
-    .description('(DEPRECATED: Use run-inspect)')
-    .option('--work-id <id>', 'Work item ID to check')
-    .option('--workflow-id <id>', 'Workflow ID to check')
-    .option('--verbose', 'Show detailed status')
-    .option('--json', 'Output as JSON')
-    .action((options) => {
-      showDeprecationWarning('workflow-status', 'run-inspect');
-      const statusCmd = createStatusCommand();
-      statusCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
-        typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
-      )], { from: 'user' });
-    });
-
-  program
-    .command('status')
-    .description('(DEPRECATED: Use run-inspect)')
-    .option('--work-id <id>', 'Work item ID to check')
-    .option('--workflow-id <id>', 'Workflow ID to check')
-    .option('--verbose', 'Show detailed status')
-    .option('--json', 'Output as JSON')
-    .action((options) => {
-      showDeprecationWarning('status', 'run-inspect');
-      const statusCmd = createStatusCommand();
-      statusCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
-        typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
-      )], { from: 'user' });
-    });
-
-  program
-    .command('run-status')
-    .description('(DEPRECATED: Use run-inspect)')
-    .option('--work-id <id>', 'Work item ID to check')
-    .option('--workflow-id <id>', 'Workflow ID to check')
-    .option('--verbose', 'Show detailed status')
-    .option('--json', 'Output as JSON')
-    .action((options) => {
-      showDeprecationWarning('run-status', 'run-inspect');
-      const statusCmd = createStatusCommand();
-      statusCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
-        typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
-      )], { from: 'user' });
-    });
-
-  program
-    .command('resume <workflow_id>')
-    .description('(DEPRECATED: Use workflow-resume)')
-    .option('--json', 'Output as JSON')
-    .action((workflowId, options) => {
-      showDeprecationWarning('resume', 'workflow-resume');
-      const resumeCmd = createResumeCommand();
-      resumeCmd.parse(['', '', workflowId, ...(options.json ? ['--json'] : [])], { from: 'user' });
-    });
-
-  program
-    .command('pause <workflow_id>')
-    .description('(DEPRECATED: Use workflow-pause)')
-    .option('--json', 'Output as JSON')
-    .action((workflowId, options) => {
-      showDeprecationWarning('pause', 'workflow-pause');
-      const pauseCmd = createPauseCommand();
-      pauseCmd.parse(['', '', workflowId, ...(options.json ? ['--json'] : [])], { from: 'user' });
-    });
-
-  program
-    .command('recover <workflow_id>')
-    .description('(DEPRECATED: Use workflow-recover)')
-    .option('--checkpoint <id>', 'Specific checkpoint ID')
-    .option('--phase <phase>', 'Recover to specific phase')
-    .option('--json', 'Output as JSON')
-    .action((workflowId, options) => {
-      showDeprecationWarning('recover', 'workflow-recover');
-      const recoverCmd = createRecoverCommand();
-      recoverCmd.parse(['', '', workflowId, ...Object.entries(options).flatMap(([k, v]) =>
-        typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
-      )], { from: 'user' });
-    });
-
-  program
-    .command('cleanup')
-    .description('(DEPRECATED: Use workflow-cleanup)')
-    .option('--max-age <days>', 'Delete workflows older than N days', '30')
-    .option('--json', 'Output as JSON')
-    .action((options) => {
-      showDeprecationWarning('cleanup', 'workflow-cleanup');
-      const cleanupCmd = createCleanupCommand();
-      cleanupCmd.parse(['', '', ...Object.entries(options).flatMap(([k, v]) =>
-        typeof v === 'boolean' && v ? [`--${k}`] : typeof v === 'string' ? [`--${k}`, v] : []
-      )], { from: 'user' });
-    });
+  program.addCommand(createWorkflowCreateCommand());  // workflow-create
+  program.addCommand(createWorkflowUpdateCommand());  // workflow-update
+  program.addCommand(createWorkflowInspectCommand()); // workflow-inspect
+  program.addCommand(createWorkflowDebuggerCommand()); // workflow-debugger
+  program.addCommand(createSessionLoadCommand());     // session-load
+  program.addCommand(createSessionSaveCommand());     // session-save
 
   // Subcommand trees
   program.addCommand(createAuthCommand());

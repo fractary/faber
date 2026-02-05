@@ -314,3 +314,312 @@ ${content}`;
 
   return manifestPath;
 }
+
+// ============================================================================
+// Workflow CRUD Operations
+// ============================================================================
+
+export interface CreateWorkflowOptions extends LoadRegistryOptions {
+  /** Workflow name/ID */
+  name: string;
+  /** Optional template to copy from */
+  template?: string;
+  /** Workflow description */
+  description?: string;
+}
+
+export interface UpdateWorkflowOptions extends LoadRegistryOptions {
+  /** Workflow name/ID to update */
+  name: string;
+  /** New description */
+  description?: string;
+}
+
+export interface WorkflowInspectionResult {
+  /** Workflow entry from registry */
+  entry: WorkflowEntry;
+  /** Absolute path to the workflow file */
+  filePath: string;
+  /** Whether the workflow file exists on disk */
+  fileExists: boolean;
+  /** Parsed workflow content (if file exists) */
+  content?: Record<string, unknown>;
+  /** File size in bytes (if file exists) */
+  fileSize?: number;
+  /** Last modified time (if file exists) */
+  lastModified?: string;
+}
+
+export interface DebugReport {
+  /** Run ID being debugged */
+  runId: string;
+  /** Whether run state was found */
+  found: boolean;
+  /** Current run state (if found) */
+  state?: Record<string, unknown>;
+  /** Events found for the run */
+  events?: string[];
+  /** Detected issues */
+  issues: string[];
+}
+
+/**
+ * Create a new workflow and register it in the manifest.
+ *
+ * @param options Creation options
+ * @returns The created workflow entry and file path
+ */
+export function createWorkflow(
+  options: CreateWorkflowOptions
+): { entry: WorkflowEntry; filePath: string; manifestPath: string } {
+  const projectRoot = options.projectRoot || findProjectRoot();
+  const workflowsPath =
+    options.config?.workflows?.path || FABER_DEFAULTS.paths.workflows;
+  const workflowsDir = path.isAbsolute(workflowsPath)
+    ? workflowsPath
+    : path.join(projectRoot, workflowsPath);
+
+  // Validate name format
+  if (!/^[a-z][a-z0-9-]*$/.test(options.name)) {
+    throw new WorkflowRegistryError(
+      `Invalid workflow name '${options.name}'. Must be lowercase alphanumeric with hyphens.`
+    );
+  }
+
+  // Check for duplicates
+  if (workflowExists(options.name, options)) {
+    throw new WorkflowRegistryError(
+      `Workflow '${options.name}' already exists.`
+    );
+  }
+
+  // Determine workflow file
+  const fileName = `${options.name}.yaml`;
+  const filePath = path.join(workflowsDir, fileName);
+
+  // Ensure workflows directory exists
+  fs.mkdirSync(workflowsDir, { recursive: true });
+
+  // Create workflow file content
+  let content: Record<string, unknown>;
+  if (options.template) {
+    // Copy from template
+    const templateEntry = getWorkflow({ ...options, workflowId: options.template });
+    const templatePath = path.join(workflowsDir, templateEntry.file);
+    if (fs.existsSync(templatePath)) {
+      const templateContent = fs.readFileSync(templatePath, 'utf-8');
+      content = yaml.load(templateContent) as Record<string, unknown>;
+    } else {
+      content = { id: options.name, description: options.description || '' };
+    }
+  } else {
+    content = {
+      id: options.name,
+      description: options.description || `Workflow: ${options.name}`,
+      phases: {
+        frame: { enabled: true, steps: [] },
+        architect: { enabled: true, steps: [] },
+        build: { enabled: true, steps: [] },
+        evaluate: { enabled: true, steps: [] },
+        release: { enabled: true, steps: [] },
+      },
+    };
+  }
+
+  // Write workflow file
+  const yamlContent = yaml.dump(content, {
+    indent: 2,
+    lineWidth: 100,
+    noRefs: true,
+    sortKeys: false,
+  });
+  fs.writeFileSync(filePath, yamlContent, 'utf-8');
+
+  // Create entry
+  const entry: WorkflowEntry = {
+    id: options.name,
+    file: fileName,
+    description: options.description,
+  };
+
+  // Update manifest
+  const manifestPath = path.join(workflowsDir, FABER_DEFAULTS.manifestFilename);
+  let registry: WorkflowRegistry;
+  if (fs.existsSync(manifestPath)) {
+    registry = loadWorkflowRegistry(options);
+  } else {
+    registry = { workflows: [] };
+  }
+  registry.workflows.push(entry);
+
+  const manifestContent = yaml.dump(registry, {
+    indent: 2,
+    lineWidth: 100,
+    noRefs: true,
+    sortKeys: false,
+  });
+  const manifestFileContent = `# Workflow Registry - Lists available FABER workflows
+# Each workflow is defined in a separate file in this directory
+# Schema: https://fractary.dev/schemas/workflow-registry.schema.json
+
+${manifestContent}`;
+  fs.writeFileSync(manifestPath, manifestFileContent, 'utf-8');
+
+  return { entry, filePath, manifestPath };
+}
+
+/**
+ * Update an existing workflow's registry entry.
+ *
+ * @param options Update options
+ */
+export function updateWorkflow(options: UpdateWorkflowOptions): WorkflowEntry {
+  const projectRoot = options.projectRoot || findProjectRoot();
+  const workflowsPath =
+    options.config?.workflows?.path || FABER_DEFAULTS.paths.workflows;
+  const workflowsDir = path.isAbsolute(workflowsPath)
+    ? workflowsPath
+    : path.join(projectRoot, workflowsPath);
+
+  const registry = loadWorkflowRegistry(options);
+  const index = registry.workflows.findIndex((w) => w.id === options.name);
+
+  if (index === -1) {
+    throw new RegistryWorkflowNotFoundError(
+      options.name,
+      registry.workflows.map((w) => w.id)
+    );
+  }
+
+  // Update entry
+  if (options.description !== undefined) {
+    registry.workflows[index].description = options.description;
+  }
+
+  // Write manifest
+  const manifestPath = path.join(workflowsDir, FABER_DEFAULTS.manifestFilename);
+  const manifestContent = yaml.dump(registry, {
+    indent: 2,
+    lineWidth: 100,
+    noRefs: true,
+    sortKeys: false,
+  });
+  const manifestFileContent = `# Workflow Registry - Lists available FABER workflows
+# Each workflow is defined in a separate file in this directory
+# Schema: https://fractary.dev/schemas/workflow-registry.schema.json
+
+${manifestContent}`;
+  fs.writeFileSync(manifestPath, manifestFileContent, 'utf-8');
+
+  return registry.workflows[index];
+}
+
+/**
+ * Inspect a workflow: returns entry, file info, and parsed content.
+ *
+ * @param options Options including workflowId
+ * @returns Detailed workflow inspection result
+ */
+export function inspectWorkflow(options: GetWorkflowOptions): WorkflowInspectionResult {
+  const projectRoot = options.projectRoot || findProjectRoot();
+  const workflowsPath =
+    options.config?.workflows?.path || FABER_DEFAULTS.paths.workflows;
+  const workflowsDir = path.isAbsolute(workflowsPath)
+    ? workflowsPath
+    : path.join(projectRoot, workflowsPath);
+
+  const entry = getWorkflow(options);
+  const filePath = path.join(workflowsDir, entry.file);
+  const fileExists = fs.existsSync(filePath);
+
+  const result: WorkflowInspectionResult = {
+    entry,
+    filePath,
+    fileExists,
+  };
+
+  if (fileExists) {
+    const stat = fs.statSync(filePath);
+    result.fileSize = stat.size;
+    result.lastModified = stat.mtime.toISOString();
+
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      result.content = yaml.load(content) as Record<string, unknown>;
+    } catch {
+      // Could not parse - still return other info
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Debug a workflow run by examining its state and events.
+ *
+ * @param runId Run identifier
+ * @param projectRoot Optional project root
+ * @returns Debug report
+ */
+export function debugWorkflow(runId: string, projectRoot?: string): DebugReport {
+  const root = projectRoot || findProjectRoot();
+  const runsDir = path.join(root, FABER_DEFAULTS.paths.runs);
+  const runDir = path.join(runsDir, runId);
+
+  const report: DebugReport = {
+    runId,
+    found: false,
+    issues: [],
+  };
+
+  if (!fs.existsSync(runDir)) {
+    report.issues.push(`Run directory not found: ${runDir}`);
+    return report;
+  }
+
+  report.found = true;
+
+  // Load state
+  const statePath = path.join(runDir, 'state.json');
+  if (fs.existsSync(statePath)) {
+    try {
+      report.state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+    } catch (e) {
+      report.issues.push(`Failed to parse state.json: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  } else {
+    report.issues.push('state.json not found');
+  }
+
+  // Load events
+  const eventsDir = path.join(runDir, 'events');
+  if (fs.existsSync(eventsDir)) {
+    try {
+      report.events = fs.readdirSync(eventsDir)
+        .filter(f => f.endsWith('.json') && !f.startsWith('.'))
+        .sort();
+    } catch {
+      report.issues.push('Failed to read events directory');
+    }
+  } else {
+    report.issues.push('events directory not found');
+  }
+
+  // Check for common issues
+  if (report.state) {
+    const state = report.state as Record<string, unknown>;
+    if (state['status'] === 'in_progress') {
+      const updatedAt = state['updated_at'] as string | undefined;
+      if (updatedAt) {
+        const lastUpdate = new Date(updatedAt);
+        const now = new Date();
+        const hoursSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceUpdate > 1) {
+          report.issues.push(`Workflow appears stale: last updated ${Math.round(hoursSinceUpdate)} hours ago`);
+        }
+      }
+    }
+  }
+
+  return report;
+}
