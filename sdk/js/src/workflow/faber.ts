@@ -139,6 +139,9 @@ export class FaberWorkflow {
 
     // Create or resume workflow state
     let state = this.stateManager.workflow.getActive(workId);
+    // Track if this is a new workflow vs resuming an existing one.
+    // We only post "run started" comments for new workflows to avoid
+    // duplicate notifications when resuming paused/failed workflows.
     const isNewWorkflow = !state;
     if (!state) {
       state = this.stateManager.workflow.create(workId);
@@ -150,12 +153,14 @@ export class FaberWorkflow {
 
     // Post comment to GitHub issue when workflow run starts (new workflow only)
     if (isNewWorkflow) {
-      const stateFilePath = `${this.stateManager.getStateDir()}/workflows/${workflowId}.json`;
+      const stateFilePath = this.stateManager.getWorkflowStatePath(workflowId);
       const runStartedComment = this.generateRunStartedComment(workflowId, stateFilePath, workId);
       try {
         await this.workManager.createComment(Number(workId), runStartedComment);
-      } catch {
+      } catch (error) {
         // Comment posting is best-effort, don't fail the workflow
+        // Log for debugging purposes
+        console.error('Failed to post workflow start comment:', error);
       }
     }
 

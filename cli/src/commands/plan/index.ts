@@ -6,7 +6,7 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { AnthropicClient } from '../../lib/anthropic-client.js';
+import { AnthropicClient, WorkflowPlan } from '../../lib/anthropic-client.js';
 import { RepoClient } from '../../lib/repo-client.js';
 import { ConfigManager } from '../../lib/config.js';
 import { prompt } from '../../utils/prompt.js';
@@ -554,7 +554,7 @@ async function planSingleIssue(
 /**
  * Generate a detailed plan comment for GitHub issue
  */
-function generatePlanComment(plan: any, workflow: string, worktreePath: string, planId: string, issueNumber: number): string {
+function generatePlanComment(plan: WorkflowPlan, workflow: string, worktreePath: string, planId: string, issueNumber: number): string {
   let comment = `🤖 **Workflow Plan Created**\n\n`;
   comment += `**Plan ID:** \`${planId}\`\n`;
   comment += `**Workflow:** \`${workflow}\`\n`;

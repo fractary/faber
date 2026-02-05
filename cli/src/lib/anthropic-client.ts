@@ -23,7 +23,7 @@ interface GeneratePlanInput {
   issueNumber: number;
 }
 
-interface WorkflowPlan {
+export interface WorkflowPlan {
   plan_id: string;
   created_by: string;
   cli_version: string;
