@@ -52,6 +52,7 @@ Reloads critical artifacts into context based on workflow configuration.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `work_id` | string | No | GitHub issue number. If provided, finds matching workflow run by work_id and fetches the GitHub issue with all comments into context. Takes precedence over `run_id`. |
 | `run_id` | string | No | Specific run ID to reload. If omitted, auto-detects from `.fractary/faber/runs/.active-run-id` or searches for active workflows |
 | `trigger` | string | No | What triggered this reload: `session_start`, `manual`, `phase_start`. Default: `manual` |
 | `artifacts` | string | No | Comma-separated list of specific artifact IDs to load. If omitted, loads all configured artifacts |
@@ -63,9 +64,10 @@ Reloads critical artifacts into context based on workflow configuration.
 **Step 1: Detect Target Workflow**
 
 Priority order:
-1. If `run_id` parameter provided → Use it directly
-2. Else if `.fractary/faber/runs/.active-run-id` exists → Read run ID from file
-3. Else search `.fractary/faber/runs/` for state-*.json files with status "in_progress" or "paused"
+1. If `work_id` parameter provided → Find workflow run by work_id (see Step 1a below)
+2. Else if `run_id` parameter provided → Use it directly
+3. Else if `.fractary/faber/runs/.active-run-id` exists → Read run ID from file
+4. Else search `.fractary/faber/runs/` for state-*.json files with status "in_progress" or "paused"
    - If none found: Return error "No active workflow found"
    - If one found: Use that run_id
    - If multiple found: Prompt user to select which workflow
@@ -73,6 +75,63 @@ Priority order:
 Active run ID file:
 - Path: `.fractary/faber/runs/.active-run-id`
 - Content: Single line containing run ID (e.g., `fractary-faber-258-20260105-143022`)
+
+**Step 1a: Find Workflow Run by Work ID (when `--work-id` provided)**
+
+When `work_id` parameter is provided:
+
+1. **Search for matching state file:**
+   ```bash
+   # Find all state files and grep for matching work_id
+   find .fractary/faber/runs -name "state-*.json" -type f 2>/dev/null
+   ```
+
+2. **For each state file found:**
+   - Read the file and parse JSON
+   - Check if `state.work_id` matches the provided `work_id`
+   - If match found → Use that run_id
+
+3. **If no matching workflow found:**
+   - This is OK - we can still fetch the issue for context
+   - Log: "No existing workflow found for work #${work_id}, fetching issue for context only"
+
+4. **Fetch GitHub issue with all comments:**
+   ```bash
+   # Use gh CLI to fetch issue with full details including comments
+   Skill(
+     skill: "fractary-repo:issue-fetch",
+     args: "--ids ${work_id} --format json --include-comments"
+   )
+   ```
+
+   If `fractary-repo:issue-fetch` is not available, fall back to gh CLI:
+   ```bash
+   # Fetch issue details
+   gh issue view ${work_id} --json number,title,body,state,labels,assignees,author,createdAt,updatedAt,comments
+   ```
+
+5. **Display issue context:**
+   ```
+   ✓ Loaded GitHub issue #${work_id}
+
+   Issue: #${number} - ${title}
+   State: ${state}
+   Author: ${author.login}
+   Created: ${createdAt}
+   Labels: ${labels.map(l => l.name).join(', ')}
+
+   Body:
+   ${body}
+
+   Comments (${comments.length}):
+   ${comments.map(c => `
+   --- Comment by ${c.author.login} at ${c.createdAt} ---
+   ${c.body}
+   `).join('\n')}
+   ```
+
+6. **If workflow run was found:** Continue to Step 2 to load artifacts
+   **If no workflow run found:** Skip artifact loading, issue context is loaded
 
 **Step 2: Load State and Workflow Config**
 
@@ -252,6 +311,51 @@ Session tracking:
 Context metadata:
   Last reload: 2026-01-04T14:30:00Z
   Total reloads: 3
+```
+
+**Output format when `--work-id` used (issue context only, no workflow):**
+```
+✓ Loaded GitHub issue #{work_id}
+
+Issue: #{number} - {title}
+State: {state}
+Author: {author}
+Created: {createdAt}
+Updated: {updatedAt}
+Labels: {labels}
+
+--- Issue Body ---
+{body}
+
+--- Comments ({comment_count}) ---
+
+Comment by {author} at {createdAt}:
+{comment_body}
+
+[... additional comments ...]
+
+ℹ️  No existing workflow found for work #{work_id}
+   To start a new workflow: /fractary-faber:workflow-run {work_id}
+```
+
+**Output format when `--work-id` used with existing workflow:**
+```
+✓ Loaded GitHub issue #{work_id}
+
+Issue: #{number} - {title}
+State: {state}
+Author: {author}
+[... issue details ...]
+
+--- Comments ({comment_count}) ---
+[... comments ...]
+
+✓ Found existing workflow: {run_id}
+✓ Context reloaded for run: {run_id}
+  Workflow: {workflow_id}
+  Run status: {status}
+
+[... standard artifacts and session output ...]
 ```
 
 #### Dry Run Mode
