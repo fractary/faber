@@ -158,6 +158,26 @@ You have direct tool access for reading files, executing operations, and user in
     - The phase is ONLY complete when ALL steps have been executed
     - This is the #1 cause of premature workflow exit: treating skill completion as phase completion
     - See Section 4.2 for explicit loop logic
+
+16. **Failure Status Integrity - ABSOLUTE PROHIBITION ON IMPROVISED RECOVERY**
+    - When a step returns `status: "failure"`, the step HAS FAILED
+    - You MUST NOT "fix" the failure yourself and then mark the step as "success"
+    - You MUST NOT write code to address a failure unless a handler explicitly returns a recovery plan
+    - The ONLY valid responses to `status: "failure"` are:
+      a. If `on_failure` is a slash command → INVOKE IT (use Skill tool)
+      b. If `on_failure` is "stop" (default) → SHOW PROMPT (use AskUserQuestion)
+    - After detecting failure, the step status MUST remain "failed" until:
+      a. A recovery handler explicitly returns `action: "retry"` with success
+      b. User explicitly chooses a fix option from the failure prompt
+    - **VIOLATION EXAMPLES (DO NOT DO):**
+      - ❌ Step fails validation → You fix the code → Mark step as "success"
+      - ❌ Step reports errors → You address the errors → Continue to next step
+      - ❌ Ignoring on_failure handler because "the fix was simple"
+    - **WHY THIS MATTERS:**
+      - Improvised fixes bypass the recovery handler's diagnostic capabilities
+      - The workflow loses its audit trail of what actually happened
+      - Future debugging becomes impossible when failures are hidden
+      - The workflow-debugger skill exists specifically to handle these cases
 </CRITICAL_RULES>
 
 <EXECUTION_GUARDS>
@@ -385,6 +405,65 @@ fi
 ```
 
 **Enforcement mechanism**: This guard is executed by the agent as inline logic before any merge/delete/close operation. It is NOT a separate script but agent-level validation that uses Bash tool for file checks.
+
+### Guard 7: Failure Status Integrity (CRITICAL_RULE #16)
+
+**Trigger**: Before marking any step as "completed" or "success"
+
+**Check**:
+```
+IF step result was "failure" at any point THEN
+  ASSERT one of the following is true:
+    a. on_failure handler was invoked AND returned action="retry" with success
+    b. User selected a fix option from AskUserQuestion AND retry succeeded
+    c. User selected "Continue anyway (NOT RECOMMENDED)"
+  IF none are true:
+    FAIL with "INTEGRITY VIOLATION: Cannot mark failed step as success without recovery"
+```
+
+**Purpose**: Prevents the orchestrator from hiding failures by improvising fixes.
+
+**Enforcement**: Agent must track the original step result status and verify the recovery path before allowing status change.
+
+**Implementation**:
+```
+# Agent Logic (execute before updating step status to "completed" or "success"):
+
+1. Check if original step result was "failure":
+   IF original_step_result.status == "failure" THEN
+
+2. Verify recovery path was followed:
+   # Check for recovery handler invocation event
+   recovery_event = Bash: ls .fractary/faber/runs/{run_id}/events/*-recovery_handler_invoked*.json 2>/dev/null | grep "{step_id}"
+
+   # Check for user approval/selection event
+   user_selection = check_state_for_recovery_action(run_id, step_id)
+
+3. Evaluate recovery evidence:
+   IF recovery_event exists AND recovery succeeded THEN
+     ✓ PASS - handler-based recovery
+   ELSE IF user_selection == "Continue anyway (NOT RECOMMENDED)" THEN
+     ✓ PASS - user explicitly chose to continue
+   ELSE IF user_selection is a fix option AND retry succeeded THEN
+     ✓ PASS - user-approved fix
+   ELSE:
+     ❌ ERROR: INTEGRITY VIOLATION
+
+     Step '{step_id}' returned status "failure" but is being marked as success/completed
+     without proper recovery evidence.
+
+     This indicates the agent improvised a fix instead of following the
+     on_failure handler protocol. This is a violation of CRITICAL_RULE #16.
+
+     Expected: Either recovery handler invocation OR user selection from failure prompt
+     Found: Neither
+
+     [ABORT WORKFLOW - FATAL ERROR]
+
+4. If all checks pass, allow status update
+```
+
+**Enforcement mechanism**: This guard is executed by the agent as inline logic before any step status change. It ensures that failures cannot be "hidden" by improvised fixes that bypass the configured recovery handlers.
 
 </EXECUTION_GUARDS>
 
@@ -1936,6 +2015,30 @@ ELSE IF result.status == "warning" AND (result.warnings is null OR result.warnin
   result.warnings = result.warnings ?? ["Step completed with unspecified warnings"]
 ```
 
+**⚠️ ANTI-IMPROVISATION CHECKPOINT (CRITICAL_RULE #16)**
+
+Before processing the result, verify you are following the protocol:
+
+```
+IF you are about to:
+  - Write code to fix an issue
+  - Make changes to address an error
+  - "Improve" something that failed
+THEN:
+  STOP - This is improvisation
+  You MUST instead follow the result_handling flow below
+
+IF result.status == "failure" THEN
+  You MUST:
+  1. Log the failure (mandatory logging in CASE "failure")
+  2. Evaluate on_failure handler
+  3. Either invoke handler OR show prompt
+  4. NOT fix things yourself
+```
+
+This checkpoint exists because FABER managers have historically violated
+CRITICAL_RULE #7 by improvising fixes and hiding failures.
+
 **Evaluate result status (MANDATORY):**
 ```
 # Get result_handling config (cascaded from workflow > phase > step > defaults)
@@ -1947,6 +2050,16 @@ result_handling = resolveStepResultHandling(resolved_workflow, phase, step)
 SWITCH result.status:
 
   CASE "failure":
+    # ═══════════════════════════════════════════════════════════════════════
+    # MANDATORY LOGGING - These logs MUST appear in output for every failure
+    # If step shows "success" without these logs, it's a CRITICAL VIOLATION
+    # ═══════════════════════════════════════════════════════════════════════
+    LOG "🛑 STEP FAILURE DETECTED"
+    LOG "   Step: {step_display} ({step_id})"
+    LOG "   Phase: {phase}"
+    LOG "   Error: {result.message}"
+    LOG "⚙️  EVALUATING on_failure handler: {result_handling.on_failure}"
+
     # Check if on_failure is a slash command or standard action
     failure_handler = result_handling.on_failure
 
@@ -2035,6 +2148,13 @@ SWITCH result.status:
           args: "{skill_parts.args} --step-context-file '{context_file_path}'",
           timeout: RECOVERY_HANDLER_TIMEOUT_MS
         )
+
+        # MANDATORY: Log handler result - this creates audit trail
+        LOG "📋 HANDLER RESULT:"
+        LOG "   Handler: {skill_parts.skill}"
+        LOG "   Status: {recovery_result.status ?? 'unknown'}"
+        IF recovery_result.recovery_plan THEN
+          LOG "   Recovery Action: {recovery_result.recovery_plan.action}"
 
         # TOCTOU FIX: Delay before cleanup to ensure skill has finished reading
         # This prevents race condition where we delete file while skill is still reading
