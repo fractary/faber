@@ -509,7 +509,7 @@ async function planSingleIssue(
   }
 
   // Generate detailed comment for GitHub issue
-  const planSummary = generatePlanComment(plan, issue.workflow!, worktreePath, planId);
+  const planSummary = generatePlanComment(plan, issue.workflow!, worktreePath, planId, issue.number);
 
   // Update GitHub issue with plan_id
   if (outputFormat === 'text') {
@@ -554,7 +554,7 @@ async function planSingleIssue(
 /**
  * Generate a detailed plan comment for GitHub issue
  */
-function generatePlanComment(plan: any, workflow: string, worktreePath: string, planId: string): string {
+function generatePlanComment(plan: any, workflow: string, worktreePath: string, planId: string, issueNumber: number): string {
   let comment = `🤖 **Workflow Plan Created**\n\n`;
   comment += `**Plan ID:** \`${planId}\`\n`;
   comment += `**Workflow:** \`${workflow}\`\n`;
@@ -599,14 +599,17 @@ function generatePlanComment(plan: any, workflow: string, worktreePath: string, 
 
   comment += `---\n\n`;
   comment += `### Plan Location\n\n`;
-  comment += `\`\`\`\n${worktreePath}/.fractary/plans/${planId}.json\n\`\`\`\n\n`;
+  const planPath = `${worktreePath}/.fractary/plans/${planId}.json`;
+  comment += `| File | Path |\n`;
+  comment += `|------|------|\n`;
+  comment += `| Plan | \`${planPath}\` |\n\n`;
   comment += `### Next Steps\n\n`;
   comment += `Execute the workflow plan:\n\n`;
   comment += `\`\`\`bash\n`;
   comment += `cd ${worktreePath}\n`;
   comment += `claude\n`;
   comment += `# Then in Claude Code:\n`;
-  comment += `/fractary-faber:workflow-run ${plan.issue_number || ''}\n`;
+  comment += `/fractary-faber:workflow-run ${issueNumber}\n`;
   comment += `\`\`\`\n`;
 
   return comment;

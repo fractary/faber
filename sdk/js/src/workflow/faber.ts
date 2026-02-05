@@ -139,6 +139,7 @@ export class FaberWorkflow {
 
     // Create or resume workflow state
     let state = this.stateManager.workflow.getActive(workId);
+    const isNewWorkflow = !state;
     if (!state) {
       state = this.stateManager.workflow.create(workId);
     }
@@ -146,6 +147,17 @@ export class FaberWorkflow {
     const workflowId = state.workflow_id;
 
     this.emit('workflow:start', { workflowId, workId, autonomy });
+
+    // Post comment to GitHub issue when workflow run starts (new workflow only)
+    if (isNewWorkflow) {
+      const stateFilePath = `${this.stateManager.getStateDir()}/workflows/${workflowId}.json`;
+      const runStartedComment = this.generateRunStartedComment(workflowId, stateFilePath, workId);
+      try {
+        await this.workManager.createComment(Number(workId), runStartedComment);
+      } catch {
+        // Comment posting is best-effort, don't fail the workflow
+      }
+    }
 
     // Create run manifest
     const manifest = this.stateManager.manifest.create(workflowId, workId);
@@ -540,6 +552,30 @@ export class FaberWorkflow {
     }
 
     return { status: 'completed', outputs };
+  }
+
+  /**
+   * Generate a comment for when a workflow run starts
+   */
+  private generateRunStartedComment(workflowId: string, stateFilePath: string, workId: string): string {
+    const lines: string[] = [];
+
+    lines.push('🚀 **Workflow Run Started**');
+    lines.push('');
+    lines.push(`**Workflow ID:** \`${workflowId}\``);
+    lines.push(`**Work Item:** #${workId}`);
+    lines.push('');
+    lines.push('### State Files');
+    lines.push('');
+    lines.push('| File | Path |');
+    lines.push('|------|------|');
+    lines.push(`| State | \`${stateFilePath}\` |`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    lines.push('*This workflow run is being tracked. Check back for progress updates.*');
+
+    return lines.join('\n');
   }
 
   /**
