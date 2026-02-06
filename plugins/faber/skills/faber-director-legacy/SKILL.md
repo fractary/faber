@@ -4,7 +4,7 @@ description: |
   ⚠️ DEPRECATED - Use faber-planner + faber-executor instead.
   This skill is preserved for reference only.
   See: SPEC-20251208-faber-two-phase-architecture.md
-model: claude-opus-4-5
+model: claude-opus-4-6
 ---
 
 # [DEPRECATED] Universal FABER Director Skill

@@ -1,7 +1,7 @@
 ---
 name: entity-state
 description: Manage entity-level state tracking across FABER workflows
-model: claude-opus-4-5
+model: claude-opus-4-6
 ---
 
 # FABER Entity State Skill

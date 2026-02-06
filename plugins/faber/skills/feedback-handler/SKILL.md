@@ -1,7 +1,7 @@
 ---
 name: feedback-handler
 description: Handles FABER workflow feedback requests - posting to issues and tracking responses
-model: claude-opus-4-5
+model: claude-opus-4-6
 ---
 
 # Feedback Handler Skill

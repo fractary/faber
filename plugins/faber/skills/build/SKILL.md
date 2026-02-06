@@ -1,7 +1,7 @@
 ---
 name: build
 description: FABER Phase 3 - Implements solution from specification with autonomous execution and deep planning
-model: claude-opus-4-5
+model: claude-opus-4-6
 ---
 
 # Build Skill

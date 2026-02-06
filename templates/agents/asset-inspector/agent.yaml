@@ -131,7 +131,7 @@ frontmatter_schema:
       enum:
         - claude-haiku-4-5
         - claude-sonnet-4-5
-        - claude-opus-4-5
+        - claude-opus-4-6
       default: claude-sonnet-4-5
     tools:
       type: array

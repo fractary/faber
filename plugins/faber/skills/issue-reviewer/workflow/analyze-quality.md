@@ -4,7 +4,7 @@ This workflow step reviews code changes for quality issues and improvement oppor
 
 ## Overview
 
-Using the claude-opus-4-5 model, analyze:
+Using the claude-opus-4-6 model, analyze:
 1. Code quality and best practices
 2. Potential bugs or edge cases
 3. Error handling completeness
@@ -24,7 +24,7 @@ Using the claude-opus-4-5 model, analyze:
 
 Review code for best practices and potential issues:
 
-**Model Prompt (claude-opus-4-5):**
+**Model Prompt (claude-opus-4-6):**
 ```
 Role: Code Quality Reviewer
 
@@ -242,7 +242,7 @@ Aggregate all quality findings:
 {
   "quality_analysis": {
     "timestamp": "2025-12-05T15:50:00Z",
-    "model_used": "claude-opus-4-5",
+    "model_used": "claude-opus-4-6",
     "issues": {
       "critical": 0,
       "major": 1,

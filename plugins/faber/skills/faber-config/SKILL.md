@@ -1,7 +1,7 @@
 ---
 name: faber-config
 description: Load, validate, and resolve FABER configuration and workflows with inheritance support
-model: claude-opus-4-5
+model: claude-opus-4-6
 ---
 
 # FABER Config Skill

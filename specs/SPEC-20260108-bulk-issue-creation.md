@@ -119,7 +119,7 @@ User → Command (parse args, capture context)
 ---
 name: fractary-work:issue-create-bulk
 description: Create multiple issues at once using AI to determine what to create
-model: claude-opus-4-5
+model: claude-opus-4-6
 argument-hint: [--prompt <description>] [--type <type>] [--label <label>] [--template <name>]
 ---
 
@@ -156,7 +156,7 @@ If no template:
 ---
 name: fractary-work:issue-bulk-creator
 description: Autonomous agent for creating multiple related issues
-model: claude-opus-4-5
+model: claude-opus-4-6
 ---
 
 You are the issue-bulk-creator agent for the fractary-work plugin.

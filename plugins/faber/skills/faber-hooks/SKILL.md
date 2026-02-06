@@ -1,7 +1,7 @@
 ---
 name: faber-hooks
 description: Execute FABER phase hooks (pre/post phase boundaries)
-model: claude-opus-4-5
+model: claude-opus-4-6
 ---
 
 # FABER Hooks Skill
