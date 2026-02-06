@@ -251,7 +251,7 @@ Use this checklist to validate configurator agent definitions.
   - Should be actionable (describe what it does)
 
 - [ ] **MUST have** `model` field
-  - Valid values: `claude-haiku-4-5`, `claude-sonnet-4-5`, `claude-opus-4-5`
+  - Valid values: `claude-haiku-4-5`, `claude-sonnet-4-5`, `claude-opus-4-6`
   - Recommended: `claude-sonnet-4-5` for configurators
 
 - [ ] **MUST have** `tools` field

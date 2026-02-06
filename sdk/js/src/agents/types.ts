@@ -37,7 +37,7 @@ export type AgentTypeId =
 export type FaberPhaseName = 'frame' | 'architect' | 'build' | 'evaluate' | 'release' | 'any';
 
 /** Model names */
-export type ModelName = 'claude-haiku-4-5' | 'claude-sonnet-4-5' | 'claude-opus-4-5';
+export type ModelName = 'claude-haiku-4-5' | 'claude-sonnet-4-5' | 'claude-opus-4-6';
 
 /** Tool names */
 export type ToolName =

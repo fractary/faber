@@ -284,7 +284,7 @@ Use this checklist to validate engineer agent definitions.
   - Should describe what it implements
 
 - [ ] **MUST have** `model` field
-  - Valid values: `claude-haiku-4-5`, `claude-sonnet-4-5`, `claude-opus-4-5`
+  - Valid values: `claude-haiku-4-5`, `claude-sonnet-4-5`, `claude-opus-4-6`
   - Recommended: `claude-sonnet-4-5` for engineers
 
 - [ ] **MUST have** `tools` field

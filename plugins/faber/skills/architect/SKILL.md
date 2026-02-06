@@ -1,7 +1,7 @@
 ---
 name: architect
 description: FABER Phase 2 - Designs solution approach and generates implementation specification from requirements
-model: claude-opus-4-5
+model: claude-opus-4-6
 ---
 
 # Architect Skill
