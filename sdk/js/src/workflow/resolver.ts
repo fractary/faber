@@ -32,11 +32,11 @@ import { promisify } from 'util';
  */
 export interface StepResultHandling {
   /** Action on success: 'continue' (default) or slash command */
-  on_success?: 'continue' | string;
+  on_success?: string;
   /** Action on warning: 'continue' (default), 'stop' (shows prompt with options), or slash command */
-  on_warning?: 'continue' | 'stop' | string;
+  on_warning?: string;
   /** Action on failure: 'stop' (shows prompt with options, default) or slash command for recovery */
-  on_failure?: 'stop' | string;
+  on_failure?: string;
 }
 
 /**

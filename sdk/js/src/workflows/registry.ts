@@ -611,7 +611,7 @@ export function debugWorkflow(runId: string, projectRoot?: string): DebugReport 
 
   // Check for common issues
   if (report.state) {
-    const state = report.state as Record<string, unknown>;
+    const state = report.state;
     if (state['status'] === 'in_progress') {
       const updatedAt = state['updated_at'] as string | undefined;
       if (updatedAt) {
