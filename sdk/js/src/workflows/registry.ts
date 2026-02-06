@@ -409,6 +409,10 @@ export function createWorkflow(
     if (fs.existsSync(templatePath)) {
       const templateContent = fs.readFileSync(templatePath, 'utf-8');
       content = yaml.load(templateContent) as Record<string, unknown>;
+      content.id = options.name;
+      if (options.description) {
+        content.description = options.description;
+      }
     } else {
       content = { id: options.name, description: options.description || '' };
     }
