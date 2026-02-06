@@ -163,47 +163,59 @@ export class SessionManager {
    * Find the latest run ID for a given work item
    */
   private findLatestRunForWorkId(runsDir: string, workId: string): string | null {
-    interface RunMatch {
-      runId: string;
-      updatedAt: Date;
+    const matches: Array<{ runId: string; updatedAt: Date }> = [];
+    this.scanRunsDir(runsDir, '', workId, matches);
+
+    if (matches.length === 0) {
+      return null;
     }
 
-    let best: RunMatch | null = null;
-
-    const scanDir = (dir: string, prefix: string): void => {
-      if (!fs.existsSync(dir)) return;
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        if (entry.name.startsWith('.')) continue;
-
-        const subDir = path.join(dir, entry.name);
-        const currentPath = prefix ? `${prefix}/${entry.name}` : entry.name;
-
-        const statePath = path.join(subDir, 'state.json');
-        if (fs.existsSync(statePath)) {
-          try {
-            const state = JSON.parse(fs.readFileSync(statePath, 'utf-8')) as Record<string, unknown>;
-            const stateWorkId = state['work_id'];
-            if (stateWorkId === workId || String(stateWorkId) === String(workId)) {
-              const updatedAtValue = (state['updated_at'] ?? state['started_at'] ?? 0) as string | number;
-              const updatedAt = new Date(updatedAtValue);
-              if (!best || updatedAt > best.updatedAt) {
-                best = { runId: currentPath, updatedAt };
-              }
-            }
-          } catch {
-            // Skip unreadable state files
-          }
-        } else {
-          scanDir(subDir, currentPath);
-        }
+    // Find the most recent match
+    let best = matches[0];
+    for (let i = 1; i < matches.length; i++) {
+      if (matches[i].updatedAt > best.updatedAt) {
+        best = matches[i];
       }
-    };
+    }
+    return best.runId;
+  }
 
-    scanDir(runsDir, '');
-    return best?.runId ?? null;
+  /**
+   * Recursively scan runs directory for matching work IDs
+   */
+  private scanRunsDir(
+    dir: string,
+    prefix: string,
+    workId: string,
+    matches: Array<{ runId: string; updatedAt: Date }>
+  ): void {
+    if (!fs.existsSync(dir)) return;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name.startsWith('.')) continue;
+
+      const subDir = path.join(dir, entry.name);
+      const currentPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+      const statePath = path.join(subDir, 'state.json');
+      if (fs.existsSync(statePath)) {
+        try {
+          const state = JSON.parse(fs.readFileSync(statePath, 'utf-8')) as Record<string, unknown>;
+          const stateWorkId = state['work_id'];
+          if (stateWorkId === workId || String(stateWorkId) === String(workId)) {
+            const updatedAtValue = (state['updated_at'] ?? state['started_at'] ?? 0) as string | number;
+            const updatedAt = new Date(updatedAtValue);
+            matches.push({ runId: currentPath, updatedAt });
+          }
+        } catch {
+          // Skip unreadable state files
+        }
+      } else {
+        this.scanRunsDir(subDir, currentPath, workId, matches);
+      }
+    }
   }
 
   /**
