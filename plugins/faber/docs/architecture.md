@@ -399,7 +399,6 @@ Phase Transitions:
 - v1.x used TOML (`.faber.config.toml`) for human-readability
 - v2.0 switched to JSON at `.fractary/faber/config.json` (now deprecated)
 - v3.0+ uses unified YAML at `.fractary/config.yaml` with a `faber:` section
-- Migration guide available at MIGRATION-v2.md
 
 **Alternatives Considered**:
 - TOML: Requires Python conversion, inconsistent with plugin ecosystem

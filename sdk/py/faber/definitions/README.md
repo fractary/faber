@@ -269,5 +269,4 @@ pytest python/tests/test_definitions/test_registry.py
 ## See Also
 
 - [SPEC-00028](../../../specs/SPEC-00028-agent-tool-definitions.md) - Complete specification
-- [PROJECT_IMPLEMENTATION_GUIDE](../../../docs/PROJECT_IMPLEMENTATION_GUIDE.md) - Implementation guide
 - [Agent & Tool Examples](../../../examples/) - Example projects

@@ -68,12 +68,10 @@ Guides for extending and integrating with FABER.
 
 - [Integration Guide](integration-guide.md) - SDK and CLI integration patterns
 - [Python SDK Integration](python-sdk-integration.md) - Python-specific integration
-- [Project Implementation Guide](PROJECT_IMPLEMENTATION_GUIDE.md) - Implementing FABER in projects
 
 #### Migration & Updates
 Migration guides for version upgrades.
 
-- [Migration Guide](MIGRATION.md) - General migration documentation
 - [FABER-Forge Migration](MIGRATION-FABER-FORGE.md) - Migrating to Forge
 
 ### Strategic Documentation

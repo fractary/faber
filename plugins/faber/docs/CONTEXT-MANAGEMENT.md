@@ -59,8 +59,6 @@ Claude Code hooks enable fully automatic context management:
 
 ### Setup Hooks (5 Minutes)
 
-See **[HOOKS-SETUP.md](./HOOKS-SETUP.md)** for complete step-by-step setup instructions.
-
 **Quick setup**: Add to `.claude/settings.json` in your project:
 
 ```json
@@ -1029,7 +1027,6 @@ When extending workflows, artifacts are inherited and can be overridden:
 
 ## See Also
 
-- **Hook Setup Guide**: [HOOKS-SETUP.md](./HOOKS-SETUP.md) - Step-by-step hook configuration for automatic context management
 - **Command References**:
   - `plugins/faber/commands/session-load.md` - Manual context reload command
   - `plugins/faber/commands/session-save.md` - Session save command

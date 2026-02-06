@@ -30,7 +30,7 @@ FABER has a dual-language architecture:
 | Use Case | SDK | Reason |
 |----------|-----|--------|
 | Claude Code skills/commands | TypeScript | Runs in Node.js plugin context |
-| Standalone CLI (`faber run`) | Python | LangGraph orchestration |
+| Programmatic workflow execution | Python | LangGraph orchestration |
 | Workflow checkpointing | Python | LangGraph built-in support |
 | Cost tracking & budgets | Python | Workflow-level tracking |
 | LangSmith observability | Python | Native LangChain integration |
@@ -54,7 +54,7 @@ async function runFaberWorkflow(workId: string, options: WorkflowOptions): Promi
     if (options.budget) args.push('--budget', options.budget.toString());
     if (options.maxRetries) args.push('--max-retries', options.maxRetries.toString());
 
-    const proc = spawn('faber', args, {
+    const proc = spawn('python', ['-m', 'faber.api', 'run', workId, ...args.slice(2)], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
@@ -75,40 +75,16 @@ async function runFaberWorkflow(workId: string, options: WorkflowOptions): Promi
 }
 ```
 
-### Method 2: HTTP Server (For Long-Running Workflows)
-
-Run the Python SDK as a service:
-
-```bash
-# Start the FABER server
-faber serve --port 8080
-```
-
-```typescript
-// In TypeScript plugin
-async function runFaberWorkflow(workId: string, options: WorkflowOptions): Promise<WorkflowResult> {
-  const response = await fetch('http://localhost:8080/workflow/run', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ work_id: workId, ...options }),
-  });
-
-  return response.json();
-}
-```
-
-### Method 3: Shared State via Files
+### Method 2: Shared State via Files
 
 Both SDKs read/write to shared locations:
 
 ```
-.faber/
+.fractary/
 ├── config.yaml           # Shared configuration
-├── checkpoints.db        # SQLite checkpoints (Python writes, TypeScript reads)
-├── state/
-│   └── workflows/        # Workflow state files (JSON)
-└── logs/
-    └── sessions/         # Session logs (JSON)
+└── faber/
+    ├── workflows/        # Workflow definitions
+    └── runs/             # Workflow run state and artifacts
 ```
 
 ## Shared Contracts
@@ -149,7 +125,7 @@ Both SDKs use the same state schema:
 
 ### Configuration Schema
 
-Shared `.faber/config.yaml`:
+Shared `.fractary/config.yaml`:
 
 ```yaml
 workflow:
@@ -213,7 +189,7 @@ export async function execute(params: WorkflowParams): Promise<SkillResult> {
 
   // Execute Python workflow
   const result = await new Promise<string>((resolve, reject) => {
-    const proc = spawn('faber', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    const proc = spawn('python', ['-m', 'faber.api', 'run', workId, ...args], { stdio: ['pipe', 'pipe', 'pipe'] });
     let output = '';
     proc.stdout.on('data', (d) => { output += d; });
     proc.on('close', (code) => {
@@ -259,7 +235,7 @@ export function registerWorkflowCommands(program: Command) {
       if (options.maxRetries) args.push('--max-retries', options.maxRetries);
 
       // Stream output
-      const proc = spawn('faber', args, { stdio: 'inherit' });
+      const proc = spawn('python', ['-m', 'faber.api', ...args], { stdio: 'inherit' });
 
       proc.on('close', (code) => {
         process.exit(code ?? 1);
@@ -276,7 +252,7 @@ export function registerWorkflowCommands(program: Command) {
       if (options.status) args.push('--status', options.status);
       if (options.limit) args.push('--limit', options.limit);
 
-      spawn('faber', args, { stdio: 'inherit' });
+      spawn('python', ['-m', 'faber.api', ...args], { stdio: 'inherit' });
     });
 }
 ```
@@ -322,7 +298,7 @@ export FABER_REDIS_URL=redis://...
 ### 1. TypeScript Initiates Workflow
 
 ```typescript
-// User runs: /faber:run 123
+// User runs: /fractary-faber:workflow-run 123
 const result = await runFaberWorkflow('123', { autonomy: 'assisted' });
 ```
 
@@ -391,7 +367,7 @@ try {
 The Python SDK automatically traces to LangSmith when configured:
 
 ```yaml
-# .faber/config.yaml
+# .fractary/config.yaml or Python SDK config
 observability:
   langsmith:
     enabled: true
@@ -403,11 +379,11 @@ View traces at: https://smith.langchain.com/
 ### Workflow Logs
 
 ```bash
-# List recent workflows
-faber workflow list
+# Check workflow run status
+fractary-faber run-inspect --work-id 123
 
-# View specific workflow
-faber workflow view wf-abc123
+# Inspect workflow details
+fractary-faber workflow-inspect
 ```
 
 ## Migration from TypeScript-Only

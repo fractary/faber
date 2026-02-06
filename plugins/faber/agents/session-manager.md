@@ -901,7 +901,6 @@ Called automatically when session starts:
 - **Specification**: `specs/SPEC-00027-faber-context-management.md` - Full context management specification
 - **User Guides**:
   - `docs/CONTEXT-MANAGEMENT.md` - Context management user guide
-  - `docs/HOOKS-SETUP.md` - Hook configuration guide
 - **Protocols**:
   - `docs/standards/manager-protocols/context-reload.md` - Context reload protocol
   - `docs/standards/manager-protocols/context-reconstitution.md` - Initial context loading

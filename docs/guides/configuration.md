@@ -25,30 +25,23 @@ Complete reference for configuring FABER workflows, work tracking, repository ma
 
 ## Configuration File Locations
 
-FABER uses a hierarchical configuration system:
+FABER uses a unified YAML configuration file:
 
 ```
 .fractary/
+├── config.yaml                  # Unified configuration (GitHub, Anthropic, FABER)
 └── faber/
-    ├── config.json              # Root configuration
-    └── plugins/
-        ├── work/
-        │   └── config.json      # Work tracking configuration
-        ├── repo/
-        │   └── config.json      # Repository configuration
-        ├── spec/
-        │   └── config.json      # Specification configuration
-        ├── logs/
-        │   └── config.json      # Logs configuration
-        └── state/
-            └── config.json      # State configuration
+    ├── workflows/               # Workflow definitions
+    │   ├── workflows.yaml       # Workflow manifest
+    │   └── default.yaml         # Default workflow config
+    └── runs/                    # Run artifacts
 ```
 
 ### Search Order
 
-1. Current directory: `./.fractary/faber/config.json`
+1. Current directory: `./.fractary/config.yaml`
 2. Parent directories (walks up until found)
-3. Home directory: `~/.fractary/faber/config.json`
+3. Home directory: `~/.fractary/config.yaml`
 4. Default built-in configuration
 
 ---
@@ -58,16 +51,14 @@ FABER uses a hierarchical configuration system:
 ### Using the CLI (Recommended)
 
 ```bash
-# Interactive initialization
-fractary-faber init
+# Initialize FABER section in config.yaml
+fractary-faber configure
 
-# Use a preset
-fractary-faber init --preset minimal
-fractary-faber init --preset default
-fractary-faber init --preset enterprise
+# Or use config init with options
+fractary-faber config init --autonomy guarded
 
 # Force reinitialize
-fractary-faber init --force
+fractary-faber configure --force
 ```
 
 ### Manual Creation
@@ -428,7 +419,7 @@ with open(os.path.join(config_dir, 'config.json'), 'w') as f:
   "capture": {
     "enabled": true,
     "autoStart": false,
-    "includeSy stemLogs": true
+    "includeSystemLogs": true
   },
   "retention": {
     "maxAgeDays": 90,

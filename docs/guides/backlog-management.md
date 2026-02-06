@@ -345,5 +345,5 @@ faber plan \
 ## See Also
 
 - [FABER Workflow Guide](./workflow-guide.md) - Complete workflow documentation
-- [CLI Reference](../api-reference.md) - All command options
+- [CLI Reference](./api-reference.md) - All command options
 - [Integration Guide](../integration-guide.md) - Setting up FABER

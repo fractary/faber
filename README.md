@@ -159,7 +159,7 @@ FABER uses a two-phase approach: **plan** (CLI) + **execute** (Claude Code):
 
 ```bash
 # 1. Plan workflow (creates plan, branch, worktree)
-faber plan --work-id 258
+fractary-faber workflow-plan --work-id 258
 
 # 2. Execute workflow (in Claude Code session)
 cd ~/.claude-worktrees/fractary-myproject-258
@@ -170,10 +170,10 @@ claude
 **Batch Planning:**
 ```bash
 # Plan multiple workflows at once
-faber plan --work-id 258,259,260
+fractary-faber workflow-plan --work-id 258,259,260
 
 # Or search by labels
-faber plan --work-label "workflow:etl,status:approved"
+fractary-faber workflow-plan --work-label "workflow:etl,status:approved"
 ```
 
 **Benefits:**
@@ -283,10 +283,10 @@ Quick reference:
 
 ```bash
 # Workflow
-fractary-faber init                                  # Initialize project
-fractary-faber run --work-id <issue>                # Run workflow
-fractary-faber status                               # Check status
-fractary-faber resume <workflow-id>                 # Resume workflow
+fractary-faber configure                             # Initialize project
+fractary-faber workflow-run --work-id <issue>        # Run workflow
+fractary-faber run-inspect --work-id <issue>         # Check status
+fractary-faber workflow-resume <workflow-id>          # Resume workflow
 
 # Work tracking
 fractary-faber work issue fetch <issue>
@@ -300,11 +300,6 @@ fractary-faber repo pr create --title "Title"
 fractary-faber repo commit "feat: message"
 fractary-faber repo tag create v1.0.0
 
-# Specifications
-fractary-faber spec create "Title"
-fractary-faber spec validate <spec-id>
-fractary-faber spec refine <spec-id>
-
 # Logs
 fractary-faber logs capture <workflow-id>
 fractary-faber logs read <session-id>
@@ -316,13 +311,13 @@ Plan workflows for prioritized backlogs:
 
 ```bash
 # Plan top 5 priorities
-faber plan --work-label "status:backlog" --order-by priority --limit 5
+fractary-faber workflow-plan --work-label "status:backlog" --order-by priority --limit 5
 
 # Plan most recently updated issues
-faber plan --work-label "status:backlog" --order-by updated --limit 10
+fractary-faber workflow-plan --work-label "status:backlog" --order-by updated --limit 10
 
 # Plan oldest issues first (FIFO)
-faber plan --work-label "status:backlog" --order-by created --order-direction asc --limit 3
+fractary-faber workflow-plan --work-label "status:backlog" --order-by created --order-direction asc --limit 3
 ```
 
 **Key features:**
@@ -335,24 +330,21 @@ See [Backlog Management Guide](docs/guides/backlog-management.md) for complete d
 
 ## Configuration
 
-Configuration is stored in `.fractary/plugins/{module}/config.json`:
+Configuration is stored in `.fractary/config.yaml`:
 
-```
-.fractary/
-└── plugins/
-    ├── work/config.json
-    ├── repo/config.json
-    └── ...
-```
+```yaml
+# .fractary/config.yaml
+github:
+  organization: your-org
+  project: your-repo
 
-Example work configuration:
-
-```json
-{
-  "platform": "github",
-  "owner": "your-org",
-  "repo": "your-repo"
-}
+faber:
+  workflows:
+    path: .fractary/faber/workflows
+    default: default
+    autonomy: guarded
+  runs:
+    path: .fractary/faber/runs
 ```
 
 ## Platform Support

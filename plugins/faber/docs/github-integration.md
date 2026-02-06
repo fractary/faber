@@ -488,10 +488,8 @@ If upgrading from v1.x with `@faber` mention support:
 
 1. **Remove** `.github/workflows/faber.yml` that uses `/fractary-faber:mention`
 2. **Create** new workflow using `/fractary-faber:run` (see Quick Start)
-3. **Update** config from TOML to JSON (see MIGRATION-v2.md)
+3. **Update** config from TOML to JSON
 4. **Use labels** instead of mentions to trigger workflows
-
-See [MIGRATION-v2.md](MIGRATION-v2.md) for detailed migration guide.
 
 ---
 
@@ -499,8 +497,6 @@ See [MIGRATION-v2.md](MIGRATION-v2.md) for detailed migration guide.
 
 - [Configuration Guide](configuration.md)
 - [Workflow Guide](workflow-guide.md)
-- [Hooks Documentation](HOOKS.md)
-- [Migration Guide](MIGRATION-v2.md)
 - [FABER Architecture](architecture.md)
 
 ---

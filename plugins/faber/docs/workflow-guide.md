@@ -125,8 +125,6 @@ FABER v2.3 introduces **context overlays**, allowing you to inject project-speci
 }
 ```
 
-See [MIGRATION-v2.2.md](./MIGRATION-v2.2.md) for complete inheritance documentation.
-
 ### Asset Types
 
 Each workflow operates on a specific type of **asset** - the thing being created, modified, or managed. The `asset_type` field in a workflow definition declares what kind of deliverable the workflow produces.

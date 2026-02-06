@@ -28,50 +28,42 @@ npm install @fractary/faber
 ### Global CLI (Optional)
 
 ```bash
-npm install -g @fractary/faber
+npm install -g @fractary/faber-cli
 
 # Verify installation
-fractary --version
+fractary-faber --version
 ```
 
 ## Configuration
 
-Create configuration files in your project at `.fractary/plugins/{module}/config.json`.
+FABER uses a unified configuration file at `.fractary/config.yaml`.
 
-### Work Configuration
-
-```bash
-mkdir -p .fractary/plugins/work
-```
-
-```json
-// .fractary/plugins/work/config.json
-{
-  "platform": "github",
-  "owner": "your-org",
-  "repo": "your-repo"
-}
-```
-
-### Repository Configuration
+### Quick Setup
 
 ```bash
-mkdir -p .fractary/plugins/repo
+# Auto-initialize configuration
+fractary-faber configure
+
+# Or use config init with options
+fractary-faber config init --autonomy guarded
 ```
 
-```json
-// .fractary/plugins/repo/config.json
-{
-  "platform": "github",
-  "owner": "your-org",
-  "repo": "your-repo",
-  "defaultBranch": "main",
-  "branchPrefixes": {
-    "feature": "feature/",
-    "fix": "fix/",
-    "chore": "chore/"
-  }
-}
+### Manual Configuration
+
+Create `.fractary/config.yaml`:
+
+```yaml
+github:
+  organization: your-org
+  project: your-repo
+
+faber:
+  workflows:
+    path: .fractary/faber/workflows
+    default: default
+    autonomy: guarded
+  runs:
+    path: .fractary/faber/runs
 ```
 
 ## Basic Usage
@@ -184,67 +176,48 @@ console.log('Phases:', result.phases.map(p => `${p.phase}: ${p.status}`));
 
 ```bash
 # Fetch issue details
-fractary work fetch 123
+fractary-faber work issue fetch 123
 
 # Create a new issue
-fractary work create --title "Add feature" --body "Description" --type feature
-
-# Search issues
-fractary work search "authentication" --state open
+fractary-faber work issue create --title "Add feature"
 
 # Add a comment
-fractary work comment 123 --body "Progress update"
+fractary-faber work comment create 123 --body "Progress update"
 
 # Close an issue
-fractary work close 123
-
-# Classify work type
-fractary work classify 123
+fractary-faber work issue close 123
 ```
 
 ### Repository Commands
 
 ```bash
 # Create a branch
-fractary repo branch create feature/new-feature
+fractary-faber repo branch create feature/new-feature
 
 # List branches
-fractary repo branch list --merged
+fractary-faber repo branch list
 
 # Create a PR
-fractary repo pr create --title "Add feature" --head feature/new-feature
+fractary-faber repo pr create "Add feature" --body "Description"
 
 # Commit changes
-fractary repo commit --message "Add feature" --type feat
-```
-
-### Specification Commands
-
-```bash
-# Create a spec
-fractary spec create "Add authentication" --template feature
-
-# List specs
-fractary spec list --status draft
-
-# Validate a spec
-fractary spec validate SPEC-001
-
-# Refine a spec
-fractary spec refine SPEC-001
+fractary-faber repo commit "feat: add feature"
 ```
 
 ### Workflow Commands
 
 ```bash
+# Plan a workflow
+fractary-faber workflow-plan --work-id 123
+
 # Run FABER workflow
-fractary workflow run 123 --autonomy assisted
+fractary-faber workflow-run --work-id 123
 
 # Check status
-fractary workflow status <workflow-id>
+fractary-faber run-inspect --work-id 123
 
 # Resume paused workflow
-fractary workflow resume <workflow-id>
+fractary-faber workflow-resume <workflow-id>
 ```
 
 ## Autonomy Levels
@@ -297,21 +270,15 @@ Recommended project structure:
 ```
 your-project/
 ├── .fractary/
-│   └── plugins/
-│       ├── work/
-│       │   └── config.json
-│       ├── repo/
-│       │   └── config.json
-│       ├── spec/
-│       │   └── config.json
-│       ├── logs/
-│       │   └── config.json
-│       └── state/
-│           └── config.json
-├── specs/                  # Specification files
+│   ├── config.yaml              # Unified configuration
+│   └── faber/
+│       ├── workflows/           # Workflow definitions
+│       │   ├── workflows.yaml   # Workflow manifest
+│       │   └── default.yaml     # Default workflow
+│       └── runs/                # Run artifacts (auto-generated)
+├── specs/                       # Specification files
 │   └── SPEC-001.md
-├── .faber-state/           # Workflow state (auto-generated)
-└── .faber-logs/            # Session logs (auto-generated)
+└── ...
 ```
 
 ## Next Steps
@@ -326,7 +293,7 @@ your-project/
 ### Common Issues
 
 **"Configuration not found"**
-- Create the config file at `.fractary/plugins/{module}/config.json`
+- Run `fractary-faber configure` or `fractary-faber config init` to create configuration
 - Ensure you're running from the project root
 
 **"gh: command not found"**

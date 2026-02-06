@@ -40,7 +40,7 @@ You have time to migrate gradually during the v1.x lifecycle.
 
 ### Step 1: Update Configuration
 
-Update your `.fractary/plugins/faber/config.json`:
+Add Forge settings to your `.fractary/config.yaml` under the `faber:` section:
 
 ```json
 {

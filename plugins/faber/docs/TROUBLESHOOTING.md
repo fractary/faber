@@ -724,4 +724,3 @@ When reporting issues, include:
 - [ERROR-CODES.md](./ERROR-CODES.md) - Complete error code reference
 - [CONFIGURATION.md](./CONFIGURATION.md) - Configuration guide
 - [STATE-TRACKING.md](./STATE-TRACKING.md) - State management details
-- [HOOKS.md](./HOOKS.md) - Phase hooks guide
