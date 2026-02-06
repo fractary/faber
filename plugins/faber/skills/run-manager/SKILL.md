@@ -28,15 +28,17 @@ This enables:
 **YOU MUST:**
 1. Always generate run_id before any workflow execution
 2. Initialize run directory before emitting events
-3. Use atomic writes for state updates
-4. Validate run_id format before operations
-5. Emit events through the gateway (not directly)
+3. Use `fractary-faber` CLI commands for run queries when available
+4. Use atomic writes for state updates
+5. Validate run_id format before operations
+6. Emit events through the gateway (not directly)
 
 **YOU MUST NOT:**
 1. Allow multiple runs to share the same run_id
 2. Modify events after they're written
 3. Skip event sequence numbers
 4. Delete run directories without archival
+5. Re-implement logic that exists in the SDK/CLI
 </CRITICAL_RULES>
 
 <OPERATIONS>
@@ -153,7 +155,13 @@ Emit a workflow event to the run's event log.
 
 Get run metadata and current state.
 
-**Script:** `scripts/get-run.sh`
+**CLI Command (preferred):**
+```bash
+fractary-faber run-inspect --run-id "$RUN_ID" --json
+fractary-faber session-load --run-id "$RUN_ID" --json
+```
+
+**Fallback Script:** `scripts/get-run.sh`
 
 **Parameters:**
 - `run_id` (required): Run identifier
@@ -177,7 +185,13 @@ Get run metadata and current state.
 
 List runs for a project or work item.
 
-**Script:** `scripts/list-runs.sh`
+**CLI Command (preferred):**
+```bash
+fractary-faber run-inspect --json
+fractary-faber session-load --work-id "$WORK_ID" --json
+```
+
+**Fallback Script:** `scripts/list-runs.sh`
 
 **Parameters:**
 - `work_id` (optional): Filter by work item
@@ -210,7 +224,13 @@ List runs for a project or work item.
 
 Prepare a run for resumption from failure point.
 
-**Script:** `scripts/resume-run.sh`
+**CLI Command (preferred):**
+```bash
+fractary-faber workflow-resume "$RUN_ID" --json
+fractary-faber workflow-debugger --run-id "$RUN_ID" --json
+```
+
+**Fallback Script:** `scripts/resume-run.sh`
 
 **Parameters:**
 - `run_id` (required): Run to resume
@@ -441,7 +461,15 @@ Run ID: {run_id}
 ## Used By
 - `faber-director`: Generates run_id, initializes run
 - `faber-manager`: Emits events, updates state
-- `faber:run` command: Resume and rerun operations
+- `fractary-faber` CLI: Run queries via `run-inspect`, `session-load`, `workflow-debugger`
+
+## CLI Commands Used
+- `fractary-faber run-inspect` - Query run status
+- `fractary-faber session-load` - Load session/run context
+- `fractary-faber session-save` - Set active run
+- `fractary-faber workflow-resume` - Resume workflows
+- `fractary-faber workflow-debugger` - Debug run issues
+- `fractary-faber runs dir/plan-path/state-path` - Path queries
 
 ## Interacts With
 - `faber-state` skill: State updates go through run-manager

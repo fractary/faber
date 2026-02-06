@@ -19,7 +19,8 @@ State tracks: current phase, phase statuses, artifacts, retry counts, errors, la
 
 <CRITICAL_RULES>
 **YOU MUST:**
-- Use existing scripts from the core skill (located at `../core/scripts/`)
+- Use `fractary-faber` CLI commands for state operations when available
+- Fall back to existing scripts from the core skill (located at `../core/scripts/`) for operations not yet in CLI
 - Return structured JSON results for all operations
 - Preserve existing state data when updating
 - Use atomic writes to prevent corruption
@@ -28,6 +29,7 @@ State tracks: current phase, phase statuses, artifacts, retry counts, errors, la
 - Make decisions about workflow progression (that's the agent's job)
 - Skip state validation
 - Delete state without explicit request
+- Re-implement logic that exists in the SDK/CLI
 </CRITICAL_RULES>
 
 <STATE_STRUCTURE>
@@ -367,6 +369,16 @@ Increment the retry counter for the current phase (for Build-Evaluate loop).
 
 Check if a state file exists for a run or work item.
 
+**CLI Command (preferred):**
+```bash
+# Check via session-load (returns active: false if not found)
+fractary-faber session-load --run-id "$RUN_ID" --json
+fractary-faber session-load --work-id "$WORK_ID" --json
+
+# Check via runs paths
+fractary-faber runs state-path "$RUN_ID" --json
+```
+
 **Parameters:**
 - `run_id` (optional): Run identifier. If provided, checks per-run state.
 - `work_id` (optional): Work ID to check (legacy)
@@ -479,25 +491,15 @@ Current Phase: build
 </OUTPUT_FORMAT>
 
 <DEPENDENCIES>
+- `fractary-faber` CLI (for session-load, session-save, runs, run-inspect operations)
 - `jq` for JSON parsing and manipulation
-- Existing scripts in `../core/scripts/`
+- Existing scripts in `../core/scripts/` (for state mutations not yet in CLI)
 </DEPENDENCIES>
 
 <FILE_LOCATIONS>
 **All run files are consolidated in:** `.fractary/faber/runs/{run_id}/`
 
-**With run_id (preferred):**
-- **Plan file**: `.fractary/faber/runs/{run_id}/plan.json`
-- **State file**: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
-- **Metadata file**: `.fractary/faber/runs/{run_id}/metadata.json`
-- **Events dir**: `.fractary/faber/runs/{run_id}/events/`
-- **Backup pattern**: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json.backup.<timestamp>`
-
-**Legacy (no run_id):**
-- **State file**: `.fractary/faber/state.json`
-- **Backup pattern**: `.fractary/faber/state.json.backup.<timestamp>`
-
-**CLI commands for paths:**
+**CLI commands for paths (preferred - use these instead of computing paths manually):**
 ```bash
 # Get runs directory
 fractary-faber runs dir
@@ -510,19 +512,29 @@ fractary-faber runs plan-path {run_id}
 
 # Get state path
 fractary-faber runs state-path {run_id}
+
+# Load session context (finds active run, state, metadata)
+fractary-faber session-load --json
+fractary-faber session-load --work-id {work_id} --json
+fractary-faber session-load --run-id {run_id} --json
+
+# Save session (set active run)
+fractary-faber session-save --run-id {run_id} --json
+
+# Inspect run status
+fractary-faber run-inspect --work-id {work_id} --json
 ```
 
-**Helper function to compute state path:**
-```bash
-get_state_path() {
-    local run_id="$1"
-    if [ -n "$run_id" ]; then
-        echo ".fractary/faber/runs/$run_id/state.json"
-    else
-        echo ".fractary/faber/state.json"
-    fi
-}
-```
+**With run_id (preferred):**
+- **Plan file**: `.fractary/faber/runs/{run_id}/plan.json`
+- **State file**: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
+- **Metadata file**: `.fractary/faber/runs/{run_id}/metadata.json`
+- **Events dir**: `.fractary/faber/runs/{run_id}/events/`
+- **Backup pattern**: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json.backup.<timestamp>`
+
+**Legacy (no run_id):**
+- **State file**: `.fractary/faber/state.json`
+- **Backup pattern**: `.fractary/faber/state.json.backup.<timestamp>`
 </FILE_LOCATIONS>
 
 <IDEMPOTENCY>

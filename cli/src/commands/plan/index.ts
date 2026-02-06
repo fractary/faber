@@ -61,7 +61,7 @@ interface PlanResult {
  * Create the plan command
  */
 export function createPlanCommand(): Command {
-  return new Command('plan')
+  return new Command('workflow-plan')
     .description('Plan workflows for GitHub issues')
     .option('--work-id <ids>', 'Comma-separated list of work item IDs (e.g., "258,259,260")')
     .option('--work-label <labels>', 'Comma-separated label filters (e.g., "workflow:etl,status:approved")')

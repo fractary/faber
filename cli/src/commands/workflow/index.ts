@@ -6,7 +6,15 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { FaberWorkflow, StateManager } from '@fractary/faber';
+import {
+  FaberWorkflow,
+  StateManager,
+  createWorkflow,
+  updateWorkflow,
+  inspectWorkflow,
+  debugWorkflow,
+  listWorkflows,
+} from '@fractary/faber';
 import { parsePositiveInteger } from '../../utils/validation.js';
 
 /**
@@ -264,6 +272,182 @@ export function createCleanupCommand(): Command {
             result.errors.forEach((err: string) => {
               console.log(chalk.red(`  - ${err}`));
             });
+          }
+        }
+      } catch (error) {
+        handleWorkflowError(error, options);
+      }
+    });
+}
+
+/**
+ * Create the workflow-create command
+ */
+export function createWorkflowCreateCommand(): Command {
+  return new Command('workflow-create')
+    .description('Create a new workflow definition')
+    .argument('<name>', 'Workflow name (lowercase, hyphens allowed)')
+    .option('--template <id>', 'Copy from existing workflow template')
+    .option('--description <text>', 'Workflow description')
+    .option('--json', 'Output as JSON')
+    .action(async (name: string, options) => {
+      try {
+        const result = createWorkflow({
+          name,
+          template: options.template,
+          description: options.description,
+        });
+
+        if (options.json) {
+          console.log(JSON.stringify({
+            status: 'success',
+            data: {
+              entry: result.entry,
+              filePath: result.filePath,
+              manifestPath: result.manifestPath,
+            },
+          }, null, 2));
+        } else {
+          console.log(chalk.green(`✓ Created workflow: ${name}`));
+          console.log(chalk.gray(`  File: ${result.filePath}`));
+          console.log(chalk.gray(`  Manifest: ${result.manifestPath}`));
+          if (options.template) {
+            console.log(chalk.gray(`  Template: ${options.template}`));
+          }
+        }
+      } catch (error) {
+        handleWorkflowError(error, options);
+      }
+    });
+}
+
+/**
+ * Create the workflow-update command
+ */
+export function createWorkflowUpdateCommand(): Command {
+  return new Command('workflow-update')
+    .description('Update a workflow definition')
+    .argument('<name>', 'Workflow name to update')
+    .option('--description <text>', 'New description')
+    .option('--json', 'Output as JSON')
+    .action(async (name: string, options) => {
+      try {
+        const entry = updateWorkflow({
+          name,
+          description: options.description,
+        });
+
+        if (options.json) {
+          console.log(JSON.stringify({
+            status: 'success',
+            data: entry,
+          }, null, 2));
+        } else {
+          console.log(chalk.green(`✓ Updated workflow: ${name}`));
+          if (options.description) {
+            console.log(chalk.gray(`  Description: ${options.description}`));
+          }
+        }
+      } catch (error) {
+        handleWorkflowError(error, options);
+      }
+    });
+}
+
+/**
+ * Create the workflow-inspect command
+ */
+export function createWorkflowInspectCommand(): Command {
+  return new Command('workflow-inspect')
+    .description('Inspect a workflow definition')
+    .argument('<name>', 'Workflow name to inspect')
+    .option('--json', 'Output as JSON')
+    .action(async (name: string, options) => {
+      try {
+        const result = inspectWorkflow({ workflowId: name });
+
+        if (options.json) {
+          console.log(JSON.stringify({
+            status: 'success',
+            data: result,
+          }, null, 2));
+        } else {
+          console.log(chalk.bold(`Workflow: ${result.entry.id}`));
+          if (result.entry.description) {
+            console.log(`  Description: ${result.entry.description}`);
+          }
+          console.log(`  File: ${result.filePath}`);
+          console.log(`  File exists: ${result.fileExists ? chalk.green('yes') : chalk.red('no')}`);
+          if (result.fileSize !== undefined) {
+            console.log(`  File size: ${result.fileSize} bytes`);
+          }
+          if (result.lastModified) {
+            console.log(`  Last modified: ${result.lastModified}`);
+          }
+          if (result.content) {
+            const content = result.content;
+            if (content['phases'] && typeof content['phases'] === 'object') {
+              const phases = Object.keys(content['phases'] as Record<string, unknown>);
+              console.log(`  Phases: ${phases.join(', ')}`);
+            }
+            if (content['extends']) {
+              console.log(`  Extends: ${content['extends']}`);
+            }
+          }
+        }
+      } catch (error) {
+        handleWorkflowError(error, options);
+      }
+    });
+}
+
+/**
+ * Create the workflow-debugger command
+ */
+export function createWorkflowDebuggerCommand(): Command {
+  return new Command('workflow-debugger')
+    .description('Debug a workflow run')
+    .option('--run-id <id>', 'Run ID to debug')
+    .option('--json', 'Output as JSON')
+    .action(async (options) => {
+      try {
+        if (!options.runId) {
+          throw new Error('--run-id is required');
+        }
+
+        const report = debugWorkflow(options.runId);
+
+        if (options.json) {
+          console.log(JSON.stringify({
+            status: 'success',
+            data: report,
+          }, null, 2));
+        } else {
+          console.log(chalk.bold(`Debug Report: ${report.runId}`));
+          console.log(`  Found: ${report.found ? chalk.green('yes') : chalk.red('no')}`);
+
+          if (report.state) {
+            const state = report.state as Record<string, unknown>;
+            console.log(chalk.cyan('\nState:'));
+            console.log(`  Status: ${state['status']}`);
+            console.log(`  Phase: ${state['current_phase']}`);
+            console.log(`  Updated: ${state['updated_at']}`);
+          }
+
+          if (report.events && report.events.length > 0) {
+            console.log(chalk.cyan(`\nEvents: ${report.events.length}`));
+            const lastEvents = report.events.slice(-5);
+            lastEvents.forEach((e: string) => console.log(chalk.gray(`  ${e}`)));
+            if (report.events.length > 5) {
+              console.log(chalk.gray(`  ... and ${report.events.length - 5} more`));
+            }
+          }
+
+          if (report.issues.length > 0) {
+            console.log(chalk.yellow('\nIssues:'));
+            report.issues.forEach((i: string) => console.log(chalk.yellow(`  - ${i}`)));
+          } else {
+            console.log(chalk.green('\nNo issues detected'));
           }
         }
       } catch (error) {

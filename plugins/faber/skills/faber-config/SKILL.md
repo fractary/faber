@@ -35,7 +35,15 @@ merges parent and child workflows, handling pre_steps, steps, and post_steps acc
 
 Load the FABER configuration from the unified config file.
 
-**Script:** `../core/scripts/config-loader.sh` (for TOML) or direct YAML read
+**CLI Command (preferred):**
+```bash
+fractary-faber config get --json
+```
+
+To get a specific key:
+```bash
+fractary-faber config get faber --json
+```
 
 **Parameters:**
 - `config_path` (optional): Path to unified config file (default: `.fractary/config.yaml`)
@@ -55,50 +63,32 @@ Load the FABER configuration from the unified config file.
 }
 ```
 
-**Execution:**
-```bash
-# Load faber section from unified config (YAML)
-python3 -c "import yaml; import json; c=yaml.safe_load(open('.fractary/config.yaml')); print(json.dumps(c.get('faber', {})))"
-
-# For TOML config (legacy)
-../core/scripts/config-loader.sh .faber.config.toml
-```
-
 ---
 
 ## load-workflow
 
 Load a specific workflow definition.
 
+**CLI Command (preferred):**
+```bash
+fractary-faber workflow-inspect <workflow_id> --json
+```
+
 **Parameters:**
 - `workflow_id`: ID of the workflow to load (default: "default")
-- `config_path` (optional): Path to config file
 
 **Returns:**
 ```json
 {
   "status": "success",
-  "workflow": {
-    "id": "default",
-    "description": "Standard FABER workflow",
-    "phases": {
-      "frame": {"enabled": true, "steps": [...]},
-      "architect": {"enabled": true, "steps": [...]},
-      "build": {"enabled": true, "steps": [...]},
-      "evaluate": {"enabled": true, "steps": [...], "max_retries": 3},
-      "release": {"enabled": true, "steps": [...]}
-    },
-    "autonomy": {"level": "guarded", "require_approval_for": ["release"]},
-    "hooks": {...}
+  "data": {
+    "entry": {"id": "default", "file": "default.yaml"},
+    "filePath": "...",
+    "fileExists": true,
+    "content": { ... workflow definition ... }
   }
 }
 ```
-
-**Execution:**
-1. Load main config
-2. Find workflow by ID in `workflows` array
-3. If workflow has `file` property, load from that file
-4. Return merged workflow definition
 
 ---
 
@@ -281,40 +271,17 @@ This is a FATAL error - do not proceed with workflow execution.
 
 Validate configuration against JSON schema.
 
-**Script:** `../core/scripts/config-validate.sh`
+**CLI Command (preferred):**
+```bash
+fractary-faber config validate
+```
 
 **Parameters:**
 - `config_path`: Path to unified config file to validate (default: `.fractary/config.yaml`)
 
 **Returns:**
-```json
-{
-  "status": "success",
-  "valid": true,
-  "summary": {
-    "workflow_path": ".fractary/faber/workflows",
-    "workflow_count": 1,
-    "autonomy_level": "guarded"
-  }
-}
-```
-
-Or on failure:
-```json
-{
-  "status": "error",
-  "valid": false,
-  "errors": [
-    "Missing required field: faber.workflow.config_path",
-    "Invalid autonomy level: unknown"
-  ]
-}
-```
-
-**Execution:**
-```bash
-../core/scripts/config-validate.sh .fractary/config.yaml
-```
+On success: exit code 0 with "Configuration is valid."
+On failure: exit code 1 with error/warning details
 
 ---
 
@@ -377,11 +344,12 @@ When invoked with an operation:
    - Extract parameters
 
 2. **Execute Operation**
-   - For `load-config`: Read and parse JSON config file
-   - For `load-workflow`: Load config, find workflow, merge with file if needed
-   - For `validate-config`: Run validation script
-   - For `get-phases`: Extract phase information
-   - For `get-integrations`: Extract integrations section
+   - For `load-config`: Use `fractary-faber config get --json`
+   - For `load-workflow`: Use `fractary-faber workflow-inspect <id> --json`
+   - For `validate-config`: Use `fractary-faber config validate`
+   - For `resolve-workflow`: Use merge scripts (LLM-enhanced, not SDK material)
+   - For `get-phases`: Use `fractary-faber workflow-inspect <id> --json` and extract phases
+   - For `get-integrations`: Use `fractary-faber config get --json` and extract integrations
 
 3. **Return Result**
    - Always return structured JSON
@@ -427,9 +395,9 @@ not termination of the overall workflow. The director skill will continue to inv
 </OUTPUT_FORMAT>
 
 <DEPENDENCIES>
-- `jq` for JSON parsing
-- Python with `tomli`/`toml` for TOML parsing (legacy configs)
-- Existing scripts in `../core/scripts/`
+- `fractary-faber` CLI (for config get/validate, workflow-inspect operations)
+- `jq` for JSON parsing (for resolve-workflow script output)
+- Existing scripts in `../core/scripts/` (for resolve-workflow merge operations)
 </DEPENDENCIES>
 
 <FILE_LOCATIONS>

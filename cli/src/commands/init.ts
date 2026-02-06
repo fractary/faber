@@ -20,7 +20,7 @@ import {
 } from '../lib/yaml-config.js';
 
 export function createInitCommand(): Command {
-  return new Command('init')
+  return new Command('configure')
     .description('Initialize FABER section in unified config.yaml')
     .option('--force', 'Overwrite existing FABER configuration')
     .option('--json', 'Output as JSON')
