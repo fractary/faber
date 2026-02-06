@@ -116,7 +116,7 @@ export class SessionManager {
     const statePath = path.join(runDir, 'state.json');
     if (fs.existsSync(statePath)) {
       try {
-        context.state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+        context.state = JSON.parse(fs.readFileSync(statePath, 'utf-8')) as Record<string, unknown>;
         context.workId = context.state?.['work_id'] as string | undefined;
       } catch {
         // Corrupted state - still return partial context
@@ -127,7 +127,7 @@ export class SessionManager {
     const metadataPath = path.join(runDir, 'metadata.json');
     if (fs.existsSync(metadataPath)) {
       try {
-        context.metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+        context.metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8')) as Record<string, unknown>;
         if (!context.workId) {
           context.workId = context.metadata?.['work_id'] as string | undefined;
         }
@@ -163,10 +163,14 @@ export class SessionManager {
    * Find the latest run ID for a given work item
    */
   private findLatestRunForWorkId(runsDir: string, workId: string): string | null {
-    let bestRunId: string | null = null;
-    let bestUpdatedAt = new Date(0);
+    interface RunMatch {
+      runId: string;
+      updatedAt: Date;
+    }
 
-    const scanDir = (dir: string, prefix: string) => {
+    let best: RunMatch | null = null;
+
+    const scanDir = (dir: string, prefix: string): void => {
       if (!fs.existsSync(dir)) return;
       const entries = fs.readdirSync(dir, { withFileTypes: true });
 
@@ -180,12 +184,13 @@ export class SessionManager {
         const statePath = path.join(subDir, 'state.json');
         if (fs.existsSync(statePath)) {
           try {
-            const state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
-            if (state.work_id === workId || String(state.work_id) === String(workId)) {
-              const updatedAt = new Date(state.updated_at || state.started_at || 0);
-              if (updatedAt > bestUpdatedAt) {
-                bestRunId = currentPath;
-                bestUpdatedAt = updatedAt;
+            const state = JSON.parse(fs.readFileSync(statePath, 'utf-8')) as Record<string, unknown>;
+            const stateWorkId = state['work_id'];
+            if (stateWorkId === workId || String(stateWorkId) === String(workId)) {
+              const updatedAtValue = (state['updated_at'] ?? state['started_at'] ?? 0) as string | number;
+              const updatedAt = new Date(updatedAtValue);
+              if (!best || updatedAt > best.updatedAt) {
+                best = { runId: currentPath, updatedAt };
               }
             }
           } catch {
@@ -198,7 +203,7 @@ export class SessionManager {
     };
 
     scanDir(runsDir, '');
-    return bestRunId;
+    return best?.runId ?? null;
   }
 
   /**
