@@ -319,7 +319,7 @@ Diagnose and fix workflow execution issues.
 **Command Pattern:**
 ```markdown
 ---
-name: fractary-faber:workflow-debugger
+name: fractary-faber:workflow-debug
 description: Debug workflow execution issues - delegates to workflow-debugger agent
 allowed-tools: Task(fractary-faber:workflow-debugger)
 model: claude-haiku-4-5
@@ -362,7 +362,7 @@ Task(
 1. Rename `debugger.md` → `workflow-debugger.md`
 2. Create `plugins/faber/agents/workflow-debugger.md`
 3. Update `plugins/faber/commands/workflow-debugger.md` to lightweight wrapper
-4. Test: `/fractary-faber:workflow-debugger --work-id 123`
+4. Test: `/fractary-faber:workflow-debug --work-id 123`
 5. Verify: Issues detected, solutions proposed
 
 ## Critical Files
@@ -434,8 +434,8 @@ Task(
 
 **Workflow Debugger:**
 ```bash
-/fractary-faber:workflow-debugger --work-id 123
-/fractary-faber:workflow-debugger --work-id 123 --auto-fix
+/fractary-faber:workflow-debug --work-id 123
+/fractary-faber:workflow-debug --work-id 123 --auto-fix
 ```
 
 ### Success Criteria:

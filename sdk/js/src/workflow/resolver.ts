@@ -974,7 +974,7 @@ export class WorkflowResolver {
  *   3. Workflow-level (result_handling at workflow root)
  *   4. Schema defaults
  *
- * This allows defining common error handlers (like workflow-debugger) once
+ * This allows defining common error handlers (like workflow-debug) once
  * at the workflow level instead of repeating on every step.
  *
  * @param workflow - The resolved workflow configuration

@@ -227,7 +227,7 @@ Prepare a run for resumption from failure point.
 **CLI Command (preferred):**
 ```bash
 fractary-faber workflow-resume "$RUN_ID" --json
-fractary-faber workflow-debugger --run-id "$RUN_ID" --json
+fractary-faber workflow-debug --run-id "$RUN_ID" --json
 ```
 
 **Fallback Script:** `scripts/resume-run.sh`
@@ -461,14 +461,14 @@ Run ID: {run_id}
 ## Used By
 - `faber-director`: Generates run_id, initializes run
 - `faber-manager`: Emits events, updates state
-- `fractary-faber` CLI: Run queries via `run-inspect`, `session-load`, `workflow-debugger`
+- `fractary-faber` CLI: Run queries via `run-inspect`, `session-load`, `workflow-debug`
 
 ## CLI Commands Used
 - `fractary-faber run-inspect` - Query run status
 - `fractary-faber session-load` - Load session/run context
 - `fractary-faber session-save` - Set active run
 - `fractary-faber workflow-resume` - Resume workflows
-- `fractary-faber workflow-debugger` - Debug run issues
+- `fractary-faber workflow-debug` - Debug run issues
 - `fractary-faber runs dir/plan-path/state-path` - Path queries
 
 ## Interacts With

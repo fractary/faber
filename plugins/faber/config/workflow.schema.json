@@ -64,7 +64,7 @@
     },
     "result_handling": {
       "$ref": "#/definitions/step_result_handling",
-      "description": "Default result handling for all steps in all phases. Cascades: step-level > phase-level > workflow-level > schema defaults. Define common handlers (like workflow-debugger) once instead of per-step."
+      "description": "Default result handling for all steps in all phases. Cascades: step-level > phase-level > workflow-level > schema defaults. Define common handlers (like workflow-debug) once instead of per-step."
     }
   },
   "definitions": {
@@ -383,13 +383,13 @@
     },
     "step_result_handling": {
       "type": "object",
-      "description": "Defines behavior for step execution outcomes. Optional - if omitted, defaults are: on_success='continue', on_warning='continue', on_failure='stop'. Values can be action strings ('continue', 'stop') or slash commands (e.g., '/fractary-faber:workflow-debugger') that are invoked with step context.",
+      "description": "Defines behavior for step execution outcomes. Optional - if omitted, defaults are: on_success='continue', on_warning='continue', on_failure='stop'. Values can be action strings ('continue', 'stop') or slash commands (e.g., '/fractary-faber:workflow-debug') that are invoked with step context.",
       "additionalProperties": false,
       "properties": {
         "on_success": {
           "oneOf": [
             { "const": "continue" },
-            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger')" }
+            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debug')" }
           ],
           "default": "continue",
           "description": "Action when step succeeds: 'continue' proceeds automatically (default), or a slash command to invoke"
@@ -397,7 +397,7 @@
         "on_warning": {
           "oneOf": [
             { "enum": ["continue", "stop"] },
-            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger')" }
+            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debug')" }
           ],
           "default": "continue",
           "description": "Action when step has warnings: 'continue' logs and proceeds (default), 'stop' shows intelligent prompt with options (continue, fix, stop), or a slash command to invoke"
@@ -405,7 +405,7 @@
         "on_failure": {
           "oneOf": [
             { "const": "stop" },
-            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debugger --auto-fix')" }
+            { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber:workflow-debug --auto-fix')" }
           ],
           "default": "stop",
           "description": "Action when step fails: 'stop' shows intelligent prompt with options (default), or a slash command to invoke for recovery. The command receives step context and can return a recovery plan."

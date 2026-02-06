@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:workflow-debugger
+name: fractary-faber:workflow-debug
 description: Diagnose workflow issues and propose solutions - delegates to fractary-faber:workflow-debugger agent
 allowed-tools: Task(fractary-faber:workflow-debugger)
 model: claude-haiku-4-5

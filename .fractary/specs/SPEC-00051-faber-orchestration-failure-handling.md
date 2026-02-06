@@ -30,7 +30,7 @@ During execution of the `dataset-create` workflow for issue #137, the orchestrat
   "description": "Validate engineer's work before deployment...",
   "prompt": "/fractary-faber-code:engineer-validate --work-id {work_id}",
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger --work-id {work_id} --run-id {run_id} --problem \"{error}\" --auto-fix"
+    "on_failure": "/fractary-faber:workflow-debug --work-id {work_id} --run-id {run_id} --problem \"{error}\" --auto-fix"
   }
 }
 ```
@@ -40,7 +40,7 @@ During execution of the `dataset-create` workflow for issue #137, the orchestrat
 2. Orchestrator detects failure and reads `on_failure` handler
 3. Orchestrator recognizes it's a command string (starts with `/`)
 4. Orchestrator substitutes variables (`{work_id}`, `{run_id}`, `{error}`)
-5. Orchestrator invokes `/fractary-faber:workflow-debugger ...` via Skill tool
+5. Orchestrator invokes `/fractary-faber:workflow-debug ...` via Skill tool
 6. Based on debugger result:
    - If remediation succeeds → re-run `build-engineer-validate`
    - If remediation fails → stop workflow with "remediation_failed" status
@@ -89,7 +89,7 @@ During execution of the `dataset-create` workflow for issue #137, the orchestrat
 **But actual workflow plans use `on_failure` as command strings:**
 ```json
 {
-  "on_failure": "/fractary-faber:workflow-debugger --work-id {work_id} --run-id {run_id} --problem \"{error}\" --auto-fix"
+  "on_failure": "/fractary-faber:workflow-debug --work-id {work_id} --run-id {run_id} --problem \"{error}\" --auto-fix"
 }
 ```
 
@@ -142,7 +142,7 @@ The orchestrator MUST detect the type of `on_failure` handler:
 | Handler Type | Detection Pattern | Example |
 |--------------|-------------------|---------|
 | Keyword | Exact match: "stop", "continue", "retry" | `"on_failure": "stop"` |
-| Command | Starts with `/` | `"on_failure": "/fractary-faber:workflow-debugger ..."` |
+| Command | Starts with `/` | `"on_failure": "/fractary-faber:workflow-debug ..."` |
 | Structured | Object with `command` property | `"on_failure": {"command": "/cmd", "args": {...}}` |
 
 ### R2: Variable Substitution
@@ -205,7 +205,7 @@ When a handler is invoked, create an event record:
   "phase": "build",
   "original_status": "failure",
   "handler_type": "command",
-  "handler_command": "/fractary-faber:workflow-debugger --work-id 137 --run-id corthosai-etl.corthion.ai-ipeds-hd-20260205T143408 --problem \"validation failed: missing field\" --auto-fix",
+  "handler_command": "/fractary-faber:workflow-debug --work-id 137 --run-id corthosai-etl.corthion.ai-ipeds-hd-20260205T143408 --problem \"validation failed: missing field\" --auto-fix",
   "handler_result": {
     "status": "success",
     "message": "Issue fixed: added missing field definition",
@@ -426,7 +426,7 @@ Updates step with remediation tracking information.
   "status": "remediating",
   "remediation": {
     "handler_type": "command",
-    "handler_command": "/fractary-faber:workflow-debugger ...",
+    "handler_command": "/fractary-faber:workflow-debug ...",
     "handler_invoked_at": "2026-02-05T15:46:00Z",
     "retry_count": 1,
     "max_retries": 1
