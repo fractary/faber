@@ -13,7 +13,7 @@ dotenv.config();
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowDebuggerCommand } from './commands/workflow/index.js';
+import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowDebugCommand } from './commands/workflow/index.js';
 import { createSessionLoadCommand, createSessionSaveCommand } from './commands/session.js';
 import { createWorkCommand } from './commands/work/index.js';
 import { createRepoCommand } from './commands/repo/index.js';
@@ -61,7 +61,7 @@ export function createFaberCLI(): Command {
   program.addCommand(createWorkflowCreateCommand());  // workflow-create
   program.addCommand(createWorkflowUpdateCommand());  // workflow-update
   program.addCommand(createWorkflowInspectCommand()); // workflow-inspect
-  program.addCommand(createWorkflowDebuggerCommand()); // workflow-debugger
+  program.addCommand(createWorkflowDebugCommand()); // workflow-debug
   program.addCommand(createSessionLoadCommand());     // session-load
   program.addCommand(createSessionSaveCommand());     // session-save
 

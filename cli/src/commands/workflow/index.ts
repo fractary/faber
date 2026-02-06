@@ -402,10 +402,10 @@ export function createWorkflowInspectCommand(): Command {
 }
 
 /**
- * Create the workflow-debugger command
+ * Create the workflow-debug command
  */
-export function createWorkflowDebuggerCommand(): Command {
-  return new Command('workflow-debugger')
+export function createWorkflowDebugCommand(): Command {
+  return new Command('workflow-debug')
     .description('Debug a workflow run')
     .option('--run-id <id>', 'Run ID to debug')
     .option('--json', 'Output as JSON')
