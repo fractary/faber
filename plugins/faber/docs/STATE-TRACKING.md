@@ -449,7 +449,6 @@ This enables multi-channel feedback collection:
 ## See Also
 
 - [CONFIGURATION.md](./CONFIGURATION.md) - Complete configuration guide
-- [HOOKS.md](./HOOKS.md) - Phase-level hooks guide
 - [RUN-ID-SYSTEM.md](./RUN-ID-SYSTEM.md) - Run isolation and event logging
 - `/fractary-faber:status` - Status command using dual-state pattern
 - `plugins/logs/types/workflow.json` - Workflow log type definition

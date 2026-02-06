@@ -503,7 +503,6 @@ Use prompts that reference workflow state:
 
 - [configuration.md](./configuration.md) - Complete configuration guide
 - [workflow-guide.md](./workflow-guide.md) - Workflow fundamentals
-- [HOOKS.md](./HOOKS.md) - Phase-level hooks
 - [architecture.md](./architecture.md) - FABER architecture
 
 ---

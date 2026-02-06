@@ -4,15 +4,15 @@ AI-assisted development workflows powered by LangGraph.
 
 FABER (Frame, Architect, Build, Evaluate, Release) provides enterprise-grade workflow orchestration for AI-assisted software development.
 
-> **⚠️ v1.0.0 Breaking Change**: The standalone `faber` CLI has been removed. Use `@fractary/cli` for terminal access or the Python API for programmatic use. See [Migration Guide](../docs/MIGRATION.md).
+> **Note**: The standalone `faber` CLI has been removed. Use `@fractary/faber-cli` for terminal access or the Python API for programmatic use.
 
 ## Installation
 
 ### For CLI Users
 
 ```bash
-# Install the unified Fractary CLI
-npm install -g @fractary/cli
+# Install the FABER CLI
+npm install -g @fractary/faber-cli
 ```
 
 ### For Programmatic Use
@@ -31,20 +31,17 @@ pip install -e ".[redis]"     # Redis checkpointing
 
 ## Quick Start
 
-### CLI Usage (via Fractary CLI)
+### CLI Usage (via FABER CLI)
 
 ```bash
 # Run workflow for issue #123
-fractary faber run 123
-
-# Run with specific options
-fractary faber run 123 --autonomy assisted --max-retries 5 --budget 10.0
+fractary-faber workflow-run --work-id 123
 
 # Initialize configuration
-fractary faber init
+fractary-faber configure
 
-# List workflows
-fractary faber workflow list
+# Check workflow status
+fractary-faber run-inspect --work-id 123
 ```
 
 ### Python API Usage (Recommended)
@@ -191,28 +188,21 @@ export FABER_REDIS_URL=redis://...
 
 ## CLI Commands
 
-> **Note**: As of v1.0.0, use `fractary faber` instead of `faber` commands.
+> **Note**: Use `fractary-faber` CLI commands for terminal access.
 
 ```bash
 # Run workflow
-fractary faber run <work_id> [options]
-  --autonomy, -a    Autonomy level (assisted, guarded, autonomous)
-  --max-retries, -r Maximum retry attempts
-  --skip-phase, -s  Phases to skip
-  --budget, -b      Budget limit in USD
-  --trace/--no-trace Enable LangSmith tracing
+fractary-faber workflow-run --work-id <id>
+  --autonomy <level>  Autonomy level: supervised|assisted|autonomous
 
 # Initialize configuration
-fractary faber init [--force]
+fractary-faber configure
 
-# List workflows
-fractary faber workflow list [--status <status>] [--limit <n>]
-
-# View workflow details
-fractary faber workflow view <workflow_id>
+# Check workflow status
+fractary-faber run-inspect --work-id <id>
 
 # Show version
-fractary faber --version
+fractary-faber --version
 ```
 
 ## API Reference
@@ -349,9 +339,9 @@ if response and response.approved:
     print("Approved!")
 ```
 
-## Integration with @fractary/cli
+## Integration with @fractary/faber-cli
 
-The Python SDK integrates with the unified Fractary CLI, which is implemented in TypeScript.
+The Python SDK integrates with the FABER CLI, which is implemented in TypeScript.
 
 ### From TypeScript (via subprocess):
 
@@ -377,7 +367,7 @@ result = run_workflow_sync("123", WorkflowOptions(
 ```
 
 For detailed integration patterns, see:
-- [Migration Guide](../docs/MIGRATION.md)
+- [Python SDK Integration](../docs/python-sdk-integration.md)
 - [SPEC-00027: CLI Integration](../specs/SPEC-00027-cli-integration.md)
 
 ## Development
@@ -400,7 +390,7 @@ ruff check faber
 
 - [Integration Guide](../docs/python-sdk-integration.md) - TypeScript CLI integration
 - [TypeScript SDK](../docs/integration-guide.md) - @fractary/faber TypeScript package
-- [API Reference](../docs/api-reference.md) - Full API documentation
+- [API Reference](../docs/guides/api-reference.md) - Full API documentation
 - [SPEC-00025](../specs/SPEC-00025-langgraph-integration.md) - Architecture specification
 
 ## License

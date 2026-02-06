@@ -744,8 +744,6 @@ To ensure correct implementation, validate:
 4. **Reliable** - Hooks guaranteed to run at the right time
 5. **Audit Trail** - All sessions recorded with timestamps and environment info
 
-See **[HOOKS-SETUP.md](../HOOKS-SETUP.md)** for complete setup instructions.
-
 ## Integration Points
 
 ### Called By
@@ -774,7 +772,6 @@ See **[HOOKS-SETUP.md](../HOOKS-SETUP.md)** for complete setup instructions.
 
 ## See Also
 
-- **Hook Setup**: [HOOKS-SETUP.md](../HOOKS-SETUP.md) - Step-by-step hook configuration guide
 - **Context Reconstitution**: `context-reconstitution.md` - Initial context loading at workflow start
 - **Commands**:
   - `plugins/faber/commands/session-load.md` - Context reload command

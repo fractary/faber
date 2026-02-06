@@ -52,7 +52,7 @@ aws configure
 ```bash
 # Phase 1: Plan (CLI - outside Claude Code)
 # Creates plan, git branch, and worktree
-faber plan --work-id 123
+fractary-faber workflow-plan --work-id 123
 
 # Phase 2: Execute (Claude Code session)
 # Navigate to worktree and run workflow
@@ -65,10 +65,10 @@ claude
 
 ```bash
 # Plan workflows for multiple issues
-faber plan --work-id 123,124,125
+fractary-faber workflow-plan --work-id 123,124,125
 
 # Or search by labels
-faber plan --work-label "workflow:etl,status:approved"
+fractary-faber workflow-plan --work-label "workflow:etl,status:approved"
 ```
 
 That's it! FABER will:
@@ -156,15 +156,10 @@ Creates the `faber:` section in `.fractary/config.yaml` with default workflow co
 }
 ```
 
-### Migrating from v1.x
-
-If you have an existing `.faber.config.toml` file, see [MIGRATION-v2.md](docs/MIGRATION-v2.md) for migration instructions.
-
 ### Configuration Documentation
 
 - [configuration.md](docs/configuration.md) - Complete configuration reference
 - [PROMPT-CUSTOMIZATION.md](docs/PROMPT-CUSTOMIZATION.md) - Workflow customization guide
-- [HOOKS.md](docs/HOOKS.md) - Phase-level hooks
 - [STATE-TRACKING.md](docs/STATE-TRACKING.md) - Dual-state tracking system
 
 ## Usage
@@ -191,22 +186,22 @@ Status updates post automatically to GitHub issues. See [GitHub Integration Guid
 
 ```bash
 # Plan single workflow
-faber plan --work-id 123
+fractary-faber workflow-plan --work-id 123
 
 # Plan multiple workflows
-faber plan --work-id 123,124,125
+fractary-faber workflow-plan --work-id 123,124,125
 
 # Plan by label search
-faber plan --work-label "workflow:etl,status:approved"
+fractary-faber workflow-plan --work-label "workflow:etl,status:approved"
 
 # Override workflow type
-faber plan --work-id 123 --workflow hotfix
+fractary-faber workflow-plan --work-id 123 --workflow hotfix
 
 # Skip confirmation (for automation)
-faber plan --work-id 123 --skip-confirm
+fractary-faber workflow-plan --work-id 123 --skip-confirm
 
 # JSON output
-faber plan --work-id 123 --json
+fractary-faber workflow-plan --work-id 123 --json
 ```
 
 **Execution Commands (Claude Code Plugin)**:
@@ -222,7 +217,7 @@ faber plan --work-id 123 --json
 /fractary-faber:workflow-run fractary-faber-123-20260106-143022
 
 # Check workflow status
-/fractary-faber:status
+/fractary-faber:run-inspect
 ```
 
 ### Advanced Usage
@@ -306,7 +301,7 @@ faber:
 Override per workflow:
 
 ```bash
-/fractary-faber:run --work-id 123 --autonomy autonomous
+/fractary-faber:workflow-run 123 --autonomy autonomous
 ```
 
 ## Architecture
@@ -332,15 +327,14 @@ Layer 3: Scripts (Deterministic Operations)
 ### Components
 
 #### Agents (Decision Makers)
-- `director` - Orchestrates complete workflow
-- `frame-manager` - Manages Frame phase
-- `architect-manager` - Manages Architect phase
-- `build-manager` - Manages Build phase
-- `evaluate-manager` - Manages Evaluate phase
-- `release-manager` - Manages Release phase
-- `work-manager` - Work tracking operations
-- `repo-manager` - Source control operations
-- `file-manager` - File storage operations
+- `faber-manager` - Core workflow orchestration and failure handling
+- `faber-planner` - Workflow planning
+- `workflow-engineer` - Build phase implementation
+- `workflow-inspector` - Audit and inspection
+- `workflow-debugger` - Debugging and error handling
+- `run-inspect` - Run status inspection
+- `session-manager` - Session artifact management
+- `configurator` - Project configuration
 
 #### Skills (Adapters)
 - `core` - Configuration, sessions, status cards
@@ -349,13 +343,18 @@ Layer 3: Scripts (Deterministic Operations)
 - `file-manager` - R2/S3/local storage adapters
 
 #### Commands (User Interface)
-- `faber plan` - Plan workflows (CLI - v3.4.0+)
 - `/fractary-faber:config-initialize` - Initialize FABER in a project (first-time setup)
 - `/fractary-faber:config-update` - Update existing FABER configuration
 - `/fractary-faber:config-validate` - Validate FABER configuration
-- `/fractary-faber:workflow-run` - Execute pre-planned workflow
-- `/fractary-faber:status` - Show workflow status
-- `/fractary-faber:audit` - Validate configuration
+- `/fractary-faber:workflow-run` - Execute workflow
+- `/fractary-faber:workflow-plan` - Plan workflow
+- `/fractary-faber:workflow-create` - Create workflow definition
+- `/fractary-faber:workflow-update` - Update workflow definition
+- `/fractary-faber:workflow-inspect` - Inspect workflow state
+- `/fractary-faber:workflow-debugger` - Debug workflow issues
+- `/fractary-faber:run-inspect` - Show workflow run status
+- `/fractary-faber:session-load` - Load session state
+- `/fractary-faber:session-save` - Save session state
 
 ## Domain Support
 
@@ -366,28 +365,28 @@ FABER supports multiple work domains:
 - Code implementation and testing
 - Pull requests and code review
 
-**Usage**: `/fractary-faber:run --work-id 123`
+**Usage**: `/fractary-faber:workflow-run 123`
 
 ### Design 🚧 (Future)
 - Design brief generation
 - Asset creation
 - Design review and publication
 
-**Usage**: `/fractary-faber:run --work-id 123 --workflow design`
+**Usage**: `/fractary-faber:workflow-run 123 --workflow design`
 
 ### Writing 🚧 (Future)
 - Content outlines
 - Writing and editing
 - Content review and publication
 
-**Usage**: `/fractary-faber:run --work-id 123 --workflow writing`
+**Usage**: `/fractary-faber:workflow-run 123 --workflow writing`
 
 ### Data 🚧 (Future)
 - Pipeline design and implementation
 - Data quality checks
 - Pipeline deployment
 
-**Usage**: `/fractary-faber:run --work-id 123 --workflow data`
+**Usage**: `/fractary-faber:workflow-run 123 --workflow data`
 
 ## Platform Support
 
@@ -412,7 +411,7 @@ FABER supports multiple work domains:
 
 ```bash
 # Step 1: Plan the workflow (CLI)
-faber plan --work-id 123
+fractary-faber workflow-plan --work-id 123
 
 # Output shows:
 # ✓ Plan: fractary-faber-123-20260106-143022
@@ -444,10 +443,10 @@ claude
 
 ```bash
 # Plan multiple workflows at once
-faber plan --work-id 123,124,125
+fractary-faber workflow-plan --work-id 123,124,125
 
 # Or plan by label search
-faber plan --work-label "workflow:etl,status:approved"
+fractary-faber workflow-plan --work-label "workflow:etl,status:approved"
 
 # Output shows all planned workflows with execution instructions
 # Execute each in separate Claude sessions (parallel execution)
@@ -475,23 +474,17 @@ claude
 
 ```bash
 # Show current workflow status
-/fractary-faber:status
+/fractary-faber:run-inspect
 
-# Show detailed log history
-/fractary-faber:status --logs 20
-
-# Show timing breakdown
-/fractary-faber:status --timing
+# Inspect workflow details
+/fractary-faber:workflow-inspect
 ```
 
-### View Session Details
+### View Run Details
 
 ```bash
-# Session files are stored in:
-.faber/sessions/<work_id>.json
-
-# View session
-cat .faber/sessions/abc12345.json | jq .
+# Run files are stored in:
+.fractary/faber/runs/<plan_id>/
 ```
 
 ### Common Issues
@@ -515,7 +508,7 @@ cat .faber/sessions/abc12345.json | jq .
 Run with dry-run to see what would happen:
 
 ```bash
-/fractary-faber:run --work-id 123 --autonomy dry-run
+/fractary-faber:workflow-run 123 --autonomy dry-run
 ```
 
 ## Safety Features
@@ -572,10 +565,8 @@ faber:
 - [Prompt Customization](docs/PROMPT-CUSTOMIZATION.md) - Workflow customization guide
 - [Workflow Guide](docs/workflow-guide.md) - In-depth workflow documentation
 - [Architecture](docs/architecture.md) - System architecture and design
-- [Hooks](docs/HOOKS.md) - Phase-level hooks reference
 - [State Tracking](docs/STATE-TRACKING.md) - Dual-state system guide
 - [Worktree Management](docs/WORKTREE-MANAGEMENT.md) - Worktree and CLI planning guide
-- [Migration Guide](docs/MIGRATION-v2.md) - Upgrade from v1.x to v2.0
 - [Error Codes](docs/ERROR-CODES.md) - Complete error reference
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Problem-to-solution guide
 
@@ -591,34 +582,41 @@ faber:
 ```
 fractary-faber/
 ├── agents/           # Workflow orchestration
-│   ├── faber-director.md     # Command parser & router
-│   └── faber-manager.md      # Universal workflow manager
+│   ├── faber-manager.md      # Core workflow orchestration
+│   ├── faber-planner.md      # Workflow planning
+│   ├── workflow-engineer.md  # Build phase implementation
+│   ├── workflow-inspector.md # Audit and inspection
+│   ├── workflow-debugger.md  # Debugging and error handling
+│   ├── run-inspect.md        # Run status inspection
+│   ├── session-manager.md    # Session management
+│   └── configurator.md       # Project configuration
 ├── skills/           # Phase execution & core utilities
 │   ├── frame/        # Frame phase skill
 │   ├── architect/    # Architect phase skill
 │   ├── build/        # Build phase skill
 │   ├── evaluate/     # Evaluate phase skill
 │   ├── release/      # Release phase skill
-│   └── core/         # Core scripts (validation, audit, state, hooks)
+│   └── core/         # Core scripts (validation, audit, state)
 ├── commands/         # User commands
-│   ├── init.md           # Initialize configuration
-│   ├── workflow-run.md   # Execute pre-planned workflow
-│   ├── status.md         # Show workflow status
-│   └── audit.md          # Validate configuration
+│   ├── configure.md        # Initialize configuration
+│   ├── workflow-run.md     # Execute workflow
+│   ├── workflow-plan.md    # Plan workflow
+│   ├── workflow-create.md  # Create workflow definition
+│   ├── workflow-update.md  # Update workflow definition
+│   ├── workflow-inspect.md # Inspect workflow state
+│   ├── workflow-debugger.md# Debug workflow issues
+│   ├── run-inspect.md      # Show run status
+│   ├── session-load.md     # Load session state
+│   └── session-save.md     # Save session state
 ├── config/           # Configuration & schemas
 │   ├── config.schema.json    # JSON Schema v7
 │   ├── templates/            # Configuration templates
-│   │   ├── minimal.json
-│   │   ├── standard.json
-│   │   └── enterprise.json
 │   └── error-codes.json      # Error catalog
 ├── docs/             # Comprehensive documentation
 │   ├── configuration.md
 │   ├── PROMPT-CUSTOMIZATION.md
 │   ├── workflow-guide.md
-│   ├── HOOKS.md
 │   ├── STATE-TRACKING.md
-│   ├── MIGRATION-v2.md
 │   ├── ERROR-CODES.md
 │   └── TROUBLESHOOTING.md
 └── README.md         # This file
@@ -657,7 +655,7 @@ MIT License - see LICENSE file for details
 
 ## Roadmap
 
-### v3.4.0 (Current - 2026-01-06)
+### v3.8.14 (Current)
 - ✅ **CLI planning architecture** - Separate planning from execution
 - ✅ **Batch workflow planning** - Plan multiple workflows at once
 - ✅ **Worktree management** - Isolated execution environments
@@ -668,7 +666,6 @@ MIT License - see LICENSE file for details
 - ✅ **JSON-based configuration** with JSON Schema validation
 - ✅ **Prompt customization** for flexible workflow control
 - ✅ **Dual-state tracking** (current + historical logs)
-- ✅ **Phase-level hooks** (10 hooks: pre/post for each phase)
 - ✅ **Error handling system** (28 categorized error codes)
 - ✅ **Validation & audit tools** (scoring, recommendations)
 - ✅ **Atomic state management** with file locking

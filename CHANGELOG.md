@@ -133,7 +133,6 @@ This release includes version updates across the FABER ecosystem:
   - FABER-specific settings moved under `faber:` section
   - Automatic migration: `fractary-faber migrate` converts old settings to new format
   - `fractary-faber init` now only manages the `faber:` section (requires config.yaml to exist)
-  - See [`docs/migration-settings-to-config.md`](docs/migration-settings-to-config.md) for migration guide
 
 - **BREAKING**: Config path migrated from `.fractary/plugins/faber/config.yaml` to `.fractary/faber/config.yaml`
   - Running `fractary-faber init` will automatically migrate existing configs

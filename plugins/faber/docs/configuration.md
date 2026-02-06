@@ -570,8 +570,6 @@ fractary-faber runs plan-path {id}   # Path to specific plan
 ## See Also
 
 - [RESULT-HANDLING.md](./RESULT-HANDLING.md) - Complete result handling guide
-- [HOOKS.md](./HOOKS.md) - Complete guide to phase-level hooks
 - [STATE-TRACKING.md](./STATE-TRACKING.md) - Dual-state tracking guide
-- [MIGRATION-v2.md](./MIGRATION-v2.md) - Migration from v1.x to v2.0
 - [architecture.md](./architecture.md) - FABER architecture overview
 - Example config: `plugins/faber/config/faber.example.json`

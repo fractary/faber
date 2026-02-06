@@ -1,6 +1,6 @@
 # @fractary/faber-cli
 
-Command-line interface for FABER development toolkit. Execute and manage FABER workflows, work items, repository operations, specifications, and logs.
+Command-line interface for FABER development toolkit. Execute and manage FABER workflows, work items, repository operations, and logs.
 
 ## Installation
 
@@ -52,30 +52,51 @@ See [GitHub App Setup Guide](../docs/github-app-setup.md) for detailed manual in
 ### 3. Initialize a FABER project
 
 ```bash
-fractary-faber init
-fractary-faber init --preset minimal
-fractary-faber init --preset enterprise
+fractary-faber configure
+fractary-faber config init
+fractary-faber config init --autonomy guarded
 ```
 
 ### Workflow Commands
 
 ```bash
+# Plan a workflow (creates plan, branch, worktree)
+fractary-faber workflow-plan --work-id 123
+
 # Start a FABER workflow
-fractary-faber run --work-id 123
+fractary-faber workflow-run --work-id 123
 
 # Check workflow status
-fractary-faber status
-fractary-faber status --workflow-id <id>
+fractary-faber run-inspect
+fractary-faber run-inspect --work-id 123
 
 # Pause/resume workflows
-fractary-faber pause <workflow-id>
-fractary-faber resume <workflow-id>
+fractary-faber workflow-pause <workflow-id>
+fractary-faber workflow-resume <workflow-id>
 
 # Recover from checkpoint
-fractary-faber recover <workflow-id>
+fractary-faber workflow-recover <workflow-id>
 
 # Clean up old workflows
-fractary-faber cleanup --max-age 30
+fractary-faber workflow-cleanup --max-age 30
+
+# Create/update workflow definitions
+fractary-faber workflow-create
+fractary-faber workflow-update
+
+# Inspect and debug workflows
+fractary-faber workflow-inspect
+fractary-faber workflow-debugger
+```
+
+### Session Commands
+
+```bash
+# Save current session state
+fractary-faber session-save
+
+# Load a previous session
+fractary-faber session-load --work-id 123
 ```
 
 ### Work Commands
@@ -131,31 +152,6 @@ fractary-faber repo worktree list
 fractary-faber repo worktree remove feat/new-feature
 ```
 
-### Specification Commands
-
-```bash
-# Create specifications
-fractary-faber spec create "My Specification"
-
-# Get specification
-fractary-faber spec get <id>
-
-# List specifications
-fractary-faber spec list
-
-# Update specification
-fractary-faber spec update <id> --title "Updated"
-
-# Validate specification
-fractary-faber spec validate <id>
-
-# Refine specification
-fractary-faber spec refine <id>
-
-# Delete specification
-fractary-faber spec delete <id>
-```
-
 ### Logs Commands
 
 ```bash
@@ -184,36 +180,57 @@ fractary-faber logs archive --older-than 30
 fractary-faber logs delete <session-id>
 ```
 
+### Configuration Commands
+
+```bash
+# Get configuration values
+fractary-faber config get
+fractary-faber config get faber.workflows.autonomy
+
+# Show config file path
+fractary-faber config path
+
+# Check if config exists
+fractary-faber config exists
+
+# Initialize config with defaults
+fractary-faber config init --autonomy guarded
+
+# Set a value
+fractary-faber config set faber.workflows.autonomy autonomous
+
+# Validate configuration
+fractary-faber config validate
+
+# Migrate legacy config format
+fractary-faber config migrate
+fractary-faber config migrate --dry-run
+```
+
+### Run Management Commands
+
+```bash
+# Manage run directories and paths
+fractary-faber runs dir
+fractary-faber runs plan-path <plan-id>
+fractary-faber runs state-path <plan-id>
+```
+
 ## Configuration
 
-FABER is configured via `.fractary/faber/config.json`:
+FABER is configured via `.fractary/config.yaml`:
 
-```json
-{
-  "version": "1.0.0",
-  "preset": "default",
-  "work": {
-    "provider": "github"
-  },
-  "repo": {
-    "provider": "github",
-    "defaultBranch": "main"
-  },
-  "spec": {
-    "directory": ".fractary/faber/specs"
-  },
-  "logs": {
-    "directory": ".fractary/faber/logs"
-  },
-  "workflow": {
-    "defaultAutonomy": "guarded",
-    "phases": ["frame", "architect", "build", "evaluate", "release"],
-    "checkpoints": true
-  },
-  "state": {
-    "directory": ".fractary/faber/state"
-  }
-}
+```yaml
+faber:
+  workflows:
+    path: .fractary/faber/workflows
+    default: default
+    autonomy: guarded
+  runs:
+    path: .fractary/faber/runs
+  worktree:
+    location: ~/.claude-worktrees
+    inherit_from_claude: true
 ```
 
 ## Options
@@ -238,34 +255,26 @@ fractary-faber auth setup
 
 This command will guide you through creating and configuring a GitHub App in ~30 seconds.
 
-**Manual Configuration (`.fractary/settings.json`):**
-```json
-{
-  "github": {
-    "organization": "your-org",
-    "project": "your-repo",
-    "app": {
-      "id": "123456",
-      "installation_id": "12345678",
-      "private_key_path": "~/.github/faber-app.pem"
-    }
-  }
-}
+**Manual Configuration (`.fractary/config.yaml`):**
+```yaml
+github:
+  organization: your-org
+  project: your-repo
+  app:
+    id: "123456"
+    installation_id: "12345678"
+    private_key_path: ~/.github/faber-app.pem
 ```
 
 **For CI/CD (environment variable):**
-```json
-{
-  "github": {
-    "organization": "your-org",
-    "project": "your-repo",
-    "app": {
-      "id": "123456",
-      "installation_id": "12345678",
-      "private_key_env_var": "GITHUB_APP_PRIVATE_KEY"
-    }
-  }
-}
+```yaml
+github:
+  organization: your-org
+  project: your-repo
+  app:
+    id: "123456"
+    installation_id: "12345678"
+    private_key_env_var: GITHUB_APP_PRIVATE_KEY
 ```
 
 ```bash
@@ -282,15 +291,12 @@ Still supported for backward compatibility:
 export GITHUB_TOKEN=<token>
 ```
 
-Or in `.fractary/settings.json`:
-```json
-{
-  "github": {
-    "token": "ghp_xxxxxxxxxxxx",
-    "organization": "your-org",
-    "project": "your-repo"
-  }
-}
+Or in `.fractary/config.yaml`:
+```yaml
+github:
+  token: ghp_xxxxxxxxxxxx
+  organization: your-org
+  project: your-repo
 ```
 
 ### Other Providers

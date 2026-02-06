@@ -349,8 +349,6 @@ Old TOML configs embedded workflows inline. To migrate:
 4. Update config.json to reference file
 5. Validate with `/fractary-faber:audit`
 
-See [docs/MIGRATION-v2.md](../../docs/MIGRATION-v2.md) for detailed migration guide.
-
 ## See Also
 
 - [workflow.schema.json](../workflow.schema.json) - Workflow validation schema
