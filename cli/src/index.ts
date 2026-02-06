@@ -18,7 +18,6 @@ import { createSessionLoadCommand, createSessionSaveCommand } from './commands/s
 import { createWorkCommand } from './commands/work/index.js';
 import { createRepoCommand } from './commands/repo/index.js';
 import { createLogsCommand } from './commands/logs/index.js';
-import { createInitCommand } from './commands/init.js';
 import { createMigrateCommand } from './commands/migrate.js';
 import { createPlanCommand } from './commands/plan/index.js';
 import { createAuthCommand } from './commands/auth/index.js';
@@ -46,10 +45,11 @@ export function createFaberCLI(): Command {
   // Global options
   program.option('--debug', 'Enable debug output');
 
+  // Configuration commands
+  program.addCommand(createConfigCommand());       // config init/update/validate/get/set/migrate/path/exists
+  program.addCommand(createMigrateCommand());     // migrate (legacy top-level alias)
+
   // Workflow commands (top-level)
-  program.addCommand(createInitCommand());        // configure
-  program.addCommand(createMigrateCommand());     // migrate
-  program.addCommand(createConfigCommand());       // config get/path/exists
   program.addCommand(createRunsCommand());         // runs dir/plan-path/state-path
   program.addCommand(createPlanCommand());         // workflow-plan
   program.addCommand(createRunCommand());          // workflow-run

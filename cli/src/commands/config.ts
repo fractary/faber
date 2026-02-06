@@ -2,7 +2,18 @@
  * Config command - Manage FABER configuration
  *
  * Provides commands for reading, writing, and migrating FABER configuration.
- * Uses the SDK's ConfigInitializer for all operations to ensure consistency.
+ * Uses the SDK's ConfigInitializer, ConfigValidator, and ConfigUpdater for
+ * all operations to ensure consistency.
+ *
+ * Subcommands:
+ *   config init     - Initialize FABER configuration (used by config-initializer agent)
+ *   config update   - Update configuration fields with backup (used by config-updater agent)
+ *   config validate - Validate configuration (used by config-validator agent)
+ *   config get      - Get configuration values
+ *   config set      - Set a single configuration value
+ *   config migrate  - Migrate legacy configuration
+ *   config path     - Show configuration file path
+ *   config exists   - Check if configuration file exists
  */
 
 import { Command } from 'commander';
@@ -17,6 +28,8 @@ import {
   findProjectRoot,
 } from '../lib/yaml-config.js';
 import type { AutonomyLevel } from '../types/config.js';
+import { ConfigValidator, ConfigUpdater } from '@fractary/faber';
+import type { ValidationFinding, ChangePreview } from '@fractary/faber';
 
 /**
  * Get a nested value from an object using dot notation
@@ -391,90 +404,26 @@ ${yaml.dump(manifest, { indent: 2, lineWidth: 100 })}`;
     });
 
   // =========================================================================
-  // Config Validate Command
+  // Config Validate Command (delegates to SDK ConfigValidator)
   // =========================================================================
 
   configCmd
     .command('validate')
     .description('Validate FABER configuration')
-    .action(async () => {
+    .option('--json', 'Output validation results as JSON')
+    .action(async (options) => {
       try {
         const projectRoot = findProjectRoot();
-        const configPath = getConfigPath(projectRoot);
+        const result = ConfigValidator.validateFromDisk(projectRoot);
 
-        if (!configExists(projectRoot)) {
-          console.error('Configuration not found at:', configPath);
-          console.error('Run: fractary-faber config init');
-          process.exit(1);
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+          process.exit(result.valid ? 0 : 1);
         }
 
-        // Load and validate config
-        const config = loadYamlConfig({ warnMissingEnvVars: false });
-        if (!config) {
-          console.error('Failed to load configuration');
-          process.exit(1);
-        }
+        const errors = result.findings.filter((f: ValidationFinding) => f.severity === 'error');
+        const warnings = result.findings.filter((f: ValidationFinding) => f.severity === 'warning');
 
-        const faber = config.faber as Record<string, unknown> | undefined;
-        const errors: string[] = [];
-        const warnings: string[] = [];
-
-        // Check for faber section
-        if (!faber) {
-          errors.push('Missing faber section');
-        } else {
-          // Check for required fields
-          const workflows = faber['workflows'] as Record<string, unknown> | undefined;
-          const runs = faber['runs'] as Record<string, unknown> | undefined;
-
-          // Legacy format warnings
-          if (Array.isArray(faber['workflows'])) {
-            warnings.push('Using deprecated workflows array format');
-          }
-          if ((faber['workflow'] as Record<string, unknown> | undefined)?.['config_path']) {
-            warnings.push('Using deprecated workflow.config_path');
-          }
-          if (faber['repository']) {
-            warnings.push('Using deprecated repository section');
-          }
-          if (faber['logging']) {
-            warnings.push('Using deprecated logging section');
-          }
-          if (faber['state']) {
-            warnings.push('Using deprecated state section');
-          }
-
-          // Validate new format fields
-          if (workflows && typeof workflows === 'object' && !Array.isArray(workflows)) {
-            const autonomy = workflows['autonomy'] as string | undefined;
-            if (autonomy && !['dry-run', 'assisted', 'guarded', 'autonomous'].includes(autonomy)) {
-              errors.push(`Invalid autonomy level: ${autonomy}`);
-            }
-          }
-
-          // Check if directories exist
-          const workflowsPath = (workflows?.['path'] as string) || '.fractary/faber/workflows';
-          const runsPath = (runs?.['path'] as string) || '.fractary/faber/runs';
-          const workflowsDir = path.isAbsolute(workflowsPath)
-            ? workflowsPath
-            : path.join(projectRoot, workflowsPath);
-          const runsDir = path.isAbsolute(runsPath) ? runsPath : path.join(projectRoot, runsPath);
-
-          if (!fs.existsSync(workflowsDir)) {
-            warnings.push(`Workflows directory does not exist: ${workflowsDir}`);
-          }
-          if (!fs.existsSync(runsDir)) {
-            warnings.push(`Runs directory does not exist: ${runsDir}`);
-          }
-
-          // Check for workflow manifest
-          const manifestPath = path.join(workflowsDir, 'workflows.yaml');
-          if (fs.existsSync(workflowsDir) && !fs.existsSync(manifestPath)) {
-            warnings.push('Workflow manifest not found: workflows.yaml');
-          }
-        }
-
-        // Output results
         if (errors.length === 0 && warnings.length === 0) {
           console.log('Configuration is valid.');
           return;
@@ -482,20 +431,114 @@ ${yaml.dump(manifest, { indent: 2, lineWidth: 100 })}`;
 
         if (errors.length > 0) {
           console.error('Errors:');
-          errors.forEach((e) => console.error(`  - ${e}`));
+          errors.forEach((e: ValidationFinding) => {
+            console.error(`  - ${e.message}`);
+            if (e.suggestion) console.error(`    ${e.suggestion}`);
+          });
         }
 
         if (warnings.length > 0) {
           console.warn('Warnings:');
-          warnings.forEach((w) => console.warn(`  - ${w}`));
-          if (warnings.some((w) => w.includes('deprecated'))) {
-            console.warn('');
-            console.warn('Run: fractary-faber config migrate');
-          }
+          warnings.forEach((w: ValidationFinding) => {
+            console.warn(`  - ${w.message}`);
+            if (w.suggestion) console.warn(`    ${w.suggestion}`);
+          });
         }
 
         if (errors.length > 0) {
           process.exit(1);
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
+      }
+    });
+
+  // =========================================================================
+  // Config Update Command (delegates to SDK ConfigUpdater)
+  // =========================================================================
+
+  configCmd
+    .command('update')
+    .description('Update FABER configuration fields with backup and validation')
+    .argument('<changes...>', 'Key=value pairs to update (e.g., faber.workflows.autonomy=autonomous)')
+    .option('--dry-run', 'Preview changes without applying')
+    .option('--json', 'Output results as JSON')
+    .action(async (changeArgs: string[], options) => {
+      try {
+        const projectRoot = findProjectRoot();
+
+        if (!configExists(projectRoot)) {
+          console.error('Configuration not found. Run: fractary-faber config init');
+          process.exit(1);
+        }
+
+        // Parse key=value pairs into ConfigChange objects
+        const changes = changeArgs.map((arg) => {
+          const eqIdx = arg.indexOf('=');
+          if (eqIdx === -1) {
+            console.error(`Invalid change format: ${arg}`);
+            console.error('Expected format: key=value (e.g., faber.workflows.autonomy=autonomous)');
+            process.exit(1);
+          }
+          const key = arg.substring(0, eqIdx);
+          const rawValue = arg.substring(eqIdx + 1);
+
+          // Strip leading "faber." prefix — ConfigUpdater operates within the faber section
+          const faberKey = key.startsWith('faber.') ? key.substring(6) : key;
+
+          // Parse value types
+          let value: unknown = rawValue;
+          if (rawValue === 'true') value = true;
+          else if (rawValue === 'false') value = false;
+          else if (/^-?\d+$/.test(rawValue)) value = parseInt(rawValue, 10);
+          else if (/^-?\d+\.\d+$/.test(rawValue)) value = parseFloat(rawValue);
+
+          return { key: faberKey, value };
+        });
+
+        // Preview mode
+        if (options.dryRun) {
+          const previews = ConfigUpdater.previewChanges(changes, projectRoot);
+          if (options.json) {
+            console.log(JSON.stringify({ mode: 'preview', changes: previews }, null, 2));
+          } else {
+            console.log('Proposed changes:');
+            console.log('');
+            for (const p of previews) {
+              console.log(`  faber.${p.key}:`);
+              console.log(`    Current:  ${JSON.stringify(p.currentValue) ?? '(not set)'}`);
+              console.log(`    Proposed: ${JSON.stringify(p.proposedValue)}`);
+              console.log('');
+            }
+            console.log('Dry run — no changes applied.');
+          }
+          return;
+        }
+
+        // Apply changes
+        const result = ConfigUpdater.applyChanges(changes, projectRoot);
+
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+          process.exit(result.success ? 0 : 1);
+        }
+
+        if (!result.success) {
+          console.error(`Update failed: ${result.error}`);
+          if (result.backupPath) {
+            console.error(`Backup preserved at: ${result.backupPath}`);
+          }
+          process.exit(1);
+        }
+
+        console.log('Configuration updated successfully.');
+        if (result.backupPath) {
+          console.log(`Backup: ${result.backupPath}`);
+        }
+        console.log('');
+        for (const change of result.changes) {
+          console.log(`  faber.${change.key}: ${JSON.stringify(change.currentValue)} -> ${JSON.stringify(change.proposedValue)}`);
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);

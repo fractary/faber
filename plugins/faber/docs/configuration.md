@@ -17,7 +17,7 @@ Complete guide to configuring FABER workflow for your projects using the new JSO
 
 ```bash
 # Generate default FABER configuration
-/fractary-faber:configure
+/fractary-faber:config-initialize
 
 # This creates the faber: section in .fractary/config.yaml
 # and sets up .fractary/faber/workflows/ for project workflows
@@ -176,7 +176,7 @@ The FABER plugin provides two centrally-maintained workflows that most projects 
 
 These workflows are maintained in the plugin source code and update automatically when the plugin is updated. Projects reference them via the `fractary-faber:` namespace prefix.
 
-**For most projects**: Simply run `/fractary-faber:configure` and use the default workflow as-is. The config will reference `fractary-faber:default` which provides a complete software development workflow.
+**For most projects**: Simply run `/fractary-faber:config-initialize` and use the default workflow as-is. The config will reference `fractary-faber:default` which provides a complete software development workflow.
 
 **For custom needs**: Create project-specific workflows in `.fractary/faber/workflows/` that extend either `fractary-faber:core` or `fractary-faber:default`.
 
@@ -243,7 +243,7 @@ Each workflow file contains the complete phase definitions, hooks, and autonomy 
 
 ### Workflows Array
 
-Projects can define multiple workflows for different scenarios. The `/fractary-faber:configure` command creates workflow templates and references them in config.json.
+Projects can define multiple workflows for different scenarios. The `/fractary-faber:config-initialize` command creates workflow templates and references them in config.json.
 
 #### Important: Always Keep the Default Workflow
 

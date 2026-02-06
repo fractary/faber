@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# config-init.sh - DEPRECATED - Use /fractary-faber:configure command instead
+# config-init.sh - DEPRECATED - Use /fractary-faber:config-initialize command instead
 #
 # This script is DEPRECATED as of v2.3.0. FABER configuration is now stored
 # in the 'faber:' section of .fractary/config.yaml (unified config format).
 #
-# The /fractary-faber:configure command handles:
+# The /fractary-faber:config-initialize command handles:
 # - Interactive setup with auto-detection
 # - Unified YAML config at .fractary/config.yaml
 # - Proper gitignore management
@@ -26,14 +26,14 @@ set -euo pipefail
 echo "WARNING: config-init.sh is DEPRECATED"
 echo ""
 echo "FABER configuration has moved to .fractary/config.yaml (faber: section)"
-echo "Please use the /fractary-faber:configure command instead."
+echo "Please use the /fractary-faber:config-initialize command instead."
 echo ""
 echo "If you need to proceed anyway (not recommended), use --force flag."
 echo ""
 
 # Check for --force to allow deprecated usage
 if [[ ! " $* " =~ " --force " ]]; then
-    echo "Aborting. Use /fractary-faber:configure for proper setup."
+    echo "Aborting. Use /fractary-faber:config-initialize for proper setup."
     exit 3
 fi
 
@@ -47,7 +47,7 @@ TEMPLATES_DIR="$FABER_ROOT/config/templates"
 WORKFLOWS_DIR="$FABER_ROOT/config/workflows"
 # DEPRECATED: .fractary/faber/config.json is no longer used
 # FABER config is now stored in the 'faber:' section of .fractary/config.yaml
-# This script is DEPRECATED - use /fractary-faber:configure command instead
+# This script is DEPRECATED - use /fractary-faber:config-initialize command instead
 DEFAULT_OUTPUT=".fractary/config.yaml"
 
 # Defaults
