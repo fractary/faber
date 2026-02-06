@@ -30,7 +30,7 @@ FABER is a **tool-agnostic workflow framework** that automates the complete soft
 
 ```bash
 cd your-project
-/fractary-faber:configure
+/fractary-faber:config-initialize
 ```
 
 This auto-detects your project settings and creates the `faber:` section in `.fractary/config.yaml`.
@@ -115,7 +115,7 @@ Claude Code will automatically discover the plugin.
 **Option 1: Auto-Initialize** (Recommended)
 
 ```bash
-/fractary-faber:configure
+/fractary-faber:config-initialize
 ```
 
 Creates the `faber:` section in `.fractary/config.yaml` with default workflow configuration.
@@ -208,7 +208,7 @@ fractary-faber workflow-plan --work-id 123 --json
 
 ```bash
 # Initialize FABER in a project
-/fractary-faber:configure
+/fractary-faber:config-initialize
 
 # Execute workflow with work-id (recommended)
 /fractary-faber:workflow-run 123
@@ -343,7 +343,9 @@ Layer 3: Scripts (Deterministic Operations)
 - `file-manager` - R2/S3/local storage adapters
 
 #### Commands (User Interface)
-- `/fractary-faber:configure` - Initialize FABER in a project
+- `/fractary-faber:config-initialize` - Initialize FABER in a project (first-time setup)
+- `/fractary-faber:config-update` - Update existing FABER configuration
+- `/fractary-faber:config-validate` - Validate FABER configuration
 - `/fractary-faber:workflow-run` - Execute workflow
 - `/fractary-faber:workflow-plan` - Plan workflow
 - `/fractary-faber:workflow-create` - Create workflow definition
@@ -488,7 +490,7 @@ claude
 ### Common Issues
 
 #### "Configuration file not found"
-**Solution**: Run `/fractary-faber:configure` or copy a preset
+**Solution**: Run `/fractary-faber:config-initialize` or copy a preset
 
 #### "Authentication failed"
 **Solution**: Configure platform authentication

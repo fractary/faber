@@ -55,7 +55,7 @@ else:
     run_id = read(".fractary/faber/runs/.active-run-id").strip()
   else:
     ERROR "No run ID or work ID specified, and no active workflow found"
-    PRINT "Usage: /fractary-faber:workflow-debugger --work-id <id>"
+    PRINT "Usage: /fractary-faber:workflow-debug --work-id <id>"
     EXIT 1
 
 state_path = getStatePath(run_id)  # Computes: .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
@@ -983,7 +983,7 @@ Please:
 
 **To add to knowledge base after resolution**:
 ```bash
-/fractary-faber:workflow-debugger --work-id {work_id} --learn
+/fractary-faber:workflow-debug --work-id {work_id} --learn
 ```
 """
 
@@ -1087,7 +1087,7 @@ Confidence: {solution.confidence}
 
 {if create_spec_recommended:}
 📝 Consider creating debug specification:
-   /fractary-faber:workflow-debugger --work-id {work_id} --create-spec
+   /fractary-faber:workflow-debug --work-id {work_id} --create-spec
 {end if}
 ```
 
@@ -1151,7 +1151,7 @@ if create_spec_mode:
 After applying fixes:
 1. Re-run tests to verify fix
 2. Resume workflow: `/fractary-faber:workflow-run --resume`
-3. If successful, update KB: `/fractary-faber:workflow-debugger --work-id {work_id} --learn`
+3. If successful, update KB: `/fractary-faber:workflow-debug --work-id {work_id} --learn`
 ```
 
 ### Step 9: Learn from Resolution (if --learn)
@@ -1384,49 +1384,49 @@ Use the `knowledge-aggregator` skill to search across all sources:
 
 Debug workflow without specifying problem:
 ```bash
-/fractary-faber:workflow-debugger --work-id 258
+/fractary-faber:workflow-debug --work-id 258
 ```
 
 ### Targeted Debugging
 
 Debug specific known issue:
 ```bash
-/fractary-faber:workflow-debugger --work-id 258 --problem "Tests timing out in CI"
+/fractary-faber:workflow-debug --work-id 258 --problem "Tests timing out in CI"
 ```
 
 ### Auto-Fix High Confidence Issues
 
 Automatically apply fixes:
 ```bash
-/fractary-faber:workflow-debugger --work-id 258 --auto-fix
+/fractary-faber:workflow-debug --work-id 258 --auto-fix
 ```
 
 ### Auto-Fix with Automatic Learning
 
 Apply fixes and automatically log successful resolutions to KB:
 ```bash
-/fractary-faber:workflow-debugger --work-id 258 --auto-fix --auto-learn
+/fractary-faber:workflow-debug --work-id 258 --auto-fix --auto-learn
 ```
 
 ### Learn from Success
 
 Manually add successful resolution to KB:
 ```bash
-/fractary-faber:workflow-debugger --work-id 258 --learn
+/fractary-faber:workflow-debug --work-id 258 --learn
 ```
 
 ### Escalate After Failures
 
 Create GitHub issue after max retries exceeded:
 ```bash
-/fractary-faber:workflow-debugger --work-id 258 --escalate --retry-count 3
+/fractary-faber:workflow-debug --work-id 258 --escalate --retry-count 3
 ```
 
 ### Called from Workflow onFailure Hook
 
 When invoked by workflow onFailure hook with full context:
 ```bash
-/fractary-faber:workflow-debugger \
+/fractary-faber:workflow-debug \
   --work-id 258 \
   --phase build \
   --step implement \
@@ -1545,7 +1545,7 @@ Configure a workflow step to use the debugger for automatic recovery:
   "prompt": "Implement the feature according to specification",
   "agent": "software-engineer",
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+    "on_failure": "/fractary-faber:workflow-debug --auto-fix"
   }
 }
 ```
@@ -1559,7 +1559,7 @@ For more conservative workflows, require user approval:
 ```json
 {
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger"
+    "on_failure": "/fractary-faber:workflow-debug"
   }
 }
 ```

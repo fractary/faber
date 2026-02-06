@@ -6,7 +6,7 @@ Complete guide to step and hook result handling in FABER workflow.
 
 FABER v2.1 introduces **default result handling configuration** for steps and hooks. This allows workflow configurations to be more concise by omitting result_handling when using standard defaults.
 
-FABER v2.2 extends result handling to support **slash command handlers**. Instead of using predefined actions like `"stop"` or `"continue"`, you can specify a slash command (e.g., `/fractary-faber:workflow-debugger`) that is invoked with step context to provide dynamic recovery behavior.
+FABER v2.2 extends result handling to support **slash command handlers**. Instead of using predefined actions like `"stop"` or `"continue"`, you can specify a slash command (e.g., `/fractary-faber:workflow-debug`) that is invoked with step context to provide dynamic recovery behavior.
 
 FABER v2.3 adds **cascading result handling** at workflow and phase levels. Define common handlers once instead of repeating them on every step. Configuration cascades: step > phase > workflow > schema defaults.
 
@@ -30,7 +30,7 @@ When a step or hook does not specify `result_handling`, these defaults are appli
 | `on_warning` | `"continue"` | `continue`, `stop`, slash command | Log warning and proceed, or `stop` to show prompt with options |
 | `on_failure` | `"stop"` | `stop`, slash command | Show prompt with options, or use slash command for dynamic recovery |
 
-**Note**: The `stop` option consistently shows an intelligent prompt with options (continue, fix, stop) for both warnings and failures. This provides a unified user experience. Slash commands (e.g., `/fractary-faber:workflow-debugger`) can be used for automated recovery.
+**Note**: The `stop` option consistently shows an intelligent prompt with options (continue, fix, stop) for both warnings and failures. This provides a unified user experience. Slash commands (e.g., `/fractary-faber:workflow-debug`) can be used for automated recovery.
 
 ### Hook Defaults
 
@@ -70,13 +70,13 @@ Instead of repeating the same handler on every step:
 {
   "id": "my-workflow",
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger"
+    "on_failure": "/fractary-faber:workflow-debug"
   },
   "phases": {
     "build": {
       "enabled": true,
       "result_handling": {
-        "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+        "on_failure": "/fractary-faber:workflow-debug --auto-fix"
       },
       "steps": [
         { "id": "implement", "prompt": "Implement solution" },
@@ -98,10 +98,10 @@ Instead of repeating the same handler on every step:
 ```
 
 **Resolution:**
-- `build/implement` → `/fractary-faber:workflow-debugger --auto-fix` (from phase)
-- `build/test` → `/fractary-faber:workflow-debugger --auto-fix` (from phase)
+- `build/implement` → `/fractary-faber:workflow-debug --auto-fix` (from phase)
+- `build/test` → `/fractary-faber:workflow-debug --auto-fix` (from phase)
 - `release/deploy` → `stop` (step override)
-- Other release steps → `/fractary-faber:workflow-debugger` (from workflow)
+- Other release steps → `/fractary-faber:workflow-debug` (from workflow)
 
 ## Result Types
 
@@ -473,7 +473,7 @@ If a handler value starts with `/`, it's treated as a slash command to invoke:
 ```json
 {
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger"
+    "on_failure": "/fractary-faber:workflow-debug"
   }
 }
 ```
@@ -488,7 +488,7 @@ If a handler value starts with `/`, it's treated as a slash command to invoke:
   "name": "Implement solution",
   "prompt": "Implement based on specification",
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger"
+    "on_failure": "/fractary-faber:workflow-debug"
   }
 }
 ```
@@ -500,7 +500,7 @@ On failure, the workflow-debugger is invoked to diagnose the issue and propose a
 ```json
 {
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+    "on_failure": "/fractary-faber:workflow-debug --auto-fix"
   }
 }
 ```
@@ -512,7 +512,7 @@ With `--auto-fix`, high-confidence fixes are applied automatically without user 
 ```json
 {
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger --auto-fix --auto-learn"
+    "on_failure": "/fractary-faber:workflow-debug --auto-fix --auto-learn"
   }
 }
 ```
@@ -524,7 +524,7 @@ Successful resolutions are automatically logged to the knowledge base for future
 ```json
 {
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger --escalate --max-retries 3"
+    "on_failure": "/fractary-faber:workflow-debug --escalate --max-retries 3"
   }
 }
 ```

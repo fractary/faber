@@ -930,6 +930,10 @@ export function getWorkflowsPath(projectRoot?: string): string {
 // ============================================================================
 
 export { ConfigInitializer } from './config/initializer.js';
+export { ConfigValidator } from './config/validator.js';
+export type { ValidationResult, ValidationFinding, ValidationSeverity } from './config/validator.js';
+export { ConfigUpdater } from './config/updater.js';
+export type { ConfigChange, ChangePreview, UpdateResult } from './config/updater.js';
 
 export {
   FaberConfigSchema,

@@ -13,12 +13,11 @@ dotenv.config();
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowDebuggerCommand } from './commands/workflow/index.js';
+import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowDebugCommand } from './commands/workflow/index.js';
 import { createSessionLoadCommand, createSessionSaveCommand } from './commands/session.js';
 import { createWorkCommand } from './commands/work/index.js';
 import { createRepoCommand } from './commands/repo/index.js';
 import { createLogsCommand } from './commands/logs/index.js';
-import { createInitCommand } from './commands/init.js';
 import { createMigrateCommand } from './commands/migrate.js';
 import { createPlanCommand } from './commands/plan/index.js';
 import { createAuthCommand } from './commands/auth/index.js';
@@ -46,10 +45,11 @@ export function createFaberCLI(): Command {
   // Global options
   program.option('--debug', 'Enable debug output');
 
+  // Configuration commands
+  program.addCommand(createConfigCommand());       // config init/update/validate/get/set/migrate/path/exists
+  program.addCommand(createMigrateCommand());     // migrate (legacy top-level alias)
+
   // Workflow commands (top-level)
-  program.addCommand(createInitCommand());        // configure
-  program.addCommand(createMigrateCommand());     // migrate
-  program.addCommand(createConfigCommand());       // config get/path/exists
   program.addCommand(createRunsCommand());         // runs dir/plan-path/state-path
   program.addCommand(createPlanCommand());         // workflow-plan
   program.addCommand(createRunCommand());          // workflow-run
@@ -61,7 +61,7 @@ export function createFaberCLI(): Command {
   program.addCommand(createWorkflowCreateCommand());  // workflow-create
   program.addCommand(createWorkflowUpdateCommand());  // workflow-update
   program.addCommand(createWorkflowInspectCommand()); // workflow-inspect
-  program.addCommand(createWorkflowDebuggerCommand()); // workflow-debugger
+  program.addCommand(createWorkflowDebugCommand()); // workflow-debug
   program.addCommand(createSessionLoadCommand());     // session-load
   program.addCommand(createSessionSaveCommand());     // session-save
 

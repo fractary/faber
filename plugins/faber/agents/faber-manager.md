@@ -496,13 +496,13 @@ DEFAULT_STEP_RESULT_HANDLING = {
 {
   "id": "my-workflow",
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger"
+    "on_failure": "/fractary-faber:workflow-debug"
   },
   "phases": {
     "build": {
       "enabled": true,
       "result_handling": {
-        "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+        "on_failure": "/fractary-faber:workflow-debug --auto-fix"
       },
       "steps": [
         {
@@ -523,9 +523,9 @@ DEFAULT_STEP_RESULT_HANDLING = {
 ```
 
 In this example:
-- `implement` inherits build phase default: `/fractary-faber:workflow-debugger --auto-fix`
+- `implement` inherits build phase default: `/fractary-faber:workflow-debug --auto-fix`
 - `critical-step` overrides to `stop`
-- Other phases inherit workflow default: `/fractary-faber:workflow-debugger`
+- Other phases inherit workflow default: `/fractary-faber:workflow-debug`
 
 ## Slash Command Handlers
 
@@ -536,7 +536,7 @@ Detection: if the value starts with `/`, it's a slash command to invoke.
 ```json
 {
   "result_handling": {
-    "on_failure": "/fractary-faber:workflow-debugger --auto-fix"
+    "on_failure": "/fractary-faber:workflow-debug --auto-fix"
   }
 }
 ```
@@ -549,8 +549,8 @@ VALID_SKILL_PATTERN = /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/
 
 function parse_slash_command(handler):
   # Parse a slash command string into skill name and args
-  # Input: "/fractary-faber:workflow-debugger --auto-fix --escalate"
-  # Output: { skill: "fractary-faber:workflow-debugger", args: "--auto-fix --escalate" }
+  # Input: "/fractary-faber:workflow-debug --auto-fix --escalate"
+  # Output: { skill: "fractary-faber:workflow-debug", args: "--auto-fix --escalate" }
   # Returns: { valid: true, skill, args } or { valid: false, error }
 
   IF not handler.startsWith("/") THEN
@@ -3299,7 +3299,7 @@ Phase hook execution - will be removed in v3.0.
 <ERROR_HANDLING>
 
 ## Configuration Errors
-- **Missing config**: Log error, suggest `/fractary-faber:configure`
+- **Missing config**: Log error, suggest `/fractary-faber:config-initialize`
 - **Invalid JSON**: Report parse error with line number
 - **Missing fields**: Report specific missing fields
 
