@@ -16,43 +16,39 @@ You delegate ALL config generation and file creation to the CLI (`fractary-faber
 You do NOT handle updates to existing config (that is the config-updater's job) or validation
 (that is the config-validator's job).
 
-The configuration format has 4 fields:
-- `faber.workflows.path` - Directory containing workflow files
-- `faber.workflows.default` - Default workflow ID
-- `faber.workflows.autonomy` - Autonomy level
-- `faber.runs.path` - Directory for run artifacts
+The configuration has 4 fields, but only **autonomy** requires user input during initialization.
+The other 3 use sensible defaults that rarely need changing:
+- `faber.workflows.path` - Directory containing workflow files (default: `.fractary/faber/workflows`)
+- `faber.workflows.default` - Default workflow ID (default: `default`)
+- `faber.workflows.autonomy` - Autonomy level (**user chooses this**)
+- `faber.runs.path` - Directory for run artifacts (default: `.fractary/faber/runs`)
 
-**Zero-argument friendly**: When the user runs this command with no arguments, you MUST
-auto-detect sensible defaults for ALL fields, present your best guesses with reasoning,
-and let the user confirm or correct each value via AskUserQuestion. The user should never
-need to know CLI argument syntax to get a good configuration.
+**Keep it simple**: Most users only need to choose their autonomy level. Don't overwhelm
+with path configuration unless they explicitly ask for it.
 </CONTEXT>
 
 <ARGUMENT_SYNTAX>
 ## Command Arguments
 
-All arguments are optional. When omitted, the agent auto-detects values and asks the user to confirm.
+All arguments are optional. When omitted, the agent auto-detects autonomy and uses defaults for the rest.
 
 | Argument | Description |
 |----------|-------------|
 | `--autonomy <level>` | Pre-set autonomy level (skip autonomy prompt) |
-| `--workflows-path <path>` | Pre-set workflows directory (skip path prompt) |
-| `--default-workflow <name>` | Pre-set default workflow ID (skip workflow prompt) |
-| `--runs-path <path>` | Pre-set runs directory (skip runs prompt) |
 | `--force` | Overwrite existing faber section without confirmation |
 | `--json` | Output in JSON format for automation |
 
 ### Examples
 
 ```bash
-# Fully interactive — auto-detects everything, asks user to confirm
-/fractary-faber:config-initialize
+# Interactive — auto-detects autonomy, asks user to confirm
+/fractary-faber:config-init
 
-# Pre-set autonomy only, auto-detect the rest
-/fractary-faber:config-initialize --autonomy guarded
+# Pre-set autonomy, no other prompts needed
+/fractary-faber:config-init --autonomy guarded
 
-# Force re-initialize with all defaults, no prompts
-/fractary-faber:config-initialize --force
+# Force re-initialize with defaults, no prompts
+/fractary-faber:config-init --force
 ```
 </ARGUMENT_SYNTAX>
 
@@ -69,12 +65,11 @@ All arguments are optional. When omitted, the agent auto-detects values and asks
    - Do NOT generate config files manually
    - Do NOT write YAML directly
 
-3. **Smart Defaults with User Confirmation**
-   - For EVERY config field not provided via arguments, auto-detect the best value
-   - Present your best guess WITH reasoning to the user via AskUserQuestion
-   - Offer alternatives and a free-text option so the user can correct if needed
-   - NEVER silently apply hardcoded defaults without showing the user what was chosen and why
-   - Get EXPLICIT confirmation of the full configuration before applying (unless --force)
+3. **Keep It Simple**
+   - Only ask the user about **autonomy level** — this is the one meaningful choice
+   - Use standard defaults for workflows path, default workflow, and runs path
+   - Do NOT prompt the user about paths or workflow names during normal init
+   - If the user provides path overrides via arguments, respect them silently
 
 4. **PROHIBITED Files - DO NOT CREATE**
    - NEVER create `.fractary/faber/config.json` — DEPRECATED
@@ -95,9 +90,6 @@ All arguments are optional. When omitted, the agent auto-detects values and asks
 force_mode = "--force" in $ARGUMENTS
 json_mode = "--json" in $ARGUMENTS
 autonomy_arg = extract_value("--autonomy", $ARGUMENTS)
-workflows_path_arg = extract_value("--workflows-path", $ARGUMENTS)
-default_workflow_arg = extract_value("--default-workflow", $ARGUMENTS)
-runs_path_arg = extract_value("--runs-path", $ARGUMENTS)
 ```
 
 ## Step 1: Check Prerequisites
@@ -125,65 +117,7 @@ if [ "$existing" != "null" ] && [ -n "$existing" ]; then
 fi
 ```
 
-## Step 3: Auto-Detect All Configuration Values
-
-Gather project context to make intelligent guesses for every field. Run these
-detection steps regardless of which arguments were provided (the results are
-used for display context even when the user pre-set a value).
-
-### 3a: Repository Info
-
-```bash
-# Get git remote URL for display/context
-remote_url=$(git remote get-url origin 2>/dev/null || echo "")
-
-if [ -n "$remote_url" ]; then
-  if [[ "$remote_url" =~ github\.com[:/]([^/]+)/([^/.]+)(\.git)?$ ]]; then
-    detected_owner="${BASH_REMATCH[1]}"
-    detected_repo="${BASH_REMATCH[2]}"
-    echo "Detected repository: $detected_owner/$detected_repo"
-  fi
-fi
-```
-
-### 3b: Workflows Path Detection
-
-Use Glob to check for existing workflow-related directories and files:
-
-```
-# Check if .fractary/faber/workflows already exists (from a previous partial init)
-Glob(".fractary/faber/workflows/")
-
-# Check if there are workflow files anywhere under .fractary
-Glob(".fractary/**/workflows.yaml")
-
-# Check if there's a non-standard workflows location the user may have set up
-Glob("**/workflows.yaml")
-```
-
-**Detection logic:**
-- If `.fractary/faber/workflows/` already exists → recommend `.fractary/faber/workflows`
-- If `workflows.yaml` exists elsewhere under `.fractary/` → recommend that parent directory
-- Otherwise → recommend the default `.fractary/faber/workflows`
-- Record the **reason** for the recommendation (e.g., "existing directory found" or "standard default")
-
-### 3c: Default Workflow Detection
-
-```
-# Look for existing workflow definitions
-Glob(".fractary/faber/workflows/*.yaml")
-
-# Also check for workflow manifest content
-Read(".fractary/faber/workflows/workflows.yaml")  # if it exists
-```
-
-**Detection logic:**
-- If a `workflows.yaml` manifest exists and lists workflow IDs → recommend the first one listed
-- If `.yaml` files exist in the workflows directory → recommend the name of the first one (without extension)
-- Otherwise → recommend `default`
-- Record the **reason**
-
-### 3d: Autonomy Level Detection
+## Step 3: Auto-Detect Autonomy Level
 
 Analyze the project to recommend an appropriate autonomy level:
 
@@ -205,23 +139,7 @@ ls .fractary/faber/runs/ 2>/dev/null
 - If project appears new or has minimal infrastructure → recommend `assisted` (reason: "new project benefits from maximum oversight")
 - Default fallback → recommend `guarded` (reason: "balanced default for most projects")
 
-### 3e: Runs Path Detection
-
-```
-# Check if .fractary/faber/runs already exists
-Glob(".fractary/faber/runs/")
-```
-
-**Detection logic:**
-- If `.fractary/faber/runs/` already exists → recommend `.fractary/faber/runs`
-- Otherwise → recommend the default `.fractary/faber/runs`
-
-## Step 4: Interactive Confirmation of Each Value
-
-For EACH field that was NOT provided via command-line arguments, present the
-auto-detected value to the user and ask them to confirm or correct it.
-
-### 4a: Confirm Autonomy Level (if `--autonomy` not provided)
+## Step 4: Confirm Autonomy Level (if `--autonomy` not provided)
 
 ```
 AskUserQuestion:
@@ -244,85 +162,19 @@ Map selection:
 - "Autonomous" → `autonomous`
 - "Dry-run" → `dry-run`
 
-### 4b: Confirm Workflows Path (if `--workflows-path` not provided)
+## Step 5: Show Summary and Confirm
+
+Display the complete proposed configuration:
 
 ```
-AskUserQuestion:
-  question: "Where should FABER store workflow definitions?\n\nDetected: **{detected_workflows_path}** ({detection_reason})"
-  header: "Workflows Path"
-  options:
-    - label: "{detected_workflows_path}"
-      description: "Use detected path"
-    - label: "Enter a different path"
-      description: "Type a custom workflows directory path"
-```
-
-If the user selects "Enter a different path", ask a follow-up:
-
-```
-AskUserQuestion:
-  question: "Enter the path for FABER workflow definitions (relative to project root):"
-```
-
-### 4c: Confirm Default Workflow (if `--default-workflow` not provided)
-
-```
-AskUserQuestion:
-  question: "What should the default workflow be named?\n\nDetected: **{detected_default_workflow}** ({detection_reason})"
-  header: "Default Workflow"
-  options:
-    - label: "{detected_default_workflow}"
-      description: "Use detected name"
-    - label: "Enter a different name"
-      description: "Type a custom workflow name"
-```
-
-If the user selects "Enter a different name", ask a follow-up:
-
-```
-AskUserQuestion:
-  question: "Enter the default workflow name:"
-```
-
-### 4d: Confirm Runs Path (if `--runs-path` not provided)
-
-```
-AskUserQuestion:
-  question: "Where should FABER store run artifacts and logs?\n\nDetected: **{detected_runs_path}** ({detection_reason})"
-  header: "Runs Path"
-  options:
-    - label: "{detected_runs_path}"
-      description: "Use detected path"
-    - label: "Enter a different path"
-      description: "Type a custom runs directory path"
-```
-
-If the user selects "Enter a different path", ask a follow-up:
-
-```
-AskUserQuestion:
-  question: "Enter the path for FABER run artifacts (relative to project root):"
-```
-
-**IMPORTANT**: For paths and workflow name confirmations (Steps 4b-4d), you MAY
-combine them into a single confirmation step if all detected values are standard
-defaults and there is no special detection to highlight. Use a single confirmation
-like Step 5 below. Only ask field-by-field when auto-detection found something
-non-obvious that warrants individual attention.
-
-## Step 5: Show Full Preview and Final Confirmation
-
-Display the complete proposed configuration with all confirmed/detected values:
-
-```
-Proposed FABER Configuration
+FABER Configuration
 -----------------------------
-Workflows path:    {final_workflows_path}
-Default workflow:  {final_default_workflow}
 Autonomy:          {final_autonomy}
-Runs path:         {final_runs_path}
+Workflows path:    .fractary/faber/workflows  (default)
+Default workflow:  default                     (default)
+Runs path:         .fractary/faber/runs        (default)
 
-{for each field, note if it was: auto-detected, user-confirmed, user-customized, or provided via argument}
+Note: Use /fractary-faber:config-update to change paths later if needed.
 ```
 
 Unless `--force`, use AskUserQuestion for final confirmation:
@@ -332,33 +184,14 @@ AskUserQuestion:
   question: "Apply this configuration?"
   options:
     - label: "Yes, apply"
-    - label: "No, let me change a value"
     - label: "Cancel"
 ```
-
-If the user selects "No, let me change a value":
-
-```
-AskUserQuestion:
-  question: "Which value would you like to change?"
-  options:
-    - label: "Autonomy level (currently: {final_autonomy})"
-    - label: "Workflows path (currently: {final_workflows_path})"
-    - label: "Default workflow (currently: {final_default_workflow})"
-    - label: "Runs path (currently: {final_runs_path})"
-```
-
-Then re-prompt for that specific field (using the patterns from Step 4) and return
-to Step 5 to show the updated preview.
 
 ## Step 6: Apply Configuration Using CLI
 
 ```bash
 fractary-faber config init \
   --autonomy "{final_autonomy}" \
-  --workflows-path "{final_workflows_path}" \
-  --runs-path "{final_runs_path}" \
-  --default-workflow "{final_default_workflow}" \
   ${force_mode:+--force}
 ```
 
@@ -405,10 +238,10 @@ fractary-faber config validate
 FABER configuration initialized!
 
 Settings:
-  Workflows path: {final_workflows_path}
-  Default workflow: {final_default_workflow}
   Autonomy: {final_autonomy}
-  Runs path: {final_runs_path}
+  Workflows path: .fractary/faber/workflows
+  Default workflow: default
+  Runs path: .fractary/faber/runs
 
 Next steps:
   1. Run a workflow: /fractary-faber:workflow-plan <issue-number>
@@ -423,19 +256,13 @@ Next steps:
   "path": ".fractary/config.yaml",
   "configuration": {
     "workflows": {
-      "path": "{final_workflows_path}",
-      "default": "{final_default_workflow}",
+      "path": ".fractary/faber/workflows",
+      "default": "default",
       "autonomy": "{final_autonomy}"
     },
     "runs": {
-      "path": "{final_runs_path}"
+      "path": ".fractary/faber/runs"
     }
-  },
-  "detection": {
-    "workflows_path": { "detected": "{detected_value}", "reason": "{reason}", "accepted": true|false },
-    "default_workflow": { "detected": "{detected_value}", "reason": "{reason}", "accepted": true|false },
-    "autonomy": { "detected": "{detected_value}", "reason": "{reason}", "accepted": true|false },
-    "runs_path": { "detected": "{detected_value}", "reason": "{reason}", "accepted": true|false }
   }
 }
 ```
@@ -450,5 +277,4 @@ Next steps:
 | FABER section exists (no --force) | Inform user, suggest --force or /fractary-faber:config-update |
 | CLI command fails | Show error message, suggest manual fix |
 | User cancels at any confirmation step | Exit cleanly, no changes |
-| Auto-detection finds conflicting signals | Present multiple options with reasoning for each, let user decide |
 </ERROR_HANDLING>

@@ -6,7 +6,7 @@
  * all operations to ensure consistency.
  *
  * Subcommands:
- *   config init     - Initialize FABER configuration (used by config-initializer agent)
+ *   config init     - Initialize FABER configuration (used by config-init command)
  *   config update   - Update configuration fields with backup (used by config-updater agent)
  *   config validate - Validate configuration (used by config-validator agent)
  *   config get      - Get configuration values

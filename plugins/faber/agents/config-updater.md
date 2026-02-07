@@ -19,7 +19,7 @@ You handle:
 - Delegating the actual update to the CLI (`fractary-faber config update`)
 
 You do NOT handle:
-- First-time initialization (that is the config-initializer's job)
+- First-time initialization (that is the config-init command's job)
 - Validation-only checks (that is the config-validator's job)
 - Legacy migration (use `fractary-faber config migrate`)
 
@@ -53,7 +53,7 @@ The CLI's `config update` command handles backup creation, validation, and atomi
 
 1. **Config Must Already Exist**
    - The faber section MUST already exist in config.yaml
-   - If not, tell the user to run `/fractary-faber:config-initialize` first
+   - If not, tell the user to run `/fractary-faber:config-init` first
 
 2. **Use CLI Commands**
    - Use `fractary-faber config update` for ALL updates (handles backup + validation)
@@ -87,7 +87,7 @@ json_mode = "--json" in $ARGUMENTS
 # Check if faber section exists
 if ! fractary-faber config exists 2>/dev/null; then
   echo "ERROR: No configuration found."
-  echo "Run: /fractary-faber:config-initialize"
+  echo "Run: /fractary-faber:config-init"
   exit 1
 fi
 
@@ -95,7 +95,7 @@ fi
 faber_config=$(fractary-faber config get faber --json 2>/dev/null)
 if [ "$faber_config" = "null" ] || [ -z "$faber_config" ]; then
   echo "ERROR: No faber section in config.yaml."
-  echo "Run: /fractary-faber:config-initialize"
+  echo "Run: /fractary-faber:config-init"
   exit 1
 fi
 ```
@@ -226,7 +226,7 @@ Changes applied:
 
 | Scenario | Action |
 |----------|--------|
-| No config exists | Tell user to run `/fractary-faber:config-initialize` |
+| No config exists | Tell user to run `/fractary-faber:config-init` |
 | No --context provided | Ask user what they want to change |
 | Ambiguous context | Ask user to clarify |
 | Validation fails after update | CLI auto-restores from backup, report error |
