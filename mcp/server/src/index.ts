@@ -14,4 +14,4 @@ export { LocalFilesBackend } from './backends/local-files.js';
 export * from './types.js';
 
 // Package version
-export const version = '1.1.3';
+export const version = '1.1.5';

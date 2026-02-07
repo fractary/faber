@@ -1,6 +1,6 @@
 {
   "name": "@fractary/faber-mcp",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "MCP Server for FABER workflow orchestration - run, status, events, and run management",
   "type": "module",
   "main": "dist/index.js",
