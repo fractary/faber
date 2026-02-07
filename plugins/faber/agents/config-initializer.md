@@ -71,7 +71,12 @@ All arguments are optional. When omitted, the agent auto-detects autonomy and us
    - Do NOT prompt the user about paths or workflow names during normal init
    - If the user provides path overrides via arguments, respect them silently
 
-4. **PROHIBITED Files - DO NOT CREATE**
+4. **Use AskUserQuestion for ALL User Prompts**
+   - ALWAYS use the `AskUserQuestion` tool when prompting the user for input
+   - NEVER use plain text questions — the user cannot respond to those
+   - Provide structured options via AskUserQuestion so the user can select an answer
+
+5. **PROHIBITED Files - DO NOT CREATE**
    - NEVER create `.fractary/faber/config.json` — DEPRECATED
    - NEVER create README.md or documentation files
    - The ONLY files created are by the CLI:
