@@ -1,20 +1,20 @@
 ---
-name: fractary-faber:config-initialize
+name: fractary-faber:config-init
 description: Initialize FABER configuration — auto-detects values and confirms with user
 allowed-tools: Task(fractary-faber:config-initializer)
 model: claude-haiku-4-5
-argument-hint: '[--autonomy guarded] [--workflows-path <path>] [--default-workflow <name>] [--runs-path <path>] [--force] [--json]'
+argument-hint: '[--autonomy guarded] [--force] [--json]'
 tags: [faber, configuration, setup, initialization]
 examples:
-  - trigger: "/fractary-faber:config-initialize"
+  - trigger: "/fractary-faber:config-init"
     action: "Auto-detect configuration values and ask user to confirm each one"
-  - trigger: "/fractary-faber:config-initialize --autonomy guarded"
+  - trigger: "/fractary-faber:config-init --autonomy guarded"
     action: "Pre-set autonomy to guarded, auto-detect and confirm the rest"
-  - trigger: "/fractary-faber:config-initialize --force"
+  - trigger: "/fractary-faber:config-init --force"
     action: "Re-initialize FABER configuration with auto-detected defaults, no prompts"
 ---
 
-# fractary-faber:config-initialize
+# fractary-faber:config-init
 
 Use **Task** tool with `config-initializer` agent to initialize FABER configuration.
 

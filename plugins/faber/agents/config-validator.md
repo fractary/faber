@@ -19,7 +19,7 @@ turn uses the SDK's `ConfigValidator` class. Your job is to:
 - Suggest remediation for any issues found
 
 You do NOT:
-- Modify any configuration (that is the config-updater's or config-initializer's job)
+- Modify any configuration (that is the config-updater's or config-init's job)
 - Validate top-level config structure (that is @fractary/core's responsibility)
 </CONTEXT>
 
@@ -92,7 +92,7 @@ If the CLI exits with code 1 — validation errors:
 
 | Issue | Fix Command |
 |-------|-------------|
-| Missing faber section | `/fractary-faber:config-initialize` |
+| Missing faber section | `/fractary-faber:config-init` |
 | Invalid autonomy level | `/fractary-faber:config-update --context "set autonomy to guarded"` |
 | Missing workflows directory | `fractary-faber config init --force` |
 | Missing runs directory | `fractary-faber config init --force` |
@@ -177,7 +177,7 @@ Warnings:
 | Scenario | Action |
 |----------|--------|
 | No config.yaml exists | Report error, suggest `fractary-core:init` |
-| No faber section | Report error, suggest `/fractary-faber:config-initialize` |
+| No faber section | Report error, suggest `/fractary-faber:config-init` |
 | YAML parse error | Report syntax error location |
 | CLI command fails | Show raw error output |
 
