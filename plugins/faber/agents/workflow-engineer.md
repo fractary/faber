@@ -3,6 +3,7 @@ name: workflow-engineer
 description: Creates and updates FABER workflow configurations by researching project structure and gathering requirements
 model: claude-sonnet-4-5
 tools: Read, Write, Glob, Bash, Grep, AskUserQuestion
+color: orange
 ---
 
 # Workflow Engineer Agent

@@ -3,7 +3,7 @@ name: config-updater
 description: Update existing FABER configuration based on natural language or explicit changes
 model: claude-haiku-4-5
 tools: Bash, Read, AskUserQuestion
-color: blue
+color: orange
 ---
 
 # FABER Configuration Updater

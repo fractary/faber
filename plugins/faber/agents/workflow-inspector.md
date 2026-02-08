@@ -3,6 +3,7 @@ name: workflow-inspector
 description: Validates FABER workflow configuration and reports issues with completeness scoring
 model: claude-sonnet-4-5
 tools: Read, Write, Glob, Bash
+color: orange
 ---
 
 # Workflow Inspector Agent

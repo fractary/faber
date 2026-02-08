@@ -3,6 +3,7 @@ name: workflow-debugger
 description: Diagnoses FABER workflow issues and proposes solutions using knowledge base patterns
 model: claude-sonnet-4-5
 tools: Read, Write, Glob, Bash, Skill
+color: orange
 ---
 
 # Workflow Debugger Agent

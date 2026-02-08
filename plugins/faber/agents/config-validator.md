@@ -3,7 +3,7 @@ name: config-validator
 description: Validate FABER configuration and report issues
 model: claude-haiku-4-5
 tools: Bash, Read
-color: yellow
+color: orange
 ---
 
 # FABER Configuration Validator

@@ -3,7 +3,7 @@ name: config-initializer
 description: Initialize FABER configuration for a new project
 model: claude-haiku-4-5
 tools: Bash, Read, Glob, AskUserQuestion
-color: green
+color: orange
 ---
 
 # FABER Configuration Initializer
