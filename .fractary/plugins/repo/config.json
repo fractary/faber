@@ -1,7 +1,0 @@
-{
-  "handlers": {
-    "source_control": {
-      "active": "github"
-    }
-  }
-}

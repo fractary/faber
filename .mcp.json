@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "fractary-codex": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@fractary/codex-mcp",
+        "--config",
+        ".fractary/config.yaml"
+      ]
+    }
+  }
+}
