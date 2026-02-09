@@ -3,7 +3,7 @@ name: fractary-faber:workflow-run
 description: Execute a FABER plan created by faber plan CLI command
 argument-hint: '<work-id|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new]'
 allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
-model: claude-sonnet-4-5
+model: claude-opus-4-6
 ---
 
 # FABER Workflow Run Command
@@ -165,7 +165,7 @@ function extractPlanIdFromIssue(issue) {
     // Matches both CLI format (**Plan ID:** `the-id`) and planner format
     /\*\*Plan ID[:\*]*\*?\s*`([^`]+)`/,
     // Pattern 2 (fallback): Inline header format with optional bold markers
-    /🤖\s*(?:\*\*)?Workflow [Pp]lan [Cc]reated(?:\*\*)?\s*:?\s*(\S+)/,
+    /🤖\s*(?:\*\*)?Workflow [Pp]lan [Cc]reated(?:\*\*)?\s*:\s*(\S+)/,
     // Pattern 3 (legacy): Original exact format for backward compatibility
     /🤖 Workflow plan created: (\S+)/
   ];
