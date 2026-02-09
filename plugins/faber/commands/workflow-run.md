@@ -107,12 +107,10 @@ if (!arg) {
 }
 
 // Determine if argument is a plan-id or work-id
-if (arg.startsWith('fractary-faber-')) {
-  // Full plan ID provided
-  plan_id = arg;
-  console.log(`→ Using plan ID: ${plan_id}`);
-} else {
-  // Work ID provided - fetch plan_id from GitHub issue
+// Work IDs (GitHub issue numbers) are always numeric.
+// Plan IDs always contain letters and hyphens (e.g., "fractary-faber-258-20260106-143022").
+if (/^\d+$/.test(arg)) {
+  // Numeric — this is a work ID, fetch plan_id from GitHub issue
   const work_id = arg;
   console.log(`→ Fetching plan for issue #${work_id}...`);
 
@@ -150,30 +148,50 @@ if (arg.startsWith('fractary-faber-')) {
     console.error(`Use full plan-id instead: /fractary-faber:workflow-run fractary-faber-${work_id}-...`);
     return;
   }
+} else {
+  // Non-numeric — this is a plan ID
+  plan_id = arg;
+  console.log(`→ Using plan ID: ${plan_id}`);
 }
 
-// Helper function to extract plan_id from issue
+// Helper function to extract plan_id from issue comments or body.
+// Supports multiple formats:
+//   1. CLI/planner format: **Plan ID:** `{plan_id}`
+//   2. Inline header format: 🤖 **Workflow Plan Created**: {plan_id}
+//   3. Legacy format: 🤖 Workflow plan created: {plan_id}
 function extractPlanIdFromIssue(issue) {
-  // Check issue comments for plan_id
+  const patterns = [
+    // Pattern 1 (primary): Extract plan ID from backtick-delimited text
+    // Matches both CLI format (**Plan ID:** `the-id`) and planner format
+    /\*\*Plan ID[:\*]*\*?\s*`([^`]+)`/,
+    // Pattern 2 (fallback): Inline header format with optional bold markers
+    /🤖\s*(?:\*\*)?Workflow [Pp]lan [Cc]reated(?:\*\*)?\s*:?\s*(\S+)/,
+    // Pattern 3 (legacy): Original exact format for backward compatibility
+    /🤖 Workflow plan created: (\S+)/
+  ];
+
+  // Search function: try all patterns against a text block
+  function findPlanId(text) {
+    if (!text) return null;
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  }
+
+  // Check issue comments (most recent first for latest plan)
   if (issue.comments) {
-    for (const comment of issue.comments) {
-      const match = comment.body.match(/🤖 Workflow plan created: (fractary-faber-\S+)/);
-      if (match) {
-        return match[1];
-      }
+    // Iterate in reverse to find the most recent plan comment
+    for (let i = issue.comments.length - 1; i >= 0; i--) {
+      const planId = findPlanId(issue.comments[i].body);
+      if (planId) return planId;
     }
   }
 
-  // Check issue body for plan_id
-  if (issue.body || issue.description) {
-    const body = issue.body || issue.description;
-    const match = body.match(/🤖 Workflow plan created: (fractary-faber-\S+)/);
-    if (match) {
-      return match[1];
-    }
-  }
-
-  return null;
+  // Fallback: check issue body
+  const body = issue.body || issue.description;
+  return findPlanId(body);
 }
 ```
 
@@ -530,6 +548,46 @@ console.log(`Tracking file: ${activeRunIdPath}`);
 
 **One workflow per worktree:**
 FABER enforces one active workflow per worktree to avoid conflicts. Users needing concurrent workflows should use git worktrees.
+
+### Step 1.4b: Post Workflow Start Comment
+
+**Post a comment to the GitHub issue notifying that the workflow has started.**
+
+This only executes when a `work_id` is available (not for target-based plans without an issue).
+
+```javascript
+// Only post comment when we have a work_id (GitHub issue)
+if (work_id) {
+  try {
+    // Build enabled phases list
+    const enabledPhases = Object.keys(workflow.phases)
+      .filter(p => workflow.phases[p].enabled !== false)
+      .join(" → ");
+
+    const commentBody = [
+      `🚀 **FABER Workflow Started**`,
+      ``,
+      `**Run ID:** \`${runId}\``,
+      `**Plan ID:** \`${plan_id}\``,
+      `**Workflow:** \`${workflow.id}\``,
+      `**State File:** \`.fractary/faber/runs/${plan_id}/state-${timestamp}.json\``,
+      `**Autonomy:** ${autonomy}`,
+      ``,
+      `**Phases:** ${enabledPhases}`
+    ].join("\n");
+
+    await Skill({
+      skill: "fractary-work:issue-comment",
+      args: `${work_id} --body "${commentBody}"`
+    });
+
+    console.log("✓ Posted workflow start comment to issue");
+  } catch (error) {
+    // Non-fatal: warn but don't block execution
+    console.warn(`⚠️  Could not post start comment to issue #${work_id}: ${error.message}`);
+  }
+}
+```
 
 ### Step 1.5: Load MCP Event Tool
 
