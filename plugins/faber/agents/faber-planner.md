@@ -17,7 +17,7 @@ The two-phase architecture:
 1. **Phase 1 (YOU)**: Create plan -> Save to logs directory -> Prompt user to execute
 2. **Phase 2 (Executor)**: Read plan -> Spawn managers -> Execute
 
-You receive input via JSON parameters, resolve the workflow, prepare targets, and output a plan file.
+You receive raw CLI arguments, parse them, resolve the workflow, prepare targets, and output a plan file.
 
 **Target-Based Planning (v2.3):**
 When a target is provided without a work_id, you use the configured target definitions
@@ -36,32 +36,57 @@ This enables work-ID-free planning with contextual awareness.
 </CRITICAL_RULES>
 
 <INPUTS>
-You receive a JSON object in your prompt with these parameters:
+You receive raw CLI arguments as a string in your prompt. Parse them to extract parameters.
 
-```json
-{
-  "target": "string or null - What to work on",
-  "work_id": "string or null - Work item ID (can be comma-separated for multiple)",
-  "workflow_override": "string or null - Explicit workflow selection",
-  "autonomy_override": "string or null - Explicit autonomy level",
-  "phases": "string or null - Comma-separated phases to execute",
-  "step_id": "string or null - Specific step (format: phase:step-name)",
-  "prompt": "string or null - Additional instructions",
-  "working_directory": "string - Project root",
-  "auto_execute": "boolean or null - If true, skip user prompt and return execute:true"
-}
+**Argument syntax:**
+```
+[<target>] [--work-id <id>] [--workflow <id>] [--autonomy <level>] [--phase <phases>] [--step <step-id>] [--prompt "<text>"] [--auto-execute]
 ```
 
+**Parameters:**
+| Argument | Type | Description |
+|----------|------|-------------|
+| `<target>` | positional | What to work on. First non-flag argument. Supports wildcards (e.g., `ipeds/*`). |
+| `--work-id <id>` | string | Work item ID(s). Comma-separated for multiple. |
+| `--workflow <id>` | string | Explicit workflow selection (overrides config default). |
+| `--autonomy <level>` | string | Autonomy level override (default: from config or `guarded`). |
+| `--phase <phases>` | string | Comma-separated phases to run. |
+| `--step <step-id>` | string | Specific step (format: `phase:step-name`). Mutually exclusive with `--phase`. |
+| `--prompt "<text>"` | string | Additional instructions to include in the plan. |
+| `--auto-execute` | flag | If present, skip user prompt and return `execute: true`. |
+
 **Validation:**
-- Either `target` OR `work_id` must be provided
-- `phases` and `step_id` are mutually exclusive
+- Either `target` OR `--work-id` must be provided. If neither, show error with usage examples.
+- `--phase` and `--step` are mutually exclusive. If both provided, show error.
 </INPUTS>
 
 <WORKFLOW>
 
 ## Step 1: Parse Input and Determine Targets
 
-Extract targets from input:
+Parse the raw CLI arguments string from the prompt. Extract:
+1. `target`: First positional argument (not starting with `--`), or null
+2. `work_id`: Value of `--work-id` flag, or null
+3. `workflow_override`: Value of `--workflow` flag, or null
+4. `autonomy_override`: Value of `--autonomy` flag, or null
+5. `phases`: Value of `--phase` flag, or null
+6. `step_id`: Value of `--step` flag, or null
+7. `prompt`: Value of `--prompt` flag, or null
+8. `auto_execute`: true if `--auto-execute` flag is present, false otherwise
+9. `working_directory`: Current working directory (use `pwd`)
+
+**Validation:**
+- If no `target` AND no `--work-id`: Show error:
+  ```
+  Cannot Create Plan: No target specified
+
+  Either provide a target or --work-id:
+    /fractary-faber:workflow-plan customer-pipeline
+    /fractary-faber:workflow-plan --work-id 158
+  ```
+- If both `--phase` and `--step` provided: Show error (mutually exclusive)
+
+Then determine targets:
 
 ```
 IF work_id contains comma:

@@ -8,12 +8,6 @@ argument-hint: '[<workflow-name-or-path>] [--verbose] [--fix] [--check <aspect>]
 
 Use **Task** tool with `fractary-faber:workflow-inspector` agent to validate workflow configuration with provided arguments.
 
-**Workflow identifier** (optional):
-- `workflow-id` - Validates workflow from project config
-- `path/to/file.json` - Validates standalone workflow file
-- `plugin:workflow-id` - Validates namespaced workflow from plugin
-- Omitted - Shows usage and lists available workflows
-
 ```
 Task(
   subagent_type="fractary-faber:workflow-inspector",
