@@ -10,7 +10,4 @@ specs/archive/
 docs/archive/
 # ===== end fractary-docs =====
 codex/cache/
-# ===== fractary-faber (managed) =====
-faber/state/
-faber/runs/
 # ===== end fractary-faber =====
