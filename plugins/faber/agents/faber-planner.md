@@ -468,6 +468,35 @@ mkdir -p ".fractary/faber/runs/{plan_id}"
 
 Write plan file.
 
+## Step 7b: Post Plan Creation Comment
+
+**Post a comment to each GitHub issue notifying that a plan was created.**
+
+This step only executes when `planning_mode == "work_id"` (skip for target-based planning, which has no issue to comment on).
+
+The `**Plan ID:** \`{plan_id}\`` line is critical — `extractPlanIdFromIssue()` in workflow-run.md parses this pattern to resolve plan IDs from work IDs.
+
+```
+IF planning_mode == "work_id":
+  FOR EACH item IN plan.items:
+    TRY:
+      comment_body = [
+        "🤖 **Workflow Plan Created**",
+        "",
+        "**Plan ID:** `{plan_id}`",
+        "**Workflow:** `{workflow_id}`",
+        "**Location:** `.fractary/faber/runs/{plan_id}/plan.json`",
+        "",
+        "Execute: `/fractary-faber:workflow-run {plan_id}`"
+      ].join("\n")
+
+      /fractary-work:issue-comment {item.work_id} --body "{comment_body}"
+    CATCH error:
+      # Non-fatal: warn but do NOT abort planning
+      WARN "Could not post plan comment to issue #{item.work_id}: {error.message}"
+      CONTINUE
+```
+
 ## Step 8: Output Plan Summary and Prompt User
 
 **CRITICAL**: After outputting the summary, use AskUserQuestion to prompt the user.
