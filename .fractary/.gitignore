@@ -10,4 +10,7 @@ specs/archive/
 docs/archive/
 # ===== end fractary-docs =====
 codex/cache/
+
+# ===== fractary-faber (managed) =====
+# faber/state/ and faber/runs/ are committed to source control
 # ===== end fractary-faber =====

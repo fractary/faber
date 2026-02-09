@@ -279,7 +279,7 @@ Examples:
 ```
 .fractary/faber/config.toml          # Main configuration
 .fractary/faber/workflows/           # Workflow definitions
-.fractary/faber/state/               # Execution state (gitignored)
+.fractary/faber/state/               # Execution state (committed to git)
 .fractary/faber/logs/                # Execution logs
 ```
 
