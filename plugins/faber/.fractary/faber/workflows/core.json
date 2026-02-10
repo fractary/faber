@@ -23,16 +23,16 @@
       "steps": [],
       "post_steps": [
         {
-          "id": "core-commit-and-push-frame",
+          "id": "frame-commit-and-push",
           "name": "Commit and Push Changes",
-          "description": "Ensure all frame changes are committed and pushed",
-          "prompt": "/fractary-repo:commit-push"
+          "description": "Ensure all frame changes are committed and pushed (which will also create a branch to push to).",
+          "prompt": "/fractary-repo:commit-push --work-id {work_id}"
         }, 
         {
-          "id": "frame-issue-comment",
-          "name": "Add GitHub Issue Comment for Frame Phase",
-          "description": "Share results of the frame phase.",
-          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as frame phase completed and reference created workflow plan with link to its location in the repository. Please also reference the issue template that was used to create the issue and give a summary of the steps that will be taken by the workflow plan as a bulleted list organized by phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
+          "id": "frame-issue-comment-complete",
+          "name": "Add GitHub Issue Comment to Complete Frame Phase",
+          "description": "Summarize completion of frame phase and propose next steps.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add a comment updating status of the issue as frame phase completed and suggesting next steps to take including the exact command to run to perform that next step.\""
         }
       ]
     },
@@ -43,16 +43,16 @@
       "steps": [],
       "post_steps": [
         {
-          "id": "core-commit-and-push-architect",
+          "id": "architect-commit-and-push",
           "name": "Commit and Push Changes",
-          "description": "Ensure all build changes are committed and pushed",
-          "prompt": "/fractary-repo:commit-push"
+          "description": "Ensure all architect changes are committed and pushed",
+          "prompt": "/fractary-repo:commit-push --work-id {work_id}"
         }, 
         {
-          "id": "architect-issue-comment",
-          "name": "Add GitHub Issue Comment for Architect Phase",
-          "description": "Share results of the architect phase.",
-          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as architect phase completed and give a summary of the steps that were taken during the architect phase and the results, referencing any artifacts that were created during the phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
+          "id": "architect-issue-comment-complete",
+          "name": "Add GitHub Issue Comment to Complete Architect Phase",
+          "description": "Summarize completion of architect phase and propose next steps.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add a comment updating status of the issue as architect phase completed and suggesting next steps to take including the exact command to run to perform that next step.\""
         }
       ]
     },
@@ -63,42 +63,49 @@
       "steps": [],
       "post_steps": [
         {
-          "id": "core-commit-and-push-build",
-          "name": "Commit and Push Changes",
-          "description": "Ensure all build changes are committed and pushed",
-          "prompt": "/fractary-repo:commit-push"
-        }, 
+          "id": "build-create-pr",
+          "name": "Create Pull Request",
+          "description": "Create PR for the implementation (skips if PR already exists). Links to issue for auto-close on merge.",
+          "prompt": "/fractary-repo:commit-push-pr --work-id {work_id}"
+        },  
         {
-          "id": "build-issue-comment",
-          "name": "Add GitHub Issue Comment for Build Phase",
-          "description": "Share results of the build phase.",
-          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as build phase completed and give a summary of the steps that were taken during the build phase and the results, referencing any artifacts that were created during the phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
+          "id": "build-issue-comment-complete",
+          "name": "Add GitHub Issue Comment to Complete Build Phase",
+          "description": "Summarize completion of build phase and propose next steps.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add a comment updating status of the issue as build phase completed and suggesting next steps to take including the exact command to run to perform that next step.\""
         }
       ]
     },
     "evaluate": {
       "enabled": true,
       "description": "Review implementation and create PR",
-      "pre_steps": [],
+      "pre_steps": [
+        {
+          "id": "evaluate-pr-review",
+          "name": "Review PR CI Checks",
+          "description": "Wait for and review CI/CD pipeline results",
+          "prompt": "/fractary-repo:pr-review {pr_id} --wait-for-ci --auto-fix"
+        }, 
+        {
+          "id": "evaluate-pr-merge-test",
+          "name": "Merge PR to Test Branch",
+          "description": "Merge the pull request to the test branch.",
+          "prompt": "/fractary-repo:pr-merge {pr_id} --to-branch test"
+        }
+      ],
       "steps": [],
       "post_steps": [
         {
-          "id": "core-create-pr",
-          "name": "Create Pull Request",
-          "description": "Create PR for the implementation (skips if PR already exists). Links to issue for auto-close on merge.",
-          "prompt": "/fractary-repo:commit-push-pr"
-        },
-        {
-          "id": "core-review-pr-checks",
-          "name": "Review PR CI Checks",
-          "description": "Wait for and review CI/CD pipeline results",
-          "prompt": "/fractary-repo:pr-review --wait-for-ci"
+          "id": "evaluate-codex-sync-test",
+          "name": "Sync to Codex (Test)",
+          "description": "Push project documentation to codex",
+          "prompt": "/fractary-codex:sync-project --work-id {work_id} --to-codex --env test"
         }, 
         {
-          "id": "evaluate-issue-comment",
-          "name": "Add GitHub Issue Comment for Evaluate Phase",
-          "description": "Share results of evaluate phase.",
-          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as evaluate phase completed and give a summary of the steps that were taken during the evaluate phase and the results, referencing any artifacts that were created during the phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
+          "id": "evaluate-issue-comment-complete",
+          "name": "Add GitHub Issue Comment to Complete Evaluate Phase",
+          "description": "Summarize completion of evaluate phase and propose next steps.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add a comment updating status of the issue as evaluate phase completed and suggesting next steps to take including the exact command to run to perform that next step.\""
         }
       ]
     },
@@ -106,29 +113,35 @@
       "enabled": true,
       "description": "Merge PR and complete workflow",
       "require_approval": true,
-      "pre_steps": [],
+      "pre_steps": [
+        {
+          "id": "release-create-pr",
+          "name": "Create Pull Request for Release",
+          "description": "Create PR for release to production environment.",
+          "prompt": "/fractary-repo:commit-push-pr --work-id {work_id} --to-branch main"
+        },
+        {
+          "id": "release-pr-merge-prod",
+          "name": "Merge PR to Main Branch",
+          "description": "Merge the pull request to the main branch.",
+          "prompt": "/fractary-repo:pr-merge {pr_id} --to-branch main"
+        }
+      ],
       "steps": [],
       "post_steps": [
         {
-          "id": "core-merge-pr",
-          "name": "Merge Pull Request",
-          "description": "Merge the PR and delete branch",
-          "prompt": "/fractary-repo:pr-merge {pr_number} --delete-branch"
-        },
-        {
-          "id": "core-cleanup-worktree",
-          "name": "Cleanup Worktree",
-          "description": "Remove auto-created worktree if workflow was run in dedicated worktree",
-          "prompt": "Check if this workflow created a worktree (state.worktree.created_by === 'fractary-faber'). If yes, ask user if they want to remove it using /fractary-repo:worktree-remove and update .fractary/faber/worktrees.json tracking.",
-          "guards": {
-            "skip_if": "!state.worktree || state.worktree.created_by !== 'fractary-faber'"
-          }
+          "id": "release-codex-sync-prod",
+          "step_action": "codex-sync-prod",
+          "step_type": "codex",
+          "name": "Sync to Codex (Production)",
+          "description": "Push project documentation to codex",
+          "prompt": "/fractary-codex:sync-project --work-id {work_id} --to-codex --environment prod"
         }, 
         {
-          "id": "release-issue-comment",
-          "name": "Add GitHub Issue Comment for Release Phase",
-          "description": "Share results of completing release phase.",
-          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add comment updating status of the issue as release phase completed and give a summary of the steps that were taken during the release phase and the results, referencing any artifacts that were created during the phase. Please also suggest the next step to take including the exact command to run to perform that next step.\""
+          "id": "release-issue-comment-complete",
+          "name": "Add GitHub Issue Comment to Complete Release Phase",
+          "description": "Summarize completion of release phase and propose next steps.",
+          "prompt": "/fractary-work:issue-comment --work-id {work_id} --context \"Add a comment updating status of the issue as release phase completed and suggesting next steps to take including the exact command to run to perform that next step. Please also confirm the status of the Codex Sync step and list the files that were updated.\""
         }
       ]
     }
@@ -136,7 +149,7 @@
   "autonomy": {
     "level": "guarded",
     "description": "Pauses before release for approval - recommended for production",
-    "require_approval_for": ["release"]
+    "require_approval_for": ["release-pr-merge-prod", "release-deploy-apply-prod"]
   },
   "critical_artifacts": {
     "always_load": [
@@ -161,7 +174,7 @@
       {
         "id": "issue-context",
         "type": "work_plugin",
-        "command": "/fractary-work:issue-fetch {work_id}",
+        "command": "/fractary-work:issue-fetch --work-id {work_id}",
         "description": "Issue details and context",
         "required": false,
         "condition": "state.work_id != null",
