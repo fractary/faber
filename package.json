@@ -9,7 +9,6 @@
     "mcp/server"
   ],
   "scripts": {
-    "prepare": "husky || true",
     "build": "npm run build:js && npm run build:py",
     "test": "npm run test:js && npm run test:py",
     "lint": "npm run lint:js && npm run lint:py",
@@ -27,8 +26,7 @@
     "install:py": "cd sdk/py && pip install -e '.[dev]'",
     "clean": "npm run clean:js && npm run clean:py",
     "clean:js": "rm -rf sdk/js/dist sdk/js/node_modules",
-    "clean:py": "rm -rf sdk/py/dist sdk/py/build sdk/py/**/__pycache__",
-    "test:versions": "node scripts/bump-versions.js --check-only"
+    "clean:py": "rm -rf sdk/py/dist sdk/py/build sdk/py/**/__pycache__"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -45,8 +43,5 @@
   "license": "MIT",
   "dependencies": {
     "@fractary/forge": "^1.1.4"
-  },
-  "devDependencies": {
-    "husky": "^9.1.0"
   }
 }
