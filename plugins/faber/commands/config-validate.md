@@ -1,20 +1,12 @@
 ---
 name: fractary-faber:config-validate
-description: Validate FABER configuration
+description: Validate FABER configuration - delegates to fractary-faber:config-validator agent
 allowed-tools: Task(fractary-faber:config-validator)
 model: claude-haiku-4-5
 argument-hint: '[--json]'
-tags: [faber, configuration, validation]
-examples:
-  - trigger: "/fractary-faber:config-validate"
-    action: "Validate current FABER configuration"
-  - trigger: "/fractary-faber:config-validate --json"
-    action: "Validate and output results as JSON"
 ---
 
-# fractary-faber:config-validate
-
-Use **Task** tool with `config-validator` agent to validate FABER configuration.
+Use **Task** tool with `fractary-faber:config-validator` agent to validate FABER configuration with provided arguments.
 
 ```
 Task(
