@@ -139,7 +139,7 @@ fi
 
 # Post comment to GitHub
 # Use gh issue comment with heredoc for safety
-COMMENT_URL=$(gh issue comment "$WORK_ID" --repo "$REPO" --body "$BODY" 2>&1) || {
+COMMENT_URL=$(echo "$BODY" | gh issue comment "$WORK_ID" --repo "$REPO" --body-file - 2>&1) || {
     error_msg="$COMMENT_URL"
     jq -n \
         --arg status "error" \

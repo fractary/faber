@@ -526,13 +526,19 @@ async function planSingleIssue(
   if (outputFormat === 'text') {
     console.log(chalk.gray(`  → Updating GitHub issue...`));
   }
+  // Post comment first (essential operation)
   await repoClient.updateIssue({
     id: issue.number.toString(),
     comment: planSummary,
   });
 
-  // Try to add the 'faber:planned' label separately (non-fatal if it fails)
+  // Try to ensure faber:planned label exists, create if needed (non-fatal)
   try {
+    const { labelExists, createLabel } = await import('../../utils/labels.js');
+    const exists = await labelExists('faber:planned');
+    if (!exists) {
+      await createLabel({ name: 'faber:planned', description: 'FABER workflow planned', color: '0e8a16' });
+    }
     await repoClient.updateIssue({
       id: issue.number.toString(),
       addLabel: 'faber:planned',

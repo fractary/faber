@@ -37,7 +37,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@fractary/core": "^0.5.0",
+    "@fractary/core": "^0.7.20",
     "@fractary/faber": "^2.4.14",
     "ajv": "^8.12.0",
     "chalk": "^5.0.0",
