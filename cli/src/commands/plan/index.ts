@@ -422,7 +422,7 @@ async function planSingleIssue(
   const branch = `feature/${issue.number}`;
   const worktree = `~/.claude-worktrees/${organization}-${project}-${issue.number}`;
 
-  // Generate plan via Anthropic API
+  // Generate deterministic plan from resolved workflow
   if (outputFormat === 'text') {
     console.log(chalk.gray('  → Generating plan...'));
     process.stdout.write(''); // Force flush
@@ -435,7 +435,7 @@ async function planSingleIssue(
     issueNumber: issue.number,
   });
 
-  const planId = plan.plan_id;
+  const planId = plan.id;
 
   // Create branch without checking it out (so it won't conflict with worktree creation)
   if (!options.noBranch) {
@@ -569,38 +569,45 @@ function generatePlanComment(plan: WorkflowPlan, workflow: string, worktreePath:
   comment += `**Plan ID:** \`${planId}\`\n`;
   comment += `**Workflow:** \`${workflow}\`\n`;
 
-  // Add workflow inheritance info if available
-  if (plan.workflow_config?.inherits_from) {
-    comment += `**Inherits from:** \`${plan.workflow_config.inherits_from}\`\n`;
+  // Add workflow inheritance chain if available
+  if (plan.workflow?.inheritance_chain?.length > 1) {
+    comment += `**Inheritance:** ${plan.workflow.inheritance_chain.join(' → ')}\n`;
   }
 
+  comment += `**Autonomy:** \`${plan.autonomy || 'guarded'}\`\n`;
   comment += `\n---\n\n`;
 
-  // Add plan summary by phase
-  if (plan.phases && Array.isArray(plan.phases)) {
+  // Add plan summary by phase (workflow.phases is an object keyed by phase name)
+  if (plan.workflow?.phases) {
     comment += `### Workflow Phases\n\n`;
-    plan.phases.forEach((phase: any, index: number) => {
-      comment += `**${index + 1}. ${phase.name || phase.phase}**\n\n`;
+    const phaseOrder = ['frame', 'architect', 'build', 'evaluate', 'release'];
 
-      // Show phase description if available
+    phaseOrder.forEach((phaseName, index) => {
+      const phase = (plan.workflow.phases as any)[phaseName];
+      if (!phase) return;
+
+      const enabled = phase.enabled !== false;
+      const statusIcon = enabled ? '✅' : '⏭️';
+      comment += `**${index + 1}. ${phaseName}** ${statusIcon}${!enabled ? ' *(skipped)*' : ''}\n\n`;
+
       if (phase.description) {
         comment += `*${phase.description}*\n\n`;
       }
 
-      // Show steps/tasks
-      if (phase.steps && Array.isArray(phase.steps)) {
-        phase.steps.forEach((step: any) => {
-          const action = step.action || step.name || step.description || step;
-          comment += `  - **${action}**`;
-          if (step.details) {
-            comment += `: ${step.details}`;
+      // Show all step arrays: pre_steps, steps, post_steps
+      const allSteps = [
+        ...(phase.pre_steps || []),
+        ...(phase.steps || []),
+        ...(phase.post_steps || []),
+      ];
+
+      if (allSteps.length > 0) {
+        allSteps.forEach((step: any) => {
+          comment += `  - **${step.id}**`;
+          if (step.name) {
+            comment += ` — ${step.name}`;
           }
           comment += `\n`;
-        });
-      } else if (phase.tasks && Array.isArray(phase.tasks)) {
-        phase.tasks.forEach((task: any) => {
-          const taskDesc = task.description || task.name || task;
-          comment += `  - ${taskDesc}\n`;
         });
       }
       comment += `\n`;

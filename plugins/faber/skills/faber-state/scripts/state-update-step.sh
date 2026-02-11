@@ -117,7 +117,22 @@ UPDATED_STATE=$(echo "$CURRENT_STATE" | jq \
     end
     ')
 
-# Write updated state
+# Validate state transition before writing
+VALIDATE_SCRIPT="$FABER_ROOT/skills/run-manager/scripts/validate-state-transition.sh"
+
+if [[ -x "$VALIDATE_SCRIPT" ]]; then
+    VALIDATION_RESULT=$("$VALIDATE_SCRIPT" --current "$STATE_FILE" --proposed-json "$UPDATED_STATE" 2>/dev/null) || true
+    VALIDATION_STATUS=$(echo "$VALIDATION_RESULT" | jq -r '.status // "error"' 2>/dev/null)
+
+    if [[ "$VALIDATION_STATUS" == "invalid" ]]; then
+        VIOLATIONS=$(echo "$VALIDATION_RESULT" | jq -r '.violations[]' 2>/dev/null)
+        echo "Error: State transition validation failed:" >&2
+        echo "$VIOLATIONS" >&2
+        exit 1
+    fi
+fi
+
+# Write validated state
 echo "$UPDATED_STATE" | "$CORE_SCRIPTS/state-write.sh" "$STATE_FILE"
 
 echo "Step '$STEP_NAME' in phase '$PHASE' updated to '$STATUS'"

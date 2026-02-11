@@ -58,6 +58,11 @@
       "format": "date-time",
       "description": "Last update timestamp (ISO 8601)"
     },
+    "last_event_id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Most recent event ID for cross-validation with event log"
+    },
     "completed_at": {
       "type": "string",
       "format": "date-time",
@@ -292,6 +297,13 @@
           "description": "List of completed step IDs in format 'phase:step-name'",
           "items": {
             "type": "string"
+          }
+        },
+        "step_events": {
+          "type": "object",
+          "description": "Maps step IDs to their event IDs for cross-validation with immutable event log",
+          "additionalProperties": {
+            "type": "integer"
           }
         },
         "artifacts": {
