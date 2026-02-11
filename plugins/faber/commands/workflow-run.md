@@ -27,13 +27,14 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 7. **HANDLE ERRORS GRACEFULLY** - Use retry logic when configured, stop when appropriate.
 8. **RESPECT AUTONOMY GATES** - Get user approval when required.
 9. **NEVER FABRICATE COMPLETIONS** - See "When You Cannot Continue" section below.
+10. **NEVER STOP FOR CONTEXT REASONS** - Context compaction is automatic and recoverable. See "Context Continuity" section.
 </CRITICAL_RULES>
 
 <WHEN_YOU_CANNOT_CONTINUE>
 ## When You Cannot Continue
 
 If you reach a point where you cannot execute the next step for ANY reason
-(context limits, missing credentials, external system unavailable, tool failures, etc.):
+(missing credentials, external system unavailable, tool failures, etc.):
 
 1. Set `state.status = "paused"` with honest `pause_reason`
 2. Post an honest status comment to the GitHub issue
@@ -56,6 +57,30 @@ bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh --ru
 ```
 If it returns `status: "fail"`, DO NOT mark the workflow as completed. Pause and report failures.
 </WHEN_YOU_CANNOT_CONTINUE>
+
+<CONTEXT_CONTINUITY>
+## Context Continuity — Never Stop for Context Reasons
+
+Context limits are **NOT** a reason to stop, pause, or ask the user for permission. FABER workflows are fully resilient to context compaction through 5 recovery layers:
+
+1. **Auto-compaction** — Claude Code automatically compacts context when space is low
+2. **Hooks** — PreCompact fires `session-save`, SessionStart fires `session-load` to restore artifacts
+3. **State/Plan files** — Persisted to disk, survive any compaction
+4. **TodoWrite** — Persists across compaction, shows exactly where you left off
+5. **Step re-fetching** — Each step re-fetches the GitHub issue (via work_id) with all progress comments
+
+**Recovery procedure** (if you feel uncertain about position after compaction):
+1. Call `/fractary-faber:session-load` to restore critical artifacts
+2. Read TodoWrite to see completed/pending steps
+3. Continue execution from the next pending step
+
+**NEVER:**
+- Pause or set `status: "paused"` due to context pressure
+- Ask the user whether to continue due to context pressure
+- Fabricate completions because context feels low
+- Stop the workflow because "context is getting low"
+- Batch-complete remaining steps to "finish before context runs out"
+</CONTEXT_CONTINUITY>
 
 <INPUTS>
 
