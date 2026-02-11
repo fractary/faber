@@ -1254,6 +1254,91 @@ PRINT "   File: {kb_file}"
 return kb_id
 ```
 
+### Step 9.5: Post Results to GitHub Issue
+
+**Goal**: If a work_id was provided, post a summary of debug findings as a comment on the corresponding GitHub issue before returning to the main agent
+
+**Logic**:
+```
+if work_id:
+  # Determine status emoji and summary
+  if length(problems) == 0:
+    status_emoji = "✅"
+    diagnosis_summary = "No issues detected"
+  else if auto_fix_applied and all_fixes_successful:
+    status_emoji = "🔧"
+    diagnosis_summary = "Issues detected and auto-fixed"
+  else if highest_confidence == "high":
+    status_emoji = "⚠️"
+    diagnosis_summary = "Issues detected - high confidence solutions available"
+  else:
+    status_emoji = "🔴"
+    diagnosis_summary = "Issues detected - manual investigation needed"
+
+  # Format the comment body
+  comment_body = """
+## 🔍 Debugger Analysis
+
+**Status**: {status_emoji} {diagnosis_summary}
+
+### Problem Detected
+{for each problem in problems:}
+- [{problem.severity}] {problem.description} (Phase: {problem.phase})
+{end for}
+
+### Root Cause Analysis
+{for each root_cause in root_causes:}
+**{root_cause.problem.description}**
+{root_cause.root_cause}
+Confidence: {root_cause.confidence}
+{if root_cause.kb_reference:}KB Reference: {root_cause.kb_reference} ({root_cause.similarity*100:.0f}% match){end if}
+{end for}
+
+### Proposed Solutions
+{for each solution in solutions:}
+{solution_index}. **{solution.problem}**
+{for each action in solution.actions:}
+   - {action}
+{end for}
+   Confidence: {solution.confidence}
+{end for}
+
+### Recommended Next Step
+\`\`\`
+{continuation_command}
+\`\`\`
+
+### Debug Context
+
+| Metric | Value |
+|--------|-------|
+| Run ID | `{run_id}` |
+| Failed Phase | {current_phase} |
+| Errors Analyzed | {length(evidence.errors)} |
+| KB Matches | {length(kb_matches)} |
+{if auto_fix_applied:}| Auto-Fix Applied | {all_fixes_successful ? "✅ Success" : "⚠️ Partial"} |{end if}
+{if spec_created:}| Spec Created | {spec_path} |{end if}
+
+---
+*Analyzed by faber-debugger at {now()}*
+"""
+
+  # Post comment to GitHub issue
+  TRY:
+    Skill(
+      skill="fractary-work:issue-comment",
+      args="{work_id} --body \"{comment_body}\""
+    )
+    PRINT "✅ Debug results posted to issue #{work_id}"
+  CATCH github_error:
+    WARN "⚠️  Failed to post debug results to issue #{work_id}: {github_error}"
+    WARN "   Continuing without GitHub comment - results are in terminal output above"
+    # Do NOT fail the overall operation for a GitHub posting failure
+else:
+  # No work_id provided - skip GitHub posting
+  PRINT "ℹ️  No work_id provided - skipping GitHub issue comment"
+```
+
 ### Step 10: Exit with Status Code
 
 **Goal**: Return appropriate exit code
