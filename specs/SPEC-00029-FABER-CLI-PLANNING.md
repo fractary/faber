@@ -181,7 +181,7 @@ faber plan --work-id 258,259 OR --work-label "workflow:etl,status:approved"
    a. Call Anthropic API to generate plan JSON (using workflow config + issue description)
    b. Call fractary-repo to create git branch (feature/{work_id})
    c. Call fractary-repo to create git worktree (~/.claude-worktrees/{organization}-{project}-{work_id})
-   d. Write plan JSON to worktree (.fractary/plans/{plan_id}.json)
+   d. Write plan JSON to worktree (.fractary/faber/runs/{plan_id}/plan.json)
    e. **Update GitHub issue** with plan_id (via fractary-repo):
       - Add comment: "🤖 Workflow plan created: {plan_id}"
       - Add label: "faber:planned"

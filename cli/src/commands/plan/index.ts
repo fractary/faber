@@ -18,6 +18,7 @@ import {
   validatePlanId,
 } from '../../utils/validation.js';
 import type { LoadedFaberConfig } from '../../types/config.js';
+import { getRunDir, getPlanPath } from '@fractary/faber';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -493,13 +494,10 @@ async function planSingleIssue(
     // Validate plan ID format (prevent path traversal via malicious plan IDs)
     validatePlanId(planId);
 
-    const planDir = path.join(worktreePath, '.fractary', 'plans');
-    await fs.mkdir(planDir, { recursive: true });
+    const runDir = getRunDir(planId, worktreePath);
+    await fs.mkdir(runDir, { recursive: true });
 
-    // Construct and validate path
-    const planPath = path.join(planDir, `${planId}.json`);
-    // Note: path.join automatically normalizes and prevents basic traversal,
-    // but we validate the plan ID format as an additional layer of defense
+    const planPath = getPlanPath(planId, worktreePath);
 
     await fs.writeFile(planPath, JSON.stringify(plan, null, 2));
 
@@ -599,7 +597,7 @@ function generatePlanComment(plan: WorkflowPlan, workflow: string, worktreePath:
 
   comment += `---\n\n`;
   comment += `### Plan Location\n\n`;
-  const planPath = `${worktreePath}/.fractary/plans/${planId}.json`;
+  const planPath = `${worktreePath}/.fractary/faber/runs/${planId}/plan.json`;
   comment += `| File | Path |\n`;
   comment += `|------|------|\n`;
   comment += `| Plan | \`${planPath}\` |\n\n`;

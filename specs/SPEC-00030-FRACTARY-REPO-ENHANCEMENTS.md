@@ -400,7 +400,7 @@ for (const issue of issues) {
 
   // Generate plan and write to worktree
   const plan = await generatePlan(issue, workflow);
-  await fs.writeFile(`${worktree.path}/.fractary/plans/${planId}.json`, plan);
+  await fs.writeFile(`${worktree.path}/.fractary/faber/runs/${planId}/plan.json`, plan);
 
   // Update issue with plan reference
   await repoClient.updateIssue({

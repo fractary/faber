@@ -55,7 +55,7 @@ Options:
    - Generate plan JSON via Anthropic API
    - Create git branch (`feature/{work-id}`)
    - Create git worktree (`~/.claude-worktrees/{org}-{project}-{work-id}`)
-   - Write plan to worktree (`.fractary/plans/{plan-id}.json`)
+   - Write plan to worktree (`.fractary/faber/runs/{plan-id}/plan.json`)
    - Update GitHub issue with plan ID and label
 5. Output summary with execution instructions
 
