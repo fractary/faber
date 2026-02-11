@@ -679,13 +679,10 @@ MIT License - see LICENSE file for details
 - 🚧 GitLab support (fractary-repo plugin)
 - 🚧 Bitbucket support (fractary-repo plugin)
 - 🚧 AWS S3 storage (fractary-file plugin)
-
-### v3.0 (Future)
 - 🚧 Multi-domain support (design, writing, data)
 - 🚧 Team collaboration features
 - 🚧 Workflow templates library
 - 🚧 Analytics and reporting
-- 🚧 Web UI (optional)
 
 ## Credits
 

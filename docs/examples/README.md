@@ -213,11 +213,11 @@ export LINEAR_API_KEY=lin_api_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ## Configuration
 
-Examples expect a `.fractary/faber/config.json` file. Initialize one:
+Examples expect a `.fractary/config.yaml` file. Initialize one:
 
 ```bash
 cd /path/to/your/project
-fractary-faber init --preset default
+fractary-faber config init
 ```
 
 Or the examples will create a minimal configuration automatically.

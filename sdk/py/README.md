@@ -38,7 +38,7 @@ pip install -e ".[redis]"     # Redis checkpointing
 fractary-faber workflow-run --work-id 123
 
 # Initialize configuration
-fractary-faber configure
+fractary-faber config init
 
 # Check workflow status
 fractary-faber run-inspect --work-id 123
@@ -196,7 +196,7 @@ fractary-faber workflow-run --work-id <id>
   --autonomy <level>  Autonomy level: supervised|assisted|autonomous
 
 # Initialize configuration
-fractary-faber configure
+fractary-faber config init
 
 # Check workflow status
 fractary-faber run-inspect --work-id <id>

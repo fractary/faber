@@ -9,7 +9,6 @@ Complete guide to integrating the FABER CLI into your workflows, CI/CD pipelines
 - [Common CLI Patterns](#common-cli-patterns)
   - [Work Tracking Integration](#work-tracking-integration)
   - [Repository Automation](#repository-automation)
-  - [Specification Management](#specification-management)
   - [Workflow Orchestration](#workflow-orchestration)
 - [CI/CD Integration](#cicd-integration)
 - [Programmatic CLI Usage](#programmatic-cli-usage)
@@ -45,8 +44,9 @@ Add to `package.json` scripts:
 {
   "scripts": {
     "faber": "fractary-faber",
-    "faber:run": "fractary-faber run",
-    "faber:status": "fractary-faber status"
+    "faber:plan": "fractary-faber workflow-plan",
+    "faber:run": "fractary-faber workflow-run",
+    "faber:status": "fractary-faber run-inspect"
   }
 }
 ```
@@ -64,18 +64,18 @@ npx @fractary/faber-cli --help
 ### Initialize a FABER Project
 
 ```bash
-# Interactive initialization
-fractary-faber init
+# Initialize configuration
+fractary-faber config init
 
-# Use a preset
-fractary-faber init --preset minimal
-fractary-faber init --preset enterprise
+# With options
+fractary-faber config init --autonomy guarded --default-workflow default
+
+# Set up GitHub App authentication
+fractary-faber auth setup
 ```
 
 This creates:
-- `.fractary/faber/config.json` - Main configuration
-- `.fractary/plugins/work/config.json` - Work tracking config
-- `.fractary/plugins/repo/config.json` - Repository config
+- `.fractary/config.yaml` - Unified configuration
 
 ### Get Help
 
@@ -151,11 +151,11 @@ print(f"State: {issue['state']}")
 OUTPUT=$(fractary-faber work issue create \
   --title "Fix authentication bug" \
   --body "Users cannot log in with Google OAuth" \
-  --label "bug,critical" \
+  --labels "bug,critical" \
   --json)
 
 # Extract issue number
-ISSUE_NUMBER=$(echo "$OUTPUT" | jq -r '.number')
+ISSUE_NUMBER=$(echo "$OUTPUT" | jq -r '.data.number')
 echo "Created issue #$ISSUE_NUMBER"
 
 # Add to milestone
@@ -169,7 +169,7 @@ async function createBugIssue(title: string, body: string) {
     `fractary-faber work issue create ` +
     `--title "${title}" ` +
     `--body "${body}" ` +
-    `--label "bug,critical" ` +
+    `--labels "bug,critical" ` +
     `--json`
   );
 
@@ -192,7 +192,7 @@ def create_bug_issue(title: str, body: str) -> dict:
             "fractary-faber", "work", "issue", "create",
             "--title", title,
             "--body", body,
-            "--label", "bug,critical",
+            "--labels", "bug,critical",
             "--json"
         ],
         capture_output=True,
@@ -219,14 +219,14 @@ def create_bug_issue(title: str, body: str) -> dict:
 
 ```bash
 # Find all open bugs
-fractary-faber work issue search "bug" \
+fractary-faber work issue search --query "bug" \
   --state open \
-  --label bug \
+  --labels bug \
   --json
 
-# Find issues assigned to user
-fractary-faber work issue search "" \
-  --assignee alice \
+# Find issues by label
+fractary-faber work issue search --query "" \
+  --labels "assigned:alice" \
   --state open \
   --json
 ```
@@ -247,11 +247,11 @@ ISSUE=$(fractary-faber work issue fetch "$ISSUE_NUMBER" --json)
 TITLE=$(echo "$ISSUE" | jq -r '.title')
 
 # Create branch
-BRANCH_NAME=$(fractary-faber repo branch create \
-  --work-id "$ISSUE_NUMBER" \
-  --type "$WORK_TYPE" \
-  --description "$TITLE" \
-  --json | jq -r '.name')
+BRANCH_NAME="feature/${ISSUE_NUMBER}-$(echo "$TITLE" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')"
+fractary-faber repo branch create "$BRANCH_NAME" \
+  --base main \
+  --checkout \
+  --json
 
 echo "Created branch: $BRANCH_NAME"
 
@@ -259,7 +259,8 @@ echo "Created branch: $BRANCH_NAME"
 # (Your code changes here)
 
 # Commit and push
-fractary-faber repo commit "feat: ${TITLE}" \
+fractary-faber repo commit \
+  --message "feat: ${TITLE}" \
   --type feat \
   --work-id "$ISSUE_NUMBER"
 
@@ -268,8 +269,7 @@ fractary-faber repo push --set-upstream
 # Create PR
 fractary-faber repo pr create \
   --title "feat: ${TITLE}" \
-  --body "Resolves #${ISSUE_NUMBER}" \
-  --work-id "$ISSUE_NUMBER"
+  --body "Resolves #${ISSUE_NUMBER}"
 ```
 
 **TypeScript:**
@@ -282,11 +282,11 @@ async function createFeatureBranch(issueNumber: number) {
   const issue = JSON.parse(issueJson);
 
   // Create branch
+  const branchName = `feature/${issueNumber}-${issue.title.toLowerCase().replace(/ /g, '-')}`;
   const { stdout: branchJson } = await execAsync(
-    `fractary-faber repo branch create ` +
-    `--work-id ${issueNumber} ` +
-    `--type feature ` +
-    `--description "${issue.title}" ` +
+    `fractary-faber repo branch create "${branchName}" ` +
+    `--base main ` +
+    `--checkout ` +
     `--json`
   );
   const branch = JSON.parse(branchJson);
@@ -298,7 +298,8 @@ async function createFeatureBranch(issueNumber: number) {
 async function commitAndCreatePR(issueNumber: number, message: string) {
   // Commit
   await execAsync(
-    `fractary-faber repo commit "${message}" ` +
+    `fractary-faber repo commit ` +
+    `--message "${message}" ` +
     `--type feat ` +
     `--work-id ${issueNumber}`
   );
@@ -311,7 +312,6 @@ async function commitAndCreatePR(issueNumber: number, message: string) {
     `fractary-faber repo pr create ` +
     `--title "feat: ${message}" ` +
     `--body "Resolves #${issueNumber}" ` +
-    `--work-id ${issueNumber} ` +
     `--json`
   );
 
@@ -332,12 +332,13 @@ def create_feature_branch(issue_number: int) -> dict:
     issue = json.loads(issue_result.stdout)
 
     # Create branch
+    branch_name = f"feature/{issue_number}-{issue['title'].lower().replace(' ', '-')}"
     branch_result = subprocess.run(
         [
             "fractary-faber", "repo", "branch", "create",
-            "--work-id", str(issue_number),
-            "--type", "feature",
-            "--description", issue["title"],
+            branch_name,
+            "--base", "main",
+            "--checkout",
             "--json"
         ],
         capture_output=True,
@@ -353,7 +354,8 @@ def commit_and_create_pr(issue_number: int, message: str) -> dict:
     # Commit
     subprocess.run(
         [
-            "fractary-faber", "repo", "commit", message,
+            "fractary-faber", "repo", "commit",
+            "--message", message,
             "--type", "feat",
             "--work-id", str(issue_number)
         ],
@@ -372,7 +374,6 @@ def commit_and_create_pr(issue_number: int, message: str) -> dict:
             "fractary-faber", "repo", "pr", "create",
             "--title", f"feat: {message}",
             "--body", f"Resolves #{issue_number}",
-            "--work-id", str(issue_number),
             "--json"
         ],
         capture_output=True,
@@ -392,7 +393,7 @@ def commit_and_create_pr(issue_number: int, message: str) -> dict:
 PR_NUMBER=$1
 
 # Review PR
-fractary-faber repo pr review "$PR_NUMBER" --action analyze
+fractary-faber repo pr review "$PR_NUMBER" --approve
 
 # If approved, merge
 read -p "Merge this PR? (y/n) " -n 1 -r
@@ -405,90 +406,6 @@ then
 fi
 ```
 
-### Specification Management
-
-#### Create and Validate Spec
-
-**Bash:**
-```bash
-#!/bin/bash
-
-# Create spec from issue
-SPEC_ID=$(fractary-faber spec create \
-  "Add authentication" \
-  --template feature \
-  --work-id 123 \
-  --json | jq -r '.id')
-
-echo "Created spec: $SPEC_ID"
-
-# Validate spec
-fractary-faber spec validate "$SPEC_ID"
-
-# Refine if needed
-fractary-faber spec refine "$SPEC_ID"
-```
-
-**TypeScript:**
-```typescript
-async function createAndValidateSpec(
-  title: string,
-  workId: number
-): Promise<{ id: string; valid: boolean }> {
-  // Create spec
-  const { stdout: specJson } = await execAsync(
-    `fractary-faber spec create "${title}" ` +
-    `--template feature ` +
-    `--work-id ${workId} ` +
-    `--json`
-  );
-  const spec = JSON.parse(specJson);
-
-  // Validate
-  const { stdout: validationJson } = await execAsync(
-    `fractary-faber spec validate ${spec.id} --json`
-  );
-  const validation = JSON.parse(validationJson);
-
-  return {
-    id: spec.id,
-    valid: validation.status === 'pass'
-  };
-}
-```
-
-**Python:**
-```python
-def create_and_validate_spec(title: str, work_id: int) -> dict:
-    # Create spec
-    spec_result = subprocess.run(
-        [
-            "fractary-faber", "spec", "create", title,
-            "--template", "feature",
-            "--work-id", str(work_id),
-            "--json"
-        ],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-    spec = json.loads(spec_result.stdout)
-
-    # Validate
-    validation_result = subprocess.run(
-        ["fractary-faber", "spec", "validate", spec["id"], "--json"],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-    validation = json.loads(validation_result.stdout)
-
-    return {
-        "id": spec["id"],
-        "valid": validation["status"] == "pass"
-    }
-```
-
 ### Workflow Orchestration
 
 #### Run Complete Workflow
@@ -498,24 +415,24 @@ def create_and_validate_spec(title: str, work_id: int) -> dict:
 #!/bin/bash
 
 WORK_ID=$1
-AUTONOMY="${2:-assisted}"
+AUTONOMY="${2:-supervised}"
 
 # Run workflow
-fractary-faber run --work-id "$WORK_ID" --autonomy "$AUTONOMY"
+fractary-faber workflow-run --work-id "$WORK_ID" --autonomy "$AUTONOMY"
 
 # Check status
-fractary-faber status --work-id "$WORK_ID"
+fractary-faber run-inspect --work-id "$WORK_ID"
 ```
 
 **TypeScript:**
 ```typescript
 async function runWorkflow(
   workId: string,
-  autonomy: 'dry-run' | 'assisted' | 'guarded' | 'autonomous' = 'assisted'
+  autonomy: 'supervised' | 'assisted' | 'autonomous' = 'supervised'
 ) {
   try {
     const { stdout } = await execAsync(
-      `fractary-faber run --work-id ${workId} --autonomy ${autonomy} --json`
+      `fractary-faber workflow-run --work-id ${workId} --autonomy ${autonomy} --json`
     );
     return JSON.parse(stdout);
   } catch (error) {
@@ -523,7 +440,7 @@ async function runWorkflow(
 
     // Get status for debugging
     const { stdout: statusJson } = await execAsync(
-      `fractary-faber status --work-id ${workId} --json`
+      `fractary-faber run-inspect --work-id ${workId} --json`
     );
     const status = JSON.parse(statusJson);
     console.error('Workflow status:', status);
@@ -535,11 +452,11 @@ async function runWorkflow(
 
 **Python:**
 ```python
-def run_workflow(work_id: str, autonomy: str = "assisted") -> dict:
+def run_workflow(work_id: str, autonomy: str = "supervised") -> dict:
     try:
         result = subprocess.run(
             [
-                "fractary-faber", "run",
+                "fractary-faber", "workflow-run",
                 "--work-id", work_id,
                 "--autonomy", autonomy,
                 "--json"
@@ -554,7 +471,7 @@ def run_workflow(work_id: str, autonomy: str = "assisted") -> dict:
 
         # Get status for debugging
         status_result = subprocess.run(
-            ["fractary-faber", "status", "--work-id", work_id, "--json"],
+            ["fractary-faber", "run-inspect", "--work-id", work_id, "--json"],
             capture_output=True,
             text=True
         )
@@ -594,15 +511,15 @@ jobs:
         run: npm install -g @fractary/faber-cli
 
       - name: Initialize FABER
-        run: fractary-faber init --preset enterprise --yes
+        run: fractary-faber config init --autonomy guarded
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run FABER Workflow
         run: |
-          fractary-faber run \
+          fractary-faber workflow-run \
             --work-id ${{ github.event.issue.number }} \
-            --autonomy guarded
+            --autonomy supervised
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -626,8 +543,8 @@ faber-workflow:
         - automated
   script:
     - npm install -g @fractary/faber-cli
-    - fractary-faber init --preset enterprise --yes
-    - fractary-faber run --work-id $CI_MERGE_REQUEST_IID --autonomy guarded
+    - fractary-faber config init --autonomy guarded
+    - fractary-faber workflow-run --work-id $CI_MERGE_REQUEST_IID --autonomy supervised
   variables:
     GITLAB_TOKEN: $CI_JOB_TOKEN
 ```
@@ -656,7 +573,7 @@ pipeline {
 
         stage('Initialize') {
             steps {
-                sh 'fractary-faber init --preset enterprise --yes'
+                sh 'fractary-faber config init --autonomy guarded'
             }
         }
 
@@ -665,7 +582,7 @@ pipeline {
                 script {
                     def result = sh(
                         script: """
-                            fractary-faber run \
+                            fractary-faber workflow-run \
                                 --work-id ${params.ISSUE_NUMBER} \
                                 --autonomy ${params.AUTONOMY} \
                                 --json
@@ -682,7 +599,7 @@ pipeline {
     post {
         always {
             sh """
-                fractary-faber status --work-id ${params.ISSUE_NUMBER} || true
+                fractary-faber run-inspect --work-id ${params.ISSUE_NUMBER} || true
             """
         }
     }
@@ -723,9 +640,9 @@ class FaberCLI {
     });
   }
 
-  async runWorkflow(workId: string, autonomy: string = 'assisted') {
+  async runWorkflow(workId: string, autonomy: string = 'supervised') {
     const output = await this.execute([
-      'run',
+      'workflow-run',
       '--work-id', workId,
       '--autonomy', autonomy,
       '--json'
@@ -768,10 +685,10 @@ class FaberCLI:
     def run_workflow(
         self,
         work_id: str,
-        autonomy: str = "assisted"
+        autonomy: str = "supervised"
     ) -> Dict:
         output = self.execute([
-            "run",
+            "workflow-run",
             "--work-id", work_id,
             "--autonomy", autonomy,
             "--json"
@@ -812,29 +729,27 @@ export LINEAR_API_KEY=<key>
 
 ### Configuration File
 
-`.fractary/faber/config.json`:
+`.fractary/config.yaml`:
 
-```json
-{
-  "version": "1.0.0",
-  "preset": "default",
-  "work": {
-    "provider": "github"
-  },
-  "repo": {
-    "provider": "github",
-    "defaultBranch": "main"
-  },
-  "spec": {
-    "directory": ".fractary/faber/specs"
-  },
-  "workflow": {
-    "defaultAutonomy": "guarded",
-    "phases": ["frame", "architect", "build", "evaluate", "release"],
-    "checkpoints": true
-  }
-}
+```yaml
+version: "2.0"
+github:
+  organization: your-org
+  project: your-repo
+  app:
+    id: "12345"
+    installation_id: "67890"
+    private_key_path: ~/.github/faber-your-org.pem
+faber:
+  workflows:
+    path: .fractary/faber/workflows
+    default: default
+    autonomy: guarded
+  runs:
+    path: .fractary/faber/runs
 ```
+
+See [Configuration Guide](./configuration.md) for full details.
 
 ---
 
@@ -847,14 +762,14 @@ export LINEAR_API_KEY=<key>
 async function safeRunWorkflow(workId: string) {
   try {
     const { stdout } = await execAsync(
-      `fractary-faber run --work-id ${workId} --json`
+      `fractary-faber workflow-run --work-id ${workId} --json`
     );
     return JSON.parse(stdout);
   } catch (error) {
     if (error.code === 'ENOENT') {
       console.error('FABER CLI not installed');
     } else if (error.stderr?.includes('ConfigurationError')) {
-      console.error('Configuration error - run fractary-faber init');
+      console.error('Configuration error - run fractary-faber config init');
     } else {
       console.error('Workflow failed:', error.stderr);
     }
@@ -868,7 +783,7 @@ async function safeRunWorkflow(workId: string) {
 def safe_run_workflow(work_id: str) -> Optional[dict]:
     try:
         result = subprocess.run(
-            ["fractary-faber", "run", "--work-id", work_id, "--json"],
+            ["fractary-faber", "workflow-run", "--work-id", work_id, "--json"],
             capture_output=True,
             text=True,
             check=True
@@ -879,7 +794,7 @@ def safe_run_workflow(work_id: str) -> Optional[dict]:
         return None
     except subprocess.CalledProcessError as e:
         if "ConfigurationError" in e.stderr:
-            print("Configuration error - run fractary-faber init")
+            print("Configuration error - run fractary-faber config init")
         else:
             print(f"Workflow failed: {e.stderr}")
         return None
@@ -904,11 +819,11 @@ fractary-faber work issue fetch 123
 ```bash
 #!/bin/bash
 
-if fractary-faber spec validate SPEC-001; then
-  echo "Spec is valid"
-  fractary-faber run --work-id 123
+if fractary-faber config validate; then
+  echo "Config is valid"
+  fractary-faber workflow-run --work-id 123
 else
-  echo "Spec validation failed"
+  echo "Config validation failed"
   exit 1
 fi
 ```
@@ -918,22 +833,11 @@ fi
 Instead of passing flags every time:
 
 ```bash
-# Create reusable configuration
-cat > .fractary/faber/config.json <<EOF
-{
-  "workflow": {
-    "defaultAutonomy": "guarded",
-    "phases": {
-      "evaluate": {
-        "maxRetries": 3
-      }
-    }
-  }
-}
-EOF
+# Set configuration values
+fractary-faber config set faber.workflows.autonomy guarded
 
 # Now run without specifying options
-fractary-faber run --work-id 123
+fractary-faber workflow-run --work-id 123
 ```
 
 ### 4. Log CLI Output for Debugging
@@ -944,7 +848,7 @@ import * as fs from 'fs';
 async function runWithLogging(workId: string) {
   const logFile = `logs/workflow-${workId}.log`;
 
-  const proc = spawn('fractary-faber', ['run', '--work-id', workId]);
+  const proc = spawn('fractary-faber', ['workflow-run', '--work-id', workId]);
   const logStream = fs.createWriteStream(logFile);
 
   proc.stdout.pipe(logStream);
@@ -968,7 +872,7 @@ from timeout_decorator import timeout
 @timeout(600)  # 10 minute timeout
 def run_workflow_with_timeout(work_id: str):
     return subprocess.run(
-        ["fractary-faber", "run", "--work-id", work_id],
+        ["fractary-faber", "workflow-run", "--work-id", work_id],
         check=True
     )
 ```
@@ -977,7 +881,6 @@ def run_workflow_with_timeout(work_id: str):
 
 ## See Also
 
+- [CLI Reference](../public/cli.md) - Complete CLI command reference
 - [API Reference](./api-reference.md) - Complete SDK API documentation
 - [Configuration Guide](./configuration.md) - Configuration options
-- [Troubleshooting Guide](./troubleshooting.md) - Common CLI issues
-- [CLI README](/cli/README.md) - CLI command reference

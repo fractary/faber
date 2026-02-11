@@ -88,7 +88,7 @@ WorkManager(config: Optional[WorkConfig] = None)
 ```
 
 **Parameters:**
-- `config` (optional): Work configuration. If omitted, loads from `.fractary/plugins/work/config.json`
+- `config` (optional): Work configuration. If omitted, loads from `.fractary/config.yaml`
 
 **Example:**
 

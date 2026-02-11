@@ -52,7 +52,6 @@ See [GitHub App Setup Guide](../docs/github-app-setup.md) for detailed manual in
 ### 3. Initialize a FABER project
 
 ```bash
-fractary-faber configure
 fractary-faber config init
 fractary-faber config init --autonomy guarded
 ```

@@ -43,7 +43,7 @@ new WorkManager(config?: WorkConfig)
 ```
 
 **Parameters:**
-- `config` (optional): Work configuration. If omitted, loads from `.fractary/plugins/work/config.json`
+- `config` (optional): Work configuration. If omitted, loads from `.fractary/config.yaml`
 
 ### Methods
 
