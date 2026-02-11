@@ -140,13 +140,31 @@ EOF
         ;;
 esac
 
-# Update state
-echo "$CURRENT_STATE" | jq \
+# Compute proposed state
+PROPOSED_STATE=$(echo "$CURRENT_STATE" | jq \
     --arg phase "$PHASE" \
     --arg status "$STATUS" \
     --arg timestamp "$TIMESTAMP" \
     --argjson data "$DATA_JSON" \
-    "$UPDATE_EXPR" | \
-    "$SCRIPT_DIR/state-write.sh" "$STATE_FILE"
+    "$UPDATE_EXPR")
+
+# Validate state transition before writing
+FABER_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+VALIDATE_SCRIPT="$FABER_ROOT/skills/run-manager/scripts/validate-state-transition.sh"
+
+if [[ -x "$VALIDATE_SCRIPT" ]]; then
+    VALIDATION_RESULT=$("$VALIDATE_SCRIPT" --current "$STATE_FILE" --proposed-json "$PROPOSED_STATE" 2>/dev/null) || true
+    VALIDATION_STATUS=$(echo "$VALIDATION_RESULT" | jq -r '.status // "error"' 2>/dev/null)
+
+    if [[ "$VALIDATION_STATUS" == "invalid" ]]; then
+        VIOLATIONS=$(echo "$VALIDATION_RESULT" | jq -r '.violations[]' 2>/dev/null)
+        echo "Error: State transition validation failed:" >&2
+        echo "$VIOLATIONS" >&2
+        exit 1
+    fi
+fi
+
+# Write validated state
+echo "$PROPOSED_STATE" | "$SCRIPT_DIR/state-write.sh" "$STATE_FILE"
 
 exit 0

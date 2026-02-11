@@ -3,7 +3,7 @@ name: fractary-faber:workflow-run
 description: Execute a FABER plan created by faber plan CLI command
 argument-hint: '<work-id|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new]'
 allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
-model: claude-opus-4-6
+model: claude-sonnet-4-5
 ---
 
 # FABER Workflow Run Command
@@ -23,10 +23,39 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 3. **MAINTAIN STATE** - Update state file BEFORE and AFTER every step. State is sacred.
 4. **EXECUTE GUARDS** - All guards are mandatory. Never skip them.
 5. **USE TODOWRITE** - Track progress with TodoWrite for all steps.
-6. **EMIT EVENTS** - Every significant action emits an event for audit trail.
+6. **EMIT EVENTS** - Every significant action emits an event for audit trail. Events BEFORE state.
 7. **HANDLE ERRORS GRACEFULLY** - Use retry logic when configured, stop when appropriate.
 8. **RESPECT AUTONOMY GATES** - Get user approval when required.
+9. **NEVER FABRICATE COMPLETIONS** - See "When You Cannot Continue" section below.
 </CRITICAL_RULES>
+
+<WHEN_YOU_CANNOT_CONTINUE>
+## When You Cannot Continue
+
+If you reach a point where you cannot execute the next step for ANY reason
+(context limits, missing credentials, external system unavailable, tool failures, etc.):
+
+1. Set `state.status = "paused"` with honest `pause_reason`
+2. Post an honest status comment to the GitHub issue
+3. Tell the user exactly what was completed and what remains
+4. Provide the resume command: `/fractary-faber:workflow-run <work-id> --resume <run-id>`
+
+**NEVER:**
+- Mark unexecuted steps as "success"
+- Write fabricated metrics or timings
+- Post false completion comments
+- Batch-complete remaining tasks
+
+This rule is **ABSOLUTE**. There are no exceptions. Fabricating completion
+is worse than any other failure mode because it destroys trust in the
+entire system. An honest pause is always the right answer.
+
+**Completion Verification Gate:** Before setting `status: "completed"`, you MUST run:
+```bash
+bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh --run-id "$RUN_ID"
+```
+If it returns `status: "fail"`, DO NOT mark the workflow as completed. Pause and report failures.
+</WHEN_YOU_CANNOT_CONTINUE>
 
 <INPUTS>
 

@@ -72,39 +72,13 @@ For each step in the workflow plan, follow this exact sequence:
 
 ### BEFORE Step Execution
 
+**CRITICAL: Events MUST be emitted BEFORE state is updated.**
+The immutable event log is the leading record. State references event IDs.
+
 ```javascript
-// 1. Update TodoWrite to show step in progress
-await TodoWrite({
-  todos: [
-    ...otherTodos,
-    {
-      content: step.name,
-      status: "in_progress",
-      activeForm: `Executing: ${step.name}`
-    }
-  ]
-});
-
-// 2. Update state file to mark step as current
-const currentState = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
-await Write({
-  file_path: `${getStatePath(runId)}`,
-  content: JSON.stringify({
-    ...currentState,
-    current_step: step.step_id,
-    current_phase: step.phase,
-    phases: currentState.phases.map(p =>
-      p.name === step.phase
-        ? { ...p, status: "in_progress" }
-        : p
-    ),
-    updated_at: new Date().toISOString()
-  }, null, 2)
-});
-
-// 3. Emit step_start event
+// 1. Emit step_start event FIRST (immutable, returns event_id)
 await MCPSearch({ query: "select:fractary_faber_event_emit" });
-await fractary_faber_event_emit({
+const startEventResult = await fractary_faber_event_emit({
   run_id: runId,
   type: "step_start",
   phase: step.phase,
@@ -114,6 +88,37 @@ await fractary_faber_event_emit({
     description: step.description,
     prompt: step.prompt
   }
+});
+// startEventResult contains the event_id
+
+// 2. Update state file to mark step as current (references event_id)
+const currentState = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
+await Write({
+  file_path: `${getStatePath(runId)}`,
+  content: JSON.stringify({
+    ...currentState,
+    current_step: step.step_id,
+    current_step_id: step.step_id,
+    current_phase: step.phase,
+    phases: currentState.phases.map(p =>
+      p.name === step.phase
+        ? { ...p, status: "in_progress", current_step_id: step.step_id }
+        : p
+    ),
+    updated_at: new Date().toISOString()
+  }, null, 2)
+});
+
+// 3. Update TodoWrite to show step in progress
+await TodoWrite({
+  todos: [
+    ...otherTodos,
+    {
+      content: step.name,
+      status: "in_progress",
+      activeForm: `Executing: ${step.name}`
+    }
+  ]
 });
 
 // 4. Execute applicable guards
@@ -306,6 +311,9 @@ This ensures that base workflow context provides foundation while project-specif
 
 ### AFTER Step Execution
 
+**CRITICAL: Events MUST be emitted BEFORE state is updated.**
+The immutable event log is the leading record. State references event IDs.
+
 ```javascript
 // 1. Evaluate the step result
 const result = evaluateStepResult(step);
@@ -319,7 +327,20 @@ const handling = step.result_handling || {
   on_pending_input: "pause"
 };
 
-// 3. Update state with result
+// 3. Emit step_complete event FIRST (immutable, returns event_id)
+const completeEventResult = await fractary_faber_event_emit({
+  run_id: runId,
+  type: "step_complete",
+  phase: step.phase,
+  step_id: step.step_id,
+  metadata: {
+    status: result.status,
+    message: result.message
+  }
+});
+// completeEventResult contains the event_id
+
+// 4. Update state with result (references event_id from step 3)
 const updatedState = {
   ...currentState,
   steps: [
@@ -330,6 +351,7 @@ const updatedState = {
       status: result.status,
       message: result.message,
       error: result.error,
+      event_id: completeEventResult.event_id,  // Cross-reference to immutable event
       completed_at: new Date().toISOString()
     }
   ],
@@ -339,18 +361,6 @@ const updatedState = {
 await Write({
   file_path: `${getStatePath(runId)}`,
   content: JSON.stringify(updatedState, null, 2)
-});
-
-// 4. Emit step_complete event
-await fractary_faber_event_emit({
-  run_id: runId,
-  type: "step_complete",
-  phase: step.phase,
-  step_id: step.step_id,
-  metadata: {
-    status: result.status,
-    message: result.message
-  }
 });
 
 // 5. Update TodoWrite to mark step complete
@@ -438,15 +448,19 @@ interface WorkflowState {
     retry_count?: number;
   }>;
 
-  // Step execution history
+  // Step execution history (each entry MUST reference its event_id)
   steps: Array<{
     step_id: string;
     phase: string;
     status: "success" | "warning" | "failure" | "pending_input";
     message: string;
     error?: any;
-    completed_at: string; // ISO 8601
+    event_id: number;       // Cross-reference to immutable event log
+    completed_at: string;   // ISO 8601
   }>;
+
+  // Last event ID for cross-validation with event log
+  last_event_id: number;
 
   // Context
   work_id: string;
@@ -1258,17 +1272,64 @@ if (phase.retry_count >= phase.max_retries) {
 
 ## Workflow Completion
 
+### MANDATORY: Completion Verification Gate
+
+**Before marking ANY workflow as "completed", you MUST run the completion verification script.** This is not optional. The script cross-validates state claims against the immutable event log, verifies all phases are complete, and checks step counts against the plan.
+
+```bash
+# REQUIRED before setting status: "completed"
+bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh \
+  --run-id "$RUN_ID" \
+  --base-path ".fractary/faber/runs"
+```
+
+**If the script returns `status: "fail"` or exits non-zero, you MUST NOT mark the workflow as completed.** Instead:
+1. Read the `checks` array in the output to understand what failed
+2. If `event_state_integrity` failed: there are step claims without backing events — this indicates fabrication or a protocol violation
+3. If `phases_complete` failed: not all phases are done — continue execution or pause
+4. If `step_count` failed: claimed steps don't match expected — investigate discrepancies
+5. If `workflow_complete_event` failed: the completion event hasn't been emitted yet
+
+Only proceed with the completion sequence below after the verification passes.
+
 ### Successful Completion
 
 ```javascript
 async function handleWorkflowCompletion(runId) {
   const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
 
-  // Update state to completed
+  // STEP 1: Run completion verification (MANDATORY)
+  const verifyResult = await Bash({
+    command: `bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh --run-id "${runId}" --base-path ".fractary/faber/runs"`
+  });
+  const verification = JSON.parse(verifyResult.stdout);
+  if (verification.status !== "pass") {
+    console.error("Completion verification FAILED:", JSON.stringify(verification, null, 2));
+    // DO NOT proceed — pause workflow instead
+    return handleWorkflowPause(runId, "Completion verification failed: " + verification.summary);
+  }
+
+  // STEP 2: Emit workflow_complete event FIRST (event-before-state)
+  const durationSeconds = Math.floor(
+    (Date.now() - new Date(state.started_at).getTime()) / 1000
+  );
+
+  const eventResult = await fractary_faber_event_emit({
+    run_id: runId,
+    type: "workflow_complete",
+    metadata: {
+      duration_seconds: durationSeconds,
+      phases_completed: Object.values(state.phases).filter(p => p.status === "completed").length,
+      total_phases: Object.keys(state.phases).length
+    }
+  });
+
+  // STEP 3: Update state to completed (with event_id reference)
   const completedState = {
     ...state,
     status: "completed",
-    completed_at: new Date().toISOString()
+    completed_at: new Date().toISOString(),
+    last_event_id: eventResult.event_id
   };
 
   await Write({
@@ -1276,26 +1337,10 @@ async function handleWorkflowCompletion(runId) {
     content: JSON.stringify(completedState, null, 2)
   });
 
-  // Emit completion event
-  const durationSeconds = Math.floor(
-    (new Date(completedState.completed_at).getTime() -
-     new Date(completedState.started_at).getTime()) / 1000
-  );
-
-  await fractary_faber_event_emit({
-    run_id: runId,
-    type: "workflow_complete",
-    metadata: {
-      duration_seconds: durationSeconds,
-      phases_completed: state.phases.filter(p => p.status === "completed").length,
-      total_phases: state.phases.length
-    }
-  });
-
   // Report success to user
   console.log("\n✓ Workflow completed successfully!");
   console.log(`Total duration: ${durationSeconds}s`);
-  console.log(`Phases completed: ${state.phases.filter(p => p.status === "completed").length}/${state.phases.length}`);
+  console.log(`Phases completed: ${Object.values(state.phases).filter(p => p.status === "completed").length}/${Object.keys(state.phases).length}`);
 }
 ```
 
@@ -1388,6 +1433,44 @@ await TodoWrite({
   )
 });
 ```
+
+---
+
+## Honest Pause Protocol
+
+### CRITICAL: When You Cannot Continue
+
+If you reach a point where you cannot execute the next step for ANY reason (context limits, missing credentials, external system unavailable, tool failures, etc.):
+
+1. **Set state.status = "paused"**
+2. **Set pause_reason** with an honest explanation of why you cannot continue
+3. **Post an honest status comment** to the GitHub issue explaining exactly where things stand
+4. **Tell the user exactly where things stand** — what was completed, what remains
+5. **Provide the resume command**: `/fractary-faber:workflow-run <work-id> --resume <run-id>`
+
+### ABSOLUTE PROHIBITION ON FABRICATION
+
+**NEVER do any of the following:**
+- Mark unexecuted steps as "success" or "completed"
+- Write fabricated metrics, timings, or quality scores
+- Post false completion comments to GitHub issues
+- Batch-complete remaining tasks when unable to execute them individually
+- Claim phases were completed when they were not executed
+- Generate fake deliverables, artifacts, or validation results
+
+**This rule is ABSOLUTE. There are no exceptions.**
+
+Fabricating completion is the **worst possible failure mode** because it destroys trust in the entire system. An honest "paused at step 17 of 35" is infinitely better than a false "completed all 35 steps."
+
+### Why This Matters
+
+In production workflows, downstream systems and humans rely on state claims being truthful. A false "completed" means:
+- Users believe work was done when it wasn't
+- Downstream workflows proceed on false assumptions
+- Effort is wasted investigating what went wrong later
+- Trust in the entire automation system is damaged
+
+**When in doubt: PAUSE. Never fabricate.**
 
 ---
 
