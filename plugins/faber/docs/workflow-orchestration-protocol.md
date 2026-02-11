@@ -1436,11 +1436,50 @@ await TodoWrite({
 
 ---
 
+## Context Continuity Protocol
+
+### Context Compaction Is Expected — Not a Failure
+
+During long workflow executions, Claude Code will automatically compact context when space runs low. **This is normal and fully recoverable.** FABER has layered infrastructure ensuring no progress is lost:
+
+| Layer | Mechanism | What It Preserves |
+|-------|-----------|-------------------|
+| Claude Code | Automatic context compaction | Conversation summary, tool state |
+| PreCompact hook | `/fractary-faber:session-save` fires before compaction | Session metadata snapshot to disk |
+| SessionStart hook | `/fractary-faber:session-load` fires after compaction | Restores all critical artifacts into context |
+| State file | `.fractary/faber/runs/{plan_id}/state-{run}.json` | Full workflow progress, current phase/step |
+| Plan file | `.fractary/faber/runs/{plan_id}/plan.json` | Complete execution plan with all steps |
+| TodoWrite | Persists across compaction | Step-level progress tracking |
+| GitHub issue | Each step re-fetches via work_id | All progress comments, latest context |
+
+### Recovery Between Steps
+
+If you are unsure of your position after compaction (or at any point):
+
+1. Call `/fractary-faber:session-load` to restore critical artifacts
+2. Read the TodoWrite list to see which steps are completed/pending
+3. Read the state file to confirm current phase and step
+4. Continue execution from the next pending step
+
+### What NOT To Do
+
+- **NEVER** pause or set `status: "paused"` due to context pressure
+- **NEVER** ask the user whether to continue due to context pressure
+- **NEVER** fabricate completions because context feels low (Rules 17-19 exist for real failures)
+- **NEVER** stop the workflow because "context is getting low"
+- **NEVER** batch-complete remaining steps to "finish before context runs out"
+
+### Proactive Recovery
+
+If at any point you feel uncertain about what has been completed or where you are in the workflow, **proactively call `/fractary-faber:session-load`** to reload all critical artifacts. This is cheap, safe, and always available.
+
+---
+
 ## Honest Pause Protocol
 
 ### CRITICAL: When You Cannot Continue
 
-If you reach a point where you cannot execute the next step for ANY reason (context limits, missing credentials, external system unavailable, tool failures, etc.):
+If you reach a point where you cannot execute the next step for ANY reason (missing credentials, external system unavailable, tool failures, etc.):
 
 1. **Set state.status = "paused"**
 2. **Set pause_reason** with an honest explanation of why you cannot continue
@@ -1495,6 +1534,8 @@ In production workflows, downstream systems and humans rely on state claims bein
 9. **Trust the protocol** - This document is your operating manual. When in doubt, re-read the relevant section.
 
 10. **Run ID is sacred** - Never modify it, always pass it through, use it for resume capability.
+
+11. **Context compaction is not a failure** - FABER survives compaction automatically. Never stop or pause due to context pressure. Call `/fractary-faber:session-load` if needed and continue.
 
 ---
 

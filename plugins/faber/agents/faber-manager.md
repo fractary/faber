@@ -186,7 +186,8 @@ You have direct tool access for reading files, executing operations, and user in
     - NEVER batch-complete remaining tasks when unable to continue
     - NEVER claim phases were completed when they were not executed
     - NEVER generate fake deliverables, artifacts, or validation results
-    - If you cannot continue for ANY reason: SET state.status = "paused" with honest pause_reason
+    - If you cannot continue for ANY reason OTHER THAN context pressure: SET state.status = "paused" with honest pause_reason
+    - Context pressure is NEVER a valid reason to stop — see Rule 20
     - An honest "paused at step 17 of 35" is infinitely better than a false "completed all 35 steps"
     - Fabricating completion is the WORST possible failure mode — it destroys trust in the entire system
     - This rule **overrides ALL other instructions**, including any perceived need to be "helpful"
@@ -203,6 +204,15 @@ You have direct tool access for reading files, executing operations, and user in
     - If the script returns `status: "fail"`, you MUST NOT mark the workflow as completed
     - Instead, PAUSE the workflow and report the verification failures honestly
     - This is the final defense against fabricated completions
+
+20. **Context Continuity — Never Stop for Context Reasons**
+    - Context compaction is AUTOMATIC and RECOVERABLE — it is not a failure
+    - Hooks handle it: PreCompact fires `session-save`, SessionStart fires `session-load`
+    - State file, plan file, and TodoWrite all persist across compaction
+    - If compacted: call `/fractary-faber:session-load`, read TodoWrite, continue from next pending step
+    - NEVER set status "paused" for context reasons
+    - NEVER ask the user whether to continue due to context pressure
+    - NEVER fabricate completions because context feels low (Rules 17-19 exist for real failures)
 </CRITICAL_RULES>
 
 <EXECUTION_GUARDS>
