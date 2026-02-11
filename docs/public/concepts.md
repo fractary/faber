@@ -379,50 +379,43 @@ const result = await faber.run({ workId: '123' });
 
 ## Configuration
 
-### File Locations
+FABER uses a unified YAML configuration file at `.fractary/config.yaml`.
+
+### Directory Structure
 
 ```
 .fractary/
-└── plugins/
-    ├── work/
-    │   └── config.json      # Work tracking config
-    ├── repo/
-    │   └── config.json      # Repository config
-    ├── spec/
-    │   └── config.json      # Specification config
-    ├── logs/
-    │   └── config.json      # Logging config
-    └── state/
-        └── config.json      # State management config
+├── config.yaml              # Unified configuration (GitHub, Anthropic, FABER)
+└── faber/
+    ├── workflows/           # Workflow definitions
+    │   ├── workflows.yaml   # Workflow manifest
+    │   └── default.yaml     # Default workflow config
+    └── runs/                # Run artifacts
 ```
 
-### Work Configuration
+### Example Configuration
 
-```json
-{
-  "platform": "github",
-  "owner": "your-org",
-  "repo": "your-repo"
-}
+```yaml
+version: "2.0"
+github:
+  organization: your-org
+  project: your-repo
+  app:
+    id: "12345"
+    installation_id: "67890"
+    private_key_path: ~/.github/faber-your-org.pem
+anthropic:
+  api_key: ${ANTHROPIC_API_KEY}
+faber:
+  workflows:
+    path: .fractary/faber/workflows
+    default: default
+    autonomy: guarded
+  runs:
+    path: .fractary/faber/runs
 ```
 
-### Repo Configuration
-
-```json
-{
-  "platform": "github",
-  "owner": "your-org",
-  "repo": "your-repo",
-  "defaultBranch": "main",
-  "protectedBranches": ["main", "develop"],
-  "branchPrefixes": {
-    "feature": "feature/",
-    "fix": "fix/",
-    "chore": "chore/",
-    "hotfix": "hotfix/"
-  }
-}
-```
+See [Configuration Guide](../guides/configuration.md) for full details.
 
 ## Event System
 

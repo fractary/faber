@@ -100,7 +100,7 @@ import type {
 
 ### Auto-Discovery
 
-Managers automatically discover configuration from `.fractary/plugins/{module}/config.json`:
+Managers automatically discover configuration from `.fractary/config.yaml`:
 
 ```typescript
 // Auto-loads config from project root

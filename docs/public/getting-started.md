@@ -41,11 +41,14 @@ FABER uses a unified configuration file at `.fractary/config.yaml`.
 ### Quick Setup
 
 ```bash
-# Auto-initialize configuration
-fractary-faber configure
+# Initialize configuration
+fractary-faber config init
 
-# Or use config init with options
+# Or with options
 fractary-faber config init --autonomy guarded
+
+# Set up GitHub App authentication
+fractary-faber auth setup
 ```
 
 ### Manual Configuration
@@ -293,7 +296,7 @@ your-project/
 ### Common Issues
 
 **"Configuration not found"**
-- Run `fractary-faber configure` or `fractary-faber config init` to create configuration
+- Run `fractary-faber config init` to create configuration
 - Ensure you're running from the project root
 
 **"gh: command not found"**
@@ -306,7 +309,7 @@ your-project/
 
 **"Branch already exists"**
 - Use a different branch name
-- Delete the existing branch first: `fractary repo branch delete <name>`
+- Delete the existing branch first: `fractary-faber repo branch delete <name>`
 
 ### Getting Help
 

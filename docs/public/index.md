@@ -99,10 +99,10 @@ Or use the CLI:
 
 ```bash
 # Run workflow for issue #123
-faber run 123 --autonomy assisted
+fractary-faber workflow-run --work-id 123 --autonomy assisted
 
 # Check status
-faber status <workflow-id>
+fractary-faber run-inspect --work-id 123
 ```
 
 ## SDK Modules
@@ -133,6 +133,7 @@ faber status <workflow-id>
 - [Core Concepts](./concepts.md) - Architecture and key concepts
 - [Intelligent Guardrails](./guardrails.md) - Autonomy and safety model
 - [CLI Reference](./cli.md) - Command-line interface
+- [Plugin Reference](./plugin-reference.md) - Plugin commands and agents
 - [API Reference](./api.md) - Programmatic API
 
 ## Community & Support

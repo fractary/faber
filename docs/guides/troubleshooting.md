@@ -104,7 +104,7 @@ pip install faber
 
 ```bash
 # Solution 1: Initialize FABER in your project
-fractary-faber init
+fractary-faber config init
 
 # Solution 2: Create configuration manually
 mkdir -p .fractary/faber
@@ -140,7 +140,7 @@ cat .fractary/faber/config.json | jq .
 }
 
 # Solution 3: Reinitialize with preset
-fractary-faber init --preset default --force
+fractary-faber config init --force
 
 # Solution 4: Check error message for specific field
 fractary-faber --debug run --work-id 123
@@ -195,7 +195,7 @@ curl -H "Authorization: token $GITHUB_TOKEN" \
   https://api.github.com/user
 
 # Solution 5: Update configuration
-cat > .fractary/plugins/work/config.json <<EOF
+cat > .fractary/config.yaml <<EOF
 {
   "platform": "github",
   "owner": "your-org",
@@ -269,7 +269,7 @@ sleep 1  # Wait 1 second between operations
 # Check the issue exists in the repository
 
 # Solution 2: Check repository configuration
-cat .fractary/plugins/work/config.json
+cat .fractary/config.yaml
 # Ensure owner and repo are correct
 
 # Solution 3: Verify permissions
@@ -435,7 +435,7 @@ git checkout -b feature/changes
 
 ```bash
 # Solution 1: Check workflow status
-fractary-faber status --work-id 123
+fractary-faber run-inspect --work-id 123
 
 # Solution 2: Increase timeout in configuration
 # Edit .fractary/faber/config.json:
@@ -452,7 +452,7 @@ fractary-faber status --work-id 123
 # Solution 3: Pause and inspect
 # In another terminal:
 fractary-faber pause <workflow-id>
-fractary-faber status --workflow-id <workflow-id>
+fractary-faber run-inspect --workflow-id <workflow-id>
 
 # Solution 4: Check for infinite loops in hooks
 # Review pre/post hook commands
@@ -467,10 +467,10 @@ cat .fractary/faber/config.json | jq '.workflow.hooks'
 
 ```bash
 # Solution 1: Check error details
-fractary-faber status --workflow-id <id> --json | jq '.phases'
+fractary-faber run-inspect --workflow-id <id> --json | jq '.phases'
 
 # Solution 2: Skip failing phase temporarily
-fractary-faber run --work-id 123 --skip-phases evaluate
+fractary-faber workflow-run --work-id 123 --skip-phases evaluate
 
 # Solution 3: Adjust retry configuration
 {
@@ -491,7 +491,7 @@ fractary-faber run --work-id 123 --skip-phases evaluate
 
 # Solution 5: Check hooks
 # Pre/post hooks may be failing
-fractary-faber run --work-id 123 --debug
+fractary-faber workflow-run --work-id 123 --debug
 ```
 
 ### Checkpoint Restore Fails
@@ -514,7 +514,7 @@ fractary-faber recover <workflow-id> --from-phase build
 # Solution 4: Clear corrupted state
 rm -rf .fractary/faber/state/<workflow-id>
 # Start fresh
-fractary-faber run --work-id 123
+fractary-faber workflow-run --work-id 123
 ```
 
 ### User Input Not Received
@@ -563,47 +563,29 @@ faber.addEventListener((event, data) => {
 
 **Solutions:**
 
-```bash
-# Solution 1: Check validation details
-fractary-faber spec validate SPEC-001 --json
+```typescript
+// Use SDK to check validation details
+import { SpecManager } from '@fractary/faber/spec';
+const spec = new SpecManager();
+const validation = spec.validateSpec('SPEC-001');
+console.log(validation);
 
-# Solution 2: Reduce minimum completeness
-# Edit .fractary/plugins/spec/config.json:
-{
-  "validation": {
-    "minCompleteness": 0.5  # Lower from 0.7
-  }
-}
-
-# Solution 3: Refine specification
-fractary-faber spec refine SPEC-001
-# Answer refinement questions
-
-# Solution 4: Review missing sections
-fractary-faber spec get SPEC-001
-# Fill in required sections manually
+// Or use the plugin command in Claude Code:
+// /fractary-spec:spec-validate SPEC-001
 ```
 
 ### Cannot Create Spec
 
 **Problem:** `SpecError: Failed to create specification`
 
-**Solutions:**
+**Note:** Specification management is available via the SDK (`SpecManager`) and the `fractary-spec` plugin commands, not the `fractary-faber` CLI.
 
 ```bash
-# Solution 1: Check spec directory exists
+# Ensure spec directory exists
 mkdir -p .fractary/faber/specs
 
-# Solution 2: Verify write permissions
-ls -la .fractary/faber/specs
-
-# Solution 3: Use valid template
-fractary-faber spec create "Title" --template feature
-# Valid templates: feature, bug, chore
-
-# Solution 4: Check for duplicate ID
-# Spec IDs must be unique
-fractary-faber spec list
+# Use the plugin command in Claude Code:
+# /fractary-spec:spec-create
 ```
 
 ---
@@ -629,7 +611,7 @@ mv .fractary/faber/state/<workflow-id> \
 # Start workflow fresh
 
 # Solution 4: Enable state compression
-# Edit .fractary/plugins/state/config.json:
+# Edit .fractary/config.yaml:
 {
   "persistence": {
     "compress": false  # Set to false if compression causes issues
@@ -645,17 +627,17 @@ mv .fractary/faber/state/<workflow-id> \
 
 ```bash
 # Solution 1: List active workflows
-fractary-faber status
+fractary-faber run-inspect
 
 # Solution 2: Check state directory
 ls -la .fractary/faber/state/
 
 # Solution 3: Use work ID instead
-fractary-faber status --work-id 123
+fractary-faber run-inspect --work-id 123
 
 # Solution 4: Check retention settings
 # State may have been cleaned up
-cat .fractary/plugins/state/config.json | jq '.cleanup'
+cat .fractary/config.yaml | jq '.cleanup'
 ```
 
 ---
@@ -677,7 +659,7 @@ cat .fractary/plugins/state/config.json | jq '.cleanup'
 }
 
 # Solution 2: Skip unnecessary phases
-fractary-faber run --work-id 123 \
+fractary-faber workflow-run --work-id 123 \
   --skip-phases frame,architect
 
 # Solution 3: Optimize hooks
@@ -688,7 +670,7 @@ fractary-faber run --work-id 123 \
 # Check if hooks can run in parallel
 
 # Solution 5: Profile phase execution
-fractary-faber status --workflow-id <id> --json | \
+fractary-faber run-inspect --workflow-id <id> --json | \
   jq '.phases[] | {phase: .phase, duration: .duration_ms}'
 ```
 
@@ -736,7 +718,7 @@ fractary-faber --debug run --work-id 123
 
 # Environment variable
 export FABER_DEBUG=true
-fractary-faber run --work-id 123
+fractary-faber workflow-run --work-id 123
 
 # Programmatic debug
 import { FaberWorkflow } from '@fractary/faber/workflow';
@@ -747,10 +729,10 @@ const faber = new FaberWorkflow({ debug: true });
 
 ```bash
 # Get detailed status
-fractary-faber status --workflow-id <id> --json | jq .
+fractary-faber run-inspect --workflow-id <id> --json | jq .
 
 # View specific phase
-fractary-faber status --workflow-id <id> --json | \
+fractary-faber run-inspect --workflow-id <id> --json | \
   jq '.phases[] | select(.phase == "build")'
 
 # Check checkpoints
@@ -767,7 +749,7 @@ fractary-faber logs capture <workflow-id>
 fractary-faber logs read <session-id>
 
 # Export logs for analysis
-fractary-faber logs export <session-id> --format markdown > debug.md
+fractary-faber logs read <log-id> --json > debug.json
 ```
 
 ### Test Configuration

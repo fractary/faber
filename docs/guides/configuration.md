@@ -1,934 +1,292 @@
 # Configuration Guide
 
-Complete reference for configuring FABER workflows, work tracking, repository management, and all SDK modules.
+Complete reference for configuring FABER via `.fractary/config.yaml`.
 
-## Table of Contents
-
-- [Configuration File Locations](#configuration-file-locations)
-- [Creating Configuration](#creating-configuration)
-- [Configuration Schema](#configuration-schema)
-  - [Root Configuration](#root-configuration)
-  - [Work Module](#work-module)
-  - [Repo Module](#repo-module)
-  - [Spec Module](#spec-module)
-  - [Logs Module](#logs-module)
-  - [State Module](#state-module)
-  - [Workflow Module](#workflow-module)
-  - [Storage Module](#storage-module)
-- [Platform-Specific Configuration](#platform-specific-configuration)
-- [Environment Variables](#environment-variables)
-- [Presets](#presets)
-- [Best Practices](#best-practices)
-- [Examples](#examples)
-
----
-
-## Configuration File Locations
-
-FABER uses a unified YAML configuration file:
+## Directory Structure
 
 ```
 .fractary/
-├── config.yaml                  # Unified configuration (GitHub, Anthropic, FABER)
+├── config.yaml                  # Unified configuration
 └── faber/
     ├── workflows/               # Workflow definitions
     │   ├── workflows.yaml       # Workflow manifest
     │   └── default.yaml         # Default workflow config
-    └── runs/                    # Run artifacts
+    └── runs/                    # Run artifacts (per-run state and plans)
+        └── {run_id}/
+            ├── plan.json
+            └── state.json
 ```
-
-### Search Order
-
-1. Current directory: `./.fractary/config.yaml`
-2. Parent directories (walks up until found)
-3. Home directory: `~/.fractary/config.yaml`
-4. Default built-in configuration
-
----
 
 ## Creating Configuration
 
-### Using the CLI (Recommended)
+### CLI (Recommended)
 
 ```bash
-# Initialize FABER section in config.yaml
-fractary-faber configure
+# Initialize FABER section
+fractary-faber config init
 
-# Or use config init with options
-fractary-faber config init --autonomy guarded
+# With options
+fractary-faber config init --autonomy guarded --default-workflow default
+
+# Set up GitHub App authentication
+fractary-faber auth setup
 
 # Force reinitialize
-fractary-faber configure --force
+fractary-faber config init --force
 ```
 
-### Manual Creation
+### Manual
 
-**TypeScript:**
-```typescript
-import { findProjectRoot } from '@fractary/faber';
-import * as fs from 'fs';
-import * as path from 'path';
+Create `.fractary/config.yaml` in your project root:
 
-const root = findProjectRoot() || process.cwd();
-const configDir = path.join(root, '.fractary', 'faber');
-fs.mkdirSync(configDir, { recursive: true });
-
-const config = {
-  version: '1.0.0',
-  preset: 'default',
-  work: { provider: 'github' },
-  repo: { provider: 'github', defaultBranch: 'main' },
-};
-
-fs.writeFileSync(
-  path.join(configDir, 'config.json'),
-  JSON.stringify(config, null, 2)
-);
-```
-
-**Python:**
-```python
-import os
-import json
-
-config_dir = os.path.join(os.getcwd(), '.fractary', 'faber')
-os.makedirs(config_dir, exist_ok=True)
-
-config = {
-    "version": "1.0.0",
-    "preset": "default",
-    "work": {"provider": "github"},
-    "repo": {"provider": "github", "defaultBranch": "main"}
-}
-
-with open(os.path.join(config_dir, 'config.json'), 'w') as f:
-    json.dump(config, f, indent=2)
+```yaml
+version: "2.0"
+github:
+  organization: your-org
+  project: your-repo
+  app:
+    id: "12345"
+    installation_id: "67890"
+    private_key_path: ~/.github/faber-your-org.pem
+anthropic:
+  api_key: ${ANTHROPIC_API_KEY}
+  model: claude-sonnet-4-5-20250929
+faber:
+  workflows:
+    path: .fractary/faber/workflows
+    default: default
+    autonomy: guarded
+  runs:
+    path: .fractary/faber/runs
 ```
 
 ---
 
 ## Configuration Schema
 
-### Root Configuration
-
-`.fractary/faber/config.json`:
-
-```json
-{
-  "version": "1.0.0",
-  "preset": "default",
-  "work": {
-    "provider": "github"
-  },
-  "repo": {
-    "provider": "github"
-  },
-  "spec": {
-    "directory": ".fractary/faber/specs"
-  },
-  "logs": {
-    "directory": ".fractary/faber/logs"
-  },
-  "state": {
-    "directory": ".fractary/faber/state"
-  },
-  "workflow": {
-    "defaultAutonomy": "guarded"
-  },
-  "storage": {
-    "provider": "local"
-  }
-}
-```
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `version` | string | Yes | `"1.0.0"` | Configuration version |
-| `preset` | string | No | `"default"` | Preset name: `minimal`, `default`, `enterprise` |
-| `work` | object | No | - | Work module configuration |
-| `repo` | object | No | - | Repo module configuration |
-| `spec` | object | No | - | Spec module configuration |
-| `logs` | object | No | - | Logs module configuration |
-| `state` | object | No | - | State module configuration |
-| `workflow` | object | No | - | Workflow orchestration configuration |
-| `storage` | object | No | - | Storage configuration |
-
----
-
-### Work Module
-
-`.fractary/plugins/work/config.json`:
-
-```json
-{
-  "platform": "github",
-  "owner": "fractary",
-  "repo": "faber",
-  "authentication": {
-    "token": "${GITHUB_TOKEN}"
-  },
-  "defaults": {
-    "assignOnCreate": true,
-    "labelPrefix": "faber:"
-  }
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `platform` | string | Yes | Work tracking platform: `github`, `jira`, `linear` |
-| `owner` | string | Yes* | GitHub organization/user or Jira project key |
-| `repo` | string | Yes* | GitHub repository name |
-| `baseUrl` | string | No | Custom API base URL (for self-hosted) |
-| `authentication.token` | string | Yes | API authentication token |
-| `authentication.type` | string | No | Auth type: `token`, `oauth`, `basic` |
-| `defaults.assignOnCreate` | boolean | No | Auto-assign creator to new issues |
-| `defaults.labelPrefix` | string | No | Prefix for auto-generated labels |
-
-*Required for GitHub/Jira, not for Linear
-
-#### GitHub Configuration
-
-```json
-{
-  "platform": "github",
-  "owner": "fractary",
-  "repo": "faber",
-  "authentication": {
-    "token": "${GITHUB_TOKEN}",
-    "type": "token"
-  },
-  "defaults": {
-    "assignOnCreate": true,
-    "labelPrefix": "faber:",
-    "defaultLabels": ["automated"],
-    "defaultMilestone": null
-  }
-}
-```
-
-#### Jira Configuration
-
-```json
-{
-  "platform": "jira",
-  "baseUrl": "https://your-domain.atlassian.net",
-  "projectKey": "PROJ",
-  "authentication": {
-    "type": "basic",
-    "username": "${JIRA_USERNAME}",
-    "token": "${JIRA_API_TOKEN}"
-  },
-  "defaults": {
-    "issueType": "Task",
-    "priority": "Medium"
-  }
-}
-```
-
-#### Linear Configuration
-
-```json
-{
-  "platform": "linear",
-  "authentication": {
-    "token": "${LINEAR_API_KEY}"
-  },
-  "teamId": "TEAM-ID",
-  "defaults": {
-    "assignOnCreate": false,
-    "labelPrefix": "faber:"
-  }
-}
-```
-
----
-
-### Repo Module
-
-`.fractary/plugins/repo/config.json`:
-
-```json
-{
-  "platform": "github",
-  "owner": "fractary",
-  "repo": "faber",
-  "authentication": {
-    "token": "${GITHUB_TOKEN}"
-  },
-  "defaultBranch": "main",
-  "branchNaming": {
-    "prefix": true,
-    "includeWorkId": true,
-    "separator": "/"
-  },
-  "commit": {
-    "conventionalCommits": true,
-    "signCommits": false,
-    "gpgKey": null
-  },
-  "pullRequest": {
-    "defaultBase": "main",
-    "requestReviewsOnCreate": true,
-    "defaultReviewers": ["@team/reviewers"],
-    "enableAutoMerge": false
-  }
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `platform` | string | Yes | Repository platform: `github`, `gitlab`, `bitbucket` |
-| `owner` | string | Yes | Organization or username |
-| `repo` | string | Yes | Repository name |
-| `authentication.token` | string | Yes | Git platform token |
-| `defaultBranch` | string | No | Default branch name (e.g., `main`, `master`) |
-| `branchNaming.prefix` | boolean | No | Use type prefixes (`feature/`, `bugfix/`) |
-| `branchNaming.includeWorkId` | boolean | No | Include work ID in branch name |
-| `commit.conventionalCommits` | boolean | No | Enforce conventional commit format |
-| `commit.signCommits` | boolean | No | GPG sign commits |
-| `pullRequest.requestReviewsOnCreate` | boolean | No | Auto-request reviews on PR creation |
-| `pullRequest.defaultReviewers` | string[] | No | Default reviewers for PRs |
-
-#### GitHub Repo Configuration
-
-```json
-{
-  "platform": "github",
-  "owner": "fractary",
-  "repo": "faber",
-  "authentication": {
-    "token": "${GITHUB_TOKEN}",
-    "type": "token"
-  },
-  "defaultBranch": "main",
-  "branchNaming": {
-    "prefix": true,
-    "includeWorkId": true,
-    "separator": "/",
-    "format": "{type}/{workId}-{description}"
-  },
-  "commit": {
-    "conventionalCommits": true,
-    "signCommits": false,
-    "gpgKey": null,
-    "includeCoAuthors": true
-  },
-  "pullRequest": {
-    "defaultBase": "main",
-    "requestReviewsOnCreate": true,
-    "defaultReviewers": ["@fractary/core"],
-    "enableAutoMerge": false,
-    "requireStatusChecks": true,
-    "allowSquashMerge": true,
-    "allowMergeCommit": false,
-    "allowRebaseMerge": true
-  },
-  "protectedBranches": ["main", "production"]
-}
-```
-
-#### GitLab Repo Configuration
-
-```json
-{
-  "platform": "gitlab",
-  "baseUrl": "https://gitlab.com",
-  "owner": "fractary",
-  "repo": "faber",
-  "authentication": {
-    "token": "${GITLAB_TOKEN}",
-    "type": "token"
-  },
-  "defaultBranch": "main",
-  "branchNaming": {
-    "prefix": true,
-    "includeWorkId": true,
-    "separator": "/"
-  },
-  "mergeRequest": {
-    "defaultBase": "main",
-    "removeSourceBranch": true,
-    "squash": true
-  }
-}
-```
-
----
-
-### Spec Module
-
-`.fractary/plugins/spec/config.json`:
-
-```json
-{
-  "directory": ".fractary/faber/specs",
-  "format": "markdown",
-  "templates": {
-    "feature": {
-      "sections": [
-        "Overview",
-        "Requirements",
-        "Architecture",
-        "Implementation",
-        "Testing",
-        "Acceptance Criteria"
-      ]
-    },
-    "bug": {
-      "sections": [
-        "Problem Description",
-        "Root Cause",
-        "Solution",
-        "Testing",
-        "Prevention"
-      ]
-    }
-  },
-  "validation": {
-    "requireAllSections": false,
-    "minCompleteness": 0.6
-  },
-  "refinement": {
-    "enabled": true,
-    "maxQuestions": 5
-  }
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `directory` | string | Yes | Directory for specification files |
-| `format` | string | No | Spec format: `markdown`, `json` |
-| `templates` | object | No | Custom spec templates |
-| `validation.requireAllSections` | boolean | No | All sections must be filled |
-| `validation.minCompleteness` | number | No | Minimum completeness score (0-1) |
-| `refinement.enabled` | boolean | No | Enable AI-powered refinement |
-| `refinement.maxQuestions` | number | No | Max refinement questions to generate |
-
----
-
-### Logs Module
-
-`.fractary/plugins/logs/config.json`:
-
-```json
-{
-  "directory": ".fractary/faber/logs",
-  "format": "jsonl",
-  "capture": {
-    "enabled": true,
-    "autoStart": false,
-    "includeSystemLogs": true
-  },
-  "retention": {
-    "maxAgeDays": 90,
-    "maxSizeMB": 1000,
-    "autoArchive": true
-  },
-  "export": {
-    "defaultFormat": "markdown",
-    "includeMetadata": true
-  }
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `directory` | string | Yes | Directory for log files |
-| `format` | string | No | Log format: `jsonl`, `json` |
-| `capture.enabled` | boolean | No | Enable log capture |
-| `capture.autoStart` | boolean | No | Auto-start capture on workflow run |
-| `capture.includeSystemLogs` | boolean | No | Include system/debug logs |
-| `retention.maxAgeDays` | number | No | Auto-delete logs older than N days |
-| `retention.maxSizeMB` | number | No | Max total log size in MB |
-| `retention.autoArchive` | boolean | No | Auto-archive old logs |
-| `export.defaultFormat` | string | No | Default export format: `markdown`, `json` |
-
----
-
-### State Module
-
-`.fractary/plugins/state/config.json`:
-
-```json
-{
-  "directory": ".fractary/faber/state",
-  "checkpoints": {
-    "enabled": true,
-    "autoCreate": true,
-    "frequency": "per-phase"
-  },
-  "persistence": {
-    "format": "json",
-    "compress": false
-  },
-  "cleanup": {
-    "autoCleanup": true,
-    "retentionDays": 30,
-    "keepCompleted": true
-  }
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `directory` | string | Yes | Directory for state files |
-| `checkpoints.enabled` | boolean | No | Enable checkpoint system |
-| `checkpoints.autoCreate` | boolean | No | Auto-create checkpoints |
-| `checkpoints.frequency` | string | No | Checkpoint frequency: `per-phase`, `per-step`, `manual` |
-| `persistence.format` | string | No | State file format: `json`, `yaml` |
-| `persistence.compress` | boolean | No | Compress state files |
-| `cleanup.autoCleanup` | boolean | No | Auto-cleanup old state files |
-| `cleanup.retentionDays` | number | No | Days to retain completed workflows |
-
----
-
-### Workflow Module
-
-`.fractary/faber/config.json` (workflow section):
-
-```json
-{
-  "workflow": {
-    "defaultAutonomy": "guarded",
-    "phases": {
-      "frame": {
-        "enabled": true,
-        "timeout": 300000
-      },
-      "architect": {
-        "enabled": true,
-        "refineSpec": true,
-        "minSpecCompleteness": 0.7,
-        "timeout": 600000
-      },
-      "build": {
-        "enabled": true,
-        "skipTests": false,
-        "timeout": 1800000
-      },
-      "evaluate": {
-        "enabled": true,
-        "maxRetries": 3,
-        "requireTests": true,
-        "timeout": 600000
-      },
-      "release": {
-        "enabled": true,
-        "requestReviews": true,
-        "reviewers": ["@team/reviewers"],
-        "autoMerge": false,
-        "timeout": 300000
-      }
-    },
-    "hooks": {
-      "pre_frame": null,
-      "post_frame": null,
-      "pre_architect": null,
-      "post_architect": null,
-      "pre_build": "npm run lint",
-      "post_build": "npm test",
-      "pre_evaluate": null,
-      "post_evaluate": null,
-      "pre_release": null,
-      "post_release": "npm run deploy:staging"
-    },
-    "checkpoints": true,
-    "maxDuration": 7200000,
-    "errorHandling": {
-      "retryOnFailure": true,
-      "maxRetries": 3,
-      "escalateOnFailure": true
-    }
-  }
-}
-```
+### Top-Level Structure
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `defaultAutonomy` | string | Default autonomy level: `dry-run`, `assisted`, `guarded`, `autonomous` |
-| `phases.{phase}.enabled` | boolean | Enable/disable specific phase |
-| `phases.{phase}.timeout` | number | Phase timeout in milliseconds |
-| `phases.architect.refineSpec` | boolean | Enable spec refinement in architect phase |
-| `phases.architect.minSpecCompleteness` | number | Minimum spec completeness (0-1) |
-| `phases.build.skipTests` | boolean | Skip running tests during build |
-| `phases.evaluate.maxRetries` | number | Max retry attempts for evaluation |
-| `phases.evaluate.requireTests` | boolean | Require tests to pass |
-| `phases.release.requestReviews` | boolean | Auto-request PR reviews |
-| `phases.release.reviewers` | string[] | Default reviewers |
-| `phases.release.autoMerge` | boolean | Auto-merge PR after approval |
-| `hooks.{hook}` | string | Shell command to run at hook point |
-| `checkpoints` | boolean | Enable checkpoint system |
-| `maxDuration` | number | Max workflow duration in milliseconds |
-| `errorHandling.retryOnFailure` | boolean | Retry failed operations |
-| `errorHandling.maxRetries` | number | Max retry attempts |
-| `errorHandling.escalateOnFailure` | boolean | Escalate to user on failure |
+| `version` | string | Config version (currently `"2.0"`) |
+| `github` | object | GitHub authentication and project settings |
+| `anthropic` | object | Anthropic API settings |
+| `faber` | object | FABER workflow settings |
+| `work` | object | Work plugin pass-through |
+| `repo` | object | Repo plugin pass-through |
+| `logs` | object | Logs plugin pass-through |
+| `file` | object | File plugin pass-through |
+| `spec` | object | Spec plugin pass-through |
+| `docs` | object | Docs plugin pass-through |
 
----
+### `github`
 
-### Storage Module
+GitHub authentication. Supports both GitHub App (recommended) and personal access tokens.
 
-`.fractary/plugins/storage/config.json`:
-
-```json
-{
-  "provider": "local",
-  "local": {
-    "basePath": ".fractary/faber/storage"
-  },
-  "codex": {
-    "enabled": false,
-    "repository": "fractary/codex-core",
-    "branch": "main",
-    "syncOnStore": false
-  }
-}
+```yaml
+github:
+  organization: your-org       # GitHub organization name
+  project: your-repo           # Repository name
+  repo: your-org/your-repo     # Full repo name (alternative to org+project)
+  token: ${GITHUB_TOKEN}       # Personal access token (legacy)
+  app:                         # GitHub App authentication (recommended)
+    id: "12345"
+    installation_id: "67890"
+    private_key_path: ~/.github/faber-your-org.pem
+    private_key_env_var: GITHUB_APP_PRIVATE_KEY  # Alternative: base64-encoded key in env var
+    created_via: manifest-flow  # How the app was created (manifest-flow or manual)
+    created_at: "2025-01-15T00:00:00Z"
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `provider` | string | Storage provider: `local`, `codex` |
-| `local.basePath` | string | Local storage base path |
-| `codex.enabled` | boolean | Enable Codex integration |
-| `codex.repository` | string | Codex repository (org/repo) |
-| `codex.branch` | string | Codex branch name |
-| `codex.syncOnStore` | boolean | Auto-sync to Codex on store |
-
----
-
-## Platform-Specific Configuration
-
-### GitHub Self-Hosted
-
-```json
-{
-  "work": {
-    "platform": "github",
-    "baseUrl": "https://github.company.com/api/v3",
-    "owner": "engineering",
-    "repo": "platform",
-    "authentication": {
-      "token": "${GITHUB_ENTERPRISE_TOKEN}"
-    }
-  },
-  "repo": {
-    "platform": "github",
-    "baseUrl": "https://github.company.com/api/v3",
-    "owner": "engineering",
-    "repo": "platform",
-    "authentication": {
-      "token": "${GITHUB_ENTERPRISE_TOKEN}"
-    }
-  }
-}
+**GitHub App** is the recommended authentication method. Set it up with:
+```bash
+fractary-faber auth setup
 ```
 
-### Jira Cloud
+### `anthropic`
 
-```json
-{
-  "work": {
-    "platform": "jira",
-    "baseUrl": "https://your-domain.atlassian.net",
-    "projectKey": "PROJ",
-    "authentication": {
-      "type": "basic",
-      "username": "${JIRA_USERNAME}",
-      "token": "${JIRA_API_TOKEN}"
-    }
-  }
-}
+Anthropic API configuration for AI-powered features (workflow planning, code analysis).
+
+```yaml
+anthropic:
+  api_key: ${ANTHROPIC_API_KEY}        # API key (use env var)
+  model: claude-sonnet-4-5-20250929            # Model to use
+  max_tokens: 4096                     # Max tokens per request
 ```
 
-### GitLab
+### `faber`
 
-```json
-{
-  "repo": {
-    "platform": "gitlab",
-    "baseUrl": "https://gitlab.com",
-    "owner": "fractary",
-    "repo": "faber",
-    "authentication": {
-      "token": "${GITLAB_TOKEN}"
-    },
-    "defaultBranch": "main"
-  }
-}
+FABER workflow engine settings.
+
+```yaml
+faber:
+  workflows:
+    path: .fractary/faber/workflows    # Directory for workflow definitions
+    default: default                    # Default workflow ID
+    autonomy: guarded                   # Default autonomy level
+  runs:
+    path: .fractary/faber/runs         # Directory for run artifacts
+```
+
+#### Autonomy Levels
+
+| Level | Description |
+|-------|-------------|
+| `dry-run` | Plan only, no execution |
+| `assisted` | Execute with confirmation at each step |
+| `guarded` | Execute with confirmation at phase boundaries |
+| `autonomous` | Execute without confirmation |
+
+Note: The CLI `workflow-run` command uses different autonomy levels (`supervised`, `assisted`, `autonomous`) than the plugin/config (`dry-run`, `assisted`, `guarded`, `autonomous`).
+
+### `faber` (Legacy Format)
+
+The legacy format is still supported but deprecated. Use `config migrate` to update:
+
+```yaml
+# Legacy (deprecated)
+faber:
+  worktree:
+    location: ~/.claude-worktrees
+    inherit_from_claude: true
+  workflow:
+    default: default
+    config_path: .fractary/faber/workflows
+  backlog_management:
+    default_limit: 10
+    default_order_by: priority
+    priority_config:
+      label_prefix: priority
+```
+
+Migrate with:
+```bash
+fractary-faber config migrate --dry-run  # Preview changes
+fractary-faber config migrate            # Apply migration
 ```
 
 ---
 
-## Environment Variables
+## Environment Variable Substitution
 
-### Authentication
+Config values can reference environment variables:
+
+```yaml
+# Direct substitution
+anthropic:
+  api_key: ${ANTHROPIC_API_KEY}
+
+# With default value
+github:
+  token: ${GITHUB_TOKEN:-ghp_default_token}
+```
+
+**Syntax:**
+- `${VAR_NAME}` - Replace with environment variable value
+- `${VAR_NAME:-default}` - Use default if variable is not set
+
+Variable names must match pattern: `[A-Z_][A-Z0-9_]*`
+
+---
+
+## Config Search Order
+
+The CLI looks for `.fractary/config.yaml` in:
+
+1. Current directory
+2. Parent directories (walks up until `.fractary/` or `.git/` is found)
+3. Falls back to current working directory if nothing found
+
+---
+
+## CLI Config Commands
+
+### Read configuration
 
 ```bash
-# GitHub
-export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Full config as JSON
+fractary-faber config get --json
 
-# Jira
-export JIRA_BASE_URL=https://your-domain.atlassian.net
-export JIRA_USERNAME=user@example.com
-export JIRA_API_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Specific value
+fractary-faber config get faber.workflows.autonomy
 
-# Linear
-export LINEAR_API_KEY=lin_api_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-# GitLab
-export GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
-
-# Bitbucket
-export BITBUCKET_USERNAME=username
-export BITBUCKET_APP_PASSWORD=xxxxxxxxxxxxxxxxxxxxx
+# Raw value (for shell scripts)
+ORG=$(fractary-faber config get github.organization --raw)
 ```
 
-### Configuration Paths
+### Modify configuration
 
 ```bash
-# Override configuration directory
-export FABER_CONFIG_DIR=/custom/path/.fractary/faber
+# Set a single value
+fractary-faber config set faber.workflows.autonomy autonomous
 
-# Override specific module configs
-export FABER_WORK_CONFIG=/custom/work/config.json
-export FABER_REPO_CONFIG=/custom/repo/config.json
+# Update multiple values with backup
+fractary-faber config update faber.workflows.autonomy=autonomous faber.workflows.default=custom
+
+# Preview changes without applying
+fractary-faber config update faber.workflows.autonomy=autonomous --dry-run
 ```
 
-### Runtime Behavior
+### Validate configuration
 
 ```bash
-# Default autonomy level
-export FABER_AUTONOMY=guarded
+fractary-faber config validate
+fractary-faber config validate --json
+```
 
-# Enable debug logging
-export FABER_DEBUG=true
+### Check status
 
-# Disable telemetry
-export FABER_TELEMETRY=false
+```bash
+# Show config file path
+fractary-faber config path
+
+# Check if config exists (exit code 0=yes, 1=no)
+fractary-faber config exists && echo "Config found"
 ```
 
 ---
 
-## Presets
+## Complete Example
 
-### Minimal Preset
+```yaml
+version: "2.0"
 
-```json
-{
-  "version": "1.0.0",
-  "preset": "minimal",
-  "workflow": {
-    "defaultAutonomy": "assisted",
-    "phases": {
-      "frame": { "enabled": true },
-      "architect": { "enabled": false },
-      "build": { "enabled": true },
-      "evaluate": { "enabled": true },
-      "release": { "enabled": false }
-    }
-  }
-}
-```
+# Shared GitHub authentication
+github:
+  organization: acme-corp
+  project: web-platform
+  app:
+    id: "123456"
+    installation_id: "789012"
+    private_key_path: ~/.github/faber-acme-corp.pem
 
-Use for: Quick prototyping, simple workflows
+# Shared Anthropic API
+anthropic:
+  api_key: ${ANTHROPIC_API_KEY}
+  model: claude-sonnet-4-5-20250929
 
-### Default Preset
+# FABER workflow settings
+faber:
+  workflows:
+    path: .fractary/faber/workflows
+    default: default
+    autonomy: guarded
+  runs:
+    path: .fractary/faber/runs
 
-```json
-{
-  "version": "1.0.0",
-  "preset": "default",
-  "workflow": {
-    "defaultAutonomy": "guarded",
-    "phases": {
-      "frame": { "enabled": true },
-      "architect": { "enabled": true, "refineSpec": true },
-      "build": { "enabled": true },
-      "evaluate": { "enabled": true, "maxRetries": 2 },
-      "release": { "enabled": true, "requestReviews": true }
-    }
-  }
-}
-```
-
-Use for: Standard development workflows
-
-### Enterprise Preset
-
-```json
-{
-  "version": "1.0.0",
-  "preset": "enterprise",
-  "workflow": {
-    "defaultAutonomy": "guarded",
-    "phases": {
-      "frame": { "enabled": true, "timeout": 300000 },
-      "architect": { "enabled": true, "refineSpec": true, "minSpecCompleteness": 0.8 },
-      "build": { "enabled": true, "skipTests": false },
-      "evaluate": { "enabled": true, "maxRetries": 3, "requireTests": true },
-      "release": { "enabled": true, "requestReviews": true, "autoMerge": false }
-    },
-    "hooks": {
-      "pre_build": "npm run lint && npm run type-check",
-      "post_build": "npm test && npm run integration-test",
-      "post_release": "npm run deploy:staging"
-    },
-    "checkpoints": true,
-    "errorHandling": {
-      "retryOnFailure": true,
-      "maxRetries": 3,
-      "escalateOnFailure": true
-    }
-  },
-  "logs": {
-    "capture": {
-      "enabled": true,
-      "autoStart": true
-    },
-    "retention": {
-      "maxAgeDays": 90,
-      "autoArchive": true
-    }
-  },
-  "state": {
-    "checkpoints": {
-      "enabled": true,
-      "autoCreate": true,
-      "frequency": "per-phase"
-    }
-  }
-}
-```
-
-Use for: Production environments, compliance requirements
-
----
-
-## Best Practices
-
-### 1. Use Environment Variables for Secrets
-
-```json
-{
-  "authentication": {
-    "token": "${GITHUB_TOKEN}"
-  }
-}
-```
-
-Never commit secrets directly to configuration files.
-
-### 2. Version Your Configuration
-
-```json
-{
-  "version": "1.0.0"
-}
-```
-
-Include version field for future compatibility.
-
-### 3. Start with Presets
-
-```bash
-fractary-faber init --preset default
-```
-
-Then customize as needed.
-
-### 4. Use Hooks for Custom Validation
-
-```json
-{
-  "hooks": {
-    "pre_build": "npm run lint && npm run type-check",
-    "post_build": "npm test"
-  }
-}
-```
-
-### 5. Configure Timeouts Appropriately
-
-```json
-{
-  "phases": {
-    "build": {
-      "timeout": 1800000  // 30 minutes for complex builds
-    }
-  }
-}
-```
-
----
-
-## Examples
-
-### Full Enterprise Configuration
-
-`.fractary/faber/config.json`:
-
-```json
-{
-  "version": "1.0.0",
-  "preset": "enterprise",
-  "work": {
-    "provider": "github",
-    "owner": "fractary",
-    "repo": "faber"
-  },
-  "repo": {
-    "provider": "github",
-    "owner": "fractary",
-    "repo": "faber",
-    "defaultBranch": "main",
-    "branchNaming": {
-      "prefix": true,
-      "includeWorkId": true,
-      "format": "{type}/{workId}-{description}"
-    },
-    "commit": {
-      "conventionalCommits": true,
-      "signCommits": true,
-      "gpgKey": "${GPG_KEY_ID}"
-    },
-    "pullRequest": {
-      "requestReviewsOnCreate": true,
-      "defaultReviewers": ["@fractary/core"],
-      "requireStatusChecks": true
-    }
-  },
-  "workflow": {
-    "defaultAutonomy": "guarded",
-    "phases": {
-      "frame": { "enabled": true },
-      "architect": { "enabled": true, "refineSpec": true, "minSpecCompleteness": 0.8 },
-      "build": { "enabled": true },
-      "evaluate": { "enabled": true, "maxRetries": 3, "requireTests": true },
-      "release": { "enabled": true, "requestReviews": true }
-    },
-    "hooks": {
-      "pre_build": "npm run lint && npm run type-check",
-      "post_build": "npm test && npm run integration-test"
-    },
-    "checkpoints": true
-  },
-  "storage": {
-    "provider": "codex",
-    "codex": {
-      "enabled": true,
-      "repository": "fractary/codex-core",
-      "syncOnStore": true
-    }
-  }
-}
+# Plugin pass-through sections (managed by fractary-core)
+work:
+  platform: github
+repo:
+  default_branch: main
+logs:
+  retention_days: 90
 ```
 
 ---
 
 ## See Also
 
-- [API Reference](./api-reference.md) - SDK API documentation
-- [CLI Integration Guide](./cli-integration.md) - CLI usage patterns
-- [Troubleshooting Guide](./troubleshooting.md) - Common configuration issues
-- [Getting Started](/docs/public/getting-started.md) - Quick start guide
+- [CLI Reference](../public/cli.md) - All CLI commands and options
+- [Getting Started](../public/getting-started.md) - Installation and initial setup
+- [Concepts](../public/concepts.md) - Core concepts

@@ -283,7 +283,7 @@ Quick reference:
 
 ```bash
 # Workflow
-fractary-faber configure                             # Initialize project
+fractary-faber config init                            # Initialize project
 fractary-faber workflow-run --work-id <issue>        # Run workflow
 fractary-faber run-inspect --work-id <issue>         # Check status
 fractary-faber workflow-resume <workflow-id>          # Resume workflow
@@ -297,7 +297,7 @@ fractary-faber work label add <issue> --label "bug"
 # Repository
 fractary-faber repo branch create <name>
 fractary-faber repo pr create --title "Title"
-fractary-faber repo commit "feat: message"
+fractary-faber repo commit --message "feat: message"
 fractary-faber repo tag create v1.0.0
 
 # Logs

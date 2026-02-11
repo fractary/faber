@@ -324,7 +324,7 @@ jobs:
         env:
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.FABER_APP_PRIVATE_KEY }}
         run: |
-          fractary-faber run --work-id ${{ github.event.inputs.issue_id }}
+          fractary-faber workflow-run --work-id ${{ github.event.inputs.issue_id }}
 ```
 
 ### GitLab CI
@@ -337,7 +337,7 @@ faber_workflow:
   image: node:18
   script:
     - npm install -g @fractary/faber-cli
-    - fractary-faber run --work-id $ISSUE_ID
+    - fractary-faber workflow-run --work-id $ISSUE_ID
   only:
     - triggers
 ```
@@ -358,7 +358,7 @@ pipeline {
         stage('Run FABER') {
             steps {
                 sh 'npm install -g @fractary/faber-cli'
-                sh 'fractary-faber run --work-id ${ISSUE_ID}'
+                sh 'fractary-faber workflow-run --work-id ${ISSUE_ID}'
             }
         }
     }
