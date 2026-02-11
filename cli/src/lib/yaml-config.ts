@@ -68,6 +68,24 @@ const unifiedConfigSchema = {
     faber: {
       type: 'object',
       properties: {
+        // Current format (v2.1) - created by fractary-faber config init
+        workflows: {
+          type: 'object',
+          properties: {
+            path: { type: 'string' },
+            default: { type: 'string' },
+            autonomy: { type: 'string', enum: ['dry-run', 'assisted', 'guarded', 'autonomous'] },
+          },
+          additionalProperties: false,
+        },
+        runs: {
+          type: 'object',
+          properties: {
+            path: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        // Legacy format (v2.0) - kept for backward compatibility
         worktree: {
           type: 'object',
           properties: {

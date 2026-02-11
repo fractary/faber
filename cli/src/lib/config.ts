@@ -92,15 +92,24 @@ export class ConfigManager {
       app: unifiedConfig.github?.app,
     };
 
-    // Extract FABER-specific config
+    // Extract FABER-specific config, supporting both v2.1 (workflows/runs) and legacy (workflow/worktree)
     const faberConfig = unifiedConfig.faber || {};
+
+    // Normalize: map v2.1 format to internal representation, with legacy fallback
+    const resolvedWorkflow: FaberConfig['workflow'] = faberConfig.workflow || {};
+    if (faberConfig.workflows) {
+      resolvedWorkflow!.default = resolvedWorkflow!.default || faberConfig.workflows.default;
+      resolvedWorkflow!.config_path = resolvedWorkflow!.config_path || faberConfig.workflows.path;
+    }
 
     // Build the result config (keeping anthropic and github for backward compatibility)
     const config: FaberConfig & { anthropic?: AnthropicConfig; github?: GitHubConfig } = {
       anthropic,
       github,
       worktree: faberConfig.worktree,
-      workflow: faberConfig.workflow,
+      workflow: resolvedWorkflow,
+      workflows: faberConfig.workflows,
+      runs: faberConfig.runs,
       backlog_management: faberConfig.backlog_management,
     };
 
@@ -124,7 +133,6 @@ export class ConfigManager {
     }
 
     if (!config.workflow?.config_path) {
-      // Always use the canonical workflow path - no legacy fallback
       const workflowPath = path.join(process.cwd(), '.fractary', 'faber', 'workflows');
 
       config.workflow = {
