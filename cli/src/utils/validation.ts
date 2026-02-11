@@ -244,19 +244,37 @@ export function validateJsonSize(jsonString: string, maxSizeBytes: number = 1024
 }
 
 /**
+ * Slugify a string for use in identifiers (plan IDs, paths, etc.)
+ * Converts to lowercase, replaces non-alphanumeric with hyphens, trims hyphens.
+ *
+ * @param input - String to slugify
+ * @returns Slugified string (max 50 chars)
+ */
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50);
+}
+
+/**
  * Validates plan ID format
- * Plan IDs follow format: fractary-faber-{work-id}-{YYYYMMDD}-{HHMMSS}
+ * Plan IDs follow format: {org}-{project}-{work-id}-{YYYYMMDD}-{HHMMSS}
+ * Also accepts legacy format: fractary-faber-{work-id}-{YYYYMMDD}-{HHMMSS}
  *
  * @param planId - Plan ID to validate
  * @returns True if valid
  * @throws Error if invalid
  */
 export function validatePlanId(planId: string): boolean {
-  const planIdPattern = /^fractary-faber-\d+-\d{8}-\d{6}$/;
+  // Accepts one or more slug segments followed by -{digits}-{8digits}-{6digits}
+  // Only [a-z0-9-] allowed, which inherently prevents path traversal
+  const planIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*-\d+-\d{8}-\d{6}$/;
 
   if (!planIdPattern.test(planId)) {
     throw new Error(
-      `Invalid plan ID format: "${planId}". Expected format: fractary-faber-{work-id}-{YYYYMMDD}-{HHMMSS}`
+      `Invalid plan ID format: "${planId}". Expected format: {org}-{project}-{work-id}-{YYYYMMDD}-{HHMMSS}`
     );
   }
 

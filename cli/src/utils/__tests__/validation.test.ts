@@ -14,6 +14,7 @@ import {
   validateSafePath,
   validateJsonSize,
   validatePlanId,
+  slugify,
 } from '../validation.js';
 
 describe('parseValidInteger', () => {
@@ -260,24 +261,34 @@ describe('validateJsonSize', () => {
 });
 
 describe('validatePlanId', () => {
-  it('should accept valid plan ID formats', () => {
+  it('should accept new plan ID format with org-project prefix', () => {
+    expect(validatePlanId('corthosai-etl-corthion-ai-258-20260106-143022')).toBe(true);
+    expect(validatePlanId('myorg-myproject-1-20250101-000000')).toBe(true);
+    expect(validatePlanId('acme-web-app-42-20260211-120000')).toBe(true);
+  });
+
+  it('should accept legacy fractary-faber plan ID format', () => {
     expect(validatePlanId('fractary-faber-258-20260106-143022')).toBe(true);
     expect(validatePlanId('fractary-faber-1-20250101-000000')).toBe(true);
     expect(validatePlanId('fractary-faber-99999999-99999999-999999')).toBe(true);
   });
 
-  it('should reject plan IDs with wrong prefix', () => {
-    expect(() => validatePlanId('wrong-prefix-258-20260106-143022')).toThrow('Invalid plan ID format');
+  it('should accept single-segment org-project prefixes', () => {
+    expect(validatePlanId('myapp-258-20260106-143022')).toBe(true);
+  });
+
+  it('should reject plan IDs with uppercase characters', () => {
+    expect(() => validatePlanId('Fractary-Faber-258-20260106-143022')).toThrow('Invalid plan ID format');
   });
 
   it('should reject plan IDs with wrong date format', () => {
-    expect(() => validatePlanId('fractary-faber-258-2026-143022')).toThrow('Invalid plan ID format');
-    expect(() => validatePlanId('fractary-faber-258-20260106-1430')).toThrow('Invalid plan ID format');
+    expect(() => validatePlanId('myorg-myproject-258-2026-143022')).toThrow('Invalid plan ID format');
+    expect(() => validatePlanId('myorg-myproject-258-20260106-1430')).toThrow('Invalid plan ID format');
   });
 
-  it('should reject plan IDs with non-numeric parts', () => {
-    expect(() => validatePlanId('fractary-faber-abc-20260106-143022')).toThrow('Invalid plan ID format');
-    expect(() => validatePlanId('fractary-faber-258-20260106-abc123')).toThrow('Invalid plan ID format');
+  it('should reject plan IDs with non-numeric work-id and date parts', () => {
+    expect(() => validatePlanId('myorg-myproject-abc-20260106-143022')).toThrow('Invalid plan ID format');
+    expect(() => validatePlanId('myorg-myproject-258-20260106-abc123')).toThrow('Invalid plan ID format');
   });
 
   it('should reject empty plan IDs', () => {
@@ -285,7 +296,39 @@ describe('validatePlanId', () => {
   });
 
   it('should reject plan IDs with path traversal attempts', () => {
-    expect(() => validatePlanId('../fractary-faber-258-20260106-143022')).toThrow('Invalid plan ID format');
-    expect(() => validatePlanId('fractary-faber-258-20260106-143022/../malicious')).toThrow('Invalid plan ID format');
+    expect(() => validatePlanId('../myorg-project-258-20260106-143022')).toThrow('Invalid plan ID format');
+    expect(() => validatePlanId('myorg-project-258-20260106-143022/../malicious')).toThrow('Invalid plan ID format');
+  });
+
+  it('should reject plan IDs with dots or special characters', () => {
+    expect(() => validatePlanId('my.org-project-258-20260106-143022')).toThrow('Invalid plan ID format');
+    expect(() => validatePlanId('my_org-project-258-20260106-143022')).toThrow('Invalid plan ID format');
+  });
+});
+
+describe('slugify', () => {
+  it('should lowercase and replace non-alphanumeric with hyphens', () => {
+    expect(slugify('My-Project')).toBe('my-project');
+    expect(slugify('etl.corthion.ai')).toBe('etl-corthion-ai');
+    expect(slugify('Hello World!')).toBe('hello-world');
+  });
+
+  it('should trim leading/trailing hyphens', () => {
+    expect(slugify('-project-')).toBe('project');
+    expect(slugify('---test---')).toBe('test');
+  });
+
+  it('should handle already-slugified input', () => {
+    expect(slugify('my-project')).toBe('my-project');
+    expect(slugify('faber')).toBe('faber');
+  });
+
+  it('should truncate to 50 chars', () => {
+    const long = 'a'.repeat(60);
+    expect(slugify(long).length).toBe(50);
+  });
+
+  it('should collapse multiple non-alphanumeric chars into single hyphen', () => {
+    expect(slugify('a...b___c')).toBe('a-b-c');
   });
 });

@@ -204,23 +204,23 @@ faber plan --work-id 258,259 OR --work-label "workflow:etl,status:approved"
 
 [1/3] Issue #258: Load IPEDS HD dataset
       Workflow: etl
-      Plan: fractary-faber-258-20260106-143022
+      Plan: myorg-myproject-258-20260106-143022
       Branch: feature/258
       Worktree: ~/.claude-worktrees/fractary-myproject-258
 
       To execute:
         cd ~/.claude-worktrees/fractary-myproject-258 && claude
-        /fractary-faber:workflow-run fractary-faber-258-20260106-143022
+        /fractary-faber:workflow-run myorg-myproject-258-20260106-143022
 
 [2/3] Issue #259: Load IPEDS IC dataset
       Workflow: etl
-      Plan: fractary-faber-259-20260106-143025
+      Plan: myorg-myproject-259-20260106-143025
       Branch: feature/259
       Worktree: ~/.claude-worktrees/fractary-myproject-259
 
       To execute:
         cd ~/.claude-worktrees/fractary-myproject-259 && claude
-        /fractary-faber:workflow-run fractary-faber-259-20260106-143025
+        /fractary-faber:workflow-run myorg-myproject-259-20260106-143025
 
 [3/3] Issue #260: Fix authentication timeout
       Workflow: bugfix
@@ -233,7 +233,7 @@ faber plan --work-id 258,259 OR --work-label "workflow:etl,status:approved"
 
 The `/fractary-faber:workflow-run` command now accepts either:
 - **Work ID** (e.g., `258`) - Fetches plan from GitHub issue
-- **Plan ID** (e.g., `fractary-faber-258-20260106-143022`) - Direct plan reference
+- **Plan ID** (e.g., `myorg-myproject-258-20260106-143022`) - Direct plan reference
 
 ### User Experience Improvement
 
@@ -242,7 +242,7 @@ The `/fractary-faber:workflow-run` command now accepts either:
 /fractary-faber:workflow-run 258
 
 # Traditional: use plan-id
-/fractary-faber:workflow-run fractary-faber-258-20260106-143022
+/fractary-faber:workflow-run myorg-myproject-258-20260106-143022
 ```
 
 Both are supported for backwards compatibility.
@@ -254,11 +254,8 @@ Both are supported for backwards compatibility.
 const arg = args[0];
 let plan_id;
 
-if (arg.startsWith('fractary-faber-')) {
-  // Full plan ID provided
-  plan_id = arg;
-} else {
-  // Work ID provided - fetch plan_id from GitHub issue
+if (/^\d+$/.test(arg)) {
+  // Numeric — this is a work ID, fetch plan_id from GitHub issue
   const work_id = arg;
   console.log(`→ Fetching plan for issue #${work_id}...`);
 
@@ -270,6 +267,9 @@ if (arg.startsWith('fractary-faber-')) {
   }
 
   console.log(`✓ Found plan: ${plan_id}`);
+} else {
+  // Non-numeric — this is a plan ID (e.g., myorg-myproject-258-20260106-143022)
+  plan_id = arg;
 }
 
 // Load plan and execute
@@ -284,7 +284,7 @@ The plan JSON must include issue metadata:
 
 ```json
 {
-  "plan_id": "fractary-faber-258-20260106-143022",
+  "plan_id": "myorg-myproject-258-20260106-143022",
   "created_by": "cli",
   "cli_version": "3.4.0",
   "issue": {
