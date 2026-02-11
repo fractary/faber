@@ -509,31 +509,27 @@ async function planSingleIssue(
   // Generate detailed comment for GitHub issue
   const planSummary = generatePlanComment(plan, issue.workflow!, worktreePath, planId, issue.number);
 
-  // Update GitHub issue with plan_id
+  // Update GitHub issue: post comment, then try to add label separately
+  // (posting comment and adding label in a single updateIssue call caused
+  // duplicate comments when the label didn't exist, because the comment was
+  // already created before addLabels failed, and the retry re-posted it)
   if (outputFormat === 'text') {
     console.log(chalk.gray(`  → Updating GitHub issue...`));
   }
+  await repoClient.updateIssue({
+    id: issue.number.toString(),
+    comment: planSummary,
+  });
+
+  // Try to add the 'faber:planned' label separately (non-fatal if it fails)
   try {
     await repoClient.updateIssue({
       id: issue.number.toString(),
-      comment: planSummary,
       addLabel: 'faber:planned',
     });
   } catch (error) {
-    // If label doesn't exist, just add comment without label
-    if (error instanceof Error &&
-        (error.message.includes('not found') ||
-         error.message.includes('faber:planned') ||
-         error.message.includes('--add-label'))) {
-      if (outputFormat === 'text') {
-        console.log(chalk.yellow(`  ⚠️  Label 'faber:planned' not found, adding comment only`));
-      }
-      await repoClient.updateIssue({
-        id: issue.number.toString(),
-        comment: planSummary,
-      });
-    } else {
-      throw error;
+    if (outputFormat === 'text') {
+      console.log(chalk.yellow(`  ⚠️  Could not add 'faber:planned' label: ${error instanceof Error ? error.message : 'Unknown error'}`));
     }
   }
 

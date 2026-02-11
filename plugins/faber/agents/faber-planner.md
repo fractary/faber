@@ -495,14 +495,23 @@ Write plan file.
 
 ## Step 7b: Post Plan Creation Comment
 
-**Post a comment to each GitHub issue notifying that a plan was created.**
+**Post exactly ONE comment to each GitHub issue notifying that a plan was created.**
 
 This step only executes when `planning_mode == "work_id"` (skip for target-based planning, which has no issue to comment on).
 
 The `**Plan ID:** \`{plan_id}\`` line is critical — `extractPlanIdFromIssue()` in workflow-run.md parses this pattern to resolve plan IDs from work IDs.
 
+**CRITICAL RULES:**
+- Post exactly ONE comment per work_id. Do NOT post multiple comments.
+- You MUST substitute the actual values from this planning session into the template below. Do NOT leave `{plan_id}` or `{workflow_id}` as literal text — replace them with the real plan ID and workflow ID you computed in earlier steps.
+- Use the EXACT template below. Do NOT add extra sections like "Workflow Phases", "Plan Location", or "Next Steps" — keep the comment concise.
+
 ```
 IF planning_mode == "work_id":
+  # IMPORTANT: Substitute real values before posting!
+  # plan_id = the ID generated in Step 5 (e.g., "fractary-faber-153-20260211-181150")
+  # workflow_id = the resolved workflow ID from Step 3 (e.g., "dataset-create")
+
   FOR EACH item IN plan.items:
     TRY:
       comment_body = [
@@ -514,6 +523,10 @@ IF planning_mode == "work_id":
         "",
         "Execute: `/fractary-faber:workflow-run {plan_id}`"
       ].join("\n")
+
+      # Verify substitution before posting:
+      # - comment_body must NOT contain literal "{plan_id}" or "{workflow_id}"
+      # - Plan ID and Workflow values must be non-empty strings
 
       /fractary-work:issue-comment {item.work_id} --body "{comment_body}"
     CATCH error:
