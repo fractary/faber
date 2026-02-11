@@ -575,9 +575,9 @@ fi
 ### Phase 8: Git Configuration
 
 **Files to modify:**
-- `.gitignore` - Should NOT ignore `.fractary/faber/runs/.active-run-id` (needs to be tracked for cross-environment workflows)
+- `.gitignore` - Should ignore `.fractary/faber/runs/.active-run-id` (worktree-local state, not cross-environment state)
 
-**Note**: The `.fractary/faber/runs/.active-run-id` file should be committed to git so that workflows can be resumed across machines.
+**Note**: The `.fractary/faber/runs/.active-run-id` file is worktree-local state and must be gitignored. Run state files (which remain committed) provide all the information needed for cross-environment resume via `--resume`.
 
 ## Files to Create/Modify
 
@@ -757,7 +757,7 @@ user$ /fractary-faber:workflow-run --work-id 259
 | **Hook timeout** | Session-end truncated | Set 60s timeout for PreCompact hook, make saves fast |
 | **Users try multiple workflows in same worktree** | Conflicts, lost context | Detect active workflow, warn user, suggest git worktrees |
 | **`.active-run-id` file conflicts** | Wrong workflow loaded | One workflow per worktree design prevents this |
-| **Forgot to commit `.active-run-id`** | Can't resume cross-environment | Document that file should be committed, not in .gitignore |
+| **`.active-run-id` in new worktree** | False conflict in new worktrees | File is gitignored; run state files handle cross-environment resume |
 | **`.fractary/faber/` directory not created** | File write fails | Ensure directory exists (mkdir -p) before writing |
 
 ## Worktree Management Integration
@@ -799,7 +799,7 @@ This enhancement makes worktrees transparent to users while maintaining the simp
 - [ ] Auto-reload only on Frame phase (not all phases)
 - [ ] Session history tracked across environments
 - [ ] Portable paths resolve correctly
-- [ ] `.fractary/faber/runs/.active-run-id` committed to git
+- [ ] `.fractary/faber/runs/.active-run-id` gitignored (worktree-local state)
 - [ ] Documentation complete (including hook setup guide)
 - [ ] Backward compatible with existing workflows
 

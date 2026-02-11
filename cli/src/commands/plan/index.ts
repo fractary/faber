@@ -18,7 +18,7 @@ import {
   validatePlanId,
 } from '../../utils/validation.js';
 import type { LoadedFaberConfig } from '../../types/config.js';
-import { getRunDir, getPlanPath } from '@fractary/faber';
+import { getRunDir, getPlanPath, getActiveRunIdPath } from '@fractary/faber';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -486,6 +486,16 @@ async function planSingleIssue(
       } else {
         throw error;
       }
+    }
+
+    // Clean up worktree-local state that may have been copied from source branch.
+    // .active-run-id tracks the active run in a specific worktree and should not
+    // carry over to new worktrees (causes false conflict detection in workflow-run).
+    try {
+      const activeRunIdInWorktree = getActiveRunIdPath(worktreePath);
+      await fs.unlink(activeRunIdInWorktree).catch(() => {});
+    } catch {
+      // Non-fatal: if cleanup fails, workflow-run will handle conflict detection
     }
   }
 

@@ -10,7 +10,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Git, WorkflowResolver, type ResolvedWorkflow } from '@fractary/faber';
-import { validateJsonSize } from '../utils/validation.js';
+import { validateJsonSize, slugify } from '../utils/validation.js';
 import type { LoadedFaberConfig } from '../types/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -116,9 +116,12 @@ export class AnthropicClient {
     const resolver = new WorkflowResolver({ projectRoot: process.cwd() });
     const workflowConfig = await resolver.resolveWorkflow(input.workflow);
 
-    // Generate plan ID
+    // Extract repo info before generating plan ID (needed for org-project prefix)
+    const { organization, project } = await this.extractRepoInfo();
+
+    // Generate plan ID with org-project prefix
     const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z/, '').replace('T', '-');
-    const planId = `fractary-faber-${input.issueNumber}-${timestamp}`;
+    const planId = `${slugify(organization)}-${slugify(project)}-${input.issueNumber}-${timestamp}`;
 
     // Construct prompt for Claude
     const prompt = this.constructPlanningPrompt(input, workflowConfig);
@@ -147,7 +150,6 @@ export class AnthropicClient {
     const planJson = this.extractJsonFromResponse(content.text);
 
     // Add metadata
-    const { organization, project } = await this.extractRepoInfo();
     const plan: WorkflowPlan = {
       ...planJson,
       plan_id: planId,

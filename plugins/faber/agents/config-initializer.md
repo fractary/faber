@@ -209,7 +209,9 @@ gitignore_file=".fractary/.gitignore"
 mkdir -p ".fractary"
 
 faber_entries="# ===== fractary-faber (managed) =====
-# faber/state/ and faber/runs/ are committed to source control
+# faber/runs/ is committed to source control (plans, state files)
+# .active-run-id is worktree-local state and must NOT be committed
+faber/runs/.active-run-id
 # ===== end fractary-faber ====="
 
 if [ -f "$gitignore_file" ]; then
