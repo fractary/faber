@@ -62,6 +62,8 @@ export interface ChangelogConfig {
   projectRoot?: string;
   /** Path to runs directory (default: from config) */
   runsPath?: string;
+  /** Path to project-level changelog file (default: from config) */
+  changelogPath?: string;
 }
 
 // ============================================================================

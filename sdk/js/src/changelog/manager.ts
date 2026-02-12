@@ -18,7 +18,7 @@ import {
   ChangelogQueryOptions,
   ChangelogQueryResult,
 } from './types.js';
-import { findProjectRoot, getRunsPath } from '../config.js';
+import { findProjectRoot, getRunsPath, getChangelogPath } from '../config.js';
 import { FaberError } from '../errors.js';
 
 // ============================================================================
@@ -86,10 +86,12 @@ function readNdjson(filePath: string): ChangelogEntry[] {
 export class ChangelogManager {
   private projectRoot: string;
   private runsPath: string;
+  private changelogPath: string;
 
   constructor(config?: ChangelogConfig) {
     this.projectRoot = config?.projectRoot || findProjectRoot();
     this.runsPath = config?.runsPath || getRunsPath(this.projectRoot);
+    this.changelogPath = config?.changelogPath || getChangelogPath(this.projectRoot);
   }
 
   // =========================================================================
@@ -103,7 +105,7 @@ export class ChangelogManager {
 
   /** Get path to project-level changelog file */
   private getProjectChangelogPath(): string {
-    return path.join(this.projectRoot, '.fractary', 'changelog.ndjson');
+    return this.changelogPath;
   }
 
   // =========================================================================

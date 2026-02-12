@@ -15,6 +15,8 @@ export const FABER_PATHS = {
   workflows: '.fractary/faber/workflows',
   /** Directory for workflow run artifacts (logs, state, manifests) */
   runs: '.fractary/faber/runs',
+  /** Project-level changelog file */
+  changelog: '.fractary/changelog.ndjson',
 } as const;
 
 /**

@@ -735,6 +735,10 @@ export interface FaberPluginConfig {
     /** Directory for all run artifacts (state, logs, manifests) */
     path?: string;
   };
+  changelog?: {
+    /** Path for the project-level changelog file */
+    path?: string;
+  };
 }
 
 // ============================================================================
