@@ -11,13 +11,13 @@
           "id": "auto-reload-context",
           "name": "Reload Context",
           "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:session-load"
+          "prompt": "/fractary-faber:session-load --work-id {work_id}"
         },
         {
-          "id": "core-fetch-issue",
-          "name": "Fetch Issue",
-          "description": "Fetch existing issue. Reads referenced docs and existing commits.",
-          "prompt": "/fractary-work:issue-fetch --work-id {work_id}"
+          "id": "frame-codex-sync-test",
+          "name": "Sync from Codex (Test)",
+          "description": "Pull project documentation from Codex",
+          "prompt": "/fractary-codex:sync-project --work-id {work_id} --from-codex --env test"
         }
       ],
       "steps": [],
