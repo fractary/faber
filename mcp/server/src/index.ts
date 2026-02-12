@@ -5,7 +5,7 @@
  */
 
 // Export tool creation functions
-export { createWorkflowTools, createEventTools } from './tools/index.js';
+export { createWorkflowTools, createEventTools, createChangelogTools } from './tools/index.js';
 
 // Export backend implementations
 export { LocalFilesBackend } from './backends/local-files.js';

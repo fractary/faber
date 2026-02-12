@@ -6,4 +6,5 @@
 
 export { createWorkflowTools } from './workflow.js';
 export { createEventTools } from './events.js';
+export { createChangelogTools } from './changelog.js';
 export type { ToolDefinition } from './workflow.js';

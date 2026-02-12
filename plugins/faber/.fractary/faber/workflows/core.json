@@ -90,7 +90,11 @@
           "id": "evaluate-pr-merge-test",
           "name": "Merge PR to Test Branch",
           "description": "Merge the pull request to the test branch.",
-          "prompt": "/fractary-repo:pr-merge {pr_id} --to-branch test"
+          "prompt": "/fractary-repo:pr-merge {pr_id} --to-branch test",
+          "changelog": {
+            "event_type": "CODE_MERGED",
+            "environment": "test"
+          }
         }
       ],
       "steps": [],
@@ -99,7 +103,11 @@
           "id": "evaluate-codex-sync-test",
           "name": "Sync to Codex (Test)",
           "description": "Push project documentation to codex",
-          "prompt": "/fractary-codex:sync-project --work-id {work_id} --to-codex --env test"
+          "prompt": "/fractary-codex:sync-project --work-id {work_id} --to-codex --env test",
+          "changelog": {
+            "event_type": "CODEX_SYNCED",
+            "environment": "test"
+          }
         }, 
         {
           "id": "evaluate-issue-comment-complete",
@@ -124,7 +132,11 @@
           "id": "release-pr-merge-prod",
           "name": "Merge PR to Main Branch",
           "description": "Merge the pull request to the main branch.",
-          "prompt": "/fractary-repo:pr-merge {pr_id} --to-branch main"
+          "prompt": "/fractary-repo:pr-merge {pr_id} --to-branch main",
+          "changelog": {
+            "event_type": "CODE_MERGED",
+            "environment": "prod"
+          }
         }
       ],
       "steps": [],
@@ -135,7 +147,11 @@
           "step_type": "codex",
           "name": "Sync to Codex (Production)",
           "description": "Push project documentation to codex",
-          "prompt": "/fractary-codex:sync-project --work-id {work_id} --to-codex --environment prod"
+          "prompt": "/fractary-codex:sync-project --work-id {work_id} --to-codex --environment prod",
+          "changelog": {
+            "event_type": "CODEX_SYNCED",
+            "environment": "prod"
+          }
         }, 
         {
           "id": "release-issue-comment-complete",
