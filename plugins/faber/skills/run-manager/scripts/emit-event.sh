@@ -168,9 +168,14 @@ if [[ -z "$EVENT_TYPE" ]]; then
     exit 1
 fi
 
-# Validate run_id format - stricter regex (no leading/trailing special chars in org/project)
+# Validate run_id format - accepts UUID-based and plan-based formats
+# Format 1: {org}/{project}/{uuid} (UUID-based, used by faber-manager)
+# Format 2: {plan-slug}/{run-suffix} (plan-based, used by workflow-run)
+# Format 3: {plan-slug} (flat plan-based)
 if [[ ! "$RUN_ID" =~ ^[a-z0-9][a-z0-9_-]*[a-z0-9]/[a-z0-9][a-z0-9_-]*[a-z0-9]/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]] && \
-   [[ ! "$RUN_ID" =~ ^[a-z0-9]/[a-z0-9]/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]]; then
+   [[ ! "$RUN_ID" =~ ^[a-z0-9]/[a-z0-9]/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]] && \
+   [[ ! "$RUN_ID" =~ ^[a-z0-9][a-z0-9-]*[a-z0-9]/[a-zA-Z0-9][a-zA-Z0-9T_.-]*[a-zA-Z0-9]$ ]] && \
+   [[ ! "$RUN_ID" =~ ^[a-z0-9][a-z0-9-]*[a-z0-9]$ ]]; then
     echo '{"status": "error", "error": {"code": "INVALID_RUN_ID", "message": "Invalid run_id format"}}' >&2
     exit 1
 fi

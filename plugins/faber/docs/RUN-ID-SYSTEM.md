@@ -12,7 +12,11 @@ Every FABER workflow execution is assigned a unique Run ID that isolates its sta
 - **Re-run Capability**: Runs can be re-executed with different parameters
 - **S3 Archival**: Events can be archived to S3 for long-term storage
 
-## Run ID Format
+## Run ID Formats
+
+Two run-id formats are supported:
+
+### Format 1: UUID-based (faber-manager)
 
 ```
 {org}/{project}/{uuid}
@@ -26,6 +30,24 @@ Every FABER workflow execution is assigned a unique Run ID that isolates its sta
 ```
 fractary/claude-plugins/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 acme-corp/payment-service/12345678-1234-1234-1234-123456789abc
+```
+
+### Format 2: Plan-based (workflow-run)
+
+```
+{plan-id}/{run-suffix}
+```
+
+- **plan-id**: `{org}-{project}-{work-id}` (e.g., `fractary-faber-258`)
+- **run-suffix**: ISO timestamp of run start (e.g., `2026-02-11T18-56-42`)
+
+Events are stored at `.fractary/faber/runs/{plan-id}/{run-suffix}/events/`,
+co-located with the plan and state files under the same plan directory.
+
+**Examples**:
+```
+fractary-faber-258/2026-02-11T18-56-42
+fractary-claude-plugins-csv-export/2026-01-15T09-30-00
 ```
 
 ### Auto-Detection

@@ -87,7 +87,7 @@ All examples include try-catch blocks and proper error handling. Modify the erro
 
 Examples use the default `FABER_RUNS_PATH`:
 ```bash
-.fractary/plugins/faber/runs
+.fractary/faber/runs
 ```
 
 Override by setting the environment variable before running:

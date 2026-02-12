@@ -157,7 +157,9 @@ export class AnthropicClient {
     // Extract repo info
     const { organization, project } = await this.extractRepoInfo();
 
-    // Generate plan ID matching faber-planner format: {org}-{project}-{subproject}-{timestamp}
+    // Generate plan ID: {org}-{project}-{work-id}
+    // Timestamp is omitted from plan-id since run-ids already contain timestamps.
+    // This keeps plan directories human-readable and scoped to the work item.
     const now = new Date();
     const year = now.getFullYear().toString();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -165,9 +167,8 @@ export class AnthropicClient {
     const hour = String(now.getHours()).padStart(2, '0');
     const minute = String(now.getMinutes()).padStart(2, '0');
     const second = String(now.getSeconds()).padStart(2, '0');
-    const timestamp = `${year}${month}${day}-${hour}${minute}${second}`;
     const subproject = `issue-${input.issueNumber}`;
-    const planId = `${slugify(organization)}-${slugify(project)}-${input.issueNumber}-${timestamp}`;
+    const planId = `${slugify(organization)}-${slugify(project)}-${input.issueNumber}`;
 
     // Build the plan deterministically — no LLM call needed
     const plan: WorkflowPlan = {
