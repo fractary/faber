@@ -66,6 +66,63 @@ interface CodexModule {
   resolveReference(uri: string, options?: Record<string, unknown>): ResolvedReference | null;
   loadConfig(options?: Record<string, unknown>): Promise<CodexConfig>;
   buildUri(org: string, project: string, path: string): string;
+  MemorySearcher?: new (root: string, config?: Partial<MemoryConfig>) => MemorySearcherInstance;
+  MemoryWriter?: new (root: string, config?: Partial<MemoryConfig>) => MemoryWriterInstance;
+}
+
+// Runtime type definitions for Codex Memory (matches @fractary/codex memory module)
+
+interface MemoryConfig {
+  memoryDir: string;
+  cacheDir: string;
+  syncedMemoryPatterns: string[];
+}
+
+interface MemorySearchQuery {
+  text?: string;
+  memory_type?: string;
+  category?: string;
+  phase?: string;
+  agent?: string;
+  tags?: string[];
+  status?: string;
+  limit?: number;
+}
+
+interface MemorySearchResult {
+  entry: {
+    file_path: string;
+    mtime: string;
+    source: string;
+    frontmatter: Record<string, unknown>;
+  };
+  score: number;
+  source: string;
+  filePath: string;
+}
+
+interface MemoryWriteOptions {
+  memory_type: string;
+  title: string;
+  description: string;
+  body: string;
+  frontmatter: Record<string, unknown>;
+  template?: string;
+}
+
+interface MemoryWriteResult {
+  memory_id: string;
+  file_path: string;
+  deduplicated: boolean;
+  existing_id?: string;
+}
+
+interface MemorySearcherInstance {
+  search(query: MemorySearchQuery): MemorySearchResult[];
+}
+
+interface MemoryWriterInstance {
+  write(options: MemoryWriteOptions): MemoryWriteResult;
 }
 
 /**
@@ -298,6 +355,48 @@ export class CodexAdapter {
    */
   getReference(type: string, id: string): string {
     return `codex://${type}/${id}`;
+  }
+
+  /**
+   * Search memories via Codex MemorySearcher
+   *
+   * Falls back to empty results if Codex is not available.
+   */
+  async searchMemories(query: MemorySearchQuery): Promise<MemorySearchResult[]> {
+    const codex = await this.tryLoadCodex();
+    if (!codex) {
+      return [];
+    }
+
+    try {
+      const projectRoot = findProjectRoot();
+      const { MemorySearcher } = codex as unknown as {
+        MemorySearcher: new (root: string, config?: Partial<MemoryConfig>) => MemorySearcherInstance;
+      };
+      const searcher = new MemorySearcher(projectRoot);
+      return searcher.search(query);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Write a memory via Codex MemoryWriter
+   *
+   * Throws if Codex is not available.
+   */
+  async writeMemory(options: MemoryWriteOptions): Promise<MemoryWriteResult> {
+    const codex = await this.tryLoadCodex();
+    if (!codex) {
+      throw new FaberError('Codex not available for memory writing', 'CODEX_NOT_AVAILABLE', {});
+    }
+
+    const projectRoot = findProjectRoot();
+    const { MemoryWriter } = codex as unknown as {
+      MemoryWriter: new (root: string, config?: Partial<MemoryConfig>) => MemoryWriterInstance;
+    };
+    const writer = new MemoryWriter(projectRoot);
+    return writer.write(options);
   }
 }
 

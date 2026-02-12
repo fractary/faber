@@ -9,9 +9,14 @@ tools: Read, Glob
 
 ## Purpose
 
-Aggregates troubleshooting knowledge from multiple sources:
-- Core knowledge base: `.fractary/faber/knowledge-base/`
-- Plugin knowledge bases: `.fractary/plugins/*/knowledge-base/`
+Aggregates troubleshooting knowledge from multiple sources with cascading priority:
+1. **Codex memories**: `.fractary/codex/memory/` via `MemorySearcher` (preferred)
+2. **Legacy core knowledge base**: `.fractary/faber/knowledge-base/` (fallback)
+3. **Legacy plugin knowledge bases**: `.fractary/plugins/*/knowledge-base/` (fallback)
+
+When Codex is available, the `MemorySearcher` is used first. It searches project memories
+and synced memories from other projects with relevance scoring. Legacy sources are searched
+as a fallback when Codex is unavailable or returns no results.
 
 Returns unified results with source attribution for the workflow-debugger agent.
 
@@ -29,12 +34,76 @@ Returns unified results with source attribution for the workflow-debugger agent.
 
 ## Algorithm
 
-### Step 1: Discover Knowledge Base Sources
+### Step 0: Try Codex MemorySearcher First
+
+```
+# Attempt to use the Codex MemorySearcher for modern memory lookup
+# This searches .fractary/codex/memory/ (local) and synced memories from other projects
+
+codex_results = []
+codex_available = false
+
+TRY:
+  # Use codex-adapter to call MemorySearcher
+  codex_adapter = get_codex_adapter()
+  if codex_adapter.isAvailable():
+    codex_available = true
+
+    # Build search query from parameters
+    query = {
+      memory_type: "troubleshooting",  # Default for KB aggregation
+      category: category_parameter or null,
+      phase: phase_parameter or null,
+      agent: agent_parameter or null,
+      tags: tags_parameter ? split(tags_parameter, ",") : null,
+      limit: limit_parameter or 20
+    }
+
+    codex_results = codex_adapter.searchMemories(query)
+
+    if length(codex_results) > 0:
+      PRINT "📚 Found {length(codex_results)} memories via Codex MemorySearcher"
+
+      # Convert codex results to the unified format expected by callers
+      all_entries = []
+      for result in codex_results:
+        fm = result.entry.frontmatter
+        all_entries.append({
+          id: fm.memory_id or fm.id,
+          title: fm.title,
+          problem_pattern: fm.title,
+          phase: fm.phase or null,
+          phases: fm.phases or [],
+          agent: fm.agent or null,
+          agents: fm.agents or [],
+          category: fm.category,
+          severity: fm.severity or "medium",
+          symptoms: fm.symptoms or [],
+          tags: fm.tags or [],
+          created: fm.created,
+          verified: fm.status == "verified" or fm.verified,
+          success_count: fm.success_count or 0,
+          source: result.source,
+          source_priority: 0 if result.source == "local" else 1,
+          file_path: result.filePath,
+          relevance_score: result.score
+        })
+
+      # Skip to Step 3 (filters already applied by MemorySearcher)
+      # Jump directly to Step 5 for output formatting
+      GOTO step_5_format_output(all_entries)
+CATCH codex_error:
+  PRINT "ℹ️  Codex MemorySearcher not available, falling back to legacy KB search"
+
+# If codex returned no results or is unavailable, fall back to legacy sources
+```
+
+### Step 1: Discover Knowledge Base Sources (Legacy Fallback)
 
 ```
 sources = []
 
-# Core knowledge base
+# Core knowledge base (legacy path)
 core_kb_path = ".fractary/faber/knowledge-base/"
 if exists(core_kb_path):
   sources.append({
@@ -43,7 +112,7 @@ if exists(core_kb_path):
     priority: 1  # Core has highest priority
   })
 
-# Plugin knowledge bases
+# Plugin knowledge bases (legacy path)
 plugin_dirs = glob(".fractary/plugins/*/")
 for plugin_dir in plugin_dirs:
   plugin_name = extract_directory_name(plugin_dir)
@@ -55,6 +124,15 @@ for plugin_dir in plugin_dirs:
       path: plugin_kb_path,
       priority: 2  # Plugins have lower priority
     })
+
+# Also check codex memory directory if Codex search failed but files exist
+codex_memory_path = ".fractary/codex/memory/"
+if exists(codex_memory_path) and not codex_available:
+  sources.append({
+    name: "codex-memory",
+    path: codex_memory_path,
+    priority: 0  # Codex memories have highest priority even in fallback
+  })
 
 PRINT "📚 Found {length(sources)} knowledge base source(s)"
 ```
@@ -78,6 +156,7 @@ cache_updated = false
 
 # Define allowed base paths for path traversal protection
 allowed_base_paths = [
+  ".fractary/codex/memory/",
   ".fractary/faber/knowledge-base/",
   ".fractary/plugins/"
 ]
@@ -561,5 +640,7 @@ This reduces repeated file I/O when the debugger runs multiple times in successi
 ## Related Documentation
 
 - `agents/workflow-debugger.md` - Uses this skill for KB searches
-- `.fractary/faber/knowledge-base/` - Core KB location
-- `.fractary/plugins/*/knowledge-base/` - Plugin KB locations
+- `.fractary/codex/memory/` - Codex memory location (preferred, via MemorySearcher)
+- `.fractary/faber/knowledge-base/` - Legacy core KB location (fallback)
+- `.fractary/plugins/*/knowledge-base/` - Legacy plugin KB locations (fallback)
+- SPEC-00034 - Codex Memory System specification

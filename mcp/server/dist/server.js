@@ -18,6 +18,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { createWorkflowTools } from './tools/workflow.js';
 import { createEventTools } from './tools/events.js';
+import { createChangelogTools } from './tools/changelog.js';
 import { LocalFilesBackend } from './backends/local-files.js';
 import { listRunResources } from './resources/runs.js';
 // Configuration from environment
@@ -38,6 +39,7 @@ const server = new Server({
 const allTools = [
     ...createWorkflowTools(),
     ...createEventTools(backend),
+    ...createChangelogTools(),
 ];
 // List available tools
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
