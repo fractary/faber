@@ -67,7 +67,7 @@ If it returns `status: "fail"`, DO NOT mark the workflow as completed. Pause and
 **Arguments:**
 | Argument | Type | Required | Description |
 |----------|------|----------|-------------|
-| `<work-id\|plan-id>` | string | Yes | Work item ID (e.g., "258") OR full plan ID (e.g., "fractary-faber-258-20260106-143022"). If work-id provided, fetches plan from GitHub issue. |
+| `<work-id\|plan-id>` | string | Yes | Work item ID (e.g., "258") OR full plan ID (e.g., "fractary-faber-258"). If work-id provided, fetches plan from GitHub issue. |
 
 **Options:**
 | Option | Type | Default | Description |
@@ -84,7 +84,7 @@ If it returns `status: "fail"`, DO NOT mark the workflow as completed. Pause and
 /fractary-faber:workflow-run 258
 
 # Execute by full plan-id (backwards compatible)
-/fractary-faber:workflow-run fractary-faber-258-20260106-143022
+/fractary-faber:workflow-run fractary-faber-258
 
 # Execute with phase filter
 /fractary-faber:workflow-run 258 --phase build
@@ -123,7 +123,7 @@ Extract from user input:
 
 **Resolve Plan ID from Argument:**
 
-The first argument can be either a work-id (e.g., "258") or a full plan-id (e.g., "fractary-faber-258-20260106-143022").
+The first argument can be either a work-id (e.g., "258") or a full plan-id (e.g., "fractary-faber-258").
 
 ```javascript
 const arg = args[0];
@@ -137,7 +137,7 @@ if (!arg) {
 
 // Determine if argument is a plan-id or work-id
 // Work IDs (GitHub issue numbers) are always numeric.
-// Plan IDs always contain letters and hyphens (e.g., "fractary-faber-258-20260106-143022").
+// Plan IDs always contain letters and hyphens (e.g., "fractary-faber-258").
 if (/^\d+$/.test(arg)) {
   // Numeric — this is a work ID, fetch plan_id from GitHub issue
   const work_id = arg;
@@ -380,6 +380,19 @@ if (!resume_run_id && !force_new) {
 const runId = resume_run_id;
 const statePath = getStatePath(runId);  // Uses helper function defined above
 
+// Derive eventRunId for MCP event calls (maps to {plan_id}/{run_suffix}/events/)
+const runMarker = '-run-';
+const runMarkerIdx = runId.lastIndexOf(runMarker);
+const resumePlanId = runId.substring(0, runMarkerIdx);
+const resumeRunSuffix = runId.substring(runMarkerIdx + runMarker.length);
+const eventRunId = `${resumePlanId}/${resumeRunSuffix}`;
+
+// Ensure events directory exists for resumed run
+await Bash({
+  command: `mkdir -p ".fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events" && [ -f ".fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events/.next-id" ] || echo "1" > ".fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events/.next-id"`,
+  description: "Ensure events directory exists for resumed run"
+});
+
 // Read existing state
 const state = JSON.parse(await Read({ file_path: statePath }));
 
@@ -403,6 +416,10 @@ if (state.plan_id !== plan_id) {
 // Format: {plan_id}-run-{timestamp}
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
 const runId = `${plan_id}-run-${timestamp}`;
+
+// Event run_id uses slash-separated format so the MCP server maps it to
+// .fractary/faber/runs/{plan_id}/{timestamp}/events/
+const eventRunId = `${plan_id}/${timestamp}`;
 
 // State file goes in same directory as plan.json, with timestamp in filename
 // This keeps all artifacts for a plan together while allowing multiple runs
@@ -440,10 +457,10 @@ const initialState = {
 };
 
 // Plan directory should already exist (created by faber-planner)
-// Ensure it exists just in case
+// Ensure it exists just in case, and create events directory for this run
 await Bash({
-  command: `mkdir -p ".fractary/faber/runs/${plan_id}"`,
-  description: "Ensure plan directory exists"
+  command: `mkdir -p ".fractary/faber/runs/${plan_id}/${timestamp}/events" && echo "1" > ".fractary/faber/runs/${plan_id}/${timestamp}/events/.next-id"`,
+  description: "Create plan and events directories"
 });
 
 // Write initial state
@@ -624,12 +641,13 @@ if (work_id) {
 // Load the fractary_faber_event_emit MCP tool
 await MCPSearch({ query: "select:fractary_faber_event_emit" });
 
-// Emit workflow_start event
+// Emit workflow_start event (use eventRunId for MCP — maps to {plan_id}/{timestamp}/events/)
 await fractary_faber_event_emit({
-  run_id: runId,
+  run_id: eventRunId,
   type: "workflow_start",
   metadata: {
     plan_id: plan_id,
+    run_id: runId,
     workflow_id: workflow.id,
     work_id: work_id,
     work_items_count: workItems.length
@@ -795,11 +813,12 @@ const durationSeconds = Math.floor(
    new Date(completedState.started_at).getTime()) / 1000
 );
 
-// Emit completion event
+// Emit completion event (use eventRunId for MCP — maps to {plan_id}/{timestamp}/events/)
 await fractary_faber_event_emit({
-  run_id: runId,
+  run_id: eventRunId,
   type: "workflow_complete",
   metadata: {
+    run_id: runId,
     duration_seconds: durationSeconds,
     phases_completed: state.phases.filter(p => p.status === "completed").length,
     total_phases: state.phases.length
@@ -832,13 +851,14 @@ await Write({
   content: JSON.stringify(failedState, null, 2)
 });
 
-// Emit failure event
+// Emit failure event (use eventRunId for MCP — maps to {plan_id}/{timestamp}/events/)
 await fractary_faber_event_emit({
-  run_id: runId,
+  run_id: eventRunId,
   type: "workflow_failed",
   phase: currentPhase.name,
   step_id: currentStep.step_id,
   metadata: {
+    run_id: runId,
     error: errorMessage
   }
 });

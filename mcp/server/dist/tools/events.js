@@ -21,7 +21,7 @@ export function createEventTools(backend) {
                 properties: {
                     run_id: {
                         type: 'string',
-                        description: 'Full run identifier (org/project/uuid)',
+                        description: 'Run identifier (org/project/uuid or plan-id/run-suffix)',
                     },
                     type: {
                         type: 'string',

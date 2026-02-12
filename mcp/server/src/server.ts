@@ -28,7 +28,7 @@ import { LocalFilesBackend } from './backends/local-files.js';
 import { listRunResources } from './resources/runs.js';
 
 // Configuration from environment
-const BASE_PATH = process.env.FABER_RUNS_PATH || '.fractary/plugins/faber/runs';
+const BASE_PATH = process.env.FABER_RUNS_PATH || '.fractary/faber/runs';
 
 // Initialize backend for event storage
 const backend = new LocalFilesBackend(BASE_PATH);

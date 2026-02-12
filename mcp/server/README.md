@@ -50,7 +50,7 @@ The server uses environment variables for configuration:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FABER_RUNS_PATH` | `.fractary/plugins/faber/runs` | Base path for run storage |
+| `FABER_RUNS_PATH` | `.fractary/faber/runs` | Base path for run storage |
 
 ## Usage
 
@@ -80,7 +80,7 @@ Add to your MCP client configuration (e.g., `~/.config/claude/mcp.json`):
       "command": "node",
       "args": ["/path/to/faber/mcp/server/dist/server.js"],
       "env": {
-        "FABER_RUNS_PATH": ".fractary/plugins/faber/runs"
+        "FABER_RUNS_PATH": ".fractary/faber/runs"
       }
     }
   }
@@ -95,7 +95,7 @@ Add to your MCP client configuration (e.g., `~/.config/claude/mcp.json`):
     "fractary-faber": {
       "command": "fractary-faber-mcp",
       "env": {
-        "FABER_RUNS_PATH": ".fractary/plugins/faber/runs"
+        "FABER_RUNS_PATH": ".fractary/faber/runs"
       }
     }
   }

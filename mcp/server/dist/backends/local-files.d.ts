@@ -10,9 +10,10 @@ export declare class LocalFilesBackend {
     private readonly resolvedBasePath;
     constructor(basePath: string);
     /**
-     * Validate run_id format - strict validation to prevent edge cases
-     * - org and project must start and end with alphanumeric
-     * - uuid must be valid format
+     * Validate run_id format - accepts multiple formats
+     * Format 1 (UUID): {org}/{project}/{uuid} - used by faber-manager/init-run-directory.sh
+     * Format 2 (plan-based): {plan-slug}/{run-suffix} - used by workflow-run.md
+     * Format 3 (flat plan): {plan-slug} - for direct plan-level operations
      */
     private validateRunId;
     /**

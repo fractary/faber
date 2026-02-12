@@ -370,16 +370,19 @@ Check if branch exists for this work_id or target:
 
 ## Step 5: Generate Plan ID and Metadata
 
-Format: `{org}-{project}-{subproject}-{timestamp}`
+Format: `{org}-{project}-{work-id}`
 
 ```
 org = git remote org name (e.g., "fractary")
-project = repository name (e.g., "claude-plugins")
-subproject = first target slug (e.g., "csv-export" or "ipeds-admissions")
-timestamp = YYYYMMDDTHHMMSS
+project = repository name (e.g., "faber")
+work_id = the numeric work ID from Step 2 (e.g., "258")
 
-Example: fractary-claude-plugins-csv-export-20251208T160000
+Example (work-id mode): fractary-faber-258
+Example (target mode, no work-id): fractary-faber-csv-export
 ```
+
+Timestamp is NOT included in the plan-id because run-ids already contain timestamps.
+This keeps plan directories human-readable and scoped to the work item.
 
 **Extract metadata for analytics:**
 ```bash
@@ -407,7 +410,7 @@ Store these in `metadata` object for S3/Athena partitioning:
 
 ```json
 {
-  "id": "fractary-claude-plugins-csv-export-20251208T160000",
+  "id": "fractary-claude-plugins-csv-export",
   "created": "2025-12-08T16:00:00Z",
   "created_by": "faber-planner",
 
@@ -509,7 +512,7 @@ The `**Plan ID:** \`{plan_id}\`` line is critical — `extractPlanIdFromIssue()`
 ```
 IF planning_mode == "work_id":
   # IMPORTANT: Substitute real values before posting!
-  # plan_id = the ID generated in Step 5 (e.g., "fractary-faber-153-20260211-181150")
+  # plan_id = the ID generated in Step 5 (e.g., "fractary-faber-153")
   # workflow_id = the resolved workflow ID from Step 3 (e.g., "dataset-create")
 
   FOR EACH item IN plan.items:
@@ -759,7 +762,7 @@ FABER Plan Created
 [User selected "Execute now"]
 
 execute: true
-plan_id: fractary-claude-plugins-csv-export-20251208T160000
+plan_id: fractary-claude-plugins-csv-export
 ```
 
 **Example Agent Response (execute false):**
@@ -770,10 +773,10 @@ FABER Plan Created
 [User selected "Exit"]
 
 execute: false
-plan_id: fractary-claude-plugins-csv-export-20251208T160000
+plan_id: fractary-claude-plugins-csv-export
 
 Plan saved for later execution:
-/fractary-faber:workflow-run fractary-claude-plugins-csv-export-20251208T160000
+/fractary-faber:workflow-run fractary-claude-plugins-csv-export
 ```
 
 **Why This Design:**
@@ -859,8 +862,8 @@ When no pattern matches:
 ```
 FABER Plan Created
 
-Plan ID: fractary-claude-plugins-csv-export-20251208T160000
-Plan File: .fractary/faber/runs/fractary-claude-plugins-csv-export-20251208T160000/plan.json
+Plan ID: fractary-claude-plugins-csv-export
+Plan File: .fractary/faber/runs/fractary-claude-plugins-csv-export/plan.json
 
 Workflow: fractary-faber:default (extends fractary-faber:core)
 Autonomy: guarded
@@ -896,8 +899,8 @@ Items (3):
 ```
 FABER Plan Created
 
-Plan ID: fractary-claude-plugins-ipeds-admissions-20251208T160000
-Plan File: .fractary/faber/runs/fractary-claude-plugins-ipeds-admissions-20251208T160000/plan.json
+Plan ID: fractary-claude-plugins-ipeds-admissions
+Plan File: .fractary/faber/runs/fractary-claude-plugins-ipeds-admissions/plan.json
 
 Planning Mode: Target-based (no work_id)
 Target Type: dataset
@@ -931,14 +934,14 @@ Items (1):
 
 ```
 Execute Command:
-/fractary-faber:workflow-run fractary-claude-plugins-csv-export-20251208T160000
+/fractary-faber:workflow-run fractary-claude-plugins-csv-export
 
 Plan Location:
-.fractary/faber/runs/fractary-claude-plugins-csv-export-20251208T160000/plan.json
+.fractary/faber/runs/fractary-claude-plugins-csv-export/plan.json
 
 Plan Contents:
 {
-  "id": "fractary-claude-plugins-csv-export-20251208T160000",
+  "id": "fractary-claude-plugins-csv-export",
   "created": "2025-12-08T16:00:00Z",
   "created_by": "faber-planner",
   ...full plan JSON...

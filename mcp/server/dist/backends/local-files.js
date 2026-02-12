@@ -58,13 +58,29 @@ export class LocalFilesBackend {
         this.resolvedBasePath = path.resolve(basePath);
     }
     /**
-     * Validate run_id format - strict validation to prevent edge cases
-     * - org and project must start and end with alphanumeric
-     * - uuid must be valid format
+     * Validate run_id format - accepts multiple formats
+     * Format 1 (UUID): {org}/{project}/{uuid} - used by faber-manager/init-run-directory.sh
+     * Format 2 (plan-based): {plan-slug}/{run-suffix} - used by workflow-run.md
+     * Format 3 (flat plan): {plan-slug} - for direct plan-level operations
      */
     validateRunId(runId) {
-        // Stricter regex: no leading/trailing underscores or hyphens in org/project
-        return /^[a-z0-9][a-z0-9_-]*[a-z0-9]\/[a-z0-9][a-z0-9_-]*[a-z0-9]\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(runId) || /^[a-z0-9]\/[a-z0-9]\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(runId);
+        // Format 1: UUID-based - org/project/uuid (multi-char segments)
+        if (/^[a-z0-9][a-z0-9_-]*[a-z0-9]\/[a-z0-9][a-z0-9_-]*[a-z0-9]\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(runId)) {
+            return true;
+        }
+        // Format 1b: UUID-based - single-char org/project
+        if (/^[a-z0-9]\/[a-z0-9]\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(runId)) {
+            return true;
+        }
+        // Format 2: Plan-based - {plan-slug}/{run-suffix} (e.g., "fractary-faber-258/2026-02-11T18-56-42Z")
+        if (/^[a-z0-9][a-z0-9-]*[a-z0-9]\/[a-zA-Z0-9][a-zA-Z0-9T_.-]*[a-zA-Z0-9]$/.test(runId)) {
+            return true;
+        }
+        // Format 3: Flat plan-based slug (e.g., "fractary-faber-258")
+        if (/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(runId)) {
+            return true;
+        }
+        return false;
     }
     /**
      * Get the directory path for a run with path traversal protection
@@ -160,7 +176,9 @@ export class LocalFilesBackend {
     updateState(runDir, eventId, timestamp) {
         const stateFile = path.join(runDir, "state.json");
         if (!fs.existsSync(stateFile)) {
-            throw new Error(`State file not found: ${stateFile}`);
+            // Plan-based layouts store state at the parent level, not inside the run subdirectory.
+            // Skip state update rather than failing -- the event file was already written successfully.
+            return;
         }
         const state = JSON.parse(fs.readFileSync(stateFile, "utf-8"));
         state.last_event_id = eventId;

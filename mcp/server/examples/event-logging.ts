@@ -28,7 +28,7 @@ async function logWorkflowEvents() {
     command: 'node',
     args: ['../dist/server.js'],
     env: {
-      FABER_RUNS_PATH: '.fractary/plugins/faber/runs',
+      FABER_RUNS_PATH: '.fractary/faber/runs',
     },
   });
 

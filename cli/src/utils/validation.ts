@@ -260,21 +260,22 @@ export function slugify(input: string): string {
 
 /**
  * Validates plan ID format
- * Plan IDs follow format: {org}-{project}-{work-id}-{YYYYMMDD}-{HHMMSS}
- * Also accepts legacy format: fractary-faber-{work-id}-{YYYYMMDD}-{HHMMSS}
+ * Plan IDs follow format: {org}-{project}-{work-id}
+ * Also accepts legacy format with timestamp: {org}-{project}-{work-id}-{YYYYMMDD}-{HHMMSS}
  *
  * @param planId - Plan ID to validate
  * @returns True if valid
  * @throws Error if invalid
  */
 export function validatePlanId(planId: string): boolean {
-  // Accepts one or more slug segments followed by -{digits}-{8digits}-{6digits}
-  // Only [a-z0-9-] allowed, which inherently prevents path traversal
-  const planIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*-\d+-\d{8}-\d{6}$/;
+  // Accepts slug segments. The new format ends with a work-id (digits or slug).
+  // Legacy format may end with -{8digits}-{6digits} timestamp suffix.
+  // Only [a-z0-9-] allowed, which inherently prevents path traversal.
+  const planIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:-\d{8}-\d{6})?$/;
 
   if (!planIdPattern.test(planId)) {
     throw new Error(
-      `Invalid plan ID format: "${planId}". Expected format: {org}-{project}-{work-id}-{YYYYMMDD}-{HHMMSS}`
+      `Invalid plan ID format: "${planId}". Expected format: {org}-{project}-{work-id}`
     );
   }
 
