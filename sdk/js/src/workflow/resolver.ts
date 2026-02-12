@@ -62,6 +62,12 @@ export interface WorkflowStep {
   };
   /** Result handling configuration for this step */
   result_handling?: StepResultHandling;
+  /** Changelog configuration - if present, a changelog entry is emitted on step completion */
+  changelog?: {
+    event_type: string;
+    environment?: string;
+    custom?: Record<string, unknown>;
+  };
   /** Source workflow ID (added during merge) */
   source?: string;
   /** Position type (added during merge) */

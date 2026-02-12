@@ -219,6 +219,26 @@
         },
         "result_handling": {
           "$ref": "#/definitions/step_result_handling"
+        },
+        "changelog": {
+          "type": "object",
+          "description": "If present, a changelog entry is emitted when this step completes successfully. Only steps producing meaningful external artifacts should have this.",
+          "properties": {
+            "event_type": {
+              "type": "string",
+              "description": "Semantic event classification (e.g., CODE_MERGED, DATA_PUBLISHED, CODEX_SYNCED)"
+            },
+            "environment": {
+              "type": "string",
+              "enum": ["test", "prod"],
+              "description": "Target environment"
+            },
+            "custom": {
+              "type": "object",
+              "description": "Project-specific custom data included in the changelog entry"
+            }
+          },
+          "required": ["event_type"]
         }
       },
       "allOf": [

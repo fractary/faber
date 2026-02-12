@@ -18,6 +18,7 @@ import { createSessionLoadCommand, createSessionSaveCommand } from './commands/s
 import { createWorkCommand } from './commands/work/index.js';
 import { createRepoCommand } from './commands/repo/index.js';
 import { createLogsCommand } from './commands/logs/index.js';
+import { createChangelogCommand } from './commands/changelog/index.js';
 import { createMigrateCommand } from './commands/migrate.js';
 import { createPlanCommand } from './commands/plan/index.js';
 import { createAuthCommand } from './commands/auth/index.js';
@@ -70,6 +71,7 @@ export function createFaberCLI(): Command {
   program.addCommand(createWorkCommand());
   program.addCommand(createRepoCommand());
   program.addCommand(createLogsCommand());
+  program.addCommand(createChangelogCommand());
 
   // Help command
   program.addCommand(

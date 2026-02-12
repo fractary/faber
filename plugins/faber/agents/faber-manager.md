@@ -2752,6 +2752,31 @@ IF entity_tracking_active == true THEN
 END
 ```
 
+**Emit changelog entry (if step has changelog config):**
+
+```
+IF current_step.changelog exists AND result.status == "success" THEN
+  Bash: fractary-faber changelog emit \
+    --run-id "{run_id}" \
+    --step-id "{step_id}" \
+    --step-name "{step_display}" \
+    --phase "{phase}" \
+    --status "{result.status}" \
+    --event-type "{current_step.changelog.event_type}" \
+    --workflow-id "{resolved_workflow.id}" \
+    --work-id "{work_id}" \
+    --target "{target}" \
+    --message "{result.message}" \
+    --duration-ms "{step_duration_ms}" \
+    --environment "{current_step.changelog.environment}" \
+    --custom '{current_step.changelog.custom as JSON}' \
+    --metadata '{result.details as JSON}' \
+    --json
+
+  LOG "✓ Emitted changelog entry: {current_step.changelog.event_type}"
+END
+```
+
 **🔄 MANDATORY LOOP CONTINUATION:**
 
 After completing a step successfully, you MUST check if there are more steps:
@@ -3082,6 +3107,11 @@ Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
   --status "completed" \
   --message "FABER workflow completed successfully" \
   --data '{"work_id": "{work_id}", "phases_completed": ["frame","architect","build","evaluate","release"], "artifacts": {artifacts_json}}'
+```
+
+**Aggregate changelog to project-level file:**
+```
+Bash: fractary-faber changelog aggregate --run-id "{run_id}" --json
 ```
 
 **Consolidate events (optional, for archival):**
