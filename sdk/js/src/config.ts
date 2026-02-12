@@ -721,6 +721,11 @@ const FaberPluginConfigSchema = z.object({
       path: z.string().optional(),
     })
     .optional(),
+  changelog: z
+    .object({
+      path: z.string().optional(),
+    })
+    .optional(),
 });
 
 /**
@@ -824,6 +829,9 @@ export function loadFaberPluginConfig(
     runs: {
       path: FABER_DEFAULTS.paths.runs,
     },
+    changelog: {
+      path: FABER_DEFAULTS.paths.changelog,
+    },
   };
 
   // Check if unified config exists
@@ -882,6 +890,7 @@ export function loadFaberPluginConfig(
     return {
       workflows: { ...defaultConfig.workflows, ...migrated.workflows },
       runs: { ...defaultConfig.runs, ...migrated.runs },
+      changelog: { ...defaultConfig.changelog, ...migrated.changelog },
     };
   }
 
@@ -896,6 +905,7 @@ export function loadFaberPluginConfig(
   return {
     workflows: { ...defaultConfig.workflows, ...result.data.workflows },
     runs: { ...defaultConfig.runs, ...result.data.runs },
+    changelog: { ...defaultConfig.changelog, ...result.data.changelog },
   };
 }
 
@@ -923,6 +933,19 @@ export function getWorkflowsPath(projectRoot?: string): string {
   const config = loadFaberPluginConfig(root, { allowMissing: true });
   const workflowsPath = config.workflows?.path || FABER_DEFAULTS.paths.workflows;
   return path.isAbsolute(workflowsPath) ? workflowsPath : path.join(root, workflowsPath);
+}
+
+/**
+ * Get the project-level changelog file path from config
+ *
+ * @param projectRoot - Optional project root directory
+ * @returns Absolute path to changelog file
+ */
+export function getChangelogPath(projectRoot?: string): string {
+  const root = projectRoot || findProjectRoot();
+  const config = loadFaberPluginConfig(root, { allowMissing: true });
+  const changelogPath = config.changelog?.path || FABER_DEFAULTS.paths.changelog;
+  return path.isAbsolute(changelogPath) ? changelogPath : path.join(root, changelogPath);
 }
 
 // ============================================================================

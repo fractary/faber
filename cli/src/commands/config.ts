@@ -146,6 +146,7 @@ export function createConfigCommand(): Command {
     .option('--default-workflow <id>', 'Default workflow ID', 'default')
     .option('--autonomy <level>', 'Autonomy level (dry-run|assisted|guarded|autonomous)', 'guarded')
     .option('--runs-path <path>', 'Directory for run artifacts', '.fractary/faber/runs')
+    .option('--changelog-path <path>', 'Path for project-level changelog file', '.fractary/changelog.ndjson')
     .option('--force', 'Overwrite existing configuration')
     .action(async (options) => {
       try {
@@ -176,6 +177,9 @@ export function createConfigCommand(): Command {
           },
           runs: {
             path: options.runsPath,
+          },
+          changelog: {
+            path: options.changelogPath,
           },
         };
 
@@ -228,6 +232,7 @@ ${yaml.dump(manifest, { indent: 2, lineWidth: 100 })}`;
         console.log(`  Default workflow: ${options.defaultWorkflow}`);
         console.log(`  Autonomy: ${options.autonomy}`);
         console.log(`  Runs path: ${options.runsPath}`);
+        console.log(`  Changelog path: ${options.changelogPath}`);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
         process.exit(1);
