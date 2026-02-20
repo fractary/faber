@@ -310,12 +310,12 @@ branch_prefix = "feat"
 # Default model for steps without specific routing
 [model_routing.default]
 provider = "anthropic"
-model = "claude-sonnet-4-20250514"
+model = "claude-sonnet-4-6"
 
 # Step-specific routing (by step ID or step type)
 [model_routing.steps.classify_work]
 provider = "anthropic"
-model = "claude-3-5-haiku-20241022"
+model = "claude-haiku-4-5"
 
 [model_routing.steps.generate_spec]
 provider = "anthropic"
@@ -323,7 +323,7 @@ model = "claude-opus-4-20250514"
 
 [model_routing.steps.implement]
 provider = "anthropic"
-model = "claude-sonnet-4-20250514"
+model = "claude-sonnet-4-6"
 
 # Ensemble configuration for review step
 [model_routing.steps.review]
@@ -1485,8 +1485,8 @@ export class AnthropicProvider implements LLMProvider {
   readonly name = 'anthropic';
   readonly supportedModels = [
     'claude-opus-4-20250514',
-    'claude-sonnet-4-20250514',
-    'claude-3-5-haiku-20241022',
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5',
   ];
 
   private client: Anthropic;

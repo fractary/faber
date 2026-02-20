@@ -78,7 +78,7 @@ type: agent  # Must be "agent"
 
 llm:
   provider: anthropic  # anthropic | openai | google
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
   temperature: 0.0    # 0.0-1.0, default 0.0
   max_tokens: 4096    # Optional, default 4096
 
@@ -205,7 +205,7 @@ type: agent
 
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
 
 system_prompt: |
   You are a helpful assistant that helps with code reviews.
@@ -950,7 +950,7 @@ type: agent
 
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
 
 system_prompt: |
   You are a data engineering agent that creates ETL pipelines.
@@ -1181,7 +1181,7 @@ caching:
 name: infra-architect
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
 system_prompt: |
   Design and deploy cloud infrastructure using IaC...
 tools:

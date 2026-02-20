@@ -58,7 +58,7 @@ name: corthion-loader-engineer
 type: agent
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
 system_prompt: |
   You are a specialized data engineering agent...
 tools:

@@ -3,7 +3,7 @@ name: fractary-faber:workflow-run
 description: Execute a FABER plan created by faber plan CLI command
 argument-hint: '<work-id|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new]'
 allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 ---
 
 # FABER Workflow Run Command

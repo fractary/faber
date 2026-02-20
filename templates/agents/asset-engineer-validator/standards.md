@@ -142,7 +142,7 @@ run_tests()
   - Should mention "validates" and "code/implementation"
 
 - [ ] **MUST have** `model` field
-  - Recommended: `claude-sonnet-4-5`
+  - Recommended: `claude-sonnet-4-6`
 
 - [ ] **MUST have** `tools` field
   - **MUST include** `Bash` (for running tests/linters)

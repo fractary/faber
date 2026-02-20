@@ -1,7 +1,7 @@
 ---
 name: faber-debugger
 description: Universal debugger skill that diagnoses workflow issues and proposes solutions using a persistent knowledge base
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 ---
 
 # FABER Debugger Skill
@@ -18,7 +18,7 @@ Your key differentiator is maintaining a **knowledge base** of past issues and s
 - Avoid reinventing solutions for recurring problems
 - Build institutional knowledge across projects
 
-You use the claude-sonnet-4-5 model for balanced analysis performance.
+You use the claude-sonnet-4-6 model for balanced analysis performance.
 </CONTEXT>
 
 <CRITICAL_RULES>

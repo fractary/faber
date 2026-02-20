@@ -474,7 +474,7 @@ description: |
 
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
   temperature: 0.0
   max_tokens: 4096
 
@@ -549,7 +549,7 @@ description: |
 
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
   temperature: 0.1
   max_tokens: 8192
 
@@ -624,7 +624,7 @@ description: |
 
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
   temperature: 0.0
   max_tokens: 16384
 
@@ -697,7 +697,7 @@ description: |
 
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
   temperature: 0.0
   max_tokens: 8192
 
@@ -773,7 +773,7 @@ description: |
 
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
   temperature: 0.0
   max_tokens: 8192
 

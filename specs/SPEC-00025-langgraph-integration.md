@@ -791,7 +791,7 @@ class FaberAgentConfig:
     description: str
     system_prompt: str
     tools: List[Any]
-    model: str = "anthropic:claude-sonnet-4-20250514"
+    model: str = "anthropic:claude-sonnet-4-6"
     human_approval: bool = False
     max_iterations: int = 50
 
@@ -849,7 +849,7 @@ frame_config = FaberAgentConfig(
     description="Gathers requirements and classifies work type for FABER workflow",
     system_prompt=FRAME_SYSTEM_PROMPT,
     tools=[fetch_issue, classify_work_type, create_issue_comment],
-    model="anthropic:claude-3-5-haiku-20241022",  # Fast, cheap for classification
+    model="anthropic:claude-haiku-4-5",  # Fast, cheap for classification
     human_approval=False
 )
 
@@ -970,7 +970,7 @@ build_config = FaberAgentConfig(
         validate_specification
         # Note: Filesystem tools added by Deep Agents middleware
     ],
-    model="anthropic:claude-sonnet-4-20250514",  # Balanced for coding
+    model="anthropic:claude-sonnet-4-6",  # Balanced for coding
     human_approval=False,
     max_iterations=100  # Higher limit for implementation work
 )
@@ -1085,7 +1085,7 @@ release_config = FaberAgentConfig(
         create_pull_request,
         create_issue_comment
     ],
-    model="anthropic:claude-3-5-haiku-20241022",  # Simple task, cheap model
+    model="anthropic:claude-haiku-4-5",  # Simple task, cheap model
     human_approval=True  # Pause for human review of PR
 )
 
@@ -1526,11 +1526,11 @@ workflow:
 
   # Phase-specific model configuration
   models:
-    frame: anthropic:claude-3-5-haiku-20241022
+    frame: anthropic:claude-haiku-4-5
     architect: anthropic:claude-opus-4-20250514
-    build: anthropic:claude-sonnet-4-20250514
+    build: anthropic:claude-sonnet-4-6
     evaluate: openai:gpt-4o
-    release: anthropic:claude-3-5-haiku-20241022
+    release: anthropic:claude-haiku-4-5
 
   # Human approval checkpoints
   human_approval:

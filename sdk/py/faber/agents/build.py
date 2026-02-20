@@ -102,7 +102,7 @@ BUILD_CONFIG = FaberAgentConfig(
         log_phase_start,
         log_phase_end,
     ],
-    model="anthropic:claude-sonnet-4-20250514",  # Balanced for coding
+    model="anthropic:claude-sonnet-4-6",  # Balanced for coding
     human_approval=False,
     max_iterations=100,  # Higher limit for implementation work
 )

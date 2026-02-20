@@ -41,8 +41,8 @@ class ModelPricing:
 DEFAULT_PRICING: dict[str, ModelPricing] = {
     # Anthropic
     "claude-opus-4-20250514": ModelPricing(input_price=15.0, output_price=75.0),
-    "claude-sonnet-4-20250514": ModelPricing(input_price=3.0, output_price=15.0),
-    "claude-3-5-haiku-20241022": ModelPricing(input_price=0.25, output_price=1.25),
+    "claude-sonnet-4-6": ModelPricing(input_price=3.0, output_price=15.0),
+    "claude-haiku-4-5": ModelPricing(input_price=0.25, output_price=1.25),
     # OpenAI
     "gpt-4o": ModelPricing(input_price=2.50, output_price=10.0),
     "gpt-4o-mini": ModelPricing(input_price=0.15, output_price=0.60),

@@ -163,7 +163,7 @@ check_sections(specification)
   - Should mention "validates" and "specification"
 
 - [ ] **MUST have** `model` field
-  - Recommended: `claude-sonnet-4-5`
+  - Recommended: `claude-sonnet-4-6`
 
 - [ ] **MUST have** `tools` field
   - Should include `Read`, `Glob`, `Grep` for static analysis

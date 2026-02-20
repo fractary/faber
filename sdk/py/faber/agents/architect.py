@@ -84,7 +84,7 @@ ARCHITECT_CONFIG = FaberAgentConfig(
         log_phase_start,
         log_phase_end,
     ],
-    model="anthropic:claude-sonnet-4-20250514",  # Strong reasoning for architecture
+    model="anthropic:claude-sonnet-4-6",  # Strong reasoning for architecture
     human_approval=True,  # Pause for human review of spec
     max_iterations=30,
 )

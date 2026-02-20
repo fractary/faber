@@ -112,7 +112,7 @@ describe('migrate command', () => {
     const validSettings = {
       anthropic: {
         api_key: 'sk-ant-test',
-        model: 'claude-sonnet-4-5',
+        model: 'claude-sonnet-4-6',
       },
       github: {
         token: 'ghp_test',

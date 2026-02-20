@@ -117,7 +117,7 @@ These need both refactoring and renaming:
 ---
 name: fractary-faber:workflow-audit
 description: Validate FABER workflow configuration and report issues
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: Read, Glob, Bash
 ---
 
@@ -203,7 +203,7 @@ Task(
 ---
 name: fractary-faber:workflow-status
 description: Display workflow execution status
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: Read, Glob, Bash
 ---
 
@@ -283,7 +283,7 @@ Task(
 ---
 name: fractary-faber:workflow-debugger
 description: Debug FABER workflow execution issues
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: Read, Write, Glob, Grep, Bash
 ---
 

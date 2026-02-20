@@ -161,7 +161,7 @@ class WorkflowCompiler:
             model_ref: Model string or $reference
 
         Returns:
-            Resolved model string (e.g., "anthropic:claude-sonnet-4-20250514")
+            Resolved model string (e.g., "anthropic:claude-sonnet-4-6")
         """
         if model_ref is None:
             return self._context["models"]["default"]

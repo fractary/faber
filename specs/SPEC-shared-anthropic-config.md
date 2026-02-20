@@ -22,7 +22,7 @@ version: "2.0"
 
 anthropic:
   api_key: ${ANTHROPIC_API_KEY}
-  model: claude-sonnet-4-5       # Optional: default model
+  model: claude-sonnet-4-6       # Optional: default model
   max_tokens: 8096               # Optional: default max tokens
 ```
 
@@ -101,7 +101,7 @@ export ANTHROPIC_API_KEY="sk-ant-xxxxx"
 # .fractary/config.yaml (committed)
 anthropic:
   api_key: ${ANTHROPIC_API_KEY}
-  model: claude-sonnet-4-5
+  model: claude-sonnet-4-6
 ```
 
 ```yaml
@@ -115,7 +115,7 @@ env:
 ```yaml
 anthropic:
   api_key: ${ANTHROPIC_API_KEY}
-  model: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
+  model: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
   max_tokens: ${ANTHROPIC_MAX_TOKENS:-8096}
 ```
 
@@ -152,7 +152,7 @@ Configure the Anthropic API key once for all Fractary tools:
 ```yaml
 anthropic:
   api_key: ${ANTHROPIC_API_KEY}
-  model: claude-sonnet-4-5    # Optional default model
+  model: claude-sonnet-4-6    # Optional default model
   max_tokens: 8096            # Optional default max tokens
 ```
 

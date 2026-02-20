@@ -332,8 +332,8 @@ export class WorkflowCompiler {
   },
 
   "models": {
-    "default": "anthropic:claude-sonnet-4-20250514",
-    "classification": "anthropic:claude-3-5-haiku-20241022"
+    "default": "anthropic:claude-sonnet-4-6",
+    "classification": "anthropic:claude-haiku-4-5"
   },
 
   // NEW: Delegate to Forge for agent resolution
@@ -566,7 +566,7 @@ description: FABER Frame phase - gathers requirements and classifies work
 
 llm:
   provider: anthropic
-  model: claude-3-5-haiku-20241022
+  model: claude-haiku-4-5
   temperature: 0.0
   max_tokens: 4096
 

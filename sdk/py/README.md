@@ -129,11 +129,11 @@ workflow:
   max_retries: 3
 
   models:
-    frame: anthropic:claude-3-5-haiku-20241022
-    architect: anthropic:claude-sonnet-4-20250514
-    build: anthropic:claude-sonnet-4-20250514
-    evaluate: anthropic:claude-sonnet-4-20250514
-    release: anthropic:claude-3-5-haiku-20241022
+    frame: anthropic:claude-haiku-4-5
+    architect: anthropic:claude-sonnet-4-6
+    build: anthropic:claude-sonnet-4-6
+    evaluate: anthropic:claude-sonnet-4-6
+    release: anthropic:claude-haiku-4-5
 
   human_approval:
     architect: true
@@ -308,7 +308,7 @@ config = CostConfig(
 
 tracker = CostTracker("workflow-123", config)
 tracker.add_usage(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-4-6",
     input_tokens=10000,
     output_tokens=5000,
     phase="architect",

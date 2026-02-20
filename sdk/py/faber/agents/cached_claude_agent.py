@@ -31,7 +31,7 @@ class CachedClaudeAgent:
         context.load_from_file(".fractary/docs/STANDARDS.md", "Standards")
 
         agent = CachedClaudeAgent(
-            model="anthropic:claude-sonnet-4-20250514",
+            model="anthropic:claude-sonnet-4-6",
             agent_name="my-agent",
             agent_prompt="You are a helpful agent",
             tools=[tool1, tool2],
@@ -53,7 +53,7 @@ class CachedClaudeAgent:
         """Initialize cached Claude agent.
 
         Args:
-            model: Model string (e.g., "anthropic:claude-sonnet-4-20250514")
+            model: Model string (e.g., "anthropic:claude-sonnet-4-6")
             agent_name: Agent name
             agent_prompt: Agent-specific system prompt
             tools: List of tools agent can use

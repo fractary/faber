@@ -3,7 +3,7 @@ name: context-manager
 description: Manages critical context artifacts during FABER workflow execution
 version: 1.0.0
 author: Fractary
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 ---
 
 # Context Manager Skill
