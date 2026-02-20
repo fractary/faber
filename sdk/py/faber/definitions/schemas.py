@@ -25,7 +25,7 @@ class LLMConfig(BaseModel):
     )
     model: str = Field(
         ...,
-        description="Model identifier (e.g., claude-sonnet-4-20250514)",
+        description="Model identifier (e.g., claude-sonnet-4-6)",
     )
     temperature: float = Field(
         default=0.0,

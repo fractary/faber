@@ -147,7 +147,7 @@ name: test-agent
 type: agent
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
 system_prompt: "Test agent"
 tools: []
 version: "1.0.0"
@@ -341,7 +341,7 @@ class FrameAgent(BaseAgent):
     def __init__(self):
         super().__init__(
             name="frame-agent",
-            model="claude-3-5-haiku-20241022",
+            model="claude-haiku-4-5",
             tools=["fetch_issue", "classify_work_type", "log_phase_start"]
         )
 
@@ -381,7 +381,7 @@ description: |
 
 llm:
   provider: anthropic
-  model: claude-3-5-haiku-20241022
+  model: claude-haiku-4-5
   temperature: 0.0
   max_tokens: 4096
 

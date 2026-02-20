@@ -14,10 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | CLI (@fractary/faber-cli) | 1.5.2 | Patch |
 | SDK (@fractary/faber) | 2.1.3 | Patch |
 | MCP Server (@fractary/faber-mcp) | 1.1.2 | Patch |
-| faber plugin | 3.6.1 | Patch |
-| Marketplace | 2.1.2 | Patch |
+| faber plugin | 3.8.29 | Patch |
+| Marketplace | 3.0.13 | Patch |
 
 ### Changed
+
+- **Model Update**: Updated all model references from Claude Sonnet 4-5 to Sonnet 4-6 (`claude-sonnet-4-5-20250514` → `claude-sonnet-4-6-20250624`)
+  - Updated across all agents, skills, commands, workflows, documentation, and configuration files
+  - Normalized dated Haiku model IDs (`claude-haiku-4-5-20251001`) to `claude-haiku-4-5`
+  - Updated Opus references from `claude-opus-4-20250514` to `claude-opus-4-6`
 
 - **Renamed**: `run-status` command and agent renamed to `run-inspect`
   - Aligns with `workflow-inspect` and `agent-inspect` naming pattern (noun-verb alignment)

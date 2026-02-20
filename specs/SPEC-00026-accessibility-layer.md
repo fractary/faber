@@ -125,8 +125,8 @@ config:
 
 # Model routing
 models:
-  default: anthropic:claude-sonnet-4-20250514
-  classification: anthropic:claude-3-5-haiku-20241022
+  default: anthropic:claude-sonnet-4-6
+  classification: anthropic:claude-haiku-4-5
   reasoning: anthropic:claude-opus-4-20250514
   review: openai:gpt-4o
 
@@ -467,7 +467,7 @@ When an agent uses `extends`, the following inheritance rules apply:
 ```yaml
 # Parent: architect-agent (built-in)
 name: architect-agent
-model: anthropic:claude-sonnet-4-20250514
+model: anthropic:claude-sonnet-4-6
 tools:
   - fetch_issue
   - create_specification
@@ -768,7 +768,7 @@ class Trigger(BaseModel):
 
 class ModelConfig(BaseModel):
     """Model routing configuration."""
-    default: str = "anthropic:claude-sonnet-4-20250514"
+    default: str = "anthropic:claude-sonnet-4-6"
     classification: Optional[str] = None
     reasoning: Optional[str] = None
     review: Optional[str] = None

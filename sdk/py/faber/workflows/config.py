@@ -64,18 +64,18 @@ class WorkflowConfig:
 
     # Phase-specific
     phases: dict[str, PhaseConfig] = field(default_factory=lambda: {
-        "frame": PhaseConfig(model="anthropic:claude-3-5-haiku-20241022"),
+        "frame": PhaseConfig(model="anthropic:claude-haiku-4-5"),
         "architect": PhaseConfig(
-            model="anthropic:claude-sonnet-4-20250514",
+            model="anthropic:claude-sonnet-4-6",
             human_approval=True,
         ),
         "build": PhaseConfig(
-            model="anthropic:claude-sonnet-4-20250514",
+            model="anthropic:claude-sonnet-4-6",
             max_iterations=100,
         ),
-        "evaluate": PhaseConfig(model="anthropic:claude-sonnet-4-20250514"),
+        "evaluate": PhaseConfig(model="anthropic:claude-sonnet-4-6"),
         "release": PhaseConfig(
-            model="anthropic:claude-3-5-haiku-20241022",
+            model="anthropic:claude-haiku-4-5",
             human_approval=True,
         ),
     })

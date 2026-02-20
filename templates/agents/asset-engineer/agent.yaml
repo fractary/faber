@@ -7,7 +7,7 @@ description: |
 
 # Model and tool configuration
 config:
-  recommended_model: claude-sonnet-4-5
+  recommended_model: claude-sonnet-4-6
   common_tools:
     - Bash
     - Read
@@ -127,9 +127,9 @@ frontmatter_schema:
       type: string
       enum:
         - claude-haiku-4-5
-        - claude-sonnet-4-5
+        - claude-sonnet-4-6
         - claude-opus-4-6
-      default: claude-sonnet-4-5
+      default: claude-sonnet-4-6
     tools:
       type: array
       items:

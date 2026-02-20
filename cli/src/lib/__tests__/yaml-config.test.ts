@@ -497,7 +497,7 @@ github:
 version: "2.0"
 anthropic:
   api_key: \${ANTHROPIC_API_KEY}
-  model: claude-sonnet-4-5
+  model: claude-sonnet-4-6
 github:
   organization: myorg
   project: myrepo
@@ -520,7 +520,7 @@ faber:
 
       expect(config?.version).toBe('2.0');
       expect(config?.anthropic?.api_key).toBe('sk-ant-test');
-      expect(config?.anthropic?.model).toBe('claude-sonnet-4-5');
+      expect(config?.anthropic?.model).toBe('claude-sonnet-4-6');
       expect(config?.github?.organization).toBe('myorg');
       expect(config?.github?.token).toBe('ghp_test');
       expect(config?.faber?.worktree?.location).toBe('~/.claude-worktrees');

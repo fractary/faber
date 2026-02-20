@@ -104,7 +104,7 @@ RELEASE_CONFIG = FaberAgentConfig(
         log_phase_start,
         log_phase_end,
     ],
-    model="anthropic:claude-3-5-haiku-20241022",  # Simple task, efficient model
+    model="anthropic:claude-haiku-4-5",  # Simple task, efficient model
     human_approval=True,  # Pause for human review before PR
     max_iterations=20,
 )

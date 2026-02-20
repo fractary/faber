@@ -485,7 +485,7 @@ name: fractary-faber:workflow-run
 description: Execute a FABER workflow with Claude as the orchestrator
 argument-hint: '--run-id <id>'
 tools: Read, Write, Bash, SlashCommand, AskUserQuestion
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 ---
 ```
 

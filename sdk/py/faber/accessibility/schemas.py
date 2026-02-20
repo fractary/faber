@@ -43,7 +43,7 @@ class Trigger(BaseModel):
 class ModelConfig(BaseModel):
     """Model routing configuration."""
 
-    default: str = "anthropic:claude-sonnet-4-20250514"
+    default: str = "anthropic:claude-sonnet-4-6"
     classification: Optional[str] = None
     reasoning: Optional[str] = None
     review: Optional[str] = None
@@ -194,8 +194,8 @@ class WorkflowSchema(BaseModel):
         description: My custom workflow
 
         models:
-          default: anthropic:claude-sonnet-4-20250514
-          classification: anthropic:claude-3-5-haiku-20241022
+          default: anthropic:claude-sonnet-4-6
+          classification: anthropic:claude-haiku-4-5
 
         phases:
           - name: frame

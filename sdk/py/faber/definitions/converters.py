@@ -23,7 +23,7 @@ from faber.definitions.schemas import (
 def convert_claude_agent(
     claude_agent_path: Path,
     output_name: str,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-sonnet-4-6",
     provider: str = "anthropic",
 ) -> AgentDefinition:
     """Convert a Claude Code agent (.md) to AgentDefinition.
@@ -43,7 +43,7 @@ def convert_claude_agent(
     Args:
         claude_agent_path: Path to Claude agent markdown file
         output_name: Name for output agent
-        model: Model to use (default: claude-sonnet-4-20250514)
+        model: Model to use (default: claude-sonnet-4-6)
         provider: Provider to use (default: anthropic)
 
     Returns:

@@ -50,7 +50,7 @@ github:
     private_key_path: ~/.github/faber-your-org.pem
 anthropic:
   api_key: ${ANTHROPIC_API_KEY}
-  model: claude-sonnet-4-5-20250929
+  model: claude-sonnet-4-6
 faber:
   workflows:
     path: .fractary/faber/workflows
@@ -110,7 +110,7 @@ Anthropic API configuration for AI-powered features (workflow planning, code ana
 ```yaml
 anthropic:
   api_key: ${ANTHROPIC_API_KEY}        # API key (use env var)
-  model: claude-sonnet-4-5-20250929            # Model to use
+  model: claude-sonnet-4-6            # Model to use
   max_tokens: 4096                     # Max tokens per request
 ```
 
@@ -263,7 +263,7 @@ github:
 # Shared Anthropic API
 anthropic:
   api_key: ${ANTHROPIC_API_KEY}
-  model: claude-sonnet-4-5-20250929
+  model: claude-sonnet-4-6
 
 # FABER workflow settings
 faber:

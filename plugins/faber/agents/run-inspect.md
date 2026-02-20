@@ -1,7 +1,7 @@
 ---
 name: run-inspect
 description: Displays FABER workflow run status combining current state with historical logs
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: Read, Glob, Bash, Skill
 color: orange
 ---

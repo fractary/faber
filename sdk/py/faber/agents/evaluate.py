@@ -110,7 +110,7 @@ EVALUATE_CONFIG = FaberAgentConfig(
         log_phase_start,
         log_phase_end,
     ],
-    model="anthropic:claude-sonnet-4-20250514",  # Strong analysis for review
+    model="anthropic:claude-sonnet-4-6",  # Strong analysis for review
     human_approval=False,
     max_iterations=30,
 )

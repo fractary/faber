@@ -105,7 +105,7 @@ name: fractary-faber:workflow-plan-run
 description: Create FABER plan and execute it in one command with auto-resume
 argument-hint: '[<target>] [--work-id <id>] [--workflow <id>] [--phase <phases>]'
 allowed-tools: Task, Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 ```
 
 #### Workflow Steps

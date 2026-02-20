@@ -76,7 +76,7 @@ FRAME_CONFIG = FaberAgentConfig(
         log_phase_start,
         log_phase_end,
     ],
-    model="anthropic:claude-3-5-haiku-20241022",  # Fast, efficient for classification
+    model="anthropic:claude-haiku-4-5",  # Fast, efficient for classification
     human_approval=False,
     max_iterations=20,
 )
