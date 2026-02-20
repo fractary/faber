@@ -14,10 +14,10 @@
           "prompt": "/fractary-faber:session-load --work-id {work_id}"
         },
         {
-          "id": "frame-codex-sync-test",
-          "name": "Sync from Codex (Test)",
+          "id": "frame-codex-sync",
+          "name": "Sync from Codex",
           "description": "Pull project documentation from Codex",
-          "prompt": "/fractary-codex:sync-project --work-id {work_id} --from-codex --env test"
+          "prompt": "/fractary-codex:sync-project --work-id {work_id} --from-codex"
         }
       ],
       "steps": [],
@@ -100,16 +100,6 @@
       "steps": [],
       "post_steps": [
         {
-          "id": "evaluate-codex-sync-test",
-          "name": "Sync to Codex (Test)",
-          "description": "Push project documentation to codex",
-          "prompt": "/fractary-codex:sync-project --work-id {work_id} --to-codex --env test",
-          "changelog": {
-            "event_type": "CODEX_SYNCED",
-            "environment": "test"
-          }
-        }, 
-        {
           "id": "evaluate-issue-comment-complete",
           "name": "Add GitHub Issue Comment to Complete Evaluate Phase",
           "description": "Summarize completion of evaluate phase and propose next steps.",
@@ -147,7 +137,7 @@
           "step_type": "codex",
           "name": "Sync to Codex (Production)",
           "description": "Push project documentation to codex",
-          "prompt": "/fractary-codex:sync-project --work-id {work_id} --to-codex --environment prod",
+          "prompt": "/fractary-codex:sync-project --work-id {work_id} --to-codex",
           "changelog": {
             "event_type": "CODEX_SYNCED",
             "environment": "prod"
