@@ -22,49 +22,146 @@ import { parsePositiveInteger } from '../../utils/validation.js';
  */
 export function createRunCommand(): Command {
   return new Command('workflow-run')
-    .description('Run FABER workflow')
-    .requiredOption('--work-id <id>', 'Work item ID to process')
+    .description('Run FABER workflow (supports comma-separated work IDs for batch execution)')
+    .requiredOption('--work-id <ids>', 'Work item ID(s) to process (comma-separated for batch, e.g., "258,259,260")')
     .option('--autonomy <level>', 'Autonomy level: supervised|assisted|autonomous', 'supervised')
+    .option('--phase <phases>', 'Execute only specified phase(s) - comma-separated')
+    .option('--force-new', 'Force fresh start, bypass auto-resume')
+    .option('--resume-batch', 'Resume a previously interrupted batch')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
-        const workflow = new FaberWorkflow();
+        const workIds = options.workId.split(',').map((id: string) => id.trim()).filter(Boolean);
+        const isBatch = workIds.length > 1;
 
-        if (!options.json) {
-          console.log(chalk.blue(`Starting FABER workflow for work item #${options.workId}`));
-          console.log(chalk.gray(`Autonomy: ${options.autonomy}`));
-        }
-
-        // Add event listener for progress updates
-        workflow.addEventListener((event, data) => {
-          if (options.json) return;
-
-          switch (event) {
-            case 'phase:start':
-              console.log(chalk.cyan(`\n→ Starting phase: ${String(data.phase || '').toUpperCase()}`));
-              break;
-            case 'phase:complete':
-              console.log(chalk.green(`  ✓ Completed phase: ${data.phase}`));
-              break;
-            case 'workflow:fail':
-            case 'phase:fail':
-              console.error(chalk.red(`  ✗ Error: ${data.error || 'Unknown error'}`));
-              break;
+        if (isBatch) {
+          // Batch mode: sequential execution
+          if (!options.json) {
+            console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+            console.log(chalk.blue.bold('  BATCH MODE: Sequential Multi-Workflow Execution'));
+            console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+            console.log(chalk.gray(`Work IDs: ${workIds.join(', ')}`));
+            console.log(chalk.gray(`Autonomy: ${options.autonomy}`));
+            if (options.phase) console.log(chalk.gray(`Phases: ${options.phase}`));
+            console.log(chalk.gray(`Total workflows: ${workIds.length}`));
+            console.log('');
           }
-        });
 
-        const result = await workflow.run({
-          workId: options.workId,
-          autonomy: options.autonomy,
-        });
+          const results: Array<{ workId: string; status: string; error?: string }> = [];
 
-        if (options.json) {
-          console.log(JSON.stringify({ status: 'success', data: result }, null, 2));
+          for (let i = 0; i < workIds.length; i++) {
+            const workId = workIds[i];
+
+            if (!options.json) {
+              console.log(chalk.blue(`\n═══ Workflow ${i + 1}/${workIds.length}: #${workId} ═══`));
+            }
+
+            try {
+              const workflow = new FaberWorkflow();
+
+              workflow.addEventListener((event, data) => {
+                if (options.json) return;
+                switch (event) {
+                  case 'phase:start':
+                    console.log(chalk.cyan(`\n→ Starting phase: ${String(data.phase || '').toUpperCase()}`));
+                    break;
+                  case 'phase:complete':
+                    console.log(chalk.green(`  ✓ Completed phase: ${data.phase}`));
+                    break;
+                  case 'workflow:fail':
+                  case 'phase:fail':
+                    console.error(chalk.red(`  ✗ Error: ${data.error || 'Unknown error'}`));
+                    break;
+                }
+              });
+
+              const result = await workflow.run({
+                workId,
+                autonomy: options.autonomy,
+                phases: options.phase,
+              });
+
+              results.push({ workId, status: result.status });
+
+              if (!options.json) {
+                console.log(chalk.green(`✓ Workflow ${i + 1}/${workIds.length} completed: #${workId}`));
+              }
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              results.push({ workId, status: 'failed', error: message });
+
+              if (!options.json) {
+                console.error(chalk.red(`✗ Workflow ${i + 1}/${workIds.length} FAILED: #${workId}`));
+                console.error(chalk.red(`  Error: ${message}`));
+                console.error(chalk.yellow('\nBatch stopped due to error. Remaining workflows not executed.'));
+              }
+              break; // Stop batch on error
+            }
+          }
+
+          // Batch summary
+          if (options.json) {
+            console.log(JSON.stringify({ status: 'success', data: { batch: true, results } }, null, 2));
+          } else {
+            const completed = results.filter(r => r.status !== 'failed');
+            const failed = results.filter(r => r.status === 'failed');
+
+            console.log(chalk.blue.bold('\n═══════════════════════════════════════════════'));
+            console.log(chalk.blue.bold('  BATCH COMPLETE'));
+            console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+            console.log(`Total: ${workIds.length} | Completed: ${completed.length} | Failed: ${failed.length}`);
+            for (const r of results) {
+              if (r.status === 'failed') {
+                console.log(chalk.red(`  ✗ #${r.workId} — ${r.error}`));
+              } else {
+                console.log(chalk.green(`  ✓ #${r.workId} — ${r.status}`));
+              }
+            }
+          }
+
+          if (results.some(r => r.status === 'failed')) {
+            process.exit(1);
+          }
+
         } else {
-          console.log(chalk.green(`\n✓ Workflow ${result.status}`));
-          console.log(chalk.gray(`  Workflow ID: ${result.workflow_id}`));
-          console.log(chalk.gray(`  Duration: ${result.duration_ms}ms`));
-          console.log(chalk.gray(`  Phases: ${result.phases.map((p: any) => p.phase).join(' → ')}`));
+          // Single mode: original behavior
+          const workflow = new FaberWorkflow();
+
+          if (!options.json) {
+            console.log(chalk.blue(`Starting FABER workflow for work item #${workIds[0]}`));
+            console.log(chalk.gray(`Autonomy: ${options.autonomy}`));
+          }
+
+          workflow.addEventListener((event, data) => {
+            if (options.json) return;
+
+            switch (event) {
+              case 'phase:start':
+                console.log(chalk.cyan(`\n→ Starting phase: ${String(data.phase || '').toUpperCase()}`));
+                break;
+              case 'phase:complete':
+                console.log(chalk.green(`  ✓ Completed phase: ${data.phase}`));
+                break;
+              case 'workflow:fail':
+              case 'phase:fail':
+                console.error(chalk.red(`  ✗ Error: ${data.error || 'Unknown error'}`));
+                break;
+            }
+          });
+
+          const result = await workflow.run({
+            workId: workIds[0],
+            autonomy: options.autonomy,
+          });
+
+          if (options.json) {
+            console.log(JSON.stringify({ status: 'success', data: result }, null, 2));
+          } else {
+            console.log(chalk.green(`\n✓ Workflow ${result.status}`));
+            console.log(chalk.gray(`  Workflow ID: ${result.workflow_id}`));
+            console.log(chalk.gray(`  Duration: ${result.duration_ms}ms`));
+            console.log(chalk.gray(`  Phases: ${result.phases.map((p: any) => p.phase).join(' → ')}`));
+          }
         }
       } catch (error) {
         handleWorkflowError(error, options);
