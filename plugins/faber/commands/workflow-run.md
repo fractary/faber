@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:workflow-run
 description: Execute a FABER plan created by faber plan CLI command
-argument-hint: '<work-id|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new]'
+argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new] [--resume-batch]'
 allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
 model: claude-sonnet-4-6
 ---
@@ -86,22 +86,23 @@ Context limits are **NOT** a reason to stop, pause, or ask the user for permissi
 
 **Syntax:**
 ```bash
-/fractary-faber:workflow-run <work-id|plan-id> [options]
+/fractary-faber:workflow-run <work-ids|plan-id> [options]
 ```
 
 **Arguments:**
 | Argument | Type | Required | Description |
 |----------|------|----------|-------------|
-| `<work-id\|plan-id>` | string | Yes | Work item ID (e.g., "258") OR full plan ID (e.g., "fractary-faber-258"). If work-id provided, fetches plan from GitHub issue. |
+| `<work-ids\|plan-id>` | string | Yes (unless `--resume-batch`) | Single work item ID (e.g., "258"), comma-separated work IDs for batch mode (e.g., "258,259,260"), OR full plan ID (e.g., "fractary-faber-258"). |
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--resume <run-id>` | string | none | Resume previous run from where it stopped (manual override) |
+| `--resume <run-id>` | string | none | Resume previous run from where it stopped (manual override, single mode only) |
 | `--force-new` | flag | false | Force fresh start, bypass auto-resume |
 | `--phase <phase>` | string | none | Execute only specified phase(s) - single or comma-separated (e.g., build or build,evaluate) |
 | `--step <step-id>` | string | none | Execute only specified step(s) - single or comma-separated |
 | `--worktree` | flag | false | Automatically create worktree on conflict without prompting |
+| `--resume-batch` | flag | false | Resume a previously interrupted batch from where it stopped |
 
 **Examples:**
 ```bash
@@ -128,9 +129,367 @@ Context limits are **NOT** a reason to stop, pause, or ask the user for permissi
 
 # Auto-create worktree on conflict (no prompt)
 /fractary-faber:workflow-run 258 --worktree
+
+# === BATCH MODE ===
+
+# Execute multiple workflows sequentially (all phases except release)
+/fractary-faber:workflow-run 258,259,260 --phase frame,architect,build,evaluate
+
+# Execute release phase for multiple completed workflows
+/fractary-faber:workflow-run 258,259,260 --phase release
+
+# Resume an interrupted batch
+/fractary-faber:workflow-run --resume-batch
 ```
 
 </INPUTS>
+
+<BATCH_MODE>
+
+## Batch Mode: Sequential Multi-Workflow Execution
+
+Batch mode activates when the first argument contains commas (e.g., "258,259,260") or when `--resume-batch` is provided without a positional argument.
+
+### Batch Detection
+
+```javascript
+const rawArg = args[0] || null;
+const resumeBatch = flags.includes('--resume-batch');
+
+// Detect batch mode
+const isBatchMode = (rawArg && rawArg.includes(',')) || (resumeBatch && !rawArg);
+
+if (isBatchMode) {
+  // → Enter batch execution (this section)
+} else {
+  // → Enter single-workflow execution (Phase 1 below)
+}
+```
+
+### Batch State File
+
+Location: `.fractary/faber/runs/.batch-state.json`
+
+```json
+{
+  "batch_id": "batch-2026-02-20T15-30-00Z",
+  "status": "in_progress",
+  "phase_filter": ["frame", "architect", "build", "evaluate"],
+  "force_new": false,
+  "work_ids": ["258", "259", "260"],
+  "items": [
+    {
+      "work_id": "258",
+      "plan_id": "fractary-faber-258",
+      "status": "completed",
+      "run_id": "fractary-faber-258-run-2026-02-20T15-31-00Z",
+      "started_at": "2026-02-20T15:31:00Z",
+      "completed_at": "2026-02-20T15:55:00Z",
+      "error": null
+    },
+    {
+      "work_id": "259",
+      "plan_id": null,
+      "status": "pending",
+      "run_id": null,
+      "started_at": null,
+      "completed_at": null,
+      "error": null
+    }
+  ],
+  "created_at": "2026-02-20T15:30:00Z",
+  "updated_at": "2026-02-20T15:55:00Z"
+}
+```
+
+### Batch Execution Protocol
+
+**Step B.1: Initialize or Resume Batch**
+
+```javascript
+const batchStatePath = ".fractary/faber/runs/.batch-state.json";
+let batchState;
+
+if (resumeBatch) {
+  // Resume: read existing batch state
+  const content = await Read({ file_path: batchStatePath });
+  batchState = JSON.parse(content);
+
+  if (batchState.status === "completed") {
+    console.log("✓ Batch already completed. Nothing to do.");
+    console.log(`Completed: ${batchState.items.filter(i => i.status === "completed").length}/${batchState.items.length}`);
+    return;
+  }
+
+  console.log("→ Resuming batch...");
+  console.log(`Batch ID: ${batchState.batch_id}`);
+  console.log(`Work IDs: ${batchState.work_ids.join(', ')}`);
+
+  const completed = batchState.items.filter(i => i.status === "completed").length;
+  const remaining = batchState.items.length - completed;
+  console.log(`Progress: ${completed}/${batchState.items.length} completed, ${remaining} remaining`);
+
+} else {
+  // New batch: parse work IDs from comma-separated argument
+  const workIds = rawArg.split(',').map(id => id.trim()).filter(Boolean);
+
+  if (workIds.length < 2) {
+    console.error("Error: Batch mode requires multiple work IDs (comma-separated).");
+    console.error("For a single work ID, use: /fractary-faber:workflow-run <work-id>");
+    return;
+  }
+
+  // Validate all work IDs are numeric
+  for (const id of workIds) {
+    if (!/^\d+$/.test(id)) {
+      console.error(`Error: Invalid work ID '${id}'. Batch mode only accepts numeric work IDs.`);
+      return;
+    }
+  }
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+
+  batchState = {
+    batch_id: `batch-${timestamp}`,
+    status: "in_progress",
+    phase_filter: phaseFilter || null,
+    force_new: force_new || false,
+    work_ids: workIds,
+    items: workIds.map(id => ({
+      work_id: id,
+      plan_id: null,
+      status: "pending",
+      run_id: null,
+      started_at: null,
+      completed_at: null,
+      error: null
+    })),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  // Write initial batch state
+  await Write({
+    file_path: batchStatePath,
+    content: JSON.stringify(batchState, null, 2)
+  });
+
+  console.log("═══════════════════════════════════════════════════════════════");
+  console.log("  BATCH MODE: Sequential Multi-Workflow Execution");
+  console.log("═══════════════════════════════════════════════════════════════");
+  console.log(`Batch ID: ${batchState.batch_id}`);
+  console.log(`Work IDs: ${workIds.join(', ')}`);
+  console.log(`Total workflows: ${workIds.length}`);
+  if (phaseFilter) {
+    console.log(`Phase filter: ${phaseFilter.join(', ')}`);
+  }
+  console.log("═══════════════════════════════════════════════════════════════\n");
+}
+```
+
+**Step B.2: Initialize Batch TodoWrite**
+
+```javascript
+// Create batch-level TodoWrite with one item per work-id
+const batchTodos = batchState.items.map((item, index) => ({
+  content: `[Batch ${index + 1}/${batchState.items.length}] Workflow #${item.work_id}`,
+  status: item.status === "completed" ? "completed" : "pending",
+  activeForm: `Executing workflow for #${item.work_id} (${index + 1}/${batchState.items.length})`
+}));
+
+await TodoWrite({ todos: batchTodos });
+```
+
+**Step B.3: Sequential Execution Loop**
+
+```
+FOR each item in batchState.items (skip items with status "completed"):
+
+  // ── B.3a: Mark batch item as in_progress ──
+  item.status = "in_progress";
+  item.started_at = new Date().toISOString();
+  batchState.updated_at = new Date().toISOString();
+  Write batch state to disk.
+
+  // Update batch TodoWrite to show current item in_progress
+  Update TodoWrite: mark current item as in_progress.
+
+  console.log("");
+  console.log("═══════════════════════════════════════════════════════════════");
+  console.log(`  WORKFLOW ${currentIndex + 1}/${totalItems}: Issue #${item.work_id}`);
+  console.log("═══════════════════════════════════════════════════════════════");
+  console.log("");
+
+  // ── B.3b: Execute single workflow ──
+  //
+  // Execute the FULL single-workflow logic for this work-id:
+  //   Phase 1 (Steps 1.1-1.7) + Phase 2 (Execution) + Phase 3 (Completion)
+  //
+  // Set the following variables for the single-workflow execution:
+  //   arg = item.work_id
+  //   batch_mode = true  (suppresses active-run-id conflict prompts)
+  //   force_new = batchState.force_new
+  //   phase_filter = batchState.phase_filter
+  //   resume_run_id = null (auto-resume detection handles this)
+  //
+  // Execute Steps 1.1 through Phase 3 exactly as documented below
+  // in the <WORKFLOW> section, with these batch-mode adjustments:
+  //
+  //   1. In Step 1.4: Skip the active workflow conflict prompt.
+  //      Auto-take-over without asking the user.
+  //   2. Use the phase_filter and force_new from batchState.
+
+  TRY:
+    // Execute the full single-workflow logic for item.work_id
+    // (Phase 1 initialization → Phase 2 execution → Phase 3 completion)
+
+    // ── B.3c: Mark batch item as completed ──
+    item.status = "completed";
+    item.completed_at = new Date().toISOString();
+    item.run_id = runId;  // from the workflow execution
+    item.plan_id = plan_id;  // from the workflow execution
+    batchState.updated_at = new Date().toISOString();
+    Write batch state to disk.
+
+    // Update batch TodoWrite
+    Update TodoWrite: mark current item as completed.
+
+    console.log("");
+    console.log(`✓ Workflow ${currentIndex + 1}/${totalItems} completed: #${item.work_id}`);
+    console.log("");
+
+  CATCH error:
+    // ── B.3d: Handle error ──
+    item.status = "failed";
+    item.error = error.message;
+    item.completed_at = new Date().toISOString();
+    batchState.updated_at = new Date().toISOString();
+    Write batch state to disk.
+
+    console.error("");
+    console.error(`✗ Workflow ${currentIndex + 1}/${totalItems} FAILED: #${item.work_id}`);
+    console.error(`  Error: ${error.message}`);
+    console.error("");
+
+    // Prompt user for decision
+    const response = await AskUserQuestion({
+      questions: [{
+        question: `Workflow for #${item.work_id} failed. How would you like to proceed?`,
+        header: "Batch Error",
+        multiSelect: false,
+        options: [
+          {
+            label: "Stop batch",
+            description: "Stop the entire batch. Resume later with --resume-batch."
+          },
+          {
+            label: "Skip and continue",
+            description: "Skip this workflow and continue with the next one."
+          },
+          {
+            label: "Retry",
+            description: "Retry this workflow from scratch."
+          }
+        ]
+      }]
+    });
+
+    if (response === "Stop batch") {
+      batchState.status = "paused";
+      Write batch state to disk.
+
+      console.log("\n⏸  Batch paused.");
+      console.log(`To resume: /fractary-faber:workflow-run --resume-batch`);
+      RETURN;  // Exit batch execution
+    }
+
+    if (response === "Skip and continue") {
+      item.status = "skipped";
+      Write batch state to disk.
+      Update TodoWrite: mark current item as completed (with skip indicator).
+      CONTINUE;  // Move to next item
+    }
+
+    if (response === "Retry") {
+      item.status = "pending";
+      item.error = null;
+      item.completed_at = null;
+      Write batch state to disk.
+      // Re-process same item (decrement loop counter or re-enter)
+      RETRY current item;
+    }
+
+  // ── B.3e: Context Transition ──
+  //
+  // CRITICAL: Between workflows, reset context for a fresh start.
+  //
+  // 1. TodoWrite will be re-initialized by the next workflow's Step 1.7
+  //    (which overwrites with step-level todos). Before that, restore
+  //    batch-level TodoWrite so the user sees batch progress.
+  //
+  // 2. Active-run-id will be overwritten by the next workflow's Step 1.4.
+  //
+  // 3. CONTEXT INDEPENDENCE: Treat the next workflow as a completely fresh
+  //    execution. Do NOT reference, assume, or carry over any code changes,
+  //    test results, file contents, or implementation details from previous
+  //    workflows. Each workflow operates on a different issue with different
+  //    requirements, different branches, and different code changes.
+  //
+  // Restore batch-level TodoWrite for the transition period:
+  Rebuild batch TodoWrite reflecting completed/pending status of all items.
+
+END FOR
+```
+
+**Step B.4: Batch Completion**
+
+```javascript
+// All items processed
+batchState.status = "completed";
+batchState.updated_at = new Date().toISOString();
+Write batch state to disk.
+
+// Summary
+const completed = batchState.items.filter(i => i.status === "completed");
+const failed = batchState.items.filter(i => i.status === "failed");
+const skipped = batchState.items.filter(i => i.status === "skipped");
+
+console.log("");
+console.log("═══════════════════════════════════════════════════════════════");
+console.log("  BATCH COMPLETE");
+console.log("═══════════════════════════════════════════════════════════════");
+console.log(`Batch ID: ${batchState.batch_id}`);
+console.log(`Total:     ${batchState.items.length}`);
+console.log(`Completed: ${completed.length}`);
+if (failed.length > 0)  console.log(`Failed:    ${failed.length}`);
+if (skipped.length > 0) console.log(`Skipped:   ${skipped.length}`);
+console.log("");
+
+for (const item of completed) {
+  console.log(`  ✓ #${item.work_id} — completed (${item.run_id})`);
+}
+for (const item of failed) {
+  console.log(`  ✗ #${item.work_id} — failed: ${item.error}`);
+}
+for (const item of skipped) {
+  console.log(`  ⊘ #${item.work_id} — skipped`);
+}
+
+console.log("");
+console.log("═══════════════════════════════════════════════════════════════");
+```
+
+### Batch Mode Rules
+
+1. **`--resume` is not available in batch mode.** Individual workflow auto-resume (Step 1.3) handles mid-workflow recovery automatically.
+2. **`--step` is not available in batch mode.** Step filtering is too granular for batch execution.
+3. **Active-run-id conflicts are auto-resolved in batch mode.** The batch controller manages active-run-id transitions; no user prompt is needed.
+4. **Each workflow is contextually independent.** Never carry over assumptions, code context, or implementation details from one workflow to another. Each operates on a separate issue with separate requirements.
+5. **Batch state file persists across context compaction.** If the session is interrupted, `--resume-batch` picks up from the last completed item.
+6. **The orchestration protocol is loaded once** (Step 1.2) and reused across all workflows in the batch.
+7. **Error halts the batch by default.** The user is always prompted on error — even in autonomous mode. This is a safety net for batch operations.
+
+</BATCH_MODE>
 
 <WORKFLOW>
 
@@ -533,6 +892,13 @@ try {
 
 // If another workflow is active and different from current
 if (existingRunId && existingRunId !== runId) {
+  // In batch mode, auto-take-over without prompting
+  if (batch_mode) {
+    console.log("→ Batch mode: auto-switching active workflow");
+    console.log(`   Previous: ${existingRunId}`);
+    console.log(`   New: ${runId}`);
+    // Skip directly to writing the new active-run-id (below)
+  } else {
   console.log("\n⚠️  WARNING: Another workflow is active in this worktree");
   console.log(`   Active: ${existingRunId}`);
   console.log(`   New: ${runId}`);
@@ -598,6 +964,7 @@ if (existingRunId && existingRunId !== runId) {
     console.log("\n⚠️  Taking over this worktree...");
     console.log("   The other workflow's context management will be interrupted.");
   }
+  } // end else (non-batch conflict handling)
 }
 
 // Write current run_id to active-run-id file
@@ -952,12 +1319,68 @@ State file: .fractary/faber/runs/default-123-1703001234567/state.json
 ```
 Error: Work ID is required
 
-Usage: /fractary-faber:workflow-run <work-id> [options]
+Usage: /fractary-faber:workflow-run <work-ids|plan-id> [options]
 
 Examples:
   /fractary-faber:workflow-run 123
-  /fractary-faber:workflow-run 456 --workflow custom-workflow
+  /fractary-faber:workflow-run 123,456,789 --phase frame,architect,build,evaluate
   /fractary-faber:workflow-run 123 --resume abc123-def456-789
+```
+
+**Batch Mode Success:**
+```
+═══════════════════════════════════════════════════════════════
+  BATCH MODE: Sequential Multi-Workflow Execution
+═══════════════════════════════════════════════════════════════
+Batch ID: batch-2026-02-20T15-30-00Z
+Work IDs: 258, 259, 260
+Total workflows: 3
+Phase filter: frame, architect, build, evaluate
+═══════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════
+  WORKFLOW 1/3: Issue #258
+═══════════════════════════════════════════════════════════════
+[... workflow execution output ...]
+✓ Workflow 1/3 completed: #258
+
+═══════════════════════════════════════════════════════════════
+  WORKFLOW 2/3: Issue #259
+═══════════════════════════════════════════════════════════════
+[... workflow execution output ...]
+✓ Workflow 2/3 completed: #259
+
+═══════════════════════════════════════════════════════════════
+  WORKFLOW 3/3: Issue #260
+═══════════════════════════════════════════════════════════════
+[... workflow execution output ...]
+✓ Workflow 3/3 completed: #260
+
+═══════════════════════════════════════════════════════════════
+  BATCH COMPLETE
+═══════════════════════════════════════════════════════════════
+Batch ID: batch-2026-02-20T15-30-00Z
+Total:     3
+Completed: 3
+  ✓ #258 — completed
+  ✓ #259 — completed
+  ✓ #260 — completed
+═══════════════════════════════════════════════════════════════
+```
+
+**Batch Mode with Error:**
+```
+═══════════════════════════════════════════════════════════════
+  WORKFLOW 2/3: Issue #259
+═══════════════════════════════════════════════════════════════
+[... workflow execution output ...]
+✗ Workflow 2/3 FAILED: #259
+  Error: Tests failed (3 failures)
+
+[User prompted: Stop batch / Skip and continue / Retry]
+
+⏸  Batch paused.
+To resume: /fractary-faber:workflow-run --resume-batch
 ```
 
 </OUTPUTS>
