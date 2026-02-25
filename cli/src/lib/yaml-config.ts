@@ -117,6 +117,13 @@ const unifiedConfigSchema = {
           },
           additionalProperties: false,
         },
+        changelog: {
+          type: 'object',
+          properties: {
+            path: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
       },
       additionalProperties: false,
     },
