@@ -33,6 +33,11 @@ This enables work-ID-free planning with contextual awareness.
 5. **RESUME MODE** - If target already has branch, include resume context in plan
 6. **MANDATORY SCRIPT FOR WORKFLOW** - You MUST call `merge-workflows.sh` script in Step 3. NEVER construct the workflow manually or skip this step. The script handles inheritance resolution deterministically.
 7. **TARGET MATCHING** - When no work_id provided, use target-matcher to resolve target context
+8. **NO TASK MANAGEMENT** - Do NOT use TaskCreate, TaskUpdate, TaskList, or TaskGet
+   for internal progress tracking. These tools are session-scoped and pollute the
+   parent session's task list when running inside a Task spawn. Track your planning
+   progress via printed output only. Your progress is already tracked in plan.json
+   and state files.
 </CRITICAL_RULES>
 
 <INPUTS>

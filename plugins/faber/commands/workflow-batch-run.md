@@ -1,8 +1,8 @@
 ---
 name: fractary-faber:workflow-batch-run
-description: Execute a planned FABER batch sequentially with true context isolation per item - each workflow runs in a fresh Claude context via Task spawning
-argument-hint: '--batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new]'
-allowed-tools: Read, Write, Bash, Task, AskUserQuestion
+description: Execute a planned FABER batch sequentially (serial mode, default) or in parallel (--parallel). Serial mode runs steps in the parent context with full task list visibility; parallel mode spawns sub-agents per item for concurrency with batch-level-only visibility.
+argument-hint: '--batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new] [--parallel]'
+allowed-tools: Read, Write, Bash, Task, Skill, TaskCreate, TaskUpdate, AskUserQuestion
 model: claude-sonnet-4-6
 ---
 
@@ -10,17 +10,18 @@ model: claude-sonnet-4-6
 
 ## Overview
 
-Executes all planned items from an existing batch sequentially. Each item runs in a completely fresh Claude context via Task spawning — the real context reset, not a protocol-only directive.
+Executes all planned items from an existing batch. Runs in **serial mode by default** — steps execute in the parent context with full task list visibility. Use `--parallel` to spawn sub-agents per item for concurrency (batch-level visibility only).
 
 **Key behaviors:**
 - `--autonomous`: Auto-skip failed items, no user prompts (designed for overnight unattended runs)
 - `--resume`: Skip already-completed items (safe to re-run after interruption)
-- Each Task spawn = completely fresh context, zero carry-over from prior items
+- Serial mode (default): Full step-level task list visible in UI, steps run in parent context
+- `--parallel`: Each Task spawn = completely fresh context, zero carry-over; only batch-level tasks visible
 
 ## Syntax
 
 ```
-/fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new]
+/fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new] [--parallel]
 ```
 
 ## Arguments
@@ -32,6 +33,7 @@ Executes all planned items from an existing batch sequentially. Each item runs i
 | `--resume` | No | Resume from last completed item (skip completed/skipped items) |
 | `--phase <phases>` | No | Execute only specified phase(s) — comma-separated (e.g., `build` or `build,evaluate`) |
 | `--force-new` | No | Force fresh start for each item, bypassing auto-resume |
+| `--parallel` | No | Spawn sub-agents per item for concurrency. Step-level task list not shown (accepted trade-off). |
 
 ## Protocol
 
@@ -43,11 +45,12 @@ From `$ARGUMENTS`:
 3. Extract `--resume` flag
 4. Extract `--phase <value>` — optional (e.g., `build` or `build,evaluate`)
 5. Extract `--force-new` flag
+6. Extract `--parallel` flag
 
 If `--batch` is missing, error:
 ```
 Error: --batch <batch-id> is required.
-Usage: /fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new]
+Usage: /fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new] [--parallel]
 ```
 
 ### Step 2: Load Batch State
@@ -87,111 +90,170 @@ Print current progress if resuming:
   Progress: {completed}/{total} completed, {remaining} remaining
 ```
 
+### Step 4b: Create Batch-Level Tasks
+
+Create one task per item in the execution queue. Store returned task IDs for later updates.
+
+```
+batchTaskIds = {}  # map: work_id -> task_id
+
+For each item (i, work_id) in queue:
+  TaskCreate(
+    subject: "Batch item {i}/{total}: #{work_id}",
+    description: "Run full FABER workflow for #{work_id}",
+    activeForm: "Executing workflow for #{work_id}..."
+  )
+  batchTaskIds[work_id] = returned task ID
+```
+
 ### Step 5: Execute Each Item
 
-For each item (in order):
-
-#### 5a. Print Item Header
+#### Step 5a: Branch on Execution Mode
 
 ```
-═══ Workflow {i}/{total}: #{work-id} ═══
+IF --parallel flag was provided:
+  → Go to Parallel Execution (Step 5-P)
+ELSE:
+  → Go to Serial Execution (Step 5-S)
 ```
 
-#### 5b. Update State — Mark as In Progress
+---
 
-Write to state.json: `item.status = "in_progress"`, `item.started_at = {iso-timestamp}`, top-level `updated_at`.
+#### SERIAL PATH (default)
 
-#### 5c. Spawn Task for Workflow Execution
-
-Construct the skill invocation string, conditionally appending optional flags:
+##### Step 5-S0: Print Item Header and Mark In Progress
 
 ```
-fractary-faber:workflow-run {work-id}[--phase {phase}][--force-new]
+Print: ═══ Workflow {i}/{total}: #{work-id} ═══
+Write state.json: item.status = "in_progress", item.started_at = {iso-timestamp}
+TaskUpdate(batchTaskIds[work_id], status=in_progress)
 ```
 
-Only append `--phase {phase}` if `--phase` was provided. Only append `--force-new` if `--force-new` was provided.
+##### Step 5-S1: Read plan.json for This Item
+
+```
+1. Get plan_id from state.json item: item.plan_id
+   - If null/empty: print error, TaskUpdate(batchTaskId, status=completed), skip to next item
+2. Read: .fractary/faber/runs/{plan_id}/plan.json
+   - If not found: print error, TaskUpdate(batchTaskId, status=completed), skip to next item
+3. Extract workflow.phases from plan.json
+```
+
+##### Step 5-S2: Inject Step-Level Tasks into Parent Context
+
+Create a task for every step across all phases (upfront, all pending):
+
+```
+stepTaskIds = {}  # map: "{phase_name}:{step_id}" -> task_id
+
+PHASE_ORDER = [frame, architect, build, evaluate, release]
+
+For each phase_name in PHASE_ORDER:
+  If plan.workflow.phases[phase_name] exists AND phase is enabled:
+    For each step in plan.workflow.phases[phase_name].steps:
+      TaskCreate(
+        subject:     "[{PHASE_NAME_UPPER}] {step.name}",
+        description: "{step.description ?? step.name}",
+        activeForm:  "{step.name} in progress..."
+      )
+      stepTaskIds["{phase_name}:{step.id}"] = returned task ID
+```
+
+> All tasks are created upfront so the user sees the complete pending list before
+> execution begins. Tasks update in place as execution proceeds.
+
+##### Step 5-S3: Execute Each Phase/Step Directly
+
+For each phase_name in PHASE_ORDER (in order), for each step in that phase's steps:
+
+```
+taskId = stepTaskIds["{phase_name}:{step.id}"]
+
+1. TaskUpdate(taskId, status=in_progress)
+
+2. Invoke step:
+   - If step.skill is set:
+       Skill(skill=step.skill, args=resolved_args)
+   - Else if step.prompt is set:
+       Execute step.prompt directly (the LLM orchestrating this skill interprets
+       and executes the prompt — calling whatever tools/skills the prompt requires,
+       substituting {work_id}, {plan_id}, etc. as appropriate)
+
+3. On success:
+       TaskUpdate(taskId, status=completed)
+
+4. On failure:
+   - Autonomous + step is non-blocking (result_handling.on_failure == "warn"):
+       TaskUpdate(taskId, status=completed)  # mark done to unblock list
+       Print: "  ⚠ Step failed (non-blocking): {step.name} — {error}"
+       Continue to next step
+   - Autonomous + step is blocking:
+       TaskUpdate(taskId, status=completed)
+       Mark item as failed in state.json
+       TaskUpdate(batchTaskIds[work_id], status=completed)
+       Print: "  ✗ Step failed (blocking): #{work_id} — {step.name}: {error}"
+       Break to next item
+   - Interactive:
+       AskUserQuestion: "Step failed: {step.name} — {error}. Options: Skip step / Skip item / Retry"
+       On Skip step: TaskUpdate(taskId, completed), continue
+       On Skip item: mark item failed, break to next item
+       On Retry: re-execute step once; on second failure: offer Skip/Stop
+```
+
+##### Step 5-S4: Mark Batch Item Complete
+
+```
+Write state.json: item.status = "completed", item.completed_at = {iso-timestamp}
+TaskUpdate(batchTaskIds[work_id], status=completed)
+Print: "  ✓ Completed: #{work_id}"
+→ Proceed to next item (back to Step 5-S0)
+```
+
+---
+
+#### PARALLEL PATH (`--parallel`)
+
+##### Step 5-P1: Warn User About Visibility Trade-off
+
+```
+Print:
+  ⚠ Running in parallel mode. Step-level task list not shown —
+    only batch-level progress is visible. Use serial mode (default)
+    for full step-by-step visibility.
+```
+
+##### Step 5-P2: Spawn Sub-Agent Per Item (existing behavior)
 
 ```
 Task(
   subagent_type="general-purpose",
-  description="Execute FABER workflow for #{work-id}",
-  prompt="Execute the FABER workflow for work item #{work-id}.
+  description="Execute FABER workflow for #{work_id}",
+  prompt="Execute the FABER workflow for work item #{work_id}.
 
-Use the Skill tool to invoke: fractary-faber:workflow-run {work-id}[--phase {phase}][--force-new]
+Use the Skill tool to invoke: fractary-faber:workflow-run {work_id}[--phase {phase}][--force-new]
 
 This is an autonomous execution. Follow the complete workflow to completion.
 Do not stop or ask for confirmation — execute all phases through to completion.
-If you encounter errors that cannot be recovered, post a failure comment to the GitHub issue and exit."
+If you encounter errors that cannot be recovered, post a failure comment to the
+GitHub issue and exit."
 )
 ```
 
-> **Context isolation**: Each Task spawn creates a completely fresh Claude context — no carry-over of state, code, test results, or memory from prior items. This is why batch-run provides true unattended overnight execution, unlike the in-process `--resume-batch` mode which shares context.
+Spawn all items simultaneously. Store Task handles.
 
-#### 5d. Wait for Task Result
+##### Step 5-P3: Wait for All Tasks, Update Batch Item Statuses
 
-Wait for the spawned Task to complete.
-
-#### 5e: Handle Result
-
-**On success** (Task completed without error):
-
-```json
-{
-  "work_id": "{id}",
-  "status": "completed",
-  "run_id": null,
-  "completed_at": "{iso-timestamp}",
-  "error": null
-}
 ```
-
-Print: `  ✓ Completed: #{work-id}`
-
-**On failure** (Task returned error or threw):
-
-Extract error summary from Task result.
-
-**Autonomous mode** (`--autonomous`):
-
-```json
-{
-  "work_id": "{id}",
-  "status": "failed",
-  "skipped": true,
-  "error": "{error-summary}",
-  "completed_at": "{iso-timestamp}"
-}
+For each Task result:
+  On success:
+    Write state.json: item.status = "completed", completed_at
+    TaskUpdate(batchTaskIds[work_id], status=completed)
+    Print: "  ✓ Completed: #{work_id}"
+  On failure:
+    Write state.json: item.status = "failed", error
+    TaskUpdate(batchTaskIds[work_id], status=completed)
+    Print: "  ✗ Failed: #{work_id} — {error-summary}"
 ```
-
-Print:
-```
-  ✗ Failed: #{work-id} — {error-summary}
-  → Auto-skipping (autonomous mode). Continuing to next item.
-```
-
-Continue to next item — no user prompt.
-
-> Note: The spawned `workflow-run` already posts a failure comment to the GitHub issue via its existing failure handler. The batch orchestrator does not need to post additional comments.
-
-**Non-autonomous mode** (interactive):
-
-Ask user:
-```
-✗ Workflow failed for #{work-id}: {error-summary}
-
-What would you like to do?
-```
-
-Options:
-- **Stop batch**: Exit immediately, leave remaining items as pending
-- **Skip and continue**: Mark item as skipped, continue to next
-- **Retry**: Re-spawn the same Task for this item (one retry only)
-
-On retry failure: offer Stop/Skip again.
-
-#### 5f. Update Batch State
-
-After each item, write updated state.json to disk immediately (so state is never lost if the session is interrupted mid-batch).
 
 ### Step 6: Final Report
 
@@ -230,14 +292,17 @@ To retry failed items:
 
 ## Step-Level Recovery
 
-Step-level recovery (auto-fix, retries within a single workflow) is handled entirely by the spawned `workflow-run`. The batch orchestrator only sees the final pass/fail outcome. If a step auto-recovers within the spawned workflow, the batch never knows — it just sees success.
+Step-level recovery (auto-fix, retries within a single workflow) is handled by the serial path inline, or by the spawned `workflow-run` in parallel mode. In parallel mode, the batch orchestrator only sees the final pass/fail outcome.
 
 ## Examples
 
 ```bash
-# Plan first, then run overnight
+# Plan first, then run in serial mode (default — full task list visible)
 /fractary-faber:workflow-batch-plan 258,259,260 --name overnight-sprint-01
 /fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous
+
+# Run in parallel mode (sub-agents, batch-level visibility only)
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --parallel
 
 # Resume after interruption
 /fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --resume
