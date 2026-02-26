@@ -8,7 +8,7 @@
       "description": "Fetch work item and setup branch",
       "pre_steps": [
         {
-          "id": "frame-env-switch",
+          "id": "frame-env-switch-test",
           "name": "Set Environment",
           "description": "Set the environment for the workflow to test to use appropriate .env variables.",
           "prompt": "/fractary-core:env-switch test"
@@ -119,7 +119,7 @@
       "require_approval": true,
       "pre_steps": [
         {
-          "id": "frame-env-switch",
+          "id": "release-env-switch-prod",
           "name": "Set Environment to Production",
           "description": "Set the environment for the workflow to production to use appropriate .env variables for release.",
           "prompt": "/fractary-core:env-switch prod"
