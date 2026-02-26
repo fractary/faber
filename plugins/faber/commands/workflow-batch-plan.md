@@ -98,39 +98,45 @@ Print clearly so the user has the batch ID for the run step:
   State: .fractary/faber/batches/{batch-id}/state.json
 ═══════════════════════════════════════════════
 
-Planning {count} items...
+Planning {count} items in parallel...
 ```
 
-### Step 7: Plan Each Item
+### Step 7: Plan All Items in Parallel
 
-For each work ID (in order):
+#### Phase A — Spawn all planners in a single message
 
-1. Print progress: `→ Planning item {i}/{total}: #{work-id}`
-
-2. Spawn Task to `fractary-faber:faber-planner`:
-
+Print before spawning:
 ```
-Task(
-  subagent_type="fractary-faber:faber-planner",
-  description="Plan workflow for #{work-id}",
-  prompt="Create execution plan: {work-id}"
-)
+Planning {count} items in parallel...
 ```
 
-3. Wait for the Task result.
+Launch **all** `faber-planner` Tasks in a **single message** (parallel tool calls). Do not wait between spawns.
 
-4. **On success**: Read the result for a plan ID. Update state.json item:
-   ```json
-   { "work_id": "{id}", "status": "planned", "plan_id": "{plan-id-if-found}", "error": null }
-   ```
-   Also update top-level `updated_at`.
+```
+Task(subagent_type="fractary-faber:faber-planner", description="Plan workflow for #{work-id-1}", prompt="Create execution plan: {work-id-1}")
+Task(subagent_type="fractary-faber:faber-planner", description="Plan workflow for #{work-id-2}", prompt="Create execution plan: {work-id-2}")
+... (all items in one message)
+```
 
-5. **On failure**: Update state.json item:
-   ```json
-   { "work_id": "{id}", "status": "plan_failed", "error": "{error-summary}" }
-   ```
-   Print: `  ✗ Plan failed for #{work-id}: {error}`
-   Continue to next item.
+#### Phase B — Collect results, then update state.json
+
+After **all** Tasks have completed (wait for all results), process results sequentially in original order:
+
+- **On success**: Update that item's entry in state.json:
+  ```json
+  { "work_id": "{id}", "status": "planned", "plan_id": "{plan-id}", "error": null }
+  ```
+  Print: `  ✓ Planned #{work-id} → {plan-id}`
+
+- **On failure**: Update that item's entry in state.json:
+  ```json
+  { "work_id": "{id}", "status": "plan_failed", "error": "{error-summary}" }
+  ```
+  Print: `  ✗ Plan failed for #{work-id}: {error}`
+
+Update top-level `updated_at` once after all items are processed.
+
+> **Why no conflict**: Planners only write to `.fractary/faber/runs/{plan_id}/plan.json`. The parent is the sole writer of `state.json`, and it only writes after all Tasks have returned — no concurrent access.
 
 > **Context isolation**: Each Task spawn creates a completely fresh Claude context — no carry-over of state, code, or context from prior items. This is the true `/clear` equivalent.
 
