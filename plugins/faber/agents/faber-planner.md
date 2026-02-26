@@ -486,20 +486,25 @@ Store these in `metadata` object for S3/Athena partitioning:
 
 ## Step 7: Save Plan
 
-**Storage Location:** `.fractary/faber/runs/{plan_id}/plan.json`
+**Capture session working directory (ensures files stay within the current worktree):**
+```bash
+PROJECT_ROOT=$(pwd)
+```
+
+**Storage Location:** `${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json`
 
 This location:
-- Is under `.fractary/faber/runs/` for all run-related artifacts
+- Is under `.fractary/faber/runs/` for all run-related artifacts (relative to the session working directory)
 - Consolidates plan.json and state.json in one directory per run
 - Is committable (not gitignored) for workflow state persistence
 - Use CLI to get paths: `fractary-faber runs plan-path {plan_id}`
 
 Ensure directory exists:
 ```bash
-mkdir -p ".fractary/faber/runs/{plan_id}"
+mkdir -p "${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}"
 ```
 
-Write plan file.
+Write plan file using absolute path: `${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json`
 
 ## Step 7b: Post Plan Creation Comment
 
@@ -527,7 +532,7 @@ IF planning_mode == "work_id":
         "",
         "**Plan ID:** `{plan_id}`",
         "**Workflow:** `{workflow_id}`",
-        "**Location:** `.fractary/faber/runs/{plan_id}/plan.json`",
+        "**Location:** `${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json`",
         "",
         "Execute: `/fractary-faber:workflow-run {plan_id}`"
       ].join("\n")
@@ -589,7 +594,7 @@ Output the plan summary with detailed workflow overview:
 FABER Plan Created
 
 Plan ID: {plan_id}
-Plan File: .fractary/faber/runs/{plan_id}/plan.json
+Plan File: {PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json
 
 Workflow: {workflow_id}{extends_text}
 Autonomy: {autonomy}
@@ -607,7 +612,7 @@ Items ({count}):
 FABER Plan Created
 
 Plan ID: {plan_id}
-Plan File: .fractary/faber/runs/{plan_id}/plan.json
+Plan File: {PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json
 
 Planning Mode: Target-based (no work_id)
 Target Type: {target_context.type}
@@ -668,7 +673,7 @@ AskUserQuestion(
    /fractary-faber:workflow-run {plan_id}
 
    Plan Location:
-   .fractary/faber/runs/{plan_id}/plan.json
+   {PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json
 
    Plan Contents:
    ```
@@ -678,11 +683,11 @@ AskUserQuestion(
    **Error Handling for File Read:**
    ```
    TRY:
-     plan_content = Read(file_path=".fractary/faber/runs/{plan_id}/plan.json")
+     plan_content = Read(file_path="${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json")
      Display plan_content (pretty-printed JSON)
    CATCH FileNotFoundError:
      Output: "Error: Plan file not found at expected location. The plan may have been moved or deleted."
-     Output: "Expected: .fractary/faber/runs/{plan_id}/plan.json"
+     Output: "Expected: ${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json"
      Include `execute: false` in response and exit flow
    CATCH JSONParseError:
      Output: "Error: Plan file exists but contains invalid JSON. Please recreate the plan."
@@ -719,7 +724,7 @@ AskUserQuestion(
 
 <COMPLETION_CRITERIA>
 This agent is complete when:
-1. Plan artifact is saved to `.fractary/faber/runs/{plan_id}/plan.json`
+1. Plan artifact is saved to `${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json` (where PROJECT_ROOT is the session working directory captured via `pwd`)
 2. Plan summary with detailed workflow overview is displayed to user
 3. User is prompted whether to execute (with option to review plan inline)
 4. Response includes `execute: true|false` based on user choice
@@ -868,7 +873,7 @@ When no pattern matches:
 FABER Plan Created
 
 Plan ID: fractary-claude-plugins-csv-export
-Plan File: .fractary/faber/runs/fractary-claude-plugins-csv-export/plan.json
+Plan File: /path/to/project/.fractary/faber/runs/fractary-claude-plugins-csv-export/plan.json
 
 Workflow: fractary-faber:default (extends fractary-faber:core)
 Autonomy: guarded
@@ -905,7 +910,7 @@ Items (3):
 FABER Plan Created
 
 Plan ID: fractary-claude-plugins-ipeds-admissions
-Plan File: .fractary/faber/runs/fractary-claude-plugins-ipeds-admissions/plan.json
+Plan File: /path/to/project/.fractary/faber/runs/fractary-claude-plugins-ipeds-admissions/plan.json
 
 Planning Mode: Target-based (no work_id)
 Target Type: dataset
@@ -942,7 +947,7 @@ Execute Command:
 /fractary-faber:workflow-run fractary-claude-plugins-csv-export
 
 Plan Location:
-.fractary/faber/runs/fractary-claude-plugins-csv-export/plan.json
+/path/to/project/.fractary/faber/runs/fractary-claude-plugins-csv-export/plan.json
 
 Plan Contents:
 {
@@ -1015,7 +1020,7 @@ Available patterns:
 
 ## Storage Locations
 
-**All plan/run files:** `.fractary/faber/runs/{plan_id}/`
+**All plan/run files:** `${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/` (where `PROJECT_ROOT` is captured via `pwd` in Step 7)
 - `plan.json` - Execution plan
 - `state-{run_suffix}.json` - Workflow state (one per run)
 
@@ -1030,7 +1035,7 @@ This structure:
 ## Resume Detection
 
 When a branch already exists for a work item:
-1. Check for existing state files in `.fractary/faber/runs/{plan_id}/state-*.json`
+1. Check for existing state files in `${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/state-*.json`
 2. If found, extract last checkpoint (phase/step) from most recent
 3. Mark item for resume in plan
 
