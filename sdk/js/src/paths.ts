@@ -12,6 +12,7 @@
  */
 
 import * as path from 'path';
+import { findProjectRoot } from './config.js';
 
 /**
  * Base directory for all FABER runs (relative to project root)
@@ -30,7 +31,7 @@ export const ACTIVE_RUN_ID_FILE = '.fractary/faber/runs/.active-run-id';
  * @returns Absolute path to the runs directory
  */
 export function getRunsDir(projectRoot?: string): string {
-  const root = projectRoot || process.cwd();
+  const root = projectRoot || findProjectRoot();
   return path.join(root, FABER_RUNS_DIR);
 }
 
@@ -41,7 +42,7 @@ export function getRunsDir(projectRoot?: string): string {
  * @returns Absolute path to the run directory
  */
 export function getRunDir(runId: string, projectRoot?: string): string {
-  const root = projectRoot || process.cwd();
+  const root = projectRoot || findProjectRoot();
   return path.join(root, FABER_RUNS_DIR, runId);
 }
 
@@ -71,7 +72,7 @@ export function getStatePath(runId: string, projectRoot?: string): string {
  * @returns Absolute path to the .active-run-id file
  */
 export function getActiveRunIdPath(projectRoot?: string): string {
-  const root = projectRoot || process.cwd();
+  const root = projectRoot || findProjectRoot();
   return path.join(root, ACTIVE_RUN_ID_FILE);
 }
 

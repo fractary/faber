@@ -228,7 +228,11 @@ Location: `.fractary/faber/runs/.batch-state.json`
 **Step B.1: Initialize or Resume Batch**
 
 ```javascript
-const batchStatePath = ".fractary/faber/runs/.batch-state.json";
+// Capture session working directory (worktree root — may be at any path)
+const projectRootResult = await Bash({ command: "pwd", description: "Get session working directory" });
+const projectRoot = projectRootResult.trim();
+
+const batchStatePath = `${projectRoot}/.fractary/faber/runs/.batch-state.json`;
 let batchState;
 
 if (resumeBatch) {
@@ -516,6 +520,16 @@ console.log("══════════════════════�
 
 ## Phase 1: Initialization
 
+**Capture session working directory (worktree root — may be at any path):**
+
+```javascript
+// All FABER state/plan files are written relative to this directory.
+// Using pwd ensures files stay in the worktree even when --worktree places
+// the worktree outside the original project root.
+const projectRootResult = await Bash({ command: "pwd", description: "Get session working directory" });
+const projectRoot = projectRootResult.trim();
+```
+
 ### Step 1.1: Parse Arguments and Resolve Plan ID
 
 Extract from user input:
@@ -684,7 +698,7 @@ Protocol: ${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/docs/workflow-orchest
 
 ```javascript
 // Read the plan file created by /fractary-faber:plan
-const planPath = `.fractary/faber/runs/${plan_id}/plan.json`;
+const planPath = `${projectRoot}/.fractary/faber/runs/${plan_id}/plan.json`;
 const planContent = await Read({ file_path: planPath });
 const fullPlan = JSON.parse(planContent);
 
@@ -707,7 +721,7 @@ const work_id = workItems.length === 1 ? workItems[0].work_id : null;
 ```javascript
 // Compute state file path from run_id
 // run_id format: {plan_id}-run-{timestamp}
-// State path: .fractary/faber/runs/{plan_id}/state-{timestamp}.json
+// State path: {projectRoot}/.fractary/faber/runs/{plan_id}/state-{timestamp}.json
 function getStatePath(runId) {
   const runMarker = '-run-';
   const runMarkerIndex = runId.lastIndexOf(runMarker);
@@ -716,7 +730,7 @@ function getStatePath(runId) {
   }
   const planId = runId.substring(0, runMarkerIndex);
   const runSuffix = runId.substring(runMarkerIndex + runMarker.length);
-  return `.fractary/faber/runs/${planId}/state-${runSuffix}.json`;
+  return `${projectRoot}/.fractary/faber/runs/${planId}/state-${runSuffix}.json`;
 }
 ```
 
@@ -728,7 +742,7 @@ if (!resume_run_id && !force_new) {
   console.log("\n→ Checking for incomplete runs...");
 
   // Find all state files for this plan_id (now in same directory as plan.json)
-  const planDir = `.fractary/faber/runs/${plan_id}`;
+  const planDir = `${projectRoot}/.fractary/faber/runs/${plan_id}`;
   const findOutput = await Bash({
     command: `find "${planDir}" -name "state-*.json" -type f 2>/dev/null || true`,
     description: "Find all workflow state files for this plan"
@@ -794,7 +808,7 @@ const eventRunId = `${resumePlanId}/${resumeRunSuffix}`;
 
 // Ensure events directory exists for resumed run
 await Bash({
-  command: `mkdir -p ".fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events" && [ -f ".fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events/.next-id" ] || echo "1" > ".fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events/.next-id"`,
+  command: `mkdir -p "${projectRoot}/.fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events" && [ -f "${projectRoot}/.fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events/.next-id" ] || echo "1" > "${projectRoot}/.fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events/.next-id"`,
   description: "Ensure events directory exists for resumed run"
 });
 
@@ -828,7 +842,7 @@ const eventRunId = `${plan_id}/${timestamp}`;
 
 // State file goes in same directory as plan.json, with timestamp in filename
 // This keeps all artifacts for a plan together while allowing multiple runs
-const statePath = `.fractary/faber/runs/${plan_id}/state-${timestamp}.json`;
+const statePath = `${projectRoot}/.fractary/faber/runs/${plan_id}/state-${timestamp}.json`;
 
 console.log("✓ Starting new workflow execution");
 console.log(`Run ID: ${runId}`);
@@ -864,7 +878,7 @@ const initialState = {
 // Plan directory should already exist (created by faber-planner)
 // Ensure it exists just in case, and create events directory for this run
 await Bash({
-  command: `mkdir -p ".fractary/faber/runs/${plan_id}/${timestamp}/events" && echo "1" > ".fractary/faber/runs/${plan_id}/${timestamp}/events/.next-id"`,
+  command: `mkdir -p "${projectRoot}/.fractary/faber/runs/${plan_id}/${timestamp}/events" && echo "1" > "${projectRoot}/.fractary/faber/runs/${plan_id}/${timestamp}/events/.next-id"`,
   description: "Create plan and events directories"
 });
 
@@ -895,12 +909,12 @@ This enables hooks (PreCompact, SessionStart, SessionEnd) to know which workflow
 ```javascript
 // Ensure .fractary/faber/runs directory exists
 await Bash({
-  command: "mkdir -p .fractary/faber/runs",
+  command: `mkdir -p "${projectRoot}/.fractary/faber/runs"`,
   description: "Create faber runs directory"
 });
 
 // Check if another workflow is active
-const activeRunIdPath = ".fractary/faber/runs/.active-run-id";
+const activeRunIdPath = `${projectRoot}/.fractary/faber/runs/.active-run-id`;
 let existingRunId = null;
 
 try {
@@ -1029,7 +1043,7 @@ if (work_id) {
       `**Run ID:** \`${runId}\``,
       `**Plan ID:** \`${plan_id}\``,
       `**Workflow:** \`${workflow.id}\``,
-      `**State File:** \`.fractary/faber/runs/${plan_id}/state-${timestamp}.json\``,
+      `**State File:** \`${projectRoot}/.fractary/faber/runs/${plan_id}/state-${timestamp}.json\``,
       `**Autonomy:** ${autonomy}`,
       ``,
       `**Phases:** ${enabledPhases}`
@@ -1217,8 +1231,8 @@ FOR EACH phase IN phases_to_execute:
       - Run ID: {run_id}
       - Plan ID: {plan_id}
       - Work ID: {work_id}
-      - Plan file: .fractary/faber/runs/{plan_id}/plan.json
-      - State file: .fractary/faber/runs/{plan_id}/{run_id}/state.json
+      - Plan file: {projectRoot}/.fractary/faber/runs/{plan_id}/plan.json
+      - State file: {projectRoot}/.fractary/faber/runs/{plan_id}/{run_id}/state.json
 
       ## Your Task
       1. Load the plan from the plan file path above
