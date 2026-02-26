@@ -134,6 +134,12 @@ Task(
 
 > **Context isolation**: Each Task spawn creates a completely fresh Claude context — no carry-over of state, code, or context from prior items. This is the true `/clear` equivalent.
 
+> **Task isolation note**: The spawned `faber-planner` agent must NOT use TaskCreate,
+> TaskUpdate, TaskList, or TaskGet for internal tracking (enforced by CRITICAL_RULES
+> rule 8 in faber-planner). These tools are session-scoped — tasks created inside a
+> Task spawn appear in the parent session. If tasks appear in the session list after
+> planning completes, report this as a bug in the faber-planner agent.
+
 ### Step 8: Final Report
 
 After all items are processed:
