@@ -138,7 +138,7 @@ export class FaberWorkflow {
     this.artifacts = [];
 
     // Create or resume workflow state
-    let state = this.stateManager.workflow.getActive(workId);
+    let state = options.forceNew ? null : this.stateManager.workflow.getActive(workId);
     // Track if this is a new workflow vs resuming an existing one.
     // We only post "run started" comments for new workflows to avoid
     // duplicate notifications when resuming paused/failed workflows.
@@ -181,6 +181,15 @@ export class FaberWorkflow {
 
     const phaseResults: PhaseResult[] = [];
     const phases: FaberPhase[] = ['frame', 'architect', 'build', 'evaluate', 'release'];
+
+    if (options.phase) {
+      const phaseFilter = options.phase.split(',').map(p => p.trim());
+      for (const p of phases) {
+        if (!phaseFilter.includes(p)) {
+          this.config.phases[p].enabled = false;
+        }
+      }
+    }
 
     try {
       // Fetch issue for context

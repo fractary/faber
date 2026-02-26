@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:workflow-batch-run
 description: Execute a planned FABER batch sequentially with true context isolation per item - each workflow runs in a fresh Claude context via Task spawning
-argument-hint: '--batch <batch-id> [--autonomous] [--resume]'
+argument-hint: '--batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new]'
 allowed-tools: Read, Write, Bash, Task, AskUserQuestion
 model: claude-sonnet-4-6
 ---
@@ -20,7 +20,7 @@ Executes all planned items from an existing batch sequentially. Each item runs i
 ## Syntax
 
 ```
-/fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume]
+/fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new]
 ```
 
 ## Arguments
@@ -30,6 +30,8 @@ Executes all planned items from an existing batch sequentially. Each item runs i
 | `--batch <batch-id>` | Yes | Batch ID from `workflow-batch-plan` (e.g., `overnight-sprint-01`) |
 | `--autonomous` | No | Skip user prompts on failure, auto-continue to next item |
 | `--resume` | No | Resume from last completed item (skip completed/skipped items) |
+| `--phase <phases>` | No | Execute only specified phase(s) — comma-separated (e.g., `build` or `build,evaluate`) |
+| `--force-new` | No | Force fresh start for each item, bypassing auto-resume |
 
 ## Protocol
 
@@ -39,11 +41,13 @@ From `$ARGUMENTS`:
 1. Extract `--batch <value>` — required
 2. Extract `--autonomous` flag
 3. Extract `--resume` flag
+4. Extract `--phase <value>` — optional (e.g., `build` or `build,evaluate`)
+5. Extract `--force-new` flag
 
 If `--batch` is missing, error:
 ```
 Error: --batch <batch-id> is required.
-Usage: /fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume]
+Usage: /fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new]
 ```
 
 ### Step 2: Load Batch State
@@ -99,13 +103,21 @@ Write to state.json: `item.status = "in_progress"`, `item.started_at = {iso-time
 
 #### 5c. Spawn Task for Workflow Execution
 
+Construct the skill invocation string, conditionally appending optional flags:
+
+```
+fractary-faber:workflow-run {work-id}[--phase {phase}][--force-new]
+```
+
+Only append `--phase {phase}` if `--phase` was provided. Only append `--force-new` if `--force-new` was provided.
+
 ```
 Task(
   subagent_type="general-purpose",
   description="Execute FABER workflow for #{work-id}",
   prompt="Execute the FABER workflow for work item #{work-id}.
 
-Use the Skill tool to invoke: fractary-faber:workflow-run {work-id}
+Use the Skill tool to invoke: fractary-faber:workflow-run {work-id}[--phase {phase}][--force-new]
 
 This is an autonomous execution. Follow the complete workflow to completion.
 Do not stop or ask for confirmation — execute all phases through to completion.
@@ -232,6 +244,15 @@ Step-level recovery (auto-fix, retries within a single workflow) is handled enti
 
 # Interactive run (prompts on failure)
 /fractary-faber:workflow-batch-run --batch overnight-sprint-01
+
+# Run only the build and evaluate phases for all items
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --phase build,evaluate
+
+# Force fresh start for all items (ignore existing workflow state)
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --force-new
+
+# Phase filter + force new combined
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --phase build,evaluate --force-new
 
 # Two worktrees, different batches — no state collision
 # Worktree 1: /fractary-faber:workflow-batch-run --batch sprint-backend --autonomous
