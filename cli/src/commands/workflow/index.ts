@@ -78,6 +78,8 @@ export function createRunCommand(): Command {
               const result = await workflow.run({
                 workId,
                 autonomy: options.autonomy,
+                phase: options.phase,
+                forceNew: options.forceNew,
               });
 
               results.push({ workId, status: result.status });
@@ -151,6 +153,8 @@ export function createRunCommand(): Command {
           const result = await workflow.run({
             workId: workIds[0],
             autonomy: options.autonomy,
+            phase: options.phase,
+            forceNew: options.forceNew,
           });
 
           if (options.json) {
@@ -580,6 +584,8 @@ export function createBatchRunCommand(): Command {
     .requiredOption('--batch <batch-id>', 'Batch ID to execute (from workflow-batch-plan)')
     .option('--autonomous', 'Auto-skip failed items without prompting (for overnight unattended runs)')
     .option('--resume', 'Skip already-completed items (safe to re-run after interruption)')
+    .option('--phase <phases>', 'Execute only specified phase(s) - comma-separated')
+    .option('--force-new', 'Force fresh start for each item, bypass auto-resume')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
@@ -782,6 +788,8 @@ async function executeBatchRunCommand(options: {
   batch: string;
   autonomous?: boolean;
   resume?: boolean;
+  phase?: string;
+  forceNew?: boolean;
   json?: boolean;
 }): Promise<void> {
   const batchId = options.batch;
@@ -826,6 +834,8 @@ async function executeBatchRunCommand(options: {
       const completed = state.items.filter(i => i.status === 'completed').length;
       console.log(chalk.gray(`Resume: ${completed}/${state.items.length} already completed`));
     }
+    if (options.phase) console.log(chalk.gray(`Phase filter: ${options.phase}`));
+    if (options.forceNew) console.log(chalk.gray('Force new: yes'));
     console.log(chalk.gray(`Remaining: ${toProcess.length} item(s)`));
     console.log('');
   }
@@ -865,7 +875,12 @@ async function executeBatchRunCommand(options: {
         }
       });
 
-      const result = await workflow.run({ workId, autonomy: options.autonomous ? 'autonomous' : 'guarded' });
+      const result = await workflow.run({
+        workId,
+        autonomy: options.autonomous ? 'autonomous' : 'guarded',
+        phase: options.phase,
+        forceNew: options.forceNew,
+      });
 
       state.items[globalIndex].status = 'completed';
       state.items[globalIndex].run_id = (result as any).run_id || null;

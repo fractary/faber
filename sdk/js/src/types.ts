@@ -644,6 +644,8 @@ export interface WorkflowOptions {
   workId: string | number;
   autonomy?: AutonomyLevel;
   config?: Partial<WorkflowConfig>;
+  phase?: string;      // comma-separated phase names to run (others disabled)
+  forceNew?: boolean;  // force fresh run, bypass auto-resume
 }
 
 export interface WorkflowResult {
