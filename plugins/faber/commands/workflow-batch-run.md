@@ -189,16 +189,31 @@ taskId = stepTaskIds["{phase_name}:{step.id}"]
        Continue to next step
    - Autonomous + step is blocking:
        TaskUpdate(taskId, status=completed)
+       # Immediately clean up all remaining pending step tasks for this item
+       For each stepTaskId in stepTaskIds.values() not yet completed:
+         TaskUpdate(stepTaskId, status=completed)
        Mark item as failed in state.json
        TaskUpdate(batchTaskIds[work_id], status=completed)
        Print: "  ✗ Step failed (blocking): #{work_id} — {step.name}: {error}"
-       Break to next item
+       Continue immediately to next item (return to Step 5-S0) — do NOT stop or pause
    - Interactive:
        AskUserQuestion: "Step failed: {step.name} — {error}. Options: Skip step / Skip item / Retry"
        On Skip step: TaskUpdate(taskId, completed), continue
-       On Skip item: mark item failed, break to next item
+       On Skip item:
+           For each stepTaskId in stepTaskIds.values() not yet completed:
+             TaskUpdate(stepTaskId, status=completed)
+           Mark item failed in state.json
+           TaskUpdate(batchTaskIds[work_id], status=completed)
+           Continue to next item (return to Step 5-S0)
        On Retry: re-execute step once; on second failure: offer Skip/Stop
 ```
+
+> **CRITICAL — No unauthorized stops**: After any item failure, the execution
+> loop MUST return immediately to Step 5-S0 for the next item. The agent MUST
+> NOT generate a "BATCH PAUSED" report, pause summary, or any interim stop.
+> The only valid terminal states are:
+> (a) All items processed → proceed to Step 6 Final Report
+> (b) User explicitly selects "Stop" via AskUserQuestion in interactive mode
 
 ##### Step 5-S4: Mark Batch Item Complete
 
