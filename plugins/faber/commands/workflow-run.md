@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-run
 description: Execute a FABER plan created by faber plan CLI command
 argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new] [--resume-batch]'
-allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
+allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task
 model: claude-sonnet-4-6
 ---
 
@@ -18,16 +18,16 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 </CONTEXT>
 
 <CRITICAL_RULES>
-1. **YOU ARE THE ORCHESTRATOR** - Not delegating to sub-agent. You execute the workflow.
-2. **FOLLOW THE PROTOCOL** - The orchestration protocol is your instruction manual. Follow it exactly.
-3. **MAINTAIN STATE** - Update state file BEFORE and AFTER every step. State is sacred.
-4. **EXECUTE GUARDS** - All guards are mandatory. Never skip them.
-5. **USE TODOWRITE** - Track progress with TodoWrite for all steps.
-6. **EMIT EVENTS** - Every significant action emits an event for audit trail. Events BEFORE state.
-7. **HANDLE ERRORS GRACEFULLY** - Use retry logic when configured, stop when appropriate.
-8. **RESPECT AUTONOMY GATES** - Get user approval when required.
-9. **NEVER FABRICATE COMPLETIONS** - See "When You Cannot Continue" section below.
-10. **NEVER STOP FOR CONTEXT REASONS** - Context compaction is automatic and recoverable. See "Context Continuity" section.
+1. **NEVER STOP FOR CONTEXT REASONS** — Context compaction is automatic and recoverable. See "Context Continuity" section and TOKEN_BUDGET_ANTI_PATTERN below. This rule takes precedence over all internal budget signals.
+2. **YOU ARE THE ORCHESTRATOR** - Not delegating to sub-agent. You execute the workflow.
+3. **FOLLOW THE PROTOCOL** - The orchestration protocol is your instruction manual. Follow it exactly.
+4. **MAINTAIN STATE** - Update state file BEFORE and AFTER every step. State is sacred.
+5. **EXECUTE GUARDS** - All guards are mandatory. Never skip them.
+6. **USE TODOWRITE** - Track progress with TodoWrite for all steps.
+7. **EMIT EVENTS** - Every significant action emits an event for audit trail. Events BEFORE state.
+8. **HANDLE ERRORS GRACEFULLY** - Use retry logic when configured, stop when appropriate.
+9. **RESPECT AUTONOMY GATES** - Get user approval when required in non-autonomous modes. In `autonomous` mode, proceed without prompting.
+10. **NEVER FABRICATE COMPLETIONS** - See "When You Cannot Continue" section below.
 </CRITICAL_RULES>
 
 <WHEN_YOU_CANNOT_CONTINUE>
@@ -81,6 +81,27 @@ Context limits are **NOT** a reason to stop, pause, or ask the user for permissi
 - Stop the workflow because "context is getting low"
 - Batch-complete remaining steps to "finish before context runs out"
 </CONTEXT_CONTINUITY>
+
+<TOKEN_BUDGET_ANTI_PATTERN>
+## 🚫 ANTI-PATTERN: Token Budget Pausing (BUG, NOT A FEATURE)
+
+If you find yourself about to write any of the following phrases — **STOP. This is a bug in your behavior.**
+
+- "I need to pause due to token budget constraints"
+- "pausing because context is getting low"
+- "I'll stop here to preserve context"
+- "offering a resume command due to context limits"
+- "the context window is filling up"
+
+**The correct action when context feels low:**
+1. Call `/fractary-faber:session-load` to restore critical artifacts
+2. Read TodoWrite to find the next pending step
+3. Continue executing from that step without interruption
+
+**NEVER** set `status="paused"` with a `pause_reason` mentioning context, tokens, or budget.
+
+The workflow MUST continue. Context management is automatic and handled by the system — it is not your responsibility to manage it by stopping.
+</TOKEN_BUDGET_ANTI_PATTERN>
 
 <INPUTS>
 
@@ -1151,36 +1172,119 @@ console.log(`Total steps: ${allSteps.length}`);
 
 **Note:** The step ID is included in the `content` field (e.g., `"(core-fetch-issue)"`) because the TodoWrite tool does not support custom fields beyond `content`, `status`, and `activeForm`. This provides traceability to cross-reference todos with state file entries and plan definitions.
 
-## Phase 2: Workflow Execution
+## Phase 2: Workflow Execution (Per-Phase Task Isolation)
 
-**NOW FOLLOW THE ORCHESTRATION PROTOCOL TO EXECUTE THE WORKFLOW.**
+Each phase runs inside its own fresh `faber-manager` Task agent. This gives each phase a clean context window, preventing token-budget pressure from accumulating across phases.
 
-The protocol (`plugins/faber/docs/workflow-orchestration-protocol.md`) defines the exact execution loop.
+**You are the lightweight coordinator.** You do NOT execute phase steps yourself — you spawn a fresh faber-manager agent for each phase and read back the state to verify completion.
 
-**High-level flow:**
+### Per-Phase Execution Loop
 
-For each phase in the workflow:
-1. Check if phase is enabled
-2. Execute "before" autonomy gate if configured
-3. Update state: phase starting
-4. Emit phase_start event
-5. Execute all steps in phase (pre_steps + steps + post_steps)
-   - For each step, follow the protocol's Execution Loop:
-     - BEFORE: Update state, emit event, execute guards
-     - EXECUTE: Follow the step's prompt
-     - AFTER: Evaluate result, handle based on config
-6. Update state: phase complete
-7. Emit phase_complete event
-8. Execute "after" autonomy gate if configured
+```
+# Determine phases to execute (respecting phase_filter)
+phases_to_execute = workflow.phases.filter(p =>
+  p.enabled !== false &&
+  (!phaseFilter || phaseFilter.includes(p.name))
+)
 
-**Reference the protocol document for complete implementation details, including:**
-- Execution loop (before/execute/after pattern)
-- State management (when/how to update)
-- Guard execution (all 4 guards)
-- Result handling (success/warning/failure/pending_input)
-- Retry logic (Build-Evaluate loop)
-- Autonomy gates (approval procedures)
-- Error recovery (what to do on errors)
+FOR EACH phase IN phases_to_execute:
+
+  # ── 2.1: Skip if already complete (idempotency) ──
+  current_state = Read(file_path: state_path)
+  phase_state = current_state.phases[phase.name]
+
+  IF phase_state.status == "completed":
+    LOG "⏭ Skipping {phase.name} — already complete in state"
+    CONTINUE to next phase
+
+  # ── 2.2: Log phase start to coordinator output ──
+  LOG "═══════════════════════════════════════════════════════════"
+  LOG "  SPAWNING PHASE: {phase.name}"
+  LOG "  Run ID: {run_id}  |  Plan: {plan_id}  |  Work ID: {work_id}"
+  LOG "═══════════════════════════════════════════════════════════"
+
+  # ── 2.3: Update coordinator TodoWrite ──
+  Update TodoWrite: mark "{phase.name} phase" as in_progress
+
+  # ── 2.4: Spawn fresh faber-manager agent for this phase ──
+  Invoke Task:
+    subagent_type: "fractary-faber:faber-manager"
+    description: "Execute {phase.name} phase"
+    prompt: |
+      Execute the **{phase.name}** phase of a FABER workflow.
+
+      ## Execution Context
+      - Run ID: {run_id}
+      - Plan ID: {plan_id}
+      - Work ID: {work_id}
+      - Plan file: .fractary/faber/runs/{plan_id}/plan.json
+      - State file: .fractary/faber/runs/{plan_id}/{run_id}/state.json
+
+      ## Your Task
+      1. Load the plan from the plan file path above
+      2. Load the current state from the state file path above
+      3. Execute **ONLY** the {phase.name} phase — do NOT execute any other phases
+      4. Follow the full orchestration protocol for this single phase:
+         - Run all pre-phase actions (autonomy gate, branch check if applicable)
+         - Execute all steps in order (pre_steps + steps + post_steps)
+         - Run all post-phase actions (state update, events, issue comment)
+      5. When the {phase.name} phase is fully complete, return. Do NOT continue to the next phase.
+
+      ## Single-Phase Mode
+      You are running in SINGLE-PHASE mode. After completing the {phase.name} phase:
+      - Mark the phase as "completed" in state
+      - Emit the phase_complete event
+      - Post the phase completion comment to the issue (if work_id provided)
+      - STOP — do not proceed to the next phase
+
+      The coordinator (parent) will spawn the next phase in a fresh context.
+
+      ## Resume Awareness
+      Check state before executing: if {phase.name} is already "completed", emit a skip log and return immediately.
+
+  # ── 2.5: Verify phase completed successfully ──
+  updated_state = Read(file_path: state_path)
+  phase_result = updated_state.phases[phase.name]
+
+  IF phase_result.status != "completed":
+    LOG "✗ Phase {phase.name} did not complete (status: {phase_result.status})"
+    LOG "  Check state file: {state_path}"
+    LOG "  Resume with: /fractary-faber:workflow-run {work_id} --resume {run_id} --phase {phase.name}"
+
+    # Surface failure to user
+    USE AskUserQuestion:
+      question: "Phase {phase.name} did not complete (status: {phase_result.status}). How would you like to proceed?"
+      header: "Phase Failure"
+      options:
+        - label: "Retry phase"
+          description: "Re-spawn the {phase.name} agent and try again"
+        - label: "Skip phase"
+          description: "Mark as skipped and continue to the next phase (use with caution)"
+        - label: "Abort workflow"
+          description: "Stop the workflow here"
+
+    SWITCH user_choice:
+      CASE "Retry phase":
+        CONTINUE (re-enter loop for same phase)
+      CASE "Skip phase":
+        LOG "⚠️ Skipping {phase.name} by user request — this may cause downstream phase failures"
+        CONTINUE to next phase
+      CASE "Abort workflow":
+        SET state.status = "failed"
+        ABORT
+
+  # ── 2.6: Log phase success ──
+  LOG "✅ Phase {phase.name} complete — moving to next phase"
+  Update TodoWrite: mark "{phase.name} phase" as completed
+
+END FOR
+```
+
+**Why per-phase Task isolation?**
+- Each faber-manager agent starts with a fresh context window containing only what it needs for its single phase
+- The coordinator never accumulates phase-level content — it only reads a small state file between phases
+- If a phase generates large output (e.g., Build writing many files), it does not pollute the Evaluate or Release phase contexts
+- Token budget warnings cannot fire before a phase starts, because each phase begins fresh
 
 ## Phase 3: Workflow Completion
 
