@@ -42,6 +42,6 @@
   "author": "Fractary Team",
   "license": "MIT",
   "dependencies": {
-    "@fractary/forge": "^1.1.4"
+    "@fractary/forge": "*"
   }
 }
