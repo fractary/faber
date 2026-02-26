@@ -1022,9 +1022,9 @@ Available patterns:
 
 **All plan/run files:** `${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/` (where `PROJECT_ROOT` is captured via `pwd` in Step 7)
 - `plan.json` - Execution plan
-- `state-{run_suffix}.json` - Workflow state (one per run)
+- `{run_suffix}/state.json` - Workflow state (one per run, inside run subdirectory)
 
-Where `run_id = {plan_id}-run-{run_suffix}` and `run_suffix` is a timestamp like `2026-02-04T19-56-42Z`.
+Where `run_id = {plan_id}/{run_suffix}` and `run_suffix` is a timestamp like `2026-02-04T19-56-42Z`.
 
 This structure:
 - Keeps all artifacts for a plan together
@@ -1035,7 +1035,7 @@ This structure:
 ## Resume Detection
 
 When a branch already exists for a work item:
-1. Check for existing state files in `${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/state-*.json`
+1. Check for existing state files in `${PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/*/state.json`
 2. If found, extract last checkpoint (phase/step) from most recent
 3. Mark item for resume in plan
 

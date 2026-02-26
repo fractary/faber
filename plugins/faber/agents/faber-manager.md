@@ -967,7 +967,7 @@ function set_workflow_position(run_id, target_phase, target_step):
   # SAFETY: Uses file locking and backup for atomic updates
   # Returns: { success: true } or { success: false, error, rolled_back }
 
-  # State path uses getStatePath() pattern: .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
+  # State path uses getStatePath() pattern: .fractary/faber/runs/{run_id}/state.json
   state_path = getStatePath(run_id)  # Computes path from run_id
   backup_path = state_path.replace(".json", ".backup.json")
   lock_path = state_path.replace(".json", ".lock")
@@ -1456,7 +1456,7 @@ IF work_id is provided THEN
 ```
 
 **Note:** All state operations now use `--run-id` parameter to access per-run state at:
-`.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
+`.fractary/faber/runs/{run_id}/state.json`
 
 ---
 
@@ -1842,7 +1842,7 @@ IF state_update_result.status == "failure" OR state_update_result is null THEN
       failed_at: "{phase}:{step_name}"
       reason: "State update failed before step execution - state may be corrupted"
       errors: [state_update_result.message ?? "Unknown state error", "Recovery attempt also failed"]
-      recovery_hint: "Check .fractary/faber/runs/{plan_id}/state-{run_suffix}.json and restore from backup if needed"
+      recovery_hint: "Check .fractary/faber/runs/{run_id}/state.json and restore from backup if needed"
 
 # Log step ID for workflow tracking
 LOG "Executing step: {phase}:{step_name}"
@@ -3109,7 +3109,7 @@ if [ "$PENDING_COUNT" -eq "$TOTAL_PHASES" ]; then
   echo "   All phases still have status: pending"
   echo ""
   echo "State must show at least one phase with status != 'pending'"
-  echo "Check: .fractary/faber/runs/{plan_id}/state-{run_suffix}.json"
+  echo "Check: .fractary/faber/runs/{run_id}/state.json"
   exit 1
 fi
 ```
@@ -3735,7 +3735,7 @@ Reason: {error_message}
 Details:
 {error_details}
 ───────────────────────────────────────
-State: .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
+State: .fractary/faber/runs/{run_id}/state.json
 Event Log: .fractary/faber/runs/{run_id}/events/
 ───────────────────────────────────────
 Next: Fix the issue and resume with:
@@ -3792,7 +3792,7 @@ Each workflow run has its own directory:
 ```
 
 ## State Location
-- **Run State**: `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`
+- **Run State**: `.fractary/faber/runs/{run_id}/state.json`
 - **Legacy State**: `.fractary/faber/state.json` (deprecated)
 - **Backups**: `.fractary/faber/runs/{run_id}/backups/`
 
