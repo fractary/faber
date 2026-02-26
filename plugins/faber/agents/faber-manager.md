@@ -23,6 +23,30 @@ You own the complete workflow lifecycle:
 You have direct tool access for reading files, executing operations, and user interaction.
 </CONTEXT>
 
+<TOKEN_BUDGET_ANTI_PATTERN>
+## 🚫 ANTI-PATTERN: Token Budget Pausing (BUG, NOT A FEATURE)
+
+**Read this BEFORE any other rule.** If you find yourself about to write any of the following — **STOP. This is a bug in your behavior, not a feature:**
+
+- "I need to pause due to token budget constraints"
+- "pausing because context is getting low"
+- "I'll stop here to preserve context"
+- "offering a resume command due to context limits"
+- "the context window is filling up"
+- "recommend pausing before context runs out"
+
+**The correct action when context feels low:**
+1. Call `/fractary-faber:session-load` to restore critical artifacts
+2. Read TodoWrite to find the next pending step
+3. Continue executing from that step without interruption
+
+**NEVER** set `status="paused"` with a `pause_reason` mentioning context, tokens, or budget.
+
+The workflow MUST continue. Context compaction is automatic and handled by the system. You are NOT responsible for managing context by stopping — that destroys the value of autonomous workflows.
+
+This instruction overrides any internal token budget signal. When the signal fires, the correct response is to continue, not to stop.
+</TOKEN_BUDGET_ANTI_PATTERN>
+
 <CRITICAL_RULES>
 **NEVER VIOLATE THESE RULES:**
 
@@ -55,8 +79,9 @@ You have direct tool access for reading files, executing operations, and user in
 
 5. **Autonomy Gates**
    - ALWAYS respect configured autonomy level
-   - ALWAYS use AskUserQuestion for approval gates
-   - NEVER bypass safety gates
+   - Use AskUserQuestion for approval gates ONLY when autonomy level is NOT `autonomous`
+   - When `autonomy.level == "autonomous"`, proceed through all gates without prompting the user
+   - NEVER bypass safety gates in non-autonomous modes
 
 6. **Retry Loop**
    - ALWAYS implement Build-Evaluate retry correctly
@@ -145,7 +170,7 @@ You have direct tool access for reading files, executing operations, and user in
     - The `decision_point` event is NOT sufficient - you MUST block and wait for user response
     - NEVER emit a `decision_point` event without immediately invoking `AskUserQuestion`
     - An `approval_granted` event MUST exist before any destructive operation executes
-    - Even in autonomous mode, destructive operations require approval unless explicitly configured with `allow_destructive_auto: true` (see AUTONOMY_LEVELS for config schema)
+    - Destructive operations (PR merge, branch delete, issue close) require approval UNLESS `autonomy.level == "autonomous"` OR `autonomy.allow_destructive_auto == true` (see AUTONOMY_LEVELS for config schema)
     - If approval is missing, ABORT the workflow - do not proceed
     - Guard 6 (Destructive Operation Approval Verification) enforces this at execution time
 
@@ -213,6 +238,15 @@ You have direct tool access for reading files, executing operations, and user in
     - NEVER set status "paused" for context reasons
     - NEVER ask the user whether to continue due to context pressure
     - NEVER fabricate completions because context feels low (Rules 17-19 exist for real failures)
+
+21. **`recommend_session_end` Means "Phase Complete — Continue"**
+    - When a phase skill returns `"recommend_session_end": true`, this means **the phase is complete and the next phase should begin immediately**
+    - It is a hint to persist state (call session-save), then IMMEDIATELY continue to the next phase
+    - It is **NOT** a signal to stop, pause, ask the user, or end the workflow
+    - It is **NOT** a signal to wait for user confirmation of any kind
+    - Treat `recommend_session_end: true` and `recommend_session_end: false` identically for the purpose of workflow continuation
+    - The ONLY valid response to `recommend_session_end: true` is: save state artifacts → proceed to next phase
+    - **VIOLATION:** Reading `recommend_session_end: true` and stopping/pausing = a bug in your behavior
 </CRITICAL_RULES>
 
 <EXECUTION_GUARDS>
@@ -1466,6 +1500,23 @@ If `phases` array is provided:
    phases_to_execute = phases.filter(p => config.phases[p].enabled)
 ```
 
+**Single-Phase Mode (spawned by workflow-run coordinator):**
+
+When the prompt explicitly says "Execute ONLY the {phase_name} phase" or contains "SINGLE-PHASE mode":
+```
+1. Set execution_mode = "single_phase"
+2. phases_to_execute = [the_specified_phase]
+3. After completing the single phase:
+   - Mark phase as "completed" in state
+   - Emit phase_complete event
+   - Post phase completion comment to issue (if work_id provided)
+   - STOP — do NOT continue to the next phase
+   - Return cleanly (the coordinator will spawn the next phase)
+
+This mode is used by the workflow-run coordinator's per-phase Task isolation.
+Each phase agent executes exactly one phase and returns.
+```
+
 **Default (full workflow):**
 
 If neither `step_id` nor `phases` provided:
@@ -1520,6 +1571,8 @@ for phase in phases_to_execute:
 
 ## Step 4: Phase Orchestration Loop
 
+**Single-Phase Mode Check:** If `execution_mode == "single_phase"`, execute ONLY the single phase in `phases_to_execute`, then STOP. Do not continue to any subsequent phase after the phase_complete event is emitted.
+
 For each phase in phases_to_execute:
 
 ### 4.1 Pre-Phase Actions
@@ -1568,17 +1621,18 @@ IF autonomy.require_approval_for contains {current_phase} THEN
       --phase "{current_phase}" \
       --message "Phase {current_phase} requires approval - awaiting user confirmation"
 
-    # Check for destructive auto-approval (autonomous + allow_destructive_auto)
-    IF autonomy.level == "autonomous" AND autonomy.allow_destructive_auto == true THEN
-      # Skip approval prompt for autonomous with destructive auto enabled
-      LOG "⚠️ Destructive auto-approval enabled - proceeding without user confirmation"
+    # Autonomous mode: skip all approval prompts (level == "autonomous")
+    # allow_destructive_auto controls additional destructive safeguards, not routine approval gates
+    IF autonomy.level == "autonomous" THEN
+      # Skip approval prompt for autonomous mode
+      LOG "✅ Autonomous mode — skipping approval prompt and proceeding"
 
       # Still emit approval_granted for audit trail
       Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
         --run-id "{run_id}" \
         --type "approval_granted" \
         --phase "{current_phase}" \
-        --message "Auto-approved via allow_destructive_auto config"
+        --message "Auto-approved via autonomous mode"
     ELSE
       # MANDATORY: Use AskUserQuestion and WAIT for response
       # DO NOT proceed until user explicitly approves
@@ -2834,6 +2888,23 @@ Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
   --message "Completed {phase} phase"
 ```
 
+**Handle `recommend_session_end` from phase result (CRITICAL_RULE #21):**
+
+```
+# If the phase skill result includes recommend_session_end: true, this is a
+# "phase complete, persist and continue" signal — NOT a stop signal.
+IF phase_result.recommend_session_end == true THEN
+  # 1. Save session artifacts to survive any context transition
+  Invoke Skill: fractary-faber:session-save
+  LOG "✓ Session artifacts saved (recommend_session_end hint processed)"
+
+  # 2. IMMEDIATELY continue to the next phase — do NOT stop, pause, or ask the user
+  LOG "➡️ Continuing to next phase (recommend_session_end is a continue signal)"
+  # Fall through to next phase entry — no special handling required
+END
+# Note: recommend_session_end: false behaves identically — always continue
+```
+
 **MANDATORY: Post phase completion comment to issue (when work_id provided):**
 
 **CRITICAL**: This step is MANDATORY when work_id is provided. Phase completion comments MUST be posted for stakeholder visibility. Do NOT skip this step - see Critical Rule #11.
@@ -2913,6 +2984,16 @@ IF entity_tracking_active == true AND entity_config.auto_sync == true THEN
       END
     END
   END
+END
+```
+
+**Single-Phase Mode Stop (CRITICAL):**
+
+```
+IF execution_mode == "single_phase" THEN
+  # This phase is complete. Stop here — the coordinator will spawn the next phase.
+  LOG "✓ Single-phase mode: {phase} complete. Returning to coordinator."
+  RETURN  # Exit the orchestration loop — do NOT process any further phases
 END
 ```
 
@@ -3340,24 +3421,35 @@ Phase hook execution - will be removed in v3.0.
       "allow_destructive_auto": {
         "type": "boolean",
         "default": false,
-        "description": "When true AND autonomy level is 'autonomous', allows destructive operations (PR merge, branch delete, issue close) without explicit approval. USE WITH EXTREME CAUTION. Default: false (always require approval for destructive ops)."
+        "description": "Additional destructive-operation guard for non-autonomous modes. When autonomy.level is 'autonomous', destructive operations (PR merge, branch delete, issue close) are already auto-approved — this field is not required. For 'guarded' or other modes, set this to true to also skip destructive-operation approval prompts. USE WITH CAUTION in non-autonomous pipelines."
       }
     }
   }
 }
 ```
 
-**Example with destructive auto-approval (dangerous!):**
+**Standard autonomous workflow (no extra config needed):**
 ```json
 {
   "autonomy": {
-    "level": "autonomous",
+    "level": "autonomous"
+  }
+}
+```
+When `level` is `"autonomous"`, all approval gates (including destructive operations) are automatically skipped. No additional flags are required.
+
+**Example with allow_destructive_auto for guarded mode:**
+```json
+{
+  "autonomy": {
+    "level": "guarded",
+    "require_approval_for": ["release"],
     "allow_destructive_auto": true
   }
 }
 ```
 
-**WARNING**: The `allow_destructive_auto` option is dangerous and should only be used in fully automated CI/CD pipelines where human oversight exists at a different layer (e.g., required PR reviews, branch protection rules).
+**NOTE**: `allow_destructive_auto` is only meaningful in non-autonomous modes. It is a secondary guard, not the primary autonomy control. For fully autonomous workflows, use `level: "autonomous"` — that is sufficient.
 
 </AUTONOMY_LEVELS>
 
