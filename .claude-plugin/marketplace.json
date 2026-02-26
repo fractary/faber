@@ -7,7 +7,7 @@
   },
   "metadata": {
     "description": "Core FABER workflow orchestration framework.",
-    "version": "3.0.16",
+    "version": "3.0.17",
     "pluginRoot": "./plugins"
   },
   "plugins": [
@@ -15,7 +15,7 @@
       "name": "fractary-faber",
       "source": "./plugins/faber",
       "description": "Universal SDLC workflow framework - Frame → Architect → Build → Evaluate → Release",
-      "version": "3.8.32",
+      "version": "3.8.33",
       "author": {
         "name": "The Fractary",
         "url": "https://github.com/fractary"
@@ -49,7 +49,9 @@
         "./agents/workflow-inspector.md",
         "./agents/session-manager.md",
         "./agents/run-inspect.md"
-      ]
+      ],
+      "skills": "./skills/",
+      "hooks": "./hooks/hooks.json"
     }
   ],
   "relatedPlugins": [
