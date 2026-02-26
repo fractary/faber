@@ -32,7 +32,6 @@
     "fractary-repo@fractary-core": true,
     "fractary-work@fractary-core": true,
     "fractary-docs@fractary-core": true,
-    "fractary-spec@fractary-core": true,
     "fractary-logs@fractary-core": true,
     "fractary-file@fractary-core": true,
     "fractary-status@fractary-core": true,
@@ -153,9 +152,5 @@
         "wget | sh"
       ]
     }
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/plugins/marketplaces/fractary/plugins/status/scripts/status-line.sh"
   }
 }

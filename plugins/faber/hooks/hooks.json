@@ -1,0 +1,44 @@
+{
+  "description": "FABER workflow session continuity hooks - automatically restore and save workflow context across sessions and compaction events",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/session-start-hook.sh",
+            "timeout": 10,
+            "statusMessage": "Checking for active FABER workflow..."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/pre-compact-hook.sh",
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "Saving FABER session metadata..."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/session-end-hook.sh",
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "Recording FABER session end..."
+          }
+        ]
+      }
+    ]
+  }
+}
