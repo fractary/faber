@@ -208,7 +208,7 @@ The command will:
 
 ### 5. Work through plans
 
-Execute the workflow plans:
+**Option A — Individually** (in Claude Code, per worktree):
 
 ```bash
 cd ~/.claude-worktrees/<org>-<project>-<issue-number>
@@ -216,6 +216,24 @@ claude
 # In Claude Code:
 /fractary-faber:workflow-run <issue-number>
 ```
+
+**Option B — As a batch overnight** (unattended, sequential):
+
+```bash
+# After workflow-plan, create a batch from the same work IDs
+fractary-faber workflow-batch-plan --work-id 258,259,260 --name sprint-01
+
+# Run overnight, autonomous mode skips failures and continues
+fractary-faber workflow-batch-run --batch sprint-01 --autonomous
+```
+
+Or in Claude Code (each item runs in a fresh context via Task spawning):
+```
+/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-01
+/fractary-faber:workflow-batch-run --batch sprint-01 --autonomous
+```
+
+Batch state is saved to `.fractary/faber/batches/sprint-01/state.json` after each item — safe to interrupt and resume with `--resume`.
 
 ### 6. Repeat as needed
 
@@ -346,4 +364,5 @@ faber plan \
 
 - [FABER Workflow Guide](./workflow-guide.md) - Complete workflow documentation
 - [CLI Reference](./api-reference.md) - All command options
+- [CLI Integration Guide](./cli-integration.md) - Batch mode and overnight execution
 - [Integration Guide](../integration-guide.md) - Setting up FABER

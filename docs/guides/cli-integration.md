@@ -408,6 +408,93 @@ fi
 
 ### Workflow Orchestration
 
+#### Batch Mode — Serial Overnight Execution
+
+Run a queue of issues sequentially, unattended. Each item is planned and executed in sequence; the batch survives interruption and can be resumed.
+
+**Bash:**
+```bash
+#!/bin/bash
+
+# 1. Plan the batch (creates .fractary/faber/batches/sprint-01/)
+fractary-faber workflow-batch-plan \
+  --work-id 258,259,260,261 \
+  --name sprint-01
+
+# 2. Run overnight — autonomous mode auto-skips failures and continues
+fractary-faber workflow-batch-run --batch sprint-01 --autonomous
+
+# 3. Resume after interruption (skips already-completed items)
+fractary-faber workflow-batch-run --batch sprint-01 --autonomous --resume
+
+# Check state at any point
+cat .fractary/faber/batches/sprint-01/state.json | jq '.items[] | {work_id, status}'
+```
+
+**TypeScript:**
+```typescript
+async function runOvernightBatch(workIds: string[], batchName: string) {
+  // Plan the batch
+  const { stdout: planOutput } = await execAsync(
+    `fractary-faber workflow-batch-plan --work-id ${workIds.join(',')} --name ${batchName} --json`
+  );
+  const planResult = JSON.parse(planOutput);
+  console.log(`Batch created: ${planResult.data.batch_id}`);
+  console.log(`Planned: ${planResult.data.planned}/${planResult.data.total}`);
+
+  // Execute overnight
+  const { stdout: runOutput } = await execAsync(
+    `fractary-faber workflow-batch-run --batch ${batchName} --autonomous --json`
+  );
+  const runResult = JSON.parse(runOutput);
+  console.log(`Completed: ${runResult.data.completed}/${runResult.data.total}`);
+  console.log(`Failed: ${runResult.data.failed}`);
+
+  return runResult.data;
+}
+```
+
+**Python:**
+```python
+import subprocess
+import json
+
+def run_overnight_batch(work_ids: list[str], batch_name: str) -> dict:
+    # Plan the batch
+    plan_result = subprocess.run(
+        [
+            "fractary-faber", "workflow-batch-plan",
+            "--work-id", ",".join(work_ids),
+            "--name", batch_name,
+            "--json"
+        ],
+        capture_output=True, text=True, check=True
+    )
+    plan = json.loads(plan_result.stdout)
+    print(f"Batch created: {plan['data']['batch_id']}")
+    print(f"Planned: {plan['data']['planned']}/{plan['data']['total']}")
+
+    # Execute overnight
+    run_result = subprocess.run(
+        [
+            "fractary-faber", "workflow-batch-run",
+            "--batch", batch_name,
+            "--autonomous",
+            "--json"
+        ],
+        capture_output=True, text=True
+    )
+    result = json.loads(run_result.stdout)
+    print(f"Completed: {result['data']['completed']}/{result['data']['total']}")
+    return result["data"]
+```
+
+**In Claude Code** (with true context isolation per item via Task spawning):
+```
+/fractary-faber:workflow-batch-plan 258,259,260,261 --name overnight-01
+/fractary-faber:workflow-batch-run --batch overnight-01 --autonomous
+```
+
 #### Run Complete Workflow
 
 **Bash:**

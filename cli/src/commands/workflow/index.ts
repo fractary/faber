@@ -78,7 +78,6 @@ export function createRunCommand(): Command {
               const result = await workflow.run({
                 workId,
                 autonomy: options.autonomy,
-                phases: options.phase,
               });
 
               results.push({ workId, status: result.status });
@@ -551,6 +550,410 @@ export function createWorkflowDebugCommand(): Command {
         handleWorkflowError(error, options);
       }
     });
+}
+
+/**
+ * Create the workflow-batch-plan command
+ */
+export function createBatchPlanCommand(): Command {
+  return new Command('workflow-batch-plan')
+    .description('Initialize a batch of workflows for sequential planning and unattended execution')
+    .requiredOption('--work-id <ids>', 'Comma-separated work item IDs (e.g., "258,259,260")')
+    .option('--name <batch-id>', 'Custom batch name/ID (default: auto-generated timestamp)')
+    .option('--autonomous', 'Continue on plan failures without prompting')
+    .option('--json', 'Output as JSON')
+    .action(async (options) => {
+      try {
+        await executeBatchPlanCommand(options);
+      } catch (error) {
+        handleWorkflowError(error, options);
+      }
+    });
+}
+
+/**
+ * Create the workflow-batch-run command
+ */
+export function createBatchRunCommand(): Command {
+  return new Command('workflow-batch-run')
+    .description('Execute a planned FABER batch sequentially with state tracking')
+    .requiredOption('--batch <batch-id>', 'Batch ID to execute (from workflow-batch-plan)')
+    .option('--autonomous', 'Auto-skip failed items without prompting (for overnight unattended runs)')
+    .option('--resume', 'Skip already-completed items (safe to re-run after interruption)')
+    .option('--json', 'Output as JSON')
+    .action(async (options) => {
+      try {
+        await executeBatchRunCommand(options);
+      } catch (error) {
+        handleWorkflowError(error, options);
+      }
+    });
+}
+
+// ─── Batch Implementation ───────────────────────────────────────────────────
+
+import fs from 'fs/promises';
+import path from 'path';
+import { spawnSync } from 'child_process';
+
+interface BatchItem {
+  work_id: string;
+  status: 'pending' | 'planned' | 'plan_failed' | 'in_progress' | 'completed' | 'failed' | 'skipped';
+  plan_id: string | null;
+  run_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  skipped: boolean;
+  error: string | null;
+}
+
+interface BatchState {
+  batch_id: string;
+  status: 'planning' | 'planned' | 'planning_partial' | 'in_progress' | 'completed' | 'completed_with_failures' | 'paused';
+  autonomous: boolean;
+  created_at: string;
+  updated_at: string;
+  items: BatchItem[];
+}
+
+function getBatchDir(batchId: string): string {
+  return path.join(process.cwd(), '.fractary', 'faber', 'batches', batchId);
+}
+
+function generateBatchId(): string {
+  const now = new Date();
+  const ts = now.toISOString().replace(/:/g, '-').replace(/\.\d{3}Z$/, 'Z');
+  return `batch-${ts}`;
+}
+
+async function readBatchState(batchId: string): Promise<BatchState> {
+  const statePath = path.join(getBatchDir(batchId), 'state.json');
+  const content = await fs.readFile(statePath, 'utf-8');
+  return JSON.parse(content) as BatchState;
+}
+
+async function writeBatchState(batchId: string, state: BatchState): Promise<void> {
+  state.updated_at = new Date().toISOString();
+  const statePath = path.join(getBatchDir(batchId), 'state.json');
+  await fs.writeFile(statePath, JSON.stringify(state, null, 2));
+}
+
+async function executeBatchPlanCommand(options: {
+  workId: string;
+  name?: string;
+  autonomous?: boolean;
+  json?: boolean;
+}): Promise<void> {
+  const workIds = options.workId.split(',').map((id: string) => id.trim()).filter(Boolean);
+
+  if (workIds.length === 0) {
+    throw new Error('--work-id must contain at least one work item ID');
+  }
+
+  const batchId = options.name || generateBatchId();
+  const batchDir = getBatchDir(batchId);
+  const now = new Date().toISOString();
+
+  if (!options.json) {
+    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+    console.log(chalk.blue.bold('  FABER BATCH PLAN'));
+    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+    console.log(chalk.gray(`Batch ID: ${batchId}`));
+    console.log(chalk.gray(`Work IDs: ${workIds.join(', ')}`));
+    console.log(chalk.gray(`Items: ${workIds.length}`));
+    console.log('');
+  }
+
+  // Create batch directory
+  await fs.mkdir(batchDir, { recursive: true });
+
+  // Write queue.txt
+  const queueLines = [
+    '# FABER Batch Queue',
+    `# Batch ID: ${batchId}`,
+    `# Created: ${now}`,
+    '# Format: <work-id> [--workflow custom-workflow] [--phase build,evaluate]',
+    '',
+    ...workIds,
+  ];
+  await fs.writeFile(path.join(batchDir, 'queue.txt'), queueLines.join('\n'));
+
+  // Initialize state.json
+  const state: BatchState = {
+    batch_id: batchId,
+    status: 'planning',
+    autonomous: options.autonomous ?? false,
+    created_at: now,
+    updated_at: now,
+    items: workIds.map((id) => ({
+      work_id: id,
+      status: 'pending',
+      plan_id: null,
+      run_id: null,
+      started_at: null,
+      completed_at: null,
+      skipped: false,
+      error: null,
+    })),
+  };
+  await writeBatchState(batchId, state);
+
+  if (!options.json) {
+    console.log(chalk.green(`✓ Batch created: ${batchId}`));
+    console.log(chalk.gray(`  Directory: ${batchDir}`));
+    console.log('');
+    console.log(chalk.cyan(`→ Planning ${workIds.length} item(s)...`));
+    console.log('');
+  }
+
+  // Plan each item
+  let planned = 0;
+  let failed = 0;
+
+  for (let i = 0; i < workIds.length; i++) {
+    const workId = workIds[i];
+
+    if (!options.json) {
+      console.log(chalk.blue(`[${i + 1}/${workIds.length}] Planning #${workId}...`));
+    }
+
+    try {
+      // Invoke the existing workflow-plan CLI command as a subprocess
+      const faberBin = process.argv[1];
+      const result = spawnSync(
+        process.execPath,
+        [faberBin, 'workflow-plan', '--work-id', workId, '--skip-confirm'],
+        { stdio: options.json ? 'pipe' : 'inherit', encoding: 'utf-8' }
+      );
+
+      if (result.status !== 0) {
+        throw new Error(result.stderr || `workflow-plan exited with code ${result.status}`);
+      }
+
+      // Mark as planned
+      state.items[i].status = 'planned';
+      state.items[i].completed_at = new Date().toISOString();
+      await writeBatchState(batchId, state);
+      planned++;
+
+      if (!options.json) {
+        console.log(chalk.green(`  ✓ Planned: #${workId}`));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      state.items[i].status = 'plan_failed';
+      state.items[i].error = message;
+      state.items[i].completed_at = new Date().toISOString();
+      await writeBatchState(batchId, state);
+      failed++;
+
+      if (!options.json) {
+        console.error(chalk.red(`  ✗ Plan failed for #${workId}: ${message}`));
+      }
+    }
+  }
+
+  // Final state
+  state.status = failed === 0 ? 'planned' : 'planning_partial';
+  await writeBatchState(batchId, state);
+
+  if (options.json) {
+    console.log(JSON.stringify({
+      status: 'success',
+      data: { batch_id: batchId, total: workIds.length, planned, failed },
+    }, null, 2));
+  } else {
+    console.log('');
+    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+    console.log(chalk.blue.bold('  BATCH PLANNING COMPLETE'));
+    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+    console.log(`Total: ${workIds.length} | Planned: ${planned} | Failed: ${failed}`);
+    console.log('');
+    console.log(chalk.cyan('To run this batch (unattended):'));
+    console.log(chalk.white(`  fractary-faber workflow-batch-run --batch ${batchId} --autonomous`));
+    console.log('');
+    console.log(chalk.cyan('Or in Claude Code:'));
+    console.log(chalk.white(`  /fractary-faber:workflow-batch-run --batch ${batchId} --autonomous`));
+  }
+}
+
+async function executeBatchRunCommand(options: {
+  batch: string;
+  autonomous?: boolean;
+  resume?: boolean;
+  json?: boolean;
+}): Promise<void> {
+  const batchId = options.batch;
+  const batchDir = getBatchDir(batchId);
+
+  // Verify batch exists
+  try {
+    await fs.access(batchDir);
+  } catch {
+    throw new Error(
+      `Batch '${batchId}' not found.\nExpected: ${batchDir}\n\nCreate a batch first:\n  fractary-faber workflow-batch-plan --work-id <ids> --name ${batchId}`
+    );
+  }
+
+  // Load state
+  let state = await readBatchState(batchId);
+
+  if (state.status === 'completed') {
+    if (options.json) {
+      console.log(JSON.stringify({ status: 'success', data: { batch_id: batchId, message: 'already completed', state } }, null, 2));
+    } else {
+      console.log(chalk.green(`✓ Batch '${batchId}' already completed. Nothing to do.`));
+      const done = state.items.filter(i => i.status === 'completed').length;
+      console.log(chalk.gray(`  Completed: ${done}/${state.items.length}`));
+      console.log(chalk.gray('\nTo re-run, edit state.json and reset items to "pending".'));
+    }
+    return;
+  }
+
+  // Filter items to process
+  const toProcess = options.resume
+    ? state.items.filter(i => i.status !== 'completed' && i.status !== 'skipped')
+    : state.items.filter(i => i.status !== 'completed' && i.status !== 'skipped');
+
+  if (!options.json) {
+    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+    console.log(chalk.blue.bold('  FABER BATCH RUN'));
+    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+    console.log(chalk.gray(`Batch ID: ${batchId}`));
+    console.log(chalk.gray(`Mode: ${options.autonomous ? 'autonomous (unattended)' : 'interactive'}`));
+    if (options.resume) {
+      const completed = state.items.filter(i => i.status === 'completed').length;
+      console.log(chalk.gray(`Resume: ${completed}/${state.items.length} already completed`));
+    }
+    console.log(chalk.gray(`Remaining: ${toProcess.length} item(s)`));
+    console.log('');
+  }
+
+  const results: Array<{ workId: string; status: string; error?: string }> = [];
+
+  for (let i = 0; i < toProcess.length; i++) {
+    const item = toProcess[i];
+    const workId = item.work_id;
+    const globalIndex = state.items.findIndex(s => s.work_id === workId);
+
+    if (!options.json) {
+      console.log(chalk.blue(`\n═══ Workflow ${i + 1}/${toProcess.length}: #${workId} ═══`));
+    }
+
+    // Mark in progress
+    state.items[globalIndex].status = 'in_progress';
+    state.items[globalIndex].started_at = new Date().toISOString();
+    await writeBatchState(batchId, state);
+
+    try {
+      const workflow = new FaberWorkflow();
+
+      workflow.addEventListener((event, data) => {
+        if (options.json) return;
+        switch (event) {
+          case 'phase:start':
+            console.log(chalk.cyan(`\n  → Phase: ${String(data.phase || '').toUpperCase()}`));
+            break;
+          case 'phase:complete':
+            console.log(chalk.green(`  ✓ Phase: ${data.phase}`));
+            break;
+          case 'workflow:fail':
+          case 'phase:fail':
+            console.error(chalk.red(`  ✗ Error: ${data.error || 'Unknown error'}`));
+            break;
+        }
+      });
+
+      const result = await workflow.run({ workId, autonomy: options.autonomous ? 'autonomous' : 'guarded' });
+
+      state.items[globalIndex].status = 'completed';
+      state.items[globalIndex].run_id = (result as any).run_id || null;
+      state.items[globalIndex].completed_at = new Date().toISOString();
+      await writeBatchState(batchId, state);
+
+      results.push({ workId, status: 'completed' });
+
+      if (!options.json) {
+        console.log(chalk.green(`✓ Completed: #${workId}`));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      state.items[globalIndex].status = 'failed';
+      state.items[globalIndex].skipped = true;
+      state.items[globalIndex].error = message;
+      state.items[globalIndex].completed_at = new Date().toISOString();
+      await writeBatchState(batchId, state);
+
+      results.push({ workId, status: 'failed', error: message });
+
+      if (!options.json) {
+        console.error(chalk.red(`✗ Failed: #${workId} — ${message}`));
+      }
+
+      if (!options.autonomous) {
+        // Non-autonomous: stop on first failure
+        if (!options.json) {
+          console.error(chalk.yellow('\nBatch stopped. Use --autonomous to auto-skip failures.'));
+          console.error(chalk.gray(`Resume with: fractary-faber workflow-batch-run --batch ${batchId} --autonomous --resume`));
+        }
+        break;
+      }
+
+      // Autonomous: continue to next item
+      if (!options.json) {
+        console.log(chalk.yellow('  → Auto-skipping (autonomous mode). Continuing...'));
+      }
+    }
+  }
+
+  // Final state
+  const allCompleted = state.items.every(i => i.status === 'completed');
+  const anyFailed = state.items.some(i => i.status === 'failed');
+  state.status = allCompleted ? 'completed' : anyFailed ? 'completed_with_failures' : 'paused';
+  await writeBatchState(batchId, state);
+
+  if (options.json) {
+    const completed = state.items.filter(i => i.status === 'completed').length;
+    const failedCount = state.items.filter(i => i.status === 'failed').length;
+    console.log(JSON.stringify({
+      status: 'success',
+      data: { batch_id: batchId, total: state.items.length, completed, failed: failedCount, results },
+    }, null, 2));
+  } else {
+    const completed = state.items.filter(i => i.status === 'completed').length;
+    const failedCount = state.items.filter(i => i.status === 'failed').length;
+
+    console.log('');
+    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+    console.log(chalk.blue.bold('  BATCH RUN COMPLETE'));
+    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
+    console.log(`Total: ${state.items.length} | Completed: ${completed} | Failed: ${failedCount}`);
+    console.log('');
+
+    for (const item of state.items) {
+      if (item.status === 'completed') {
+        console.log(chalk.green(`  ✓ #${item.work_id} — completed`));
+      } else if (item.status === 'failed') {
+        console.log(chalk.red(`  ✗ #${item.work_id} — failed: ${item.error}`));
+      } else if (item.status === 'skipped') {
+        console.log(chalk.yellow(`  ○ #${item.work_id} — skipped`));
+      } else {
+        console.log(chalk.gray(`  ○ #${item.work_id} — ${item.status}`));
+      }
+    }
+
+    if (failedCount > 0) {
+      console.log('');
+      console.log(chalk.cyan('To retry failed items:'));
+      console.log(chalk.white(`  fractary-faber workflow-batch-run --batch ${batchId} --autonomous --resume`));
+    }
+  }
+
+  if (anyFailed && !options.autonomous) {
+    process.exit(1);
+  }
 }
 
 // Helper functions

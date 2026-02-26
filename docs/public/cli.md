@@ -34,6 +34,8 @@ All commands accept these options:
 | [`auth`](#auth) | Authentication setup |
 | [`workflow-plan`](#workflow-plan) | Plan workflows for GitHub issues |
 | [`workflow-run`](#workflow-run) | Execute a FABER workflow |
+| [`workflow-batch-plan`](#workflow-batch-plan) | Initialize a batch for sequential unattended execution |
+| [`workflow-batch-run`](#workflow-batch-run) | Execute a planned batch sequentially with state tracking |
 | [`run-inspect`](#run-inspect) | Show workflow run status |
 | [`workflow-resume`](#workflow-resume) | Resume a paused workflow |
 | [`workflow-pause`](#workflow-pause) | Pause a running workflow |
@@ -239,6 +241,59 @@ fractary-faber workflow-run [options]
 | `--work-id <id>` | Work item ID to process (required) | |
 | `--autonomy <level>` | Autonomy level: `supervised\|assisted\|autonomous` | `supervised` |
 | `--json` | Output as JSON | |
+
+### workflow-batch-plan
+
+Initialize a named batch of workflows for sequential unattended execution. Creates the batch directory, `queue.txt`, and `state.json`. Invokes `workflow-plan` for each work item and tracks per-item status.
+
+```bash
+fractary-faber workflow-batch-plan [options]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--work-id <ids>` | Comma-separated work item IDs (e.g., `"258,259,260"`) (required) | |
+| `--name <batch-id>` | Custom batch name/ID | `batch-YYYY-MM-DDTHH-MM-SSZ` |
+| `--autonomous` | Continue on plan failures without prompting | |
+| `--json` | Output as JSON | |
+
+Creates `.fractary/faber/batches/{batch-id}/` with `queue.txt` and `state.json`. Prints the batch ID on completion — this ID is passed to `workflow-batch-run`.
+
+**Claude Code skill equivalent**: `/fractary-faber:workflow-batch-plan <work-ids> [--name <batch-id>]`
+(The skill version spawns a fresh Claude context per item via Task for true context isolation.)
+
+### workflow-batch-run
+
+Execute a planned batch sequentially with state tracking. Runs each pending item and updates `state.json` after every result. Safe to interrupt and resume.
+
+```bash
+fractary-faber workflow-batch-run [options]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--batch <batch-id>` | Batch ID to execute, from `workflow-batch-plan` (required) | |
+| `--autonomous` | Auto-skip failed items without prompting (for unattended overnight runs) | |
+| `--resume` | Skip already-completed items (safe to re-run after interruption) | |
+| `--json` | Output as JSON | |
+
+State is written to `.fractary/faber/batches/{batch-id}/state.json` after every item. Multiple worktrees can run separate batches simultaneously without state collision (each batch has its own directory).
+
+**Claude Code skill equivalent**: `/fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume]`
+(The skill version spawns a fresh Claude context per item via Task — the real context reset, not a protocol directive.)
+
+**Typical overnight workflow:**
+
+```bash
+# 1. Plan during the day
+fractary-faber workflow-batch-plan --work-id 258,259,260,261 --name overnight-01
+
+# 2. Run overnight, unattended
+fractary-faber workflow-batch-run --batch overnight-01 --autonomous
+
+# 3. Resume if interrupted
+fractary-faber workflow-batch-run --batch overnight-01 --autonomous --resume
+```
 
 ### run-inspect
 
