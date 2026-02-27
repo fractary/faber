@@ -207,14 +207,14 @@ step:
 **Note**: This test validates documentation, not runtime behavior. External plugins (fractary-work, fractary-repo, fractary-spec) exist in separate repositories.
 
 **Documentation Check**:
-- faber-manager.md examples use local commands (fractary-faber:*)
+- workflow-run.md examples use local commands (fractary-faber:*)
 - External plugin examples are clearly marked as "External plugins"
 - Command naming convention is consistent
 
 **Verification**:
 ```bash
 # Check that primary examples use local commands
-grep -A2 "Examples from this plugin" plugins/faber/agents/faber-manager.md
+grep "fractary-faber:" plugins/faber/commands/workflow-run.md | head -5
 
 # Expected: fractary-faber:workflow-run, fractary-faber:workflow-create, fractary-faber:agent-create
 ```

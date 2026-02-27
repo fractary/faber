@@ -9,7 +9,7 @@ This workflow is triggered when a spec phase is completed during Build. It ensur
 **Purpose**:
 1. Persist progress externally (spec file, git, issue)
 2. Create session summary for potential cross-session continuity
-3. Signal faber-manager that phase is complete
+3. Signal phase complete to orchestrator
 
 ## Checkpoint Actions
 
@@ -154,7 +154,7 @@ Create a session summary for potential cross-session continuity.
 
 **Store summary:**
 
-The session summary is included in the build results returned to faber-manager. It will be saved to:
+The session summary is included in the build results returned to the orchestrator. It will be saved to:
 `.fractary/faber/runs/{run_id}/session-summaries/session-{timestamp}.json`
 
 ### Action 5: Return Checkpoint Results
@@ -355,7 +355,7 @@ When errors occur, include them in the checkpoint results:
 - `fractary-work:comment-creator` - Post issue comment
 
 **Returns To:**
-- Build skill, which includes checkpoint results in its response to faber-manager
+- Build skill, which includes checkpoint results in its phase response
 
 ## Notes
 

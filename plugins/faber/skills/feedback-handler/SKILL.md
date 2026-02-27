@@ -390,8 +390,8 @@ Next: Workflow will resume from design-review
 ## Integration Points
 
 **Called By:**
-- faber-manager agent (at autonomy gates)
-- faber-manager agent (on step failure for error_resolution)
+- workflow-run (at autonomy gates)
+- workflow-run (on step failure for error_resolution)
 
 **Invokes:**
 - run-manager scripts (emit-event.sh)

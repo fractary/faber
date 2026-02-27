@@ -181,7 +181,7 @@ The full schema is located at:
 
 ## Integration with FABER Manager
 
-The faber-manager invokes this skill to validate all step and hook responses:
+workflow-run invokes this skill to validate all step and hook responses:
 
 ```
 Step executes → Response returned → response-validator validates → Manager processes

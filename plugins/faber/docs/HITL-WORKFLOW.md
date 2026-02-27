@@ -50,7 +50,7 @@ FABER supports human-in-the-loop (HITL) feedback at any point in the workflow. T
               │              Feedback Resume                      │
               │  - Emit feedback_received event                   │
               │  - Update state to in_progress                    │
-              │  - Re-invoke faber-manager                        │
+              │  - Resume workflow-run                            │
               │  - Continue from resume point                     │
               └──────────────────────────────────────────────────┘
 ```
@@ -159,7 +159,7 @@ Sessions are treated as ephemeral. We never assume prior context exists because:
 
 ## Feedback Resume
 
-After user provides feedback, the faber-manager must resume correctly:
+After user provides feedback, workflow-run must resume correctly:
 
 ### Resume Protocol
 
@@ -168,7 +168,7 @@ After user provides feedback, the faber-manager must resume correctly:
 3. **Update State** - Clear `feedback_request`, add to `feedback_history`
 4. **Emit Approval** - If approval type, emit `approval_granted`
 5. **Process Action** - Determine next action based on response
-6. **Re-invoke Manager** - Explicitly re-invoke faber-manager
+6. **Resume workflow-run** - Re-invoke `/fractary-faber:workflow-run --resume {run_id}`
 
 ### Actions
 
@@ -183,7 +183,7 @@ After user provides feedback, the faber-manager must resume correctly:
 
 ### Divergence Prevention
 
-**CRITICAL**: After feedback, faber-manager must continue the planned workflow. It must NOT:
+**CRITICAL**: After feedback, workflow-run must continue the planned workflow. It must NOT:
 - Improvise new steps
 - Deviate from workflow definition
 - Suggest alternatives
@@ -416,6 +416,4 @@ The `@faber` trigger in issue comments is planned for future implementation:
 - [RUN-ID-SYSTEM.md](./RUN-ID-SYSTEM.md) - Run isolation and event logging
 - [AUTONOMY.md](./AUTONOMY.md) - Autonomy levels and approval gates
 - `skills/feedback-handler/SKILL.md` - Feedback handler skill documentation
-- [context-reconstitution.md](./standards/manager-protocols/context-reconstitution.md) - Context loading protocol
-- [feedback-resume.md](./standards/manager-protocols/feedback-resume.md) - Resume protocol
-- [parallel-coordination.md](./standards/manager-protocols/parallel-coordination.md) - Multi-run coordination
+- [workflow-run.md](../commands/workflow-run.md) - Orchestration protocol and resume handling

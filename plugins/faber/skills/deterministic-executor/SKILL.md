@@ -4,7 +4,7 @@
 This is a **prototype** for a deterministic workflow executor that addresses the
 "hallucinated completion" problem identified in Issue #346 investigation.
 
-**Problem**: The LLM-based faber-manager can skip steps by emitting events without
+**Problem**: An LLM-based orchestrator can skip steps by emitting events without
 actually executing the underlying commands/skills.
 
 **Solution**: Move orchestration control to a bash script that:
@@ -115,6 +115,6 @@ All steps sent in a single message:
 <STATUS>
 **PROTOTYPE** - Not yet integrated into main FABER workflow.
 
-This is being developed as an alternative to the LLM-based faber-manager
-orchestration to solve the step-skipping problem.
+This is being developed as an alternative to LLM-based orchestration
+to solve the step-skipping problem.
 </STATUS>

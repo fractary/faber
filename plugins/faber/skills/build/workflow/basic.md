@@ -307,7 +307,7 @@ EOF
 - ✅ Commits created at logical boundaries
 - ✅ Progress comment posted to issue
 - ✅ Session summary generated
-- ✅ Build results returned to faber-manager
+- ✅ Build phase complete, control returned to orchestrator
 
 ## Retry Handling
 
@@ -333,4 +333,4 @@ When invoked as a retry (retry_count > 0):
 - The implementation plan in Step 0 is your contract - follow it
 - Commits should happen during execution, not just at the end
 - The checkpoint at the end ensures progress is persisted
-- faber-manager handles session lifecycle, not this skill
+- workflow-run handles session lifecycle, not this skill

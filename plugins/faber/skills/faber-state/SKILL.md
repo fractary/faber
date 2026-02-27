@@ -331,7 +331,7 @@ This operation enables exact-step resume by tracking:
 - Which steps have already been completed
 
 When resuming with `--resume`, the executor reads this state and passes it
-to faber-manager as `resume_context`, allowing the manager to skip completed
+to workflow-run as `resume_context`, allowing the orchestrator to skip completed
 steps and continue from the exact position.
 
 ---

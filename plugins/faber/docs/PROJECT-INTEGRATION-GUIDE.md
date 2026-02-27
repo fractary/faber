@@ -15,7 +15,7 @@ This guide helps you integrate FABER into your existing project by mapping your 
 ## ⚠️ Important: Direct Command Usage
 
 **DO NOT create wrapper agents or commands for FABER**. The FABER plugin already provides:
-- ✅ Complete workflow orchestration via `faber-manager` agent
+- ✅ Complete workflow orchestration via `workflow-run` command
 - ✅ Ready-to-use commands (`/fractary-faber:configure`, `/fractary-faber:workflow-run`, etc.)
 - ✅ Full integration with work, repo, spec, and logs plugins
 
@@ -29,7 +29,7 @@ This guide helps you integrate FABER into your existing project by mapping your 
 ❌ @agent my-project-faber-manager                     # Wrong: Don't create wrapper agents
 ```
 
-The `faber-manager` agent is already the universal workflow orchestrator. Additional wrappers add unnecessary complexity without benefits.
+`/fractary-faber:workflow-run` is the universal workflow orchestrator. Additional wrappers add unnecessary complexity without benefits.
 
 ## Integration Steps
 
@@ -516,7 +516,7 @@ When integrating FABER into your project, use the plugin commands directly in yo
 
 **❌ Don't Do This:**
 - Creating project-specific wrapper commands around FABER commands
-- Creating project-specific agents that invoke `faber-manager`
+- Creating project-specific agents that wrap FABER commands
 - Copying FABER logic into custom agents/skills
 - Modifying FABER plugin files directly
 

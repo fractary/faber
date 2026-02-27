@@ -7,7 +7,7 @@
 #
 # Description:
 #   Loads state from an existing run and determines the next step to execute.
-#   Returns a resume context object for the faber-manager agent.
+#   Returns a resume context object for workflow-run.
 #
 # Arguments:
 #   --run-id <run-id>  Run identifier (format: org/project/uuid)

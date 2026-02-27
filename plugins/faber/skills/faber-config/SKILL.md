@@ -387,11 +387,11 @@ Config Path: .fractary/config.yaml (faber: section)
 Workflow Path: .fractary/faber/workflows/
 Workflows: 1
 ───────────────────────────────────────
-→ Workflow resolved and ready for execution by faber-manager
+→ Workflow resolved and ready for execution by workflow-run
 ```
 
 **Note:** Use "READY" instead of "COMPLETED" to indicate this is a handoff to the next step,
-not termination of the overall workflow. The director skill will continue to invoke faber-manager.
+not termination of the overall workflow. workflow-run will continue execution.
 </OUTPUT_FORMAT>
 
 <DEPENDENCIES>

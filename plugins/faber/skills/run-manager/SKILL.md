@@ -460,7 +460,7 @@ Run ID: {run_id}
 <INTEGRATION>
 ## Used By
 - `faber-director`: Generates run_id, initializes run
-- `faber-manager`: Emits events, updates state
+- `workflow-run`: Emits events, updates state
 - `fractary-faber` CLI: Run queries via `run-inspect`, `session-load`, `workflow-debug`
 
 ## CLI Commands Used

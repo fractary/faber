@@ -79,7 +79,7 @@ Claude has a tendency to:
 4. **Execute Phase Tasks** - Implement all tasks in current phase
 5. **Commit at Boundaries** - Create semantic commits at logical points
 6. **Trigger Phase Checkpoint** - Update spec, final commit, issue comment
-7. **Signal Phase Complete** - Return results to faber-manager
+7. **Signal Phase Complete** - Return results to orchestrator
 
 See `workflow/basic.md` for detailed implementation steps.
 
@@ -108,7 +108,7 @@ See `workflow/basic.md` for detailed implementation steps.
 │     ├─ Post issue comment with progress                 │
 │     └─ Create session summary                           │
 │                                                          │
-│  4. RETURN (Signal faber-manager)                       │
+│  4. RETURN (Signal phase complete)                      │
 │     └─ Phase complete, ready for next or evaluate       │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
@@ -230,7 +230,7 @@ Tasks completed: 4/4
 Commits: 3
 Files changed: 5
 ───────────────────────────────────────
-Next: Phase complete. faber-manager will handle session lifecycle.
+Next: Phase complete. workflow-run will handle session lifecycle.
 ```
 </DOCUMENTATION>
 
