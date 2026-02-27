@@ -42,7 +42,32 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 
 The orchestrator doesn't need to distinguish between these patterns - just invoke the command.
 
-### 3. State Is Sacred
+### 3. Steps Execute Sequentially — Parallel Groups Are Explicit Opt-In
+
+**All steps execute one at a time, in order. This is non-negotiable.**
+
+- Complete step N fully before starting step N+1
+- Never call Skill() or Task() for two different steps in the same response message
+- Steps are sequential because they depend on each other's output
+
+**The only exception: `parallel_group` items in the config.**
+
+When the current item in `phase.steps` (or `pre_steps`/`post_steps`) has a
+`steps_parallel` array, it is a parallel group. Execute ALL `steps_parallel`
+simultaneously via Task agents and wait for every one to complete before moving
+to the next item in the outer array.
+
+Parallel groups are an explicit design decision made by the workflow author —
+never create your own parallel execution outside of declared parallel groups.
+
+**Nesting is not supported.** Items inside `steps_parallel` must be regular
+sequential steps. The orchestrator does not handle nested parallel groups and
+schema validation will reject such configurations.
+
+🚫 If you feel the urge to "efficiently" run multiple steps at once outside of
+a declared parallel_group — stop. That is the #1 orchestration anti-pattern.
+
+### 4. State Is Sacred
 
 **The state file is the source of truth. Update it religiously.**
 
@@ -55,7 +80,7 @@ The orchestrator doesn't need to distinguish between these patterns - just invok
   - Where `run_id = {plan_id}-run-{run_suffix}`
   - Use the `getStatePath(runId)` helper function to compute the path
 
-### 4. Guards Are Mandatory
+### 5. Guards Are Mandatory
 
 **Guards protect the user and the system. Never skip them.**
 

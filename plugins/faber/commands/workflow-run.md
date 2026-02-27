@@ -28,6 +28,7 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 8. **HANDLE ERRORS GRACEFULLY** - Use retry logic when configured, stop when appropriate.
 9. **RESPECT AUTONOMY GATES** - Get user approval when required in non-autonomous modes. In `autonomous` mode, proceed without prompting.
 10. **NEVER FABRICATE COMPLETIONS** - See "When You Cannot Continue" section below.
+11. **EXECUTE STEPS SEQUENTIALLY** — NEVER execute multiple steps in parallel unless they are wrapped in a `parallel_group` item (with `steps_parallel`) in the workflow config. Complete each step fully before starting the next. Do NOT invoke Skill() or Task() for two different workflow steps in the same response message. Steps are sequential by design because each depends on prior output.
 </CRITICAL_RULES>
 
 <WHEN_YOU_CANNOT_CONTINUE>
@@ -102,6 +103,16 @@ If you find yourself about to write any of the following phrases — **STOP. Thi
 
 The workflow MUST continue. Context management is automatic and handled by the system — it is not your responsibility to manage it by stopping.
 </TOKEN_BUDGET_ANTI_PATTERN>
+
+<PARALLEL_STEP_ANTI_PATTERN>
+## 🚫 ANTI-PATTERN: Unsolicited Parallel Step Execution (BUG, NOT A FEATURE)
+
+If you find yourself about to call Skill() or Task() for two different workflow
+steps in the same response message — STOP. This is a bug in your behavior.
+
+Steps depend on each other. Execute one step, complete it, then execute the next.
+The ONLY exception: steps inside a declared `parallel_group` (steps_parallel) in the config.
+</PARALLEL_STEP_ANTI_PATTERN>
 
 <INPUTS>
 
@@ -1190,6 +1201,8 @@ console.log(`Total steps: ${allSteps.length}`);
 
 **You are the orchestrator.** Execute all phase steps directly in this session — do NOT delegate to sub-agents. You have full context, all tools, and the full orchestration protocol loaded. Direct execution gives step-level task list visibility and avoids context loss between phases.
 
+**SEQUENTIAL BY DEFAULT:** Execute exactly one step at a time. Complete it fully — including state updates — then move to the next. The only exception is a `parallel_group` item (containing `steps_parallel`) in the config. See Parallel Group Execution below.
+
 ### Step Execution Loop
 
 ```
@@ -1211,36 +1224,78 @@ FOR EACH phase IN phases_to_execute (in order):
   LOG "  Run ID: {run_id}  |  Plan: {plan_id}  |  Work ID: {work_id}"
   LOG "═══════════════════════════════════════════════════════════"
 
-  FOR EACH step IN phase.steps (in order):
+  FOR EACH item IN phase.steps (in order):
 
     # ── 2.2: Skip if already complete (resume idempotency) ──
     current_state = Read(file_path: state_path)
-    IF current_state.phases[phase.name].steps[step.id].status == "completed":
-      LOG "⏭ Skipping step {step.id} — already complete"
-      CONTINUE to next step
-
-    # ── 2.3: Mark in_progress ──
-    Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → in_progress
-    Update state: phases[phase.name].steps[step.id].status = "in_progress", updated_at = now
-    Emit step_start event
-
-    # ── 2.4: Execute step per orchestration protocol ──
-    IF step.skill is set:
-      Skill(skill=step.skill, args=resolved_args)
+    IF item has steps_parallel (is a parallel_group):
+      all_done = ALL(current_state.phases[phase.name].steps[s.id].status == "completed" for s in item.steps_parallel)
+      IF all_done:
+        LOG "⏭ Skipping parallel group {item.id} — all steps already complete"
+        CONTINUE to next item
     ELSE:
-      Interpret and execute step.prompt directly
-      (call whatever tools/skills the prompt requires,
-       substituting {work_id}, {plan_id}, {run_id}, etc.)
+      IF current_state.phases[phase.name].steps[item.id].status == "completed":
+        LOG "⏭ Skipping step {item.id} — already complete"
+        CONTINUE to next item
 
-    # ── 2.5: On success ──
-    Update state: phases[phase.name].steps[step.id].status = "completed", updated_at = now
-    Emit step_complete event
-    Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → completed
+    # ══ Sequential step (item does NOT have steps_parallel) ══════════════════
 
-    # ── 2.6: On failure — follow orchestration protocol retry/guard/autonomy-gate logic ──
-    # (see workflow-orchestration-protocol.md: Result Handling, Retry Logic, Error Recovery)
+    IF item does NOT have steps_parallel:
 
-  END FOR (steps)
+      step = item
+
+      # ── 2.3: Mark in_progress ──
+      Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → in_progress
+      Update state: phases[phase.name].steps[step.id].status = "in_progress", updated_at = now
+      Emit step_start event
+
+      # ── 2.4: Execute step per orchestration protocol ──
+      IF step.skill is set:
+        Skill(skill=step.skill, args=resolved_args)
+      ELSE:
+        Interpret and execute step.prompt directly
+        (call whatever tools/skills the prompt requires,
+         substituting {work_id}, {plan_id}, {run_id}, etc.)
+
+      # ── 2.5: On success ──
+      Update state: phases[phase.name].steps[step.id].status = "completed", updated_at = now
+      Emit step_complete event
+      Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → completed
+
+      # ── 2.6: On failure — follow orchestration protocol retry/guard/autonomy-gate logic ──
+      # (see workflow-orchestration-protocol.md: Result Handling, Retry Logic, Error Recovery)
+
+    # ══ Parallel group (item HAS steps_parallel) ═════════════════════════════
+    # This is the ONLY place in workflow execution where running multiple steps
+    # simultaneously is permitted. All steps in steps_parallel run at the same time.
+
+    ELSE:
+
+      pending = [s for s in item.steps_parallel WHERE current_state.phases[phase.name].steps[s.id].status != "completed"]
+
+      LOG "⫸ Parallel group [{item.id}]: {pending.length} steps running simultaneously"
+
+      # Mark all pending steps as in_progress
+      FOR EACH s IN pending:
+        Update TodoWrite: "[{phase.name}] {s.name} ({s.id})" → in_progress
+        Update state: phases[phase.name].steps[s.id].status = "in_progress", updated_at = now
+        Emit step_start event for s
+
+      # Execute all pending steps simultaneously via Task agents
+      results = run all pending simultaneously:
+        FOR EACH s IN pending:
+          Task(description=s.name, prompt=s.prompt with {work_id}/{plan_id}/{run_id} substituted)
+      WAIT for all Tasks to complete
+
+      # Record results for each step
+      FOR EACH (s, result) IN zip(pending, results):
+        Update state: phases[phase.name].steps[s.id].status = "completed", updated_at = now
+        Emit step_complete event for s
+        Update TodoWrite: "[{phase.name}] {s.name} ({s.id})" → completed
+
+      LOG "✓ Parallel group [{item.id}] complete — all {pending.length} steps finished"
+
+  END FOR (items)
 
 END FOR (phases)
 
