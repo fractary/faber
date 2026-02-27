@@ -1,0 +1,67 @@
+name: FABER Interactive (comment-triggered)
+
+on:
+  workflow_call:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+      setup_script:
+        required: false
+        type: string
+        default: ''
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      TEST_GITHUB_TOKEN:
+        required: false
+      PROD_GITHUB_TOKEN:
+        required: false
+
+jobs:
+  faber:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Resume from existing feature branch if present (state continuity)
+      - name: Checkout FABER feature branch if exists
+        run: |
+          BRANCH="faber/issue-${{ inputs.issue_number }}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" 2>/dev/null; then
+            git checkout "$BRANCH"
+            echo "FABER_BRANCH_FOUND=true" >> $GITHUB_ENV
+          else
+            echo "FABER_BRANCH_FOUND=false" >> $GITHUB_ENV
+          fi
+
+      - name: Install FABER CLI
+        run: npm install -g @fractary/faber-cli
+
+      - name: Project setup
+        if: inputs.setup_script != ''
+        run: ${{ inputs.setup_script }}
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          # All env-specific secrets available for env-switch to alias them
+          TEST_GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN }}
+          PROD_GITHUB_TOKEN: ${{ secrets.PROD_GITHUB_TOKEN }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          trigger_phrase: '@faber'
+          plugin_marketplaces: 'https://github.com/fractary/faber.git'
+          plugins: 'fractary-faber@fractary-faber'
+          additional_permissions: 'actions: read'
+          claude_args: |
+            --max-turns 50
+            --append-system-prompt "You are operating as FABER in a GitHub Actions environment. Current context: repository=${{ github.repository }}, issue_number=${{ inputs.issue_number }}, branch_exists=${{ env.FABER_BRANCH_FOUND }}. Rules: (1) Always include --work-id ${{ inputs.issue_number }} in any fractary-faber workflow commands. (2) If the @faber comment contains a specific /fractary-faber command, execute it exactly as written. (3) If the @faber comment is free-text intent (e.g. 'proceed with the release phase'), map it to the appropriate fractary-faber command. (4) If the @faber comment references a prior option (e.g. 'proceed with option 2'), read the issue thread to find that option's command and execute it. (5) If no specific command is given, run /fractary-faber:workflow-plan --work-id ${{ inputs.issue_number }} followed by /fractary-faber:workflow-run. (6) CRITICAL: After each phase completes or before any pause for human input, commit and push all .fractary/faber/runs/ state files to the feature branch so the next session can resume. Post a comment with available @faber commands for each option so users can continue without needing a terminal."

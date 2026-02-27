@@ -1,0 +1,60 @@
+name: FABER Auto (label/title-triggered)
+
+on:
+  workflow_call:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+      command:
+        required: false
+        type: string
+        default: ''
+      setup_script:
+        required: false
+        type: string
+        default: ''
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      TEST_GITHUB_TOKEN:
+        required: false
+      PROD_GITHUB_TOKEN:
+        required: false
+
+jobs:
+  faber:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install FABER CLI
+        run: npm install -g @fractary/faber-cli
+
+      - name: Project setup
+        if: inputs.setup_script != ''
+        run: ${{ inputs.setup_script }}
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          # All env-specific secrets available for env-switch to alias them
+          TEST_GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN }}
+          PROD_GITHUB_TOKEN: ${{ secrets.PROD_GITHUB_TOKEN }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          plugin_marketplaces: 'https://github.com/fractary/faber.git'
+          plugins: 'fractary-faber@fractary-faber'
+          additional_permissions: 'actions: read'
+          claude_args: |
+            --max-turns 50
+            --append-system-prompt "You are operating as FABER in a GitHub Actions environment. Current context: repository=${{ github.repository }}, issue_number=${{ inputs.issue_number }}. Always include --work-id ${{ inputs.issue_number }} in any fractary-faber workflow commands. CRITICAL: After each phase completes or before any pause for human input, commit and push all .fractary/faber/runs/ state files to the feature branch. Post a comment with available @faber commands for each option."
+          prompt: ${{ inputs.command != '' && inputs.command || format('/fractary-faber:workflow-plan --work-id {0}', inputs.issue_number) }}

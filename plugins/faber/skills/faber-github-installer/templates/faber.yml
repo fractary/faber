@@ -1,0 +1,43 @@
+name: FABER
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to run FABER on'
+        required: true
+        type: string
+      command:
+        description: 'Optional: specific fractary-faber command to run'
+        required: false
+        type: string
+
+jobs:
+  # Respond to @faber mentions in issue comments
+  faber-respond:
+    if: |
+      github.event_name == 'issue_comment' &&
+      !github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@faber')
+    uses: fractary/faber/.github/workflows/faber-interactive-callable.yml@main
+    with:
+      issue_number: "${{ github.event.issue.number }}"
+      # setup_script: 'npm install'  # Uncomment and customize if needed
+    secrets: inherit
+
+  # Auto-trigger on issue creation with faber:auto label or [FABER] title
+  faber-auto:
+    if: |
+      (github.event_name == 'issues' && (
+        contains(github.event.issue.labels.*.name, 'faber:auto') ||
+        startsWith(github.event.issue.title, '[FABER]')
+      )) || github.event_name == 'workflow_dispatch'
+    uses: fractary/faber/.github/workflows/faber-auto-callable.yml@main
+    with:
+      issue_number: "${{ github.event.issue.number || inputs.issue_number }}"
+      command: "${{ inputs.command || '' }}"
+      # setup_script: 'npm install'  # Uncomment and customize if needed
+    secrets: inherit
