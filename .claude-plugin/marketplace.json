@@ -43,6 +43,7 @@
         "./agents/config-updater.md",
         "./agents/config-validator.md",
         "./agents/faber-planner.md",
+        "./agents/faber-github-installer.md",
         "./agents/workflow-engineer.md",
         "./agents/workflow-debugger.md",
         "./agents/workflow-inspector.md",
