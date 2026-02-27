@@ -171,7 +171,7 @@
         }
       ]
     },
-    "step": {
+    "sequential_step": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -254,6 +254,39 @@
           ]
         }
       ]
+    },
+    "step": {
+      "oneOf": [
+        { "$ref": "#/definitions/sequential_step" },
+        { "$ref": "#/definitions/parallel_group" }
+      ]
+    },
+    "parallel_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "steps_parallel"],
+      "description": "A group of steps that all execute simultaneously. The orchestrator runs all steps_parallel at the same time and waits for every one to complete before moving to the next item in the outer steps array. Nesting parallel_group inside steps_parallel is NOT supported — items in steps_parallel must be sequential_step objects only.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique group identifier (lowercase, hyphens allowed). Used for state tracking and logging."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable display name for this parallel group."
+        },
+        "description": {
+          "type": "string",
+          "description": "What this group of parallel steps accomplishes together."
+        },
+        "steps_parallel": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/definitions/sequential_step" },
+          "description": "Steps to execute simultaneously. ALL steps run at the same time. Workflow does not continue until every step in this array has completed. Items must be regular sequential steps — nested parallel_group items are not supported."
+        }
+      }
     },
     "hooks": {
       "type": "object",
