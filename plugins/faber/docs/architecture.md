@@ -35,15 +35,8 @@ FABER is a **tool-agnostic SDLC workflow framework** built on a 3-layer architec
                        │
 ┌──────────────────────▼──────────────────────────────────┐
 │                   Orchestration                          │
-│               director (Skill - Lightweight Router)      │
-│    Routes requests to workflow-manager with full context │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│                 Workflow Manager                         │
-│              workflow-manager (Agent)                    │
-│  Orchestrates all 5 phases with continuous context       │
-│  Frame → Architect → Build → Evaluate → Release          │
+│          workflow-run (Command - Direct Execution)       │
+│    Executes all phases directly with full context        │
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────┐
@@ -88,9 +81,8 @@ FABER uses a 3-layer architecture to achieve context efficiency:
 - ~200-400 lines per agent
 
 **Components**:
-- `director` - Lightweight router, parses input, routes to workflow-manager
-- `workflow-manager` - Orchestrates complete FABER workflow across all 5 phases
-- Phase skills (via workflow-manager):
+- `workflow-run` command - Orchestrates complete FABER workflow across all 5 phases (direct execution)
+- Phase skills (invoked by workflow-run):
   - `frame` - Work fetching, classification, branch creation
   - `architect` - Specification generation
   - `build` - Solution implementation
@@ -209,9 +201,8 @@ User
       ├─ /fractary-faber:config-validate (Command)
       │   └─ Validates configuration
       ├─ /fractary-faber:run (Command)
-      │   └─ faber-director (Skill - Lightweight Router)
-      │       └─ faber-manager (Agent - Orchestrates all 5 phases)
-      │           ├─ frame (Skill)
+      │   └─ workflow-run (Command - Orchestrates all 5 phases directly)
+      │       ├─ frame (Skill)
       │           │   ├─ workflow/basic.md (batteries-included)
       │           │   ├─ work-manager (Agent via @agent mention)
       │           │   │   └─ work-manager (Skill)
@@ -244,15 +235,12 @@ User
 ### Invocation Chain Example
 
 ```
-User: /fractary-faber:run --work-id 123
+User: /fractary-faber:workflow-run 123
   ↓
-/fractary-faber:run (command)
-  ↓ Parses arguments, invokes
-faber-director skill
-  ↓ Fetches issue, detects labels, routes to
-faber-manager agent
+workflow-run (command, direct execution)
+  ↓ Loads plan, initializes state and TodoWrite
   ↓ Phase 1: Frame
-workflow-manager invokes frame skill
+workflow-run invokes frame skill
   ↓ Reads workflow/basic.md
 frame skill → Uses @agent-fractary-work:work-manager
   ↓ fetch issue
@@ -265,10 +253,10 @@ frame skill classifies work → feature
 repo-manager → scripts/github/create-branch.sh
   ↓ Returns
 "Branch created: feat/123-add-auth"
-  ↓ Back to faber-manager
-faber-manager → Frame complete, proceed to Architect
+  ↓ Back to workflow-run
+workflow-run → Frame complete, proceed to Architect
   ↓ Phase 2: Architect (with full Frame context)
-faber-manager invokes architect skill...
+workflow-run invokes architect skill...
   ↓ Phase 3: Build (with Frame + Architect context)
   ↓ Phase 4: Evaluate (with all previous context)
   ↓ Phase 5: Release (with complete workflow context)

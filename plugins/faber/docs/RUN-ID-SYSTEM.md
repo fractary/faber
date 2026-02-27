@@ -16,7 +16,7 @@ Every FABER workflow execution is assigned a unique Run ID that isolates its sta
 
 Two run-id formats are supported:
 
-### Format 1: UUID-based (faber-manager)
+### Format 1: UUID-based (legacy)
 
 ```
 {org}/{project}/{uuid}
@@ -235,7 +235,7 @@ Each event follows a common schema:
   "status": "completed",
   "message": "Implementation completed successfully",
   "user": "claude",
-  "source": "faber-manager",
+  "source": "workflow-run",
   "metadata": {
     "files_changed": 5,
     "lines_added": 150,

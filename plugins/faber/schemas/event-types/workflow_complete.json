@@ -60,7 +60,7 @@
       "run_id": "fractary/claude-plugins/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "status": "completed",
       "duration_ms": 5400000,
-      "source": "faber-manager",
+      "source": "workflow-run",
       "message": "FABER workflow completed successfully",
       "metadata": {
         "phases_executed": ["frame", "architect", "build", "evaluate", "release"],

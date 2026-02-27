@@ -15,7 +15,7 @@ This provides both **operational efficiency** (fast state queries) and **complet
 ```
 ┌─────────────────────────────────────────────────┐
 │                FABER Workflow                    │
-│  (faber-manager orchestrates all 5 phases)       │
+│  (workflow-run orchestrates all 5 phases)         │
 └─────────────┬───────────────────┬───────────────┘
               │                   │
               ▼                   ▼
@@ -90,7 +90,7 @@ Where `run_id = {plan_id}-run-{run_suffix}`. This keeps state files alongside th
 
 ### State Management
 
-**Creation**: Created by faber-manager when workflow starts
+**Creation**: Created by workflow-run when workflow starts
 
 ```bash
 # Initialize state file
@@ -106,7 +106,7 @@ Where `run_id = {plan_id}-run-{run_suffix}`. This keeps state files alongside th
 }
 ```
 
-**Updates**: Updated by faber-manager as workflow progresses
+**Updates**: Updated by workflow-run as workflow progresses
 
 ```bash
 # When phase starts

@@ -118,7 +118,7 @@ scripts/gather-code-changes.sh
       "type": "skill"
     },
     {
-      "path": "plugins/faber/agents/faber-manager.md",
+      "path": "plugins/faber/commands/workflow-run.md",
       "status": "modified",
       "additions": 25,
       "deletions": 5,

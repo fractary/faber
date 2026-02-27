@@ -327,7 +327,6 @@ Layer 3: Scripts (Deterministic Operations)
 ### Components
 
 #### Agents (Decision Makers)
-- `faber-manager` - Core workflow orchestration and failure handling
 - `faber-planner` - Workflow planning
 - `workflow-engineer` - Build phase implementation
 - `workflow-inspector` - Audit and inspection
@@ -582,7 +581,6 @@ faber:
 ```
 fractary-faber/
 ├── agents/           # Workflow orchestration
-│   ├── faber-manager.md      # Core workflow orchestration
 │   ├── faber-planner.md      # Workflow planning
 │   ├── workflow-engineer.md  # Build phase implementation
 │   ├── workflow-inspector.md # Audit and inspection

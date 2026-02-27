@@ -112,7 +112,7 @@ OUTPUT FORMAT (JSON):
       "text": "The skill must run automatically...",
       "implemented": "yes|no|partial",
       "evidence": [
-        {"file": "faber-manager.md", "line": "1247-1289", "description": "Automatic invocation logic"}
+        {"file": "workflow-run.md", "description": "Automatic invocation logic"}
       ],
       "gaps": [],
       "confidence": 0.95
@@ -187,7 +187,7 @@ Create detailed compliance analysis:
         "id": "FR-1",
         "text": "Automatic invocation",
         "status": "partial",
-        "evidence": ["faber-manager.md:1247-1289"],
+        "evidence": ["workflow-run.md"],
         "gaps": ["Hook not yet configured in evaluate phase entry"],
         "confidence": 0.85
       }

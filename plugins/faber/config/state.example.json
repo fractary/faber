@@ -62,8 +62,6 @@
     "pr_url": null
   },
   "metadata": {
-    "autonomy_level": "guarded",
-    "manager_skill": "faber-manager",
-    "director_skill": "faber-director"
+    "autonomy_level": "guarded"
   }
 }

@@ -1186,119 +1186,63 @@ console.log(`Total steps: ${allSteps.length}`);
 
 **Note:** The step ID is included in the `content` field (e.g., `"(core-fetch-issue)"`) because the TodoWrite tool does not support custom fields beyond `content`, `status`, and `activeForm`. This provides traceability to cross-reference todos with state file entries and plan definitions.
 
-## Phase 2: Workflow Execution (Per-Phase Task Isolation)
+## Phase 2: Workflow Execution
 
-Each phase runs inside its own fresh `faber-manager` Task agent. This gives each phase a clean context window, preventing token-budget pressure from accumulating across phases.
+**You are the orchestrator.** Execute all phase steps directly in this session — do NOT delegate to sub-agents. You have full context, all tools, and the full orchestration protocol loaded. Direct execution gives step-level task list visibility and avoids context loss between phases.
 
-**You are the lightweight coordinator.** You do NOT execute phase steps yourself — you spawn a fresh faber-manager agent for each phase and read back the state to verify completion.
-
-### Per-Phase Execution Loop
+### Step Execution Loop
 
 ```
 # Determine phases to execute (respecting phase_filter)
-phases_to_execute = workflow.phases.filter(p =>
-  p.enabled !== false &&
-  (!phaseFilter || phaseFilter.includes(p.name))
-)
+phases_to_execute = workflow.phases filtered to:
+  - phase.enabled !== false
+  - (!phaseFilter || phaseFilter.includes(phase.name))
 
-FOR EACH phase IN phases_to_execute:
+FOR EACH phase IN phases_to_execute (in order):
 
   # ── 2.1: Skip if already complete (idempotency) ──
   current_state = Read(file_path: state_path)
-  phase_state = current_state.phases[phase.name]
-
-  IF phase_state.status == "completed":
+  IF current_state.phases[phase.name].status == "completed":
     LOG "⏭ Skipping {phase.name} — already complete in state"
     CONTINUE to next phase
 
-  # ── 2.2: Log phase start to coordinator output ──
   LOG "═══════════════════════════════════════════════════════════"
-  LOG "  SPAWNING PHASE: {phase.name}"
+  LOG "  PHASE: {phase.name}"
   LOG "  Run ID: {run_id}  |  Plan: {plan_id}  |  Work ID: {work_id}"
   LOG "═══════════════════════════════════════════════════════════"
 
-  # ── 2.3: Update coordinator TodoWrite ──
-  Update TodoWrite: mark "{phase.name} phase" as in_progress
+  FOR EACH step IN phase.steps (in order):
 
-  # ── 2.4: Spawn fresh faber-manager agent for this phase ──
-  Invoke Task:
-    subagent_type: "fractary-faber:faber-manager"
-    description: "Execute {phase.name} phase"
-    prompt: |
-      Execute the **{phase.name}** phase of a FABER workflow.
+    # ── 2.2: Skip if already complete (resume idempotency) ──
+    current_state = Read(file_path: state_path)
+    IF current_state.phases[phase.name].steps[step.id].status == "completed":
+      LOG "⏭ Skipping step {step.id} — already complete"
+      CONTINUE to next step
 
-      ## Execution Context
-      - Run ID: {run_id}
-      - Plan ID: {plan_id}
-      - Work ID: {work_id}
-      - Plan file: {projectRoot}/.fractary/faber/runs/{plan_id}/plan.json
-      - State file: {projectRoot}/.fractary/faber/runs/{plan_id}/{run_id}/state.json
+    # ── 2.3: Mark in_progress ──
+    Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → in_progress
+    Update state: phases[phase.name].steps[step.id].status = "in_progress", updated_at = now
+    Emit step_start event
 
-      ## Your Task
-      1. Load the plan from the plan file path above
-      2. Load the current state from the state file path above
-      3. Execute **ONLY** the {phase.name} phase — do NOT execute any other phases
-      4. Follow the full orchestration protocol for this single phase:
-         - Run all pre-phase actions (autonomy gate, branch check if applicable)
-         - Execute all steps in order (pre_steps + steps + post_steps)
-         - Run all post-phase actions (state update, events, issue comment)
-      5. When the {phase.name} phase is fully complete, return. Do NOT continue to the next phase.
+    # ── 2.4: Execute step per orchestration protocol ──
+    IF step.skill is set:
+      Skill(skill=step.skill, args=resolved_args)
+    ELSE:
+      Interpret and execute step.prompt directly
+      (call whatever tools/skills the prompt requires,
+       substituting {work_id}, {plan_id}, {run_id}, etc.)
 
-      ## Single-Phase Mode
-      You are running in SINGLE-PHASE mode. After completing the {phase.name} phase:
-      - Mark the phase as "completed" in state
-      - Emit the phase_complete event
-      - Post the phase completion comment to the issue (if work_id provided)
-      - STOP — do not proceed to the next phase
+    # ── 2.5: On success ──
+    Update state: phases[phase.name].steps[step.id].status = "completed", updated_at = now
+    Emit step_complete event
+    Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → completed
 
-      The coordinator (parent) will spawn the next phase in a fresh context.
+    # ── 2.6: On failure — follow orchestration protocol retry/guard/autonomy-gate logic ──
+    # (see workflow-orchestration-protocol.md: Result Handling, Retry Logic, Error Recovery)
 
-      ## Resume Awareness
-      Check state before executing: if {phase.name} is already "completed", emit a skip log and return immediately.
+  END FOR (steps)
 
-  # ── 2.5: Verify phase completed successfully ──
-  updated_state = Read(file_path: state_path)
-  phase_result = updated_state.phases[phase.name]
-
-  IF phase_result.status != "completed":
-    LOG "✗ Phase {phase.name} did not complete (status: {phase_result.status})"
-    LOG "  Check state file: {state_path}"
-    LOG "  Resume with: /fractary-faber:workflow-run {work_id} --resume {run_id} --phase {phase.name}"
-
-    # Surface failure to user
-    USE AskUserQuestion:
-      question: "Phase {phase.name} did not complete (status: {phase_result.status}). How would you like to proceed?"
-      header: "Phase Failure"
-      options:
-        - label: "Retry phase"
-          description: "Re-spawn the {phase.name} agent and try again"
-        - label: "Skip phase"
-          description: "Mark as skipped and continue to the next phase (use with caution)"
-        - label: "Abort workflow"
-          description: "Stop the workflow here"
-
-    SWITCH user_choice:
-      CASE "Retry phase":
-        CONTINUE (re-enter loop for same phase)
-      CASE "Skip phase":
-        LOG "⚠️ Skipping {phase.name} by user request — this may cause downstream phase failures"
-        CONTINUE to next phase
-      CASE "Abort workflow":
-        SET state.status = "failed"
-        ABORT
-
-  # ── 2.6: Log phase success ──
-  LOG "✅ Phase {phase.name} complete — moving to next phase"
-  Update TodoWrite: mark "{phase.name} phase" as completed
-
-END FOR
-```
-
-**Why per-phase Task isolation?**
-- Each faber-manager agent starts with a fresh context window containing only what it needs for its single phase
-- The coordinator never accumulates phase-level content — it only reads a small state file between phases
-- If a phase generates large output (e.g., Build writing many files), it does not pollute the Evaluate or Release phase contexts
-- Token budget warnings cannot fire before a phase starts, because each phase begins fresh
+END FOR (phases)
 
 ## Phase 3: Workflow Completion
 
@@ -1512,11 +1456,11 @@ To resume: /fractary-faber:workflow-run --resume-batch
 ```
 User invokes: /fractary-faber:execute <plan-id>
     ↓
-workflow-execute command (Haiku) parses args
+workflow-execute command parses args
     ↓
-Invokes faber-executor skill (Haiku)
+Invokes faber-executor skill
     ↓
-Executor spawns faber-manager agent(s) (Sonnet) via Task tool
+Executor spawns faber-manager agent(s) via Task tool
     ↓
 Each agent executes one work item
     ↓
@@ -1525,9 +1469,9 @@ Results aggregated by executor
 
 **Issues:**
 - Context split across 3 layers (command/skill/agent)
-- Agent receives faber-manager.md (60+ rules) which may be incomplete
 - No way for agent to access full orchestration logic
 - Limited token budget per agent instance
+- (Removed: workflow-execute command and faber-executor/faber-manager agents no longer exist)
 
 ### New: workflow-run (Orchestrator Pattern)
 
@@ -1552,16 +1496,17 @@ Protocol defines all orchestration logic explicitly
 
 ## Key Differences
 
-| Aspect | workflow-execute | workflow-run |
-|--------|------------------|--------------|
-| **Orchestrator** | faber-manager agent | Main Claude (you) |
+| Aspect | workflow-execute (old) | workflow-run (current) |
+|--------|------------------------|------------------------|
+| **Orchestrator** | faber-manager agent (removed) | Main Claude (you) |
 | **Context** | Split across 3 layers | Single session |
-| **Logic Source** | faber-manager.md rules | Protocol document |
+| **Logic Source** | agent rules | Protocol document |
 | **Execution** | Agent interprets rules | Claude follows protocol |
 | **State** | Agent-managed | File-based (Read/Write) |
 | **Guards** | Agent heuristics | Explicit bash checks |
 | **Resume** | Agent state file | Run state file |
 | **Tool Access** | Via agent's tools | Direct (all tools) |
+| **Batch parallel** | N/A | general-purpose → workflow-run |
 
 ## Protocol-Based Orchestration
 

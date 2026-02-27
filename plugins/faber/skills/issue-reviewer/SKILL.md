@@ -278,7 +278,7 @@ This skill is complete when:
 
 ## FABER Manager Integration
 
-This skill is invoked automatically by faber-manager at evaluate phase entry:
+This skill is invoked automatically by workflow-run at evaluate phase entry:
 
 ```
 evaluate phase entry

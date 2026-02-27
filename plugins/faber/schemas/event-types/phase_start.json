@@ -51,7 +51,7 @@
       "run_id": "fractary/claude-plugins/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "phase": "architect",
       "status": "started",
-      "source": "faber-manager",
+      "source": "workflow-run",
       "message": "Starting Architect phase",
       "metadata": {
         "steps": ["generate-spec"],

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Helper functions for entity state tracking in FABER workflows
-# Used by faber-manager agent to implement entity tracking operations
+# Used by workflow-run to implement entity tracking operations
 
 set -euo pipefail
 

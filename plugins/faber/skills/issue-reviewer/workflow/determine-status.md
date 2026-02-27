@@ -237,7 +237,7 @@ function calculateConfidence(analysis):
       {
         "requirement": "FR-1",
         "description": "Automatic invocation at evaluate phase not configured",
-        "evidence": "faber-manager.md does not contain issue-reviewer call"
+        "evidence": "workflow-run.md does not contain issue-reviewer call"
       }
     ],
     "quality_issues": {
