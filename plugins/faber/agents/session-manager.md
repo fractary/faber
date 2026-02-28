@@ -4,6 +4,7 @@ description: Manages critical context artifacts and session metadata during FABE
 model: claude-sonnet-4-6
 tools: Read, Write, Glob, Bash, Skill
 color: orange
+memory: project
 ---
 
 # Session Manager Agent
