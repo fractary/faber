@@ -4,6 +4,7 @@ description: Displays FABER workflow run status combining current state with his
 model: claude-sonnet-4-6
 tools: Read, Glob, Bash, Skill
 color: orange
+memory: project
 ---
 
 # Run Inspect Agent

@@ -4,6 +4,7 @@ description: Update existing FABER configuration based on natural language or ex
 model: claude-haiku-4-5
 tools: Bash, Read, AskUserQuestion
 color: orange
+memory: project
 ---
 
 # FABER Configuration Updater

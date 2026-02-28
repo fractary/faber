@@ -4,6 +4,7 @@ description: Validate FABER configuration and report issues
 model: claude-haiku-4-5
 tools: Bash, Read
 color: orange
+memory: project
 ---
 
 # FABER Configuration Validator
