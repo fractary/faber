@@ -4,6 +4,7 @@ description: Initialize FABER configuration for a new project
 model: claude-haiku-4-5
 tools: Bash, Read, Glob, AskUserQuestion
 color: orange
+memory: project
 ---
 
 # FABER Configuration Initializer
