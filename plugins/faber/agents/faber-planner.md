@@ -4,6 +4,7 @@ description: Creates FABER execution plans without executing them. Phase 1 of tw
 model: claude-opus-4-6
 tools: Skill, SlashCommand, Read, Write, Bash, Glob, Grep, AskUserQuestion
 color: orange
+memory: project
 ---
 
 # FABER Planner Agent

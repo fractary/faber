@@ -39,6 +39,9 @@ export type FaberPhaseName = 'frame' | 'architect' | 'build' | 'evaluate' | 'rel
 /** Model names */
 export type ModelName = 'claude-haiku-4-5' | 'claude-sonnet-4-6' | 'claude-opus-4-6';
 
+/** Memory scope for cross-session knowledge persistence */
+export type MemoryScope = 'user' | 'project' | 'local';
+
 /** Tool names */
 export type ToolName =
   | 'Bash'

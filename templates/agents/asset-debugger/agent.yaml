@@ -120,6 +120,7 @@ frontmatter_schema:
   optional:
     - color
     - agent_type
+    - memory
   properties:
     name:
       type: string
@@ -166,6 +167,10 @@ frontmatter_schema:
     agent_type:
       type: string
       description: Links to this template type (asset-debugger)
+    memory:
+      type: string
+      enum: [user, project, local]
+      description: Claude Code memory scope for cross-session knowledge persistence
 
 # Validation rules
 validation:

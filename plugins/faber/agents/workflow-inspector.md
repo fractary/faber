@@ -4,6 +4,7 @@ description: Validates FABER workflow configuration and reports issues with comp
 model: claude-sonnet-4-6
 tools: Read, Write, Glob, Bash
 color: orange
+memory: project
 ---
 
 # Workflow Inspector Agent

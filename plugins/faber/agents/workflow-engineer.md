@@ -4,6 +4,7 @@ description: Creates and updates FABER workflow configurations by researching pr
 model: claude-sonnet-4-6
 tools: Read, Write, Glob, Bash, Grep, AskUserQuestion
 color: orange
+memory: project
 ---
 
 # Workflow Engineer Agent

@@ -4,6 +4,7 @@ description: Diagnoses FABER workflow issues and proposes solutions using knowle
 model: claude-sonnet-4-6
 tools: Read, Write, Glob, Bash, Skill
 color: orange
+memory: project
 ---
 
 # Workflow Debugger Agent
