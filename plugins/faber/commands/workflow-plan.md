@@ -10,27 +10,19 @@ model: claude-haiku-4-5
 
 ## Protocol
 
-### Step 1: Parse Arguments
+### Step 1: Spawn faber-planner
 
-From `$ARGUMENTS`:
-1. Check if `--auto-run` flag is present (boolean)
-2. Build planner args: take full `$ARGUMENTS`, strip `--auto-run` (if present), then append `--auto-execute` if `--auto-run` was present
-
-Example:
-- Input: `--work-id 123 --auto-run` → planner args: `--work-id 123 --auto-execute`
-- Input: `--work-id 123` → planner args: `--work-id 123`
-
-### Step 2: Spawn faber-planner
+Pass `$ARGUMENTS` directly — `--auto-run` is handled natively by faber-planner.
 
 ```
 Task(
   subagent_type="fractary-faber:faber-planner",
   description="Create FABER execution plan",
-  prompt="Create execution plan: {planner-args}"
+  prompt="Create execution plan: $ARGUMENTS"
 )
 ```
 
-### Step 3: Parse Task Response
+### Step 2: Parse Task Response
 
 From the Task result, scan for these lines (anywhere in the output):
 
@@ -43,7 +35,7 @@ Extract:
 - `execute_flag` = true if the string `execute: true` appears in the response
 - `plan_id` = value after `plan_id: ` if that line appears in the response
 
-### Step 4: Conditional Execution
+### Step 3: Conditional Execution
 
 IF `execute_flag` is true AND `plan_id` is non-empty:
 
