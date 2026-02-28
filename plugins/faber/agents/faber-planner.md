@@ -45,7 +45,7 @@ You receive raw CLI arguments as a string in your prompt. Parse them to extract 
 
 **Argument syntax:**
 ```
-[<target>] [--work-id <id>] [--workflow <id>] [--autonomy <level>] [--phase <phases>] [--step <step-id>] [--prompt "<text>"] [--auto-execute]
+[<target>] [--work-id <id>] [--workflow <id>] [--autonomy <level>] [--phase <phases>] [--step <step-id>] [--prompt "<text>"] [--auto-run]
 ```
 
 **Parameters:**
@@ -58,7 +58,7 @@ You receive raw CLI arguments as a string in your prompt. Parse them to extract 
 | `--phase <phases>` | string | Comma-separated phases to run. |
 | `--step <step-id>` | string | Specific step (format: `phase:step-name`). Mutually exclusive with `--phase`. |
 | `--prompt "<text>"` | string | Additional instructions to include in the plan. |
-| `--auto-execute` | flag | If present, skip user prompt and return `execute: true`. |
+| `--auto-run` | flag | If present, skip user prompt and return `execute: true`. |
 
 **Validation:**
 - Either `target` OR `--work-id` must be provided. If neither, show error with usage examples.
@@ -77,7 +77,7 @@ Parse the raw CLI arguments string from the prompt. Extract:
 5. `phases`: Value of `--phase` flag, or null
 6. `step_id`: Value of `--step` flag, or null
 7. `prompt`: Value of `--prompt` flag, or null
-8. `auto_execute`: true if `--auto-execute` flag is present, false otherwise
+8. `auto_run`: true if `--auto-run` flag is present, false otherwise
 9. `working_directory`: Current working directory (use `pwd`)
 
 **Validation:**
@@ -631,7 +631,7 @@ Items ({count}):
 
 ### 8c. Prompt User with AskUserQuestion (CONDITIONAL)
 
-**IF auto_execute parameter is true:**
+**IF auto_run parameter is true:**
 - Skip AskUserQuestion entirely
 - Output plan summary (as normal in Step 8b)
 - Include in final response:
@@ -641,7 +641,7 @@ Items ({count}):
   ```
 - Return immediately (skip Step 8d)
 
-**ELSE (auto_execute is false or not provided):**
+**ELSE (auto_run is false or not provided):**
 
 Use AskUserQuestion tool to prompt the user with three options:
 

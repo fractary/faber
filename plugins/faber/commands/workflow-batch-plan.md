@@ -1,8 +1,8 @@
 ---
 name: fractary-faber:workflow-batch-plan
 description: Plan a batch of FABER workflows for sequential unattended execution - creates batch directory and plans each item in a fresh context via Task spawning
-argument-hint: '<work-ids> [--name <batch-id>]'
-allowed-tools: Read, Write, Bash, Task
+argument-hint: '<work-ids> [--name <batch-id>] [--auto-run] [--autonomous] [--parallel]'
+allowed-tools: Read, Write, Bash, Task, Skill(fractary-faber:workflow-batch-run)
 model: claude-sonnet-4-6
 ---
 
@@ -10,12 +10,12 @@ model: claude-sonnet-4-6
 
 ## Overview
 
-Creates a named batch of workflow plans for sequential unattended execution. Each item is planned in a fresh Claude context via Task spawning (true context isolation). The resulting batch ID is passed to `workflow-batch-run` for execution.
+Creates a named batch of workflow plans for sequential unattended execution. Each item is planned in a fresh Claude context via Task spawning (true context isolation). The resulting batch ID is passed to `workflow-batch-run` for execution. With `--auto-run`, the batch is executed automatically after planning completes.
 
 ## Syntax
 
 ```
-/fractary-faber:workflow-batch-plan <work-ids> [--name <batch-id>]
+/fractary-faber:workflow-batch-plan <work-ids> [--name <batch-id>] [--auto-run] [--autonomous] [--parallel]
 ```
 
 ## Arguments
@@ -24,6 +24,9 @@ Creates a named batch of workflow plans for sequential unattended execution. Eac
 |----------|----------|-------------|
 | `<work-ids>` | Yes | Comma-separated work item IDs (e.g., "258,259,260") |
 | `--name <batch-id>` | No | Custom batch name (default: `batch-YYYY-MM-DDTHH-MM-SSZ`) |
+| `--auto-run` | No | Automatically execute the batch via `workflow-batch-run` after all plans are created |
+| `--autonomous` | No | Passed to `workflow-batch-run` when `--auto-run` is set — runs without interactive prompts |
+| `--parallel` | No | Passed to `workflow-batch-run` when `--auto-run` is set — runs batch items in parallel |
 
 ## Protocol
 
@@ -32,6 +35,11 @@ Creates a named batch of workflow plans for sequential unattended execution. Eac
 From `$ARGUMENTS`:
 1. Extract positional comma-separated IDs (e.g., "258,259,260")
 2. Extract `--name <value>` if present (the custom batch ID)
+3. Extract `--auto-run` flag (boolean, default: false)
+4. Extract `--autonomous` flag (boolean, default: false)
+5. Extract `--parallel` flag (boolean, default: false)
+
+> **Important**: `--auto-run`, `--autonomous`, and `--parallel` are batch-level flags and must NOT be passed to individual `faber-planner` Tasks.
 
 Validate:
 - At least one work ID provided
@@ -170,7 +178,28 @@ To run this batch overnight (unattended):
 
 To run interactively:
   /fractary-faber:workflow-batch-run --batch {batch-id}
+
+To plan and run in one step next time:
+  /fractary-faber:workflow-batch-plan {work-ids} --auto-run --autonomous
 ```
+
+### Step 9: Auto-Run
+
+IF `--auto-run` was present AND at least one item planned successfully:
+
+1. Build run flags:
+   - Start with: `--batch {batch-id}`
+   - Append ` --autonomous` if `--autonomous` was present
+   - Append ` --parallel` if `--parallel` was present
+
+2. Print: `Auto-running batch: /fractary-faber:workflow-batch-run {run-flags}`
+
+3. Invoke:
+   ```
+   Skill("fractary-faber:workflow-batch-run", args="{run-flags}")
+   ```
+
+IF `--auto-run` was present but ALL items failed to plan: print a warning and skip execution.
 
 ## Examples
 
@@ -183,4 +212,16 @@ To run interactively:
 
 # Plan 5 issues
 /fractary-faber:workflow-batch-plan 258,259,260,261,262 --name sprint-02
+
+# Plan and immediately run (interactive)
+/fractary-faber:workflow-batch-plan 258,259,260 --auto-run
+
+# Plan and immediately run unattended overnight
+/fractary-faber:workflow-batch-plan 258,259,260 --auto-run --autonomous
+
+# Plan and run in parallel
+/fractary-faber:workflow-batch-plan 258,259,260 --auto-run --parallel
+
+# Plan and run unattended in parallel
+/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-03 --auto-run --autonomous --parallel
 ```
