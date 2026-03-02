@@ -23,12 +23,13 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 3. **FOLLOW THE PROTOCOL** - The orchestration protocol is your instruction manual. Follow it exactly.
 4. **MAINTAIN STATE** - Update state file BEFORE and AFTER every step. State is sacred.
 5. **EXECUTE GUARDS** - All guards are mandatory. Never skip them.
-6. **USE TODOWRITE** - Track progress with TodoWrite for all steps.
+6. **TODOWRITE IS MANDATORY** - Call `TodoWrite → in_progress` BEFORE each step and `TodoWrite → completed` as the FIRST action after success. Skipping these calls breaks the user's visible task list. Non-negotiable.
 7. **EMIT EVENTS** - Every significant action emits an event for audit trail. Events BEFORE state.
 8. **HANDLE ERRORS GRACEFULLY** - Use retry logic when configured, stop when appropriate.
 9. **RESPECT AUTONOMY GATES** - Get user approval when required in non-autonomous modes. In `autonomous` mode, proceed without prompting.
 10. **NEVER FABRICATE COMPLETIONS** - See "When You Cannot Continue" section below.
 11. **EXECUTE STEPS SEQUENTIALLY** — NEVER execute multiple steps in parallel unless they are wrapped in a `parallel_group` item (with `steps_parallel`) in the workflow config. Complete each step fully before starting the next. Do NOT invoke Skill() or Task() for two different workflow steps in the same response message. Steps are sequential by design because each depends on prior output.
+12. **NEVER BYPASS SKILLS** - When a step defines `step.skill` or its prompt requires a named skill, use the Skill tool. Raw CLI that approximates a skill is prohibited — skills include safety guarantees (CI waiting, failure blocking) that raw CLI lacks.
 </CRITICAL_RULES>
 
 <WHEN_YOU_CANNOT_CONTINUE>
@@ -113,6 +114,52 @@ steps in the same response message — STOP. This is a bug in your behavior.
 Steps depend on each other. Execute one step, complete it, then execute the next.
 The ONLY exception: steps inside a declared `parallel_group` (steps_parallel) in the config.
 </PARALLEL_STEP_ANTI_PATTERN>
+
+<TODOWRITE_ANTI_PATTERN>
+## 🚫 ANTI-PATTERN: Skipping TodoWrite Updates (BUG, NOT A FEATURE)
+
+If you complete a step without calling `TodoWrite → completed` immediately after — STOP. This is a bug in your behavior.
+
+The user's task interface (the task list visible in Claude Code) depends entirely on TodoWrite being called at exact step boundaries. Skipping or deferring these calls causes:
+- The active task to show a stale (previously-completed) step
+- Completed steps to remain showing as "in_progress"
+- Loss of workflow visibility for the user
+
+**MANDATORY protocol for EVERY step:**
+1. `TodoWrite → in_progress` BEFORE executing the step (already first in 2.3)
+2. Execute the step (tools, skills, commands)
+3. `TodoWrite → completed` as the **FIRST action** in the success handler (step 2.5) — before state update, before event emit
+
+**NEVER:**
+- Execute a step without first calling `TodoWrite → in_progress`
+- Advance to the next step without first calling `TodoWrite → completed`
+- Defer TodoWrite calls to "do them later" or batch them at the end
+- Skip TodoWrite updates because a step was "trivial" or "quick"
+- Begin writing the next response turn without having marked the previous step completed
+</TODOWRITE_ANTI_PATTERN>
+
+<SKILL_BYPASS_ANTI_PATTERN>
+## 🚫 ANTI-PATTERN: Bypassing Skill Tool with Raw CLI (BUG, NOT A FEATURE)
+
+If a workflow step defines `step.skill`, or a step prompt explicitly names a required skill, and you find yourself reaching for raw CLI commands instead — STOP. This is a bug in your behavior.
+
+Skills wrap raw CLI with workflow-safe behavior: CI waiting, structured result parsing, failure blocking. Bypassing them with raw CLI silently strips those guarantees and produces similar-looking surface output — making the bypass non-obvious and dangerous.
+
+**Known prohibited substitutions:**
+| Instead of (WRONG) | Use (CORRECT) |
+|---|---|
+| `gh pr view` + `gh pr merge` for PR review | `/fractary-repo:pr-review` skill with `--wait-for-ci` |
+| Raw `gh pr merge` in release steps | The designated skill tool via `Skill()` |
+
+**NEVER:**
+- Use `gh pr merge` directly when a PR review step is part of the workflow
+- Approximate a skill's behavior with raw CLI because "it produces similar output"
+- Skip `--wait-for-ci` because CI "probably passed" or "looks good"
+- Replace a `Skill()` invocation with individual tool calls that replicate its steps
+
+When a step defines `step.skill`, invoke it with `Skill(skill=step.skill, args=...)`.
+When a step prompt says "use the /skill-name skill", use the Skill tool — not the CLI equivalent.
+</SKILL_BYPASS_ANTI_PATTERN>
 
 <INPUTS>
 
@@ -1258,9 +1305,9 @@ FOR EACH phase IN phases_to_execute (in order):
          substituting {work_id}, {plan_id}, {run_id}, etc.)
 
       # ── 2.5: On success ──
+      Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → completed    ← FIRST: updates user UI immediately
       Update state: phases[phase.name].steps[step.id].status = "completed", updated_at = now
       Emit step_complete event
-      Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → completed
 
       # ── 2.6: On failure — follow orchestration protocol retry/guard/autonomy-gate logic ──
       # (see workflow-orchestration-protocol.md: Result Handling, Retry Logic, Error Recovery)
@@ -1289,9 +1336,9 @@ FOR EACH phase IN phases_to_execute (in order):
 
       # Record results for each step
       FOR EACH (s, result) IN zip(pending, results):
+        Update TodoWrite: "[{phase.name}] {s.name} ({s.id})" → completed    ← FIRST: updates user UI immediately
         Update state: phases[phase.name].steps[s.id].status = "completed", updated_at = now
         Emit step_complete event for s
-        Update TodoWrite: "[{phase.name}] {s.name} ({s.id})" → completed
 
       LOG "✓ Parallel group [{item.id}] complete — all {pending.length} steps finished"
 
