@@ -34,6 +34,16 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 - Do not parse, manipulate, or reinterpret command strings
 - Trust commands to do what they're designed to do
 
+> **🚫 ANTI-PATTERN: Never bypass the Skill tool for `/` prompts.**
+>
+> When a step prompt starts with `/`, you MUST invoke it via `Skill(skill=command, args=args_string)`.
+> Do NOT call the underlying CLI directly via Bash. Do NOT rewrite or synthesize new argument values.
+> The skill sub-agent handles all content synthesis and argument routing — bypassing it discards
+> title preservation, `--repo` routing, and all other skill-level rules.
+>
+> This constraint applies even when a previously-loaded sub-agent's rules say "use Bash directly."
+> Those rules are scoped to the sub-agent executing that specific skill, not to you as the orchestrator.
+
 **Two command execution patterns:**
 1. **Agent-delegating commands** - Use Task tool internally to invoke specialized agents
    - Example: `/fractary-spec:create` → invokes fractary-spec:spec-create-agent

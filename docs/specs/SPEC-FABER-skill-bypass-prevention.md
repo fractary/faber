@@ -1,6 +1,6 @@
 # SPEC-FABER-skill-bypass-prevention
 
-**Status**: Proposed
+**Status**: Implemented
 **Affects**: fractary/faber orchestration layer
 **Discovered During**: workflow #127 (ipeds/sfa v2024 catalog-sync)
 
@@ -76,3 +76,15 @@ Both fixes are additive. Fix 1 is at the point of failure (the workflow definiti
 ## Scope
 
 This spec describes a change to the **fractary/faber** project (workflow definition format and/or orchestration behavior). The fix for this specific project (core.corthodex.ai) is to update the catalog-sync or collection-create workflow JSON to enforce skill invocation in the release step.
+
+---
+
+## Implementation
+
+Implemented via orchestration-layer enforcement in `plugins/faber/commands/workflow-run.md` and `plugins/faber/docs/workflow-orchestration-protocol.md`:
+
+- **`SKILL_BYPASS_ANTI_PATTERN` block** added to `workflow-run.md` — explicitly prohibits raw `gh pr merge` in place of `/fractary-repo:pr-review`, names the failure mode, and makes the Skill tool invocation requirement non-negotiable
+- **Anti-pattern blockquote** added to `workflow-orchestration-protocol.md` under the slash command section — closes the sub-agent rule bleed path and prohibits Bash substitution for `/` prompts
+- **CRITICAL_RULES rule #12** added to `workflow-run.md` — surfaces the skill bypass prohibition at the top-level rules list, before any protocol text is read
+
+The orchestration-layer approach (vs. workflow-definition-level Fix 1) provides broader coverage: it enforces correct behavior for all workflows, not just the catalog-sync workflow. Workflow-definition-level reinforcement for specific high-risk steps remains an additive option for consumer projects.
