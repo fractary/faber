@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:workflow-run
 description: Execute a FABER plan created by faber plan CLI command
-argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new] [--resume-batch]'
+argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new] [--resume-batch] [--workflow <id>] [--autonomy <level>]'
 allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task
 model: claude-sonnet-4-6
 ---
@@ -135,6 +135,8 @@ The ONLY exception: steps inside a declared `parallel_group` (steps_parallel) in
 | `--step <step-id>` | string | none | Execute only specified step(s) - single or comma-separated |
 | `--worktree` | flag | false | Automatically create worktree on conflict without prompting |
 | `--resume-batch` | flag | false | Resume a previously interrupted batch from where it stopped |
+| `--workflow <id>` | string | none | Workflow override — forwarded to auto-planner when no plan exists |
+| `--autonomy <level>` | string | none | Autonomy level override — forwarded to auto-planner when no plan exists |
 
 **Examples:**
 ```bash
@@ -550,6 +552,8 @@ Extract from user input:
 4. `phase_filter`: Value of `--phase` flag (optional, single or comma-separated phase names)
 5. `step_filter`: Value of `--step` flag (optional, single or comma-separated step IDs)
 6. `auto_worktree`: Boolean flag for `--worktree` (optional, default false)
+7. `workflow_override`: Value of `--workflow` flag (optional) — forwarded to auto-planner
+8. `autonomy_override`: Value of `--autonomy` flag (optional) — forwarded to auto-planner
 
 **Resolve Plan ID from Argument:**
 
@@ -594,12 +598,32 @@ if (/^\d+$/.test(arg)) {
     plan_id = extractPlanIdFromIssue(issue);
 
     if (!plan_id) {
-      console.error(`Error: No plan found for issue #${work_id}`);
-      console.error(`Run 'faber plan --work-id ${work_id}' first to create a plan.`);
-      return;
-    }
+      console.log(`→ No existing plan for #${work_id}. Auto-planning...`);
 
-    console.log(`✓ Found plan: ${plan_id}`);
+      // Build planner prompt with optional passthrough flags
+      let plannerPrompt = `Create execution plan: --work-id ${work_id}`;
+      if (workflow_override) plannerPrompt += ` --workflow ${workflow_override}`;
+      if (autonomy_override) plannerPrompt += ` --autonomy ${autonomy_override}`;
+
+      // Spawn faber-planner to create the plan
+      const plannerResult = await Task({
+        subagent_type: "fractary-faber:faber-planner",
+        description: `Plan workflow for #${work_id}`,
+        prompt: plannerPrompt
+      });
+
+      // Extract plan_id from planner response
+      const planIdMatch = plannerResult.match(/plan_id:\s*(\S+)/);
+      if (!planIdMatch) {
+        console.error(`Error: Auto-planning failed for #${work_id}. Planner did not return a plan_id.`);
+        return;
+      }
+
+      plan_id = planIdMatch[1];
+      console.log(`✓ Auto-planned: ${plan_id}`);
+    } else {
+      console.log(`✓ Found plan: ${plan_id}`);
+    }
 
   } catch (error) {
     console.error(`Error fetching issue #${work_id}: ${error.message}`);

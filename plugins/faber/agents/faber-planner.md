@@ -188,10 +188,10 @@ ELSE IF target_context.workflow_override provided:
 
 # Tier 3: Label-based workflow selection (when work_id provided)
 ELSE IF planning_mode == "work_id" AND issue provided:
-  # Check for explicit workflow: label prefix
+  # Check for faber-workflow: label prefix
   FOR EACH label IN issue.labels:
-    IF label.name starts with "workflow:":
-      workflow_id = label.name without "workflow:" prefix
+    IF label.name starts with "faber-workflow:":
+      workflow_id = label.name without "faber-workflow:" prefix
       GOTO merge_workflow
 
   # Check label_mapping from config
@@ -201,6 +201,10 @@ ELSE IF planning_mode == "work_id" AND issue provided:
       IF config.workflow_inference.label_mapping[label.name] exists:
         workflow_id = config.workflow_inference.label_mapping[label.name]
         GOTO merge_workflow
+
+  # Warn when label resolution fails but labels are present
+  IF issue.labels is not empty:
+    WARN "No workflow label matched. Labels: " + issue.labels.map(l => l.name).join(", ") + ". Falling through to classification/default."
 
   # Tier 4: WorkType classification + mapping
   IF config.workflow_inference.fallback_to_classification == true:
