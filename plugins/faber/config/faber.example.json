@@ -20,7 +20,7 @@
     }
   ],
   "workflow_inference": {
-    "_comment": "Multi-tier workflow selection: 1) workflow: label prefix, 2) label_mapping, 3) work type classification, 4) default",
+    "_comment": "Multi-tier workflow selection: 1) faber-workflow: label prefix, 2) label_mapping, 3) work type classification, 4) default",
     "enabled": true,
     "label_mapping": {
       "bug": "fractary-faber:bug",

@@ -133,7 +133,23 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
 
 ```
 1. Get plan_id from state.json item: item.plan_id
-   - If null/empty: print error, TaskUpdate(batchTaskId, status=completed), skip to next item
+   - If null/empty:
+     console.log(`→ No plan for #${item.work_id}. Auto-planning...`);
+     const plannerResult = await Task({
+       subagent_type: "fractary-faber:faber-planner",
+       description: `Plan workflow for #${item.work_id}`,
+       prompt: `Create execution plan: --work-id ${item.work_id}`
+     });
+     const planIdMatch = plannerResult.match(/plan_id:\s*(\S+)/);
+     if (!planIdMatch) {
+       console.error(`Error: Auto-planning failed for #${item.work_id}.`);
+       TaskUpdate(batchTaskIds[item.work_id], status=completed);
+       skip to next item;
+     }
+     plan_id = planIdMatch[1];
+     Update state.json: item.plan_id = plan_id, item.status = "planned"
+     console.log(`✓ Auto-planned: ${plan_id}`);
+     Continue with execution using plan_id
 2. Read: .fractary/faber/runs/{plan_id}/plan.json
    - If not found: print error, TaskUpdate(batchTaskId, status=completed), skip to next item
 3. Extract workflow.phases from plan.json
