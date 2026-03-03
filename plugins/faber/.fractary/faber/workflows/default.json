@@ -27,7 +27,7 @@
           "id": "generate-spec",
           "name": "Generate Specification",
           "description": "Create technical specification from issue context",
-          "prompt": "/fractary-spec:create --work-id {work_id}"
+          "prompt": "/fractary-docs:write spec --work-id {work_id}"
         },
         {
           "id": "refine-spec",

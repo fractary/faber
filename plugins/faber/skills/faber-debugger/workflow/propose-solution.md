@@ -169,8 +169,8 @@ For complex issues (6+ steps or multiple concerns):
 
 **Create Specification:**
 ```bash
-# Invoke fractary-spec with solution context
-/fractary-spec:create \
+# Invoke fractary-docs:write with solution context
+/fractary-docs:write spec \
   --work-id 244 \
   --prompt "Debugger identified the following issues requiring coordinated fixes:
     1. Type errors in auth module

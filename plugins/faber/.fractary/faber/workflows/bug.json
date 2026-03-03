@@ -26,7 +26,7 @@
           "id": "generate-bug-spec",
           "name": "Generate Bug Fix Specification",
           "description": "Create a focused specification emphasizing root cause analysis and minimal scope",
-          "prompt": "/fractary-spec:create --template bug --context 'Create a bug fix specification focusing on:\n1. **Root Cause Analysis** - What is causing this bug? Trace through the code path.\n2. **Minimal Scope** - What is the smallest change that fixes this bug?\n3. **Regression Prevention** - What tests will ensure this bug doesn't reoccur?\n4. **Related Areas** - What related functionality might be affected?\n\nKeep the specification focused and concise. Avoid scope creep.'",
+          "prompt": "/fractary-docs:write spec --context 'Create a bug fix specification focusing on:\n1. **Root Cause Analysis** - What is causing this bug? Trace through the code path.\n2. **Minimal Scope** - What is the smallest change that fixes this bug?\n3. **Regression Prevention** - What tests will ensure this bug doesn't reoccur?\n4. **Related Areas** - What related functionality might be affected?\n\nKeep the specification focused and concise. Avoid scope creep.'",
           "result_handling": {
             "on_success": "continue",
             "on_warning": "stop"
