@@ -28,7 +28,7 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 - Do not add your own interpretation or extra tasks unless the prompt explicitly asks for it
 
 **Important about slash commands in prompts:**
-- Slash commands are complete, self-contained invocations (e.g., `/fractary-spec:create --work-id 123`)
+- Slash commands are complete, self-contained invocations (e.g., `/fractary-docs:write spec --work-id 123`)
 - Invoke them via Skill tool with the full command string
 - Commands handle their own argument parsing and execution strategy
 - Do not parse, manipulate, or reinterpret command strings
@@ -46,7 +46,7 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 
 **Two command execution patterns:**
 1. **Agent-delegating commands** - Use Task tool internally to invoke specialized agents
-   - Example: `/fractary-spec:create` → invokes fractary-spec:spec-create-agent
+   - Example: `/fractary-docs:write` → invokes fractary-docs:docs-writer agent
 2. **Inline commands** - Execute directly using bash, Read, Write, and other tools
    - Example: `/fractary-work:issue-create` → runs gh commands directly
 
@@ -215,7 +215,7 @@ Workflow commands follow two distinct patterns, but the orchestrator handles the
 
 Commands that delegate to specialized agents for complex workflows.
 
-**Examples:** `/fractary-spec:create`, `/fractary-spec:refine`
+**Examples:** `/fractary-docs:write`, `/fractary-spec:refine`
 
 **Flow:**
 ```

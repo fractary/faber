@@ -401,7 +401,7 @@ export class FaberWorkflow {
    * Architect Phase: Create/refine specification
    *
    * NOTE: This is a legacy no-op. Spec operations should be done via
-   * Fractary Core (/fractary-spec:create). Modern FABER workflows use
+   * Fractary Docs (/fractary-docs:write spec). Modern FABER workflows use
    * agents (faber-planner, faber-manager) which call Fractary Core skills.
    */
   private async runArchitectPhase(_context: PhaseContext): Promise<PhaseHandlerResult> {
@@ -410,7 +410,7 @@ export class FaberWorkflow {
       status: 'completed',
       outputs: {
         legacy: true,
-        message: 'Spec operations should use Fractary Core (/fractary-spec:create)',
+        message: 'Spec operations should use Fractary Docs (/fractary-docs:write spec)',
       },
     };
   }
