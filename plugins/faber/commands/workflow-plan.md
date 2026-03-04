@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-plan
 description: Create a FABER execution plan (plan only — use workflow-run to execute)
 argument-hint: '[<target>] [--work-id <id>] [--workflow <id>] [--autonomy <level>] [--force-new]'
-allowed-tools: Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), TodoWrite, Read, Bash, Skill
+allowed-tools: Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), Task(fractary-faber:workflow-plan-reporter), TodoWrite, Skill
 model: claude-sonnet-4-6
 ---
 
@@ -104,17 +104,15 @@ Update task "Create plan with faber-planner" → completed.
 
 ### Step 3: Validate Plan
 
+**CRITICAL: You have no `Read` or `Bash` tools. You MUST invoke `faber-plan-validator` via `Task`. You cannot validate the plan yourself. Do not skip this step.**
+
 Update task "Validate plan with faber-plan-validator" → in_progress.
 
 ```javascript
-// Get project root for validation
-const projectRootResult = await Bash({ command: "pwd", description: "Get session working directory" });
-const projectRoot = projectRootResult.trim();
-
 const validationResult = await Task({
   subagent_type: "fractary-faber:faber-plan-validator",
   description: `Validate plan ${plan_id}`,
-  prompt: `Validate plan: --plan-id ${plan_id} --project-root ${projectRoot}`
+  prompt: `Validate plan: --plan-id ${plan_id}`
 });
 
 const validationMatch = validationResult.match(/validation:\s*(pass|fail)/);
@@ -142,39 +140,15 @@ Update task "Validate plan with faber-plan-validator" → completed.
 
 Update task "Report planning summary" → in_progress.
 
-Read the plan file to extract workflow details for the summary:
-
 ```javascript
-const planPath = `${projectRoot}/.fractary/faber/runs/${plan_id}/plan.json`;
-let plan;
-try {
-  const planContent = await Read({ file_path: planPath });
-  plan = JSON.parse(planContent);
-} catch (error) {
-  console.warn(`Could not read plan for summary: ${error.message}`);
-}
+await Task({
+  subagent_type: "fractary-faber:workflow-plan-reporter",
+  description: `Report planning summary for ${plan_id}`,
+  prompt: `Report plan: --plan-id ${plan_id}`
+});
 ```
-
-If plan is readable, output summary:
-```
-Plan created: {plan_id}
-Workflow: {plan.workflow.id}
-Phases: {count}
-Steps: {total steps across all phases}
-Items: {plan.items.length}
-```
-
-If `work_id` is provided and the plan was freshly created (not from existing), post a GitHub comment confirming the plan. Note: faber-planner already posts this comment — only post here if `skipPlanner` was true (existing plan re-validated) and no comment was recently posted.
 
 Update task "Report planning summary" → completed.
-
-Output final result:
-```
-Plan created: {plan_id}
-
-To execute:
-  /fractary-faber:workflow-run {plan_id}
-```
 
 ---
 

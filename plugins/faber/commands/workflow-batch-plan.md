@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-batch-plan
 description: Plan a batch of FABER workflows for sequential unattended execution - creates batch directory and plans each item in a fresh context via Task spawning
 argument-hint: '<work-ids> [--name <batch-id>]'
-allowed-tools: Read, Write, Bash, Task
+allowed-tools: Write, Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), Task(fractary-faber:workflow-plan-reporter)
 model: claude-sonnet-4-6
 ---
 
@@ -39,10 +39,10 @@ Validate:
 
 ### Step 2: Generate Batch ID
 
-```bash
-# If --name provided, use it directly (sanitize: lowercase, hyphens only)
-# Otherwise generate from current timestamp:
-date -u +"%Y-%m-%dT%H-%M-%SZ" | xargs -I{} echo "batch-{}"
+```javascript
+// If --name provided, use it directly (sanitize: lowercase, hyphens only)
+// Otherwise generate from current timestamp:
+const batchId = `batch-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)}Z`;
 ```
 
 Example output: `batch-2026-02-26T09-00-00Z`
@@ -51,9 +51,7 @@ If `--name` provided, use that value as-is (e.g., `overnight-sprint-01`).
 
 ### Step 3: Create Batch Directory
 
-```bash
-mkdir -p .fractary/faber/batches/{batch-id}
-```
+The directory is created automatically when writing the first file in Step 4.
 
 ### Step 4: Write queue.txt
 
@@ -146,23 +144,55 @@ Update top-level `updated_at` once after all items are processed.
 > Task spawn appear in the parent session. If tasks appear in the session list after
 > planning completes, report this as a bug in the faber-planner agent.
 
+### Step 7c: Validate All Planned Items in Parallel
+
+For each item where `status === "planned"` (plan_id is known), spawn a validation Task in parallel (all in a single message):
+
+```
+Task(subagent_type="fractary-faber:faber-plan-validator",
+     description="Validate plan for #{work-id}",
+     prompt="Validate plan: --plan-id {plan_id}")
+```
+
+After all validation Tasks complete, update state.json sequentially:
+- On validation pass: `item.status = "validated"`
+- On validation fail: `item.status = "validation_failed"`, `item.error = reason`
+
+Print per-item:
+- `  ✓ Validated #{work-id} → {plan_id}`
+- `  ✗ Validation failed #{work-id}: {reason}`
+
+Update top-level `updated_at` once after all items are processed.
+
 ### Step 8: Final Report
 
 After all items are processed:
 
 1. Update state.json `status`:
-   - `"planned"` if all succeeded
-   - `"planning_partial"` if some failed
+   - `"validated"` if all items validated successfully
+   - `"planning_partial"` if any items failed to plan or validate
 
 2. Update `updated_at`.
 
-3. Print summary:
+3. For each item with `status === "validated"`, invoke the plan reporter sequentially:
+
+```javascript
+for (const item of validatedItems) {
+  await Task({
+    subagent_type: "fractary-faber:workflow-plan-reporter",
+    description: `Report plan summary for ${item.plan_id}`,
+    prompt: `Report plan: --plan-id ${item.plan_id}`
+  });
+}
+```
+
+4. Print summary:
 
 ```
 ═══════════════════════════════════════════════
   BATCH PLANNING COMPLETE
   Batch ID: {batch-id}
-  Total: {N} | Planned: {M} | Failed: {K}
+  Total: {N} | Validated: {V} | Validation Failed: {VF} | Plan Failed: {K}
 ═══════════════════════════════════════════════
 
 To run this batch overnight (unattended):

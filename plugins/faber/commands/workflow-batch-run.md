@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-batch-run
 description: Execute a planned FABER batch sequentially (serial mode, default) or in parallel (--parallel). Serial mode runs steps in the parent context with full task list visibility; parallel mode spawns sub-agents per item for concurrency with batch-level-only visibility.
 argument-hint: '--batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new] [--parallel]'
-allowed-tools: Read, Write, Bash, Task, Skill, TaskCreate, TaskUpdate, AskUserQuestion
+allowed-tools: Read(.fractary/faber/**), Write, Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), Task(fractary-faber:workflow-plan-reporter), Skill, TaskCreate, TaskUpdate, AskUserQuestion
 model: claude-sonnet-4-6
 ---
 
@@ -150,9 +150,36 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
      Update state.json: item.plan_id = plan_id, item.status = "planned"
      console.log(`✓ Auto-planned: ${plan_id}`);
      Continue with execution using plan_id
-2. Read: .fractary/faber/runs/{plan_id}/plan.json
+2. Validate plan before executing:
+   ```javascript
+   const validationResult = await Task({
+     subagent_type: "fractary-faber:faber-plan-validator",
+     description: `Validate plan ${plan_id}`,
+     prompt: `Validate plan: --plan-id ${plan_id}`
+   });
+
+   const validationMatch = validationResult.match(/validation:\s*(pass|fail)/);
+   if (!validationMatch || validationMatch[1] === 'fail') {
+     const reasonMatch = validationResult.match(/reason:\s*(.+)/);
+     const reason = reasonMatch ? reasonMatch[1].trim() : 'unknown reason';
+     console.error(`✗ Plan validation failed for #${item.work_id}: ${reason}`);
+     Write state.json: item.status = "failed", item.error = reason
+     TaskUpdate(batchTaskIds[item.work_id], status=completed);
+     continue; // skip to next item
+   }
+   console.log(`✓ Plan validated: ${plan_id}`);
+   ```
+3. Show plan summary before executing this item:
+   ```javascript
+   await Task({
+     subagent_type: "fractary-faber:workflow-plan-reporter",
+     description: `Report plan summary for ${plan_id}`,
+     prompt: `Report plan: --plan-id ${plan_id}`
+   });
+   ```
+4. Read: .fractary/faber/runs/{plan_id}/plan.json
    - If not found: print error, TaskUpdate(batchTaskId, status=completed), skip to next item
-3. Extract workflow.phases from plan.json
+5. Extract workflow.phases from plan.json
 ```
 
 ##### Step 5-S2: Inject Step-Level Tasks into Parent Context

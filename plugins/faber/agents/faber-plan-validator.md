@@ -28,29 +28,33 @@ You run in a fresh context so you have no memory of what faber-planner produced.
 You receive a prompt in the format:
 
 ```
-Validate plan: --plan-id <id> --project-root <path>
+Validate plan: --plan-id <id>
 ```
 
 Parse:
 - `plan_id`: value after `--plan-id`
-- `project_root`: value after `--project-root`
+- `project_root`: auto-detected via `Bash({ command: "pwd" })` (or use value after optional `--project-root` if provided)
 </INPUTS>
 
 <WORKFLOW>
 
-## Step 1: Parse Arguments
+## Step 1: Parse Arguments and Detect Project Root
 
-Extract `plan_id` and `project_root` from the prompt string.
+Extract `plan_id` from the prompt string. If `--project-root` is present, use that value. Otherwise:
+
+```javascript
+const projectRoot = await Bash({ command: "pwd" }).trim();
+```
 
 The plan file is located at:
 ```
-{project_root}/.fractary/faber/runs/{plan_id}/plan.json
+{projectRoot}/.fractary/faber/runs/{plan_id}/plan.json
 ```
 
 ## Step 2: Check File Exists
 
 ```javascript
-const planPath = `${project_root}/.fractary/faber/runs/${plan_id}/plan.json`;
+const planPath = `${projectRoot}/.fractary/faber/runs/${plan_id}/plan.json`;
 
 TRY:
   Read(file_path: planPath)

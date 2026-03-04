@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-run
 description: Execute a FABER plan created by faber plan CLI command
 argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new] [--resume-batch] [--workflow <id>] [--autonomy <level>]'
-allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator)
+allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), Task(fractary-faber:workflow-plan-reporter), Task(fractary-faber:faber-workflow-verifier)
 model: claude-sonnet-4-6
 ---
 
@@ -54,11 +54,21 @@ This rule is **ABSOLUTE**. There are no exceptions. Fabricating completion
 is worse than any other failure mode because it destroys trust in the
 entire system. An honest pause is always the right answer.
 
-**Completion Verification Gate:** Before setting `status: "completed"`, you MUST run:
-```bash
-bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh --run-id "$RUN_ID"
+**Completion Verification Gate:** Before setting `status: "completed"`, you MUST invoke:
+```javascript
+const verificationResult = await Task({
+  subagent_type: "fractary-faber:faber-workflow-verifier",
+  description: `Verify workflow completion for ${runId}`,
+  prompt: `--run-id ${runId}`
+});
+const verificationMatch = verificationResult.match(/verification:\s*(pass|fail)/);
+if (!verificationMatch || verificationMatch[1] === 'fail') {
+  const reasonMatch = verificationResult.match(/reason:\s*(.+)/);
+  const reason = reasonMatch ? reasonMatch[1].trim() : 'unknown reason';
+  // Set status: "paused" and report — do NOT mark completed
+}
 ```
-If it returns `status: "fail"`, DO NOT mark the workflow as completed. Pause and report failures.
+If verification returns `fail`, DO NOT mark the workflow as completed. Pause and report failures.
 </WHEN_YOU_CANNOT_CONTINUE>
 
 <CONTEXT_CONTINUITY>
@@ -243,11 +253,7 @@ Location: `.fractary/faber/runs/.batch-state.json`
 **Step B.1: Initialize or Resume Batch**
 
 ```javascript
-// Capture session working directory (worktree root — may be at any path)
-const projectRootResult = await Bash({ command: "pwd", description: "Get session working directory" });
-const projectRoot = projectRootResult.trim();
-
-const batchStatePath = `${projectRoot}/.fractary/faber/runs/.batch-state.json`;
+const batchStatePath = `.fractary/faber/runs/.batch-state.json`;
 let batchState;
 
 if (resumeBatch) {
@@ -535,16 +541,6 @@ console.log("══════════════════════�
 
 ## Phase 1: Initialization
 
-**Capture session working directory (worktree root — may be at any path):**
-
-```javascript
-// All FABER state/plan files are written relative to this directory.
-// Using pwd ensures files stay in the worktree even when --worktree places
-// the worktree outside the original project root.
-const projectRootResult = await Bash({ command: "pwd", description: "Get session working directory" });
-const projectRoot = projectRootResult.trim();
-```
-
 **Initialize bootstrap task list** (before any work begins, so all steps are visible):
 
 ```javascript
@@ -650,7 +646,7 @@ if (/^\d+$/.test(arg)) {
     const validationResult = await Task({
       subagent_type: "fractary-faber:faber-plan-validator",
       description: `Validate plan ${plan_id}`,
-      prompt: `Validate plan: --plan-id ${plan_id} --project-root ${projectRoot}`
+      prompt: `Validate plan: --plan-id ${plan_id}`
     });
 
     const validationMatch = validationResult.match(/validation:\s*(pass|fail)/);
@@ -664,6 +660,13 @@ if (/^\d+$/.test(arg)) {
     }
     console.log(`✓ Plan validated`);
     // Update "Validate plan" bootstrap task → completed
+
+    // Show plan summary before execution begins
+    await Task({
+      subagent_type: "fractary-faber:workflow-plan-reporter",
+      description: `Report plan summary for ${plan_id}`,
+      prompt: `Report plan: --plan-id ${plan_id}`
+    });
 
   } catch (error) {
     console.error(`Error fetching issue #${work_id}: ${error.message}`);
@@ -773,7 +776,7 @@ Protocol: ${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/docs/workflow-orchest
 
 ```javascript
 // Read the plan file created by /fractary-faber:plan
-const planPath = `${projectRoot}/.fractary/faber/runs/${plan_id}/plan.json`;
+const planPath = `.fractary/faber/runs/${plan_id}/plan.json`;
 const planContent = await Read({ file_path: planPath });
 const fullPlan = JSON.parse(planContent);
 
@@ -796,7 +799,7 @@ const work_id = workItems.length === 1 ? workItems[0].work_id : null;
 ```javascript
 // Compute state file path from run_id
 // run_id format: {plan_id}-run-{timestamp}
-// State path: {projectRoot}/.fractary/faber/runs/{plan_id}/state-{timestamp}.json
+// State path: .fractary/faber/runs/{plan_id}/state-{timestamp}.json
 function getStatePath(runId) {
   const runMarker = '-run-';
   const runMarkerIndex = runId.lastIndexOf(runMarker);
@@ -805,7 +808,7 @@ function getStatePath(runId) {
   }
   const planId = runId.substring(0, runMarkerIndex);
   const runSuffix = runId.substring(runMarkerIndex + runMarker.length);
-  return `${projectRoot}/.fractary/faber/runs/${planId}/state-${runSuffix}.json`;
+  return `.fractary/faber/runs/${planId}/state-${runSuffix}.json`;
 }
 ```
 
@@ -817,14 +820,14 @@ if (!resume_run_id && !force_new) {
   console.log("\n→ Checking for incomplete runs...");
 
   // Find all state files for this plan_id (now in same directory as plan.json)
-  const planDir = `${projectRoot}/.fractary/faber/runs/${plan_id}`;
-  const findOutput = await Bash({
-    command: `find "${planDir}" -name "state-*.json" -type f 2>/dev/null || true`,
-    description: "Find all workflow state files for this plan"
+  const planDir = `.fractary/faber/runs/${plan_id}`;
+  const stateFiles = await Glob({
+    pattern: `${planDir}/state-*.json`
   });
+  const findOutput = stateFiles.join('\n');
 
-  if (findOutput.stdout.trim()) {
-    const statePaths = findOutput.stdout.trim().split('\n').filter(Boolean);
+  if (findOutput.trim()) {
+    const statePaths = findOutput.trim().split('\n').filter(Boolean);
     const incompleteRuns = [];
 
     for (const statePath of statePaths) {
@@ -881,11 +884,12 @@ const resumePlanId = runId.substring(0, runMarkerIdx);
 const resumeRunSuffix = runId.substring(runMarkerIdx + runMarker.length);
 const eventRunId = `${resumePlanId}/${resumeRunSuffix}`;
 
-// Ensure events directory exists for resumed run
-await Bash({
-  command: `mkdir -p "${projectRoot}/.fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events" && [ -f "${projectRoot}/.fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events/.next-id" ] || echo "1" > "${projectRoot}/.fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events/.next-id"`,
-  description: "Ensure events directory exists for resumed run"
-});
+// Ensure events directory exists for resumed run (Write creates intermediate dirs automatically)
+const resumeNextIdPath = `.fractary/faber/runs/${resumePlanId}/${resumeRunSuffix}/events/.next-id`;
+const existingNextId = await Glob({ pattern: resumeNextIdPath });
+if (!existingNextId || existingNextId.length === 0) {
+  await Write({ file_path: resumeNextIdPath, content: "1" });
+}
 
 // Read existing state
 const state = JSON.parse(await Read({ file_path: statePath }));
@@ -917,7 +921,7 @@ const eventRunId = `${plan_id}/${timestamp}`;
 
 // State file goes in same directory as plan.json, with timestamp in filename
 // This keeps all artifacts for a plan together while allowing multiple runs
-const statePath = `${projectRoot}/.fractary/faber/runs/${plan_id}/state-${timestamp}.json`;
+const statePath = `.fractary/faber/runs/${plan_id}/state-${timestamp}.json`;
 
 console.log("✓ Starting new workflow execution");
 console.log(`Run ID: ${runId}`);
@@ -950,11 +954,10 @@ const initialState = {
   updated_at: new Date().toISOString()
 };
 
-// Plan directory should already exist (created by faber-planner)
-// Ensure it exists just in case, and create events directory for this run
-await Bash({
-  command: `mkdir -p "${projectRoot}/.fractary/faber/runs/${plan_id}/${timestamp}/events" && echo "1" > "${projectRoot}/.fractary/faber/runs/${plan_id}/${timestamp}/events/.next-id"`,
-  description: "Create plan and events directories"
+// Create events directory for this run (Write creates intermediate dirs automatically)
+await Write({
+  file_path: `.fractary/faber/runs/${plan_id}/${timestamp}/events/.next-id`,
+  content: "1"
 });
 
 // Write initial state
@@ -982,14 +985,8 @@ await Write({
 This enables hooks (PreCompact, SessionStart, SessionEnd) to know which workflow to operate on without requiring explicit run_id parameters.
 
 ```javascript
-// Ensure .fractary/faber/runs directory exists
-await Bash({
-  command: `mkdir -p "${projectRoot}/.fractary/faber/runs"`,
-  description: "Create faber runs directory"
-});
-
 // Check if another workflow is active
-const activeRunIdPath = `${projectRoot}/.fractary/faber/runs/.active-run-id`;
+const activeRunIdPath = `.fractary/faber/runs/.active-run-id`;
 let existingRunId = null;
 
 try {
@@ -1118,7 +1115,7 @@ if (work_id) {
       `**Run ID:** \`${runId}\``,
       `**Plan ID:** \`${plan_id}\``,
       `**Workflow:** \`${workflow.id}\``,
-      `**State File:** \`${projectRoot}/.fractary/faber/runs/${plan_id}/state-${timestamp}.json\``,
+      `**State File:** \`.fractary/faber/runs/${plan_id}/state-${timestamp}.json\``,
       `**Autonomy:** ${autonomy}`,
       ``,
       `**Phases:** ${enabledPhases}`
@@ -1379,6 +1376,24 @@ END FOR (phases)
 ### On Successful Completion:
 
 ```javascript
+// Run completion verification before marking as completed
+const verificationResult = await Task({
+  subagent_type: "fractary-faber:faber-workflow-verifier",
+  description: `Verify workflow completion for ${runId}`,
+  prompt: `--run-id ${runId}`
+});
+
+const verificationMatch = verificationResult.match(/verification:\s*(pass|fail)/);
+if (!verificationMatch || verificationMatch[1] === 'fail') {
+  const reasonMatch = verificationResult.match(/reason:\s*(.+)/);
+  const reason = reasonMatch ? reasonMatch[1].trim() : 'unknown reason';
+  console.error(`\n❌ Completion verification failed: ${reason}`);
+  const pausedState = { ...state, status: "paused", pause_reason: `Verification failed: ${reason}`, updated_at: new Date().toISOString() };
+  await Write({ file_path: statePath, content: JSON.stringify(pausedState, null, 2) });
+  console.error(`\nTo resume after resolving: /fractary-faber:workflow-run ${work_id} --resume ${runId}`);
+  return;
+}
+
 // Update state to completed
 const completedState = {
   ...state,
