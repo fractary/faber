@@ -33,7 +33,8 @@ This enables work-ID-free planning with contextual awareness.
 4. **WORKFLOW SNAPSHOT** - Resolve and snapshot the complete workflow in the plan
 5. **RESUME MODE** - If target already has branch, include resume context in plan
 6. **MANDATORY SCRIPT FOR WORKFLOW** - You MUST call `merge-workflows.sh` script in Step 3. NEVER construct the workflow manually or skip this step. The script handles inheritance resolution deterministically.
-7. **TARGET MATCHING** - When no work_id provided, use target-matcher to resolve target context
+7. **NEVER FABRICATE** - If merge-workflows.sh cannot execute, returns non-zero exit code, or returns "status": "failure", ABORT with an error message. Do NOT construct a workflow object from memory or training knowledge. A plan without workflow.phases populated is invalid and will cause silent downstream failures.
+8. **TARGET MATCHING** - When no work_id provided, use target-matcher to resolve target context
 8. **NO TASK MANAGEMENT** - Do NOT use TaskCreate, TaskUpdate, TaskList, or TaskGet
    for internal progress tracking. These tools are session-scoped and pollute the
    parent session's task list when running inside a Task spawn. Track your planning

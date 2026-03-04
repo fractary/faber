@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-run
 description: Execute a FABER plan created by faber plan CLI command
 argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new] [--resume-batch] [--workflow <id>] [--autonomy <level>]'
-allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task
+allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator)
 model: claude-sonnet-4-6
 ---
 
@@ -11,8 +11,10 @@ model: claude-sonnet-4-6
 <CONTEXT>
 You are executing a FABER workflow with YOU as the primary orchestrator.
 
-This is NOT delegation - YOU will execute each step by following the orchestration protocol.
+This is NOT delegation for workflow step execution — YOU execute each workflow step directly.
 You maintain full context throughout the entire workflow execution.
+
+EXCEPTION: Auto-planning (when no plan exists) and plan validation MUST delegate via Task(). Do not attempt to construct or fabricate plans yourself.
 
 This command replaces the old workflow-execute pattern (command → skill → agent) with direct orchestration by the main Claude agent.
 </CONTEXT>
@@ -543,6 +545,23 @@ const projectRootResult = await Bash({ command: "pwd", description: "Get session
 const projectRoot = projectRootResult.trim();
 ```
 
+**Initialize bootstrap task list** (before any work begins, so all steps are visible):
+
+```javascript
+await TodoWrite({
+  todos: [
+    { content: "Resolve plan ID (check/fetch/auto-plan)", status: "pending", activeForm: "Resolving plan ID" },
+    { content: "Validate plan", status: "pending", activeForm: "Validating plan" },
+    { content: "Load orchestration protocol", status: "pending", activeForm: "Loading orchestration protocol" },
+    { content: "Load plan and initialize state", status: "pending", activeForm: "Loading plan and initializing state" },
+    { content: "Track active workflow", status: "pending", activeForm: "Tracking active workflow" },
+    { content: "Initialize workflow steps", status: "pending", activeForm: "Initializing workflow steps" }
+  ]
+});
+```
+
+Update each bootstrap task to `in_progress` → `completed` as its corresponding step executes.
+
 ### Step 1.1: Parse Arguments and Resolve Plan ID
 
 Extract from user input:
@@ -624,6 +643,27 @@ if (/^\d+$/.test(arg)) {
     } else {
       console.log(`✓ Found plan: ${plan_id}`);
     }
+
+    // Validate plan integrity (runs regardless of whether plan was auto-created or pre-existing)
+    // Update "Validate plan" bootstrap task → in_progress
+    console.log(`\n→ Validating plan ${plan_id}...`);
+    const validationResult = await Task({
+      subagent_type: "fractary-faber:faber-plan-validator",
+      description: `Validate plan ${plan_id}`,
+      prompt: `Validate plan: --plan-id ${plan_id} --project-root ${projectRoot}`
+    });
+
+    const validationMatch = validationResult.match(/validation:\s*(pass|fail)/);
+    if (!validationMatch || validationMatch[1] === 'fail') {
+      const reasonMatch = validationResult.match(/reason:\s*(.+)/);
+      const reason = reasonMatch ? reasonMatch[1].trim() : 'unknown reason';
+      console.error(`\n❌ Plan validation failed: ${reason}`);
+      console.error(`\nTo recreate the plan manually:`);
+      console.error(`  /fractary-faber:workflow-plan --work-id ${work_id}`);
+      return;
+    }
+    console.log(`✓ Plan validated`);
+    // Update "Validate plan" bootstrap task → completed
 
   } catch (error) {
     console.error(`Error fetching issue #${work_id}: ${error.message}`);
@@ -1192,11 +1232,21 @@ if (phaseFilter || stepFilter) {
 
 ### Step 1.7: Initialize TodoWrite
 
+Append workflow step todos after the bootstrap todos (which are now all completed). This preserves bootstrap task visibility while adding step-level tracking.
+
 ```javascript
-// Flatten all steps from all phases into a single todo list
-// The plan already has flattened steps in workflow.phases[phaseName].steps
-// Include step ID in content for traceability
-const allSteps = [];
+// Bootstrap todos — all completed by this point
+const bootstrapTodos = [
+  { content: "Resolve plan ID (check/fetch/auto-plan)", status: "completed", activeForm: "Resolving plan ID" },
+  { content: "Validate plan", status: "completed", activeForm: "Validating plan" },
+  { content: "Load orchestration protocol", status: "completed", activeForm: "Loading orchestration protocol" },
+  { content: "Load plan and initialize state", status: "completed", activeForm: "Loading plan and initializing state" },
+  { content: "Track active workflow", status: "completed", activeForm: "Tracking active workflow" },
+  { content: "Initialize workflow steps", status: "in_progress", activeForm: "Initializing workflow steps" }
+];
+
+// Flatten all workflow steps from all enabled phases
+const stepTodos = [];
 for (const phaseName of Object.keys(workflow.phases)) {
   const phase = workflow.phases[phaseName];
   if (phase.enabled === false) continue;
@@ -1205,7 +1255,7 @@ for (const phaseName of Object.keys(workflow.phases)) {
   const phaseSteps = phase.steps || [];
 
   for (const step of phaseSteps) {
-    allSteps.push({
+    stepTodos.push({
       content: `[${phaseName}] ${step.name} (${step.id})`,
       status: "pending",
       activeForm: `Executing [${phaseName}] ${step.name}`
@@ -1213,10 +1263,11 @@ for (const phaseName of Object.keys(workflow.phases)) {
   }
 }
 
-await TodoWrite({ todos: allSteps });
+// Write combined list: completed bootstrap todos + pending workflow steps
+await TodoWrite({ todos: [...bootstrapTodos, ...stepTodos] });
 
 console.log("✓ Progress tracking initialized");
-console.log(`Total steps: ${allSteps.length}`);
+console.log(`Total steps: ${stepTodos.length}`);
 ```
 
 **Note:** The step ID is included in the `content` field (e.g., `"(core-fetch-issue)"`) because the TodoWrite tool does not support custom fields beyond `content`, `status`, and `activeForm`. This provides traceability to cross-reference todos with state file entries and plan definitions.
