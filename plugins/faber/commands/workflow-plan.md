@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-plan
 description: Create a FABER execution plan (plan only — use workflow-run to execute)
 argument-hint: '[<target>] [--work-id <id>] [--workflow <id>] [--autonomy <level>] [--force-new]'
-allowed-tools: Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), Task(fractary-faber:workflow-plan-reporter), TodoWrite, Skill
+allowed-tools: Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), Task(fractary-faber:workflow-plan-reporter), TodoWrite, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment)
 model: claude-sonnet-4-6
 ---
 
@@ -73,11 +73,23 @@ If `skipPlanner` is true, mark task "Create plan with faber-planner" → complet
 Otherwise, update task "Create plan with faber-planner" → in_progress.
 
 ```javascript
-const plannerResult = await Task({
-  subagent_type: "fractary-faber:faber-planner",
-  description: "Create FABER execution plan",
-  prompt: `Create execution plan: $ARGUMENTS`
-});
+let plannerResult;
+try {
+  plannerResult = await Task({
+    subagent_type: "fractary-faber:faber-planner",
+    description: "Create FABER execution plan",
+    prompt: `Create execution plan: $ARGUMENTS`
+  });
+} catch (error) {
+  // Infrastructure failure (socket error, timeout, UND_ERR_SOCKET, etc.)
+  // STOP — do not substitute tools, do not retry
+  console.error(`Task(faber-planner) failed with infrastructure error: ${error.message}`);
+  console.error("");
+  console.error("The planner agent may have completed before the connection dropped.");
+  console.error("Check .fractary/faber/runs/ for partial artifacts before retrying.");
+  console.error("Re-run with --force-new only if no valid plan.json exists.");
+  return;  // STOP — do not continue to other steps
+}
 
 const planIdMatch = plannerResult.match(/plan_id:\s*(\S+)/);
 if (!planIdMatch) {
@@ -149,6 +161,22 @@ await Task({
 ```
 
 Update task "Report planning summary" → completed.
+
+## On Task Failure
+
+If ANY `Task()` call in this protocol fails with an infrastructure error (socket error,
+timeout, API error, `UND_ERR_SOCKET`, or any non-domain error):
+
+1. **STOP immediately** — do not attempt any other tool call or retry
+2. **Report the exact error** to the user verbatim
+3. **Check for partial artifacts** — if `Task(faber-planner)` failed, the agent may have
+   completed before the connection dropped. Inform the user to check:
+   - `.fractary/faber/runs/{plan-id}/plan.json` (may exist on disk)
+   - Re-run with `--force-new` only if no valid plan exists
+4. **Wait for user instruction** — do not retry, do not substitute tools
+
+> **WSL2 Note:** `UND_ERR_SOCKET` means the TCP connection dropped (common on WSL2 for
+> operations >10min). The faber-planner agent likely completed — check for artifacts first.
 
 ---
 
