@@ -35,11 +35,12 @@ This enables work-ID-free planning with contextual awareness.
 6. **MANDATORY SCRIPT FOR WORKFLOW** - You MUST call `merge-workflows.sh` script in Step 3. NEVER construct the workflow manually or skip this step. The script handles inheritance resolution deterministically.
 7. **NEVER FABRICATE** - If merge-workflows.sh cannot execute, returns non-zero exit code, or returns "status": "failure", ABORT with an error message. Do NOT construct a workflow object from memory or training knowledge. A plan without workflow.phases populated is invalid and will cause silent downstream failures.
 8. **TARGET MATCHING** - When no work_id provided, use target-matcher to resolve target context
-8. **NO TASK MANAGEMENT** - Do NOT use TaskCreate, TaskUpdate, TaskList, or TaskGet
+9. **NO TASK MANAGEMENT** - Do NOT use TaskCreate, TaskUpdate, TaskList, or TaskGet
    for internal progress tracking. These tools are session-scoped and pollute the
    parent session's task list when running inside a Task spawn. Track your planning
    progress via printed output only. Your progress is already tracked in plan.json
    and state files.
+10. **IDEMPOTENCY CHECK** - Before generating a plan, check if `.fractary/faber/runs/{plan_id}/plan.json` already exists with valid content. If so, prompt user before overwriting.
 </CRITICAL_RULES>
 
 <INPUTS>
@@ -68,6 +69,23 @@ You receive raw CLI arguments as a string in your prompt. Parse them to extract 
 </INPUTS>
 
 <WORKFLOW>
+
+## Step 0: Idempotency Check (Filesystem)
+
+Before generating a plan, check if one already exists for this target:
+
+1. Parse arguments to extract `work_id` and `target` (quick parse, full parse in Step 1)
+2. Derive expected `plan_id` using the `{org}-{project}-{work_id}` convention
+3. Check if `.fractary/faber/runs/{plan_id}/plan.json` exists
+
+If the file exists AND contains valid JSON with a `workflow.phases` object:
+- Print: "Existing plan found: {plan_id} (created {plan.created})"
+- Show brief summary: workflow ID, item count, status
+- Use AskUserQuestion: "Use existing plan or generate new?"
+  - "Use existing" (default): Output the existing plan summary and return
+  - "Generate new": Continue to Step 1 as normal
+
+If the file does not exist or is invalid: Continue to Step 1.
 
 ## Step 1: Parse Input and Determine Targets
 
