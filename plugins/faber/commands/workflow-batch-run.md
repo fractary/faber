@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-batch-run
 description: Execute a planned FABER batch sequentially (serial mode, default) or in parallel (--parallel). Serial mode runs steps in the parent context with full task list visibility; parallel mode spawns sub-agents per item for concurrency with batch-level-only visibility.
 argument-hint: '--batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new] [--parallel]'
-allowed-tools: Read(.fractary/faber/**), Write, Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), Task(fractary-faber:workflow-plan-reporter), Skill, TaskCreate, TaskUpdate, AskUserQuestion
+allowed-tools: Read(.fractary/faber/**), Write, Task(fractary-faber:workflow-planner), Task(fractary-faber:workflow-plan-validator), Task(fractary-faber:workflow-plan-reporter), Skill, TaskCreate, TaskUpdate, AskUserQuestion
 model: claude-sonnet-4-6
 ---
 
@@ -136,7 +136,7 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
    - If null/empty:
      console.log(`→ No plan for #${item.work_id}. Auto-planning...`);
      const plannerResult = await Task({
-       subagent_type: "fractary-faber:faber-planner",
+       subagent_type: "fractary-faber:workflow-planner",
        description: `Plan workflow for #${item.work_id}`,
        prompt: `Create execution plan: --work-id ${item.work_id}`
      });
@@ -153,7 +153,7 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
 2. Validate plan before executing:
    ```javascript
    const validationResult = await Task({
-     subagent_type: "fractary-faber:faber-plan-validator",
+     subagent_type: "fractary-faber:workflow-plan-validator",
      description: `Validate plan ${plan_id}`,
      prompt: `Validate plan: --plan-id ${plan_id}`
    });

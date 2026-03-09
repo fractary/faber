@@ -271,7 +271,7 @@ ls plugins/faber/skills/*/SKILL.md | wc -l  # Should be > 0
 # Found N agents/skills in registry
 # Registry entries:
 #   - fractary-faber:workflow-inspector (agent, faber)
-#   - fractary-faber:faber-planner (agent, faber)
+#   - fractary-faber:workflow-planner (agent, faber)
 #   - fractary-spec:spec-create (skill, spec)
 #   ...
 ```
@@ -307,7 +307,7 @@ cat plugins/faber/config/workflows/default.json | grep -E "(Skill|Task|/)"
 # References:
 #   - fractary-work:issue-fetch
 #   - fractary-spec:spec-create
-#   - fractary-faber:faber-planner
+#   - fractary-faber:workflow-planner
 #   ...
 ```
 

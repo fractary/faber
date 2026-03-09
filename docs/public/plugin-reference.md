@@ -56,7 +56,7 @@ Create a FABER execution plan without executing it.
 | `--autonomy <level>` | Override autonomy level |
 | `--phase <phases>` | Plan only specified phases |
 
-**Delegates to:** `faber-planner` agent
+**Delegates to:** `workflow-planner` agent
 
 ### /fractary-faber:run-inspect
 
@@ -234,7 +234,7 @@ Agents are the autonomous workers that execute plugin commands. They are spawned
 **Used by:** `workflow-run` command (directly)
 **Tools:** Bash, Skill, Read, Write, Glob, Grep, AskUserQuestion
 
-### faber-planner
+### workflow-planner
 
 **Purpose:** Creates FABER execution plans without executing them. Phase 1 of the two-phase architecture (plan then execute).
 

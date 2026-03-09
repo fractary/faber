@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-batch-plan
 description: Plan a batch of FABER workflows for sequential unattended execution - creates batch directory and plans each item in a fresh context via Task spawning
 argument-hint: '<work-ids> [--name <batch-id>]'
-allowed-tools: Write, Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), Task(fractary-faber:workflow-plan-reporter)
+allowed-tools: Write, Task(fractary-faber:workflow-planner), Task(fractary-faber:workflow-plan-validator), Task(fractary-faber:workflow-plan-reporter)
 model: claude-sonnet-4-6
 ---
 
@@ -108,11 +108,11 @@ Print before spawning:
 Planning {count} items in parallel...
 ```
 
-Launch **all** `faber-planner` Tasks in a **single message** (parallel tool calls). Do not wait between spawns.
+Launch **all** `workflow-planner` Tasks in a **single message** (parallel tool calls). Do not wait between spawns.
 
 ```
-Task(subagent_type="fractary-faber:faber-planner", description="Plan workflow for #{work-id-1}", prompt="Create execution plan: {work-id-1}")
-Task(subagent_type="fractary-faber:faber-planner", description="Plan workflow for #{work-id-2}", prompt="Create execution plan: {work-id-2}")
+Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-1}", prompt="Create execution plan: {work-id-1}")
+Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-2}", prompt="Create execution plan: {work-id-2}")
 ... (all items in one message)
 ```
 
@@ -138,18 +138,18 @@ Update top-level `updated_at` once after all items are processed.
 
 > **Context isolation**: Each Task spawn creates a completely fresh Claude context — no carry-over of state, code, or context from prior items. This is the true `/clear` equivalent.
 
-> **Task isolation note**: The spawned `faber-planner` agent must NOT use TaskCreate,
+> **Task isolation note**: The spawned `workflow-planner` agent must NOT use TaskCreate,
 > TaskUpdate, TaskList, or TaskGet for internal tracking (enforced by CRITICAL_RULES
-> rule 8 in faber-planner). These tools are session-scoped — tasks created inside a
+> rule 8 in workflow-planner). These tools are session-scoped — tasks created inside a
 > Task spawn appear in the parent session. If tasks appear in the session list after
-> planning completes, report this as a bug in the faber-planner agent.
+> planning completes, report this as a bug in the workflow-planner agent.
 
 ### Step 7c: Validate All Planned Items in Parallel
 
 For each item where `status === "planned"` (plan_id is known), spawn a validation Task in parallel (all in a single message):
 
 ```
-Task(subagent_type="fractary-faber:faber-plan-validator",
+Task(subagent_type="fractary-faber:workflow-plan-validator",
      description="Validate plan for #{work-id}",
      prompt="Validate plan: --plan-id {plan_id}")
 ```

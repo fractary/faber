@@ -1,5 +1,5 @@
 ---
-name: fractary-faber:faber-workflow-verifier
+name: workflow-verifier
 description: Verify workflow completion integrity by running the completion verification script
 argument-hint: '--run-id <run-id>'
 allowed-tools: Bash(bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh *)
