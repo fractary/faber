@@ -335,57 +335,16 @@ Use the @skill-fractary-faber:archive-workflow skill:
 
 This handles both specs and logs in one operation.
 
-### 9. Delete Branch
+### 9. Update Session
 
-**If configured**, delete the feature branch:
-
-```bash
-DELETE_BRANCH=$(echo "$CONFIG_JSON" | jq -r '.workflow.release.delete_branch // true')
-
-if [ "$DELETE_BRANCH" = "true" ] && [ "$MERGE_STATUS" = "merged" ]; then
-    echo "🗑️  Deleting feature branch..."
-
-    Use the @agent-fractary-repo:repo-manager agent with the following request:
-    {
-      "operation": "delete-branch",
-      "parameters": {
-        "branch": "{branch_name}"
-      }
-    }
-
-    echo "✅ Feature branch deleted"
-fi
-```
-
-### 10. Close/Update Work Item
-
-Use work-manager to close the work item:
-
-```markdown
-Use the @agent-fractary-work:work-manager agent with the following request:
-{
-  "operation": "close-issue",
-  "parameters": {
-    "issue_number": "{source_id}",
-    "comment": "✅ **Completed via FABER Workflow**\n\nPull Request: {pr_url}\nWork ID: `{work_id}`\n\nAll phases completed successfully."
-  }
-}
-```
-
-```bash
-CLOSED_WORK=true
-echo "✅ Work item closed: #$SOURCE_ID"
-```
-
-### 11. Update Session
+**Note:** Branch deletion and issue closing are handled by the post-workflow finalization phase (Phase 4 in workflow-run), which runs after all workflow phases complete. This ensures all lingering state files and memory are committed before the issue is closed.
 
 ```bash
 RELEASE_DATA=$(cat <<EOF
 {
   "pr_url": "$PR_URL",
   "pr_number": $PR_NUMBER,
-  "merge_status": "$MERGE_STATUS",
-  "closed_work": $CLOSED_WORK
+  "merge_status": "$MERGE_STATUS"
 }
 EOF
 )
@@ -393,19 +352,18 @@ EOF
 "$CORE_SKILL/state-update-phase.sh" "release" "completed" "$RELEASE_DATA"
 ```
 
-### 12. Post Release Complete
+### 10. Post Release Complete
 
 ```bash
 "$CORE_SKILL/status-card-post.sh" "$WORK_ID" "$SOURCE_ID" "release" "✅ **Release Phase Complete**
 
 **Pull Request**: [#$PR_NUMBER]($PR_URL)
 **Merge Status**: $MERGE_STATUS
-**Work Item**: Closed
 
-🎉 FABER workflow completed successfully!" '["view-pr"]'
+Release phase done. Post-workflow finalization will handle cleanup, adherence report, and issue closure." '["view-pr"]'
 ```
 
-### 13. Return Results
+### 11. Return Results
 
 ```bash
 cat <<EOF
@@ -414,8 +372,7 @@ cat <<EOF
   "phase": "release",
   "pr_url": "$PR_URL",
   "pr_number": $PR_NUMBER,
-  "merge_status": "$MERGE_STATUS",
-  "closed_work": $CLOSED_WORK
+  "merge_status": "$MERGE_STATUS"
 }
 EOF
 ```
@@ -424,9 +381,9 @@ EOF
 - ✅ Pull request created successfully
 - ✅ PR links to work item
 - ✅ PR includes spec reference
-- ✅ Work item closed/updated
 - ✅ Session updated with release results
 - ✅ Release complete notification posted
+- ✅ Branch deletion, issue closing, and final state commit handled by post-workflow finalization (Phase 4)
 
 ## Autonomy Levels
 

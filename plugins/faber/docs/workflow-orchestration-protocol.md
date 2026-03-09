@@ -1423,6 +1423,59 @@ async function handleWorkflowFailure(runId, step, result) {
 
 ---
 
+## Post-Workflow Finalization
+
+After the workflow is marked "completed" (or "failed"), a **post-workflow finalization** phase runs. This phase operates **outside the state/event tracking system** to solve the chicken-and-egg problem where the last tracked step's state update creates uncommitted files.
+
+### Purpose
+
+1. **Plan adherence verification** — Compare planned steps (from `plan.json`) against actually executed steps (from `state.json`) and post a report to the GitHub issue
+2. **Custom hooks** — Execute any `post_workflow` hooks defined in the workflow config
+3. **Final cleanup commit** — Commit all lingering files (`.fractary/` state/events, `.claude/` memory) to the feature branch
+4. **PR merge & branch cleanup** — Merge the finalization commit and delete the feature branch
+5. **Issue closure** — Close the GitHub issue as the very last action (idempotent — skips if already closed)
+
+### Key Design Rules
+
+- **State-untracked**: No state file updates, no event emissions. The workflow status is already determined.
+- **TodoWrite-tracked**: All steps are registered in TodoWrite for agent accountability and user visibility.
+- **Non-fatal**: Every action is wrapped in try/catch. Failures are warned but do not change the workflow outcome.
+- **Feature branch**: The finalization commit goes to the existing feature branch. The `release-pr-merge-prod` step preserves the branch with `--no-delete-branch`.
+- **No `Closes #`**: The finalization PR body must NOT contain `Closes #` to prevent premature issue auto-close.
+- **Idempotent issue close**: Checks issue state before closing. If already closed by PR auto-link, logs and skips.
+
+### Sequence (Success Path)
+
+```
+4.1: Plan Adherence Report      — verify-plan-adherence.sh → post to issue
+4.2: post_workflow Hooks         — execute any configured hooks
+4.3: Final Cleanup Commit & Push — git add .fractary/ .claude/ → commit → push
+4.4: Final PR Merge              — create/merge PR → delete branch
+4.5: Close Issue                 — gh issue close (idempotent)
+```
+
+### Sequence (Failure Path)
+
+On workflow failure, only a minimal cleanup runs:
+
+```
+4.1: Cleanup Commit & Push — git add .fractary/ .claude/ → commit → push
+```
+
+No adherence report, no issue close, no branch deletion.
+
+### Plan Adherence Script
+
+The `verify-plan-adherence.sh` script (at `plugins/faber/skills/run-manager/scripts/`) compares `plan.json` and `state.json` to classify each step as:
+
+- **Executed**: Present in both plan and state (adherent)
+- **Skipped**: In plan but not executed (potential deviation)
+- **Unplanned**: Executed but not in plan (agent went off-rails)
+
+Output formats: `--format json` (structured data) or `--format markdown` (GitHub-friendly report for issue comments).
+
+---
+
 ## TodoWrite Integration
 
 Use TodoWrite to show workflow progress to the user in real-time.
