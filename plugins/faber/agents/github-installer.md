@@ -3,6 +3,7 @@ name: github-installer
 description: Interactive agent that installs FABER GitHub Actions workflows in a consumer project - generates faber.yml and provides GitHub setup checklist
 model: claude-sonnet-4-6
 tools: Read, Write, Glob, Bash, Grep, AskUserQuestion
+color: orange
 memory: project
 ---
 

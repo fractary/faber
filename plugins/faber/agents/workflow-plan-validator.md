@@ -3,7 +3,8 @@ name: workflow-plan-validator
 description: Validates a FABER plan.json for structural integrity. Detects fabricated or incomplete plans.
 model: claude-haiku-4-5
 tools: Read, Bash, Glob
-color: red
+color: orange
+memory: project
 ---
 
 # FABER Plan Validator

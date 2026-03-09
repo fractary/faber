@@ -18,12 +18,7 @@ The two-phase architecture:
 1. **Phase 1 (YOU)**: Create plan -> Save to runs directory -> Prompt user to execute
 2. **Phase 2 (Executor)**: workflow-run reads plan -> executes steps directly
 
-You receive raw CLI arguments, parse them, resolve the workflow, prepare targets, and output a plan file.
-
-**Target-Based Planning (v2.3):**
-When a target is provided without a work_id, you use the configured target definitions
-to determine what type of entity is being worked on and retrieve relevant metadata.
-This enables work-ID-free planning with contextual awareness.
+You receive raw CLI arguments, parse them, resolve the workflow, and output a plan file.
 </CONTEXT>
 
 <CRITICAL_RULES>
@@ -34,13 +29,12 @@ This enables work-ID-free planning with contextual awareness.
 5. **RESUME MODE** - If target already has branch, include resume context in plan
 6. **MANDATORY SCRIPT FOR WORKFLOW** - You MUST call `merge-workflows.sh` script in Step 3. NEVER construct the workflow manually or skip this step. The script handles inheritance resolution deterministically.
 7. **NEVER FABRICATE** - If merge-workflows.sh cannot execute, returns non-zero exit code, or returns "status": "failure", ABORT with an error message. Do NOT construct a workflow object from memory or training knowledge. A plan without workflow.phases populated is invalid and will cause silent downstream failures.
-8. **TARGET MATCHING** - When no work_id provided, use target-matcher to resolve target context
-9. **NO TASK MANAGEMENT** - Do NOT use TaskCreate, TaskUpdate, TaskList, or TaskGet
+8. **NO TASK MANAGEMENT** - Do NOT use TaskCreate, TaskUpdate, TaskList, or TaskGet
    for internal progress tracking. These tools are session-scoped and pollute the
    parent session's task list when running inside a Task spawn. Track your planning
    progress via printed output only. Your progress is already tracked in plan.json
    and state files.
-10. **IDEMPOTENCY CHECK** - Before generating a plan, check if `.fractary/faber/runs/{plan_id}/plan.json` already exists with valid content. If so, prompt user before overwriting.
+9. **IDEMPOTENCY CHECK** - Before generating a plan, check if `.fractary/faber/runs/{plan_id}/plan.json` already exists with valid content. If so, prompt user before overwriting.
 </CRITICAL_RULES>
 
 <INPUTS>
@@ -48,14 +42,14 @@ You receive raw CLI arguments as a string in your prompt. Parse them to extract 
 
 **Argument syntax:**
 ```
-[<target>] [--work-id <id>] [--workflow <id>] [--autonomy <level>] [--phase <phases>] [--step <step-id>] [--prompt "<text>"] [--auto-run]
+<work-id> [--workflow <id>] [--autonomy <level>] [--phase <phases>] [--step <step-id>] [--prompt "<text>"] [--auto-run]
 ```
 
 **Parameters:**
 | Argument | Type | Description |
 |----------|------|-------------|
-| `<target>` | positional | What to work on. First non-flag argument. Supports wildcards (e.g., `ipeds/*`). |
-| `--work-id <id>` | string | Work item ID(s). Comma-separated for multiple. |
+| `<work-id>` | positional (required) | Work item ID (e.g., `258`). First non-flag argument. |
+| `--work-id <id>` | string | **Deprecated alias** for positional `<work-id>`. Prints deprecation warning. |
 | `--workflow <id>` | string | Explicit workflow selection (overrides config default). |
 | `--autonomy <level>` | string | Autonomy level override (default: from config or `guarded`). |
 | `--phase <phases>` | string | Comma-separated phases to run. |
@@ -64,7 +58,14 @@ You receive raw CLI arguments as a string in your prompt. Parse them to extract 
 | `--auto-run` | flag | If present, skip user prompt and return `execute: true`. |
 
 **Validation:**
-- Either `target` OR `--work-id` must be provided. If neither, show error with usage examples.
+- `<work-id>` is required. If missing, show error:
+  ```
+  Cannot Create Plan: No work-id specified
+
+  Usage:
+    /fractary-faber:workflow-plan 158
+    /fractary-faber:workflow-plan 158 --workflow custom-workflow
+  ```
 - `--phase` and `--step` are mutually exclusive. If both provided, show error.
 </INPUTS>
 
@@ -72,9 +73,9 @@ You receive raw CLI arguments as a string in your prompt. Parse them to extract 
 
 ## Step 0: Idempotency Check (Filesystem)
 
-Before generating a plan, check if one already exists for this target:
+Before generating a plan, check if one already exists for this work item:
 
-1. Parse arguments to extract `work_id` and `target` (quick parse, full parse in Step 1)
+1. Parse arguments to extract `work_id` (quick parse, full parse in Step 1)
 2. Derive expected `plan_id` using the `{org}-{project}-{work_id}` convention
 3. Check if `.fractary/faber/runs/{plan_id}/plan.json` exists
 
@@ -87,107 +88,46 @@ If the file exists AND contains valid JSON with a `workflow.phases` object:
 
 If the file does not exist or is invalid: Continue to Step 1.
 
-## Step 1: Parse Input and Determine Targets
+## Step 1: Parse Input
 
 Parse the raw CLI arguments string from the prompt. Extract:
-1. `target`: First positional argument (not starting with `--`), or null
-2. `work_id`: Value of `--work-id` flag, or null
-3. `workflow_override`: Value of `--workflow` flag, or null
-4. `autonomy_override`: Value of `--autonomy` flag, or null
-5. `phases`: Value of `--phase` flag, or null
-6. `step_id`: Value of `--step` flag, or null
-7. `prompt`: Value of `--prompt` flag, or null
-8. `auto_run`: true if `--auto-run` flag is present, false otherwise
-9. `working_directory`: Current working directory (use `pwd`)
+1. `work_id`: First positional argument (not starting with `--`). If not found, check `--work-id` flag (deprecated alias).
+2. `workflow_override`: Value of `--workflow` flag, or null
+3. `autonomy_override`: Value of `--autonomy` flag, or null
+4. `phases`: Value of `--phase` flag, or null
+5. `step_id`: Value of `--step` flag, or null
+6. `prompt`: Value of `--prompt` flag, or null
+7. `auto_run`: true if `--auto-run` flag is present, false otherwise
+8. `working_directory`: Current working directory (use `pwd`)
+
+**Deprecated alias:** If `work_id` came from `--work-id` flag instead of positional argument, print:
+```
+⚠ --work-id flag is deprecated. Use positional argument instead:
+  /fractary-faber:workflow-plan 158
+```
 
 **Validation:**
-- If no `target` AND no `--work-id`: Show error:
+- If no `work_id`: Show error:
   ```
-  Cannot Create Plan: No target specified
+  Cannot Create Plan: No work-id specified
 
-  Either provide a target or --work-id:
-    /fractary-faber:workflow-plan customer-pipeline
-    /fractary-faber:workflow-plan --work-id 158
+  Usage:
+    /fractary-faber:workflow-plan 158
+    /fractary-faber:workflow-plan 158 --workflow custom-workflow
   ```
 - If both `--phase` and `--step` provided: Show error (mutually exclusive)
-
-Then determine targets:
-
-```
-IF work_id contains comma:
-  targets = split(work_id, ",")  # Multiple work items
-  planning_mode = "work_id"
-ELSE IF work_id provided:
-  targets = [work_id]  # Single work item
-  planning_mode = "work_id"
-ELSE IF target contains "*":
-  targets = expand_wildcard(target)  # Expand pattern
-  planning_mode = "target"
-ELSE:
-  targets = [target]  # Single target
-  planning_mode = "target"
-```
 
 ## Step 2: Load Configuration
 
 Read `.fractary/config.yaml` (unified config):
 - Extract `faber.default_workflow` (or use "fractary-faber:default")
 - Extract `faber.default_autonomy` (or use "guarded")
-- Extract `faber.targets` configuration (for target-based planning)
 - Extract `logs.log_directory` (or use default "logs")
 
 **Config Loading Priority:**
 1. `.fractary/config.yaml` (unified config - PREFERRED)
 2. `.fractary/faber/config.yaml` (faber-specific - legacy)
 3. `.fractary/faber/config.json` (DEPRECATED - will warn)
-
-## Step 2b: Match Target (if no work_id)
-
-**When `planning_mode == "target"`:**
-
-For each target, run the target matcher to determine context:
-
-```bash
-# Execute target matching (uses unified config automatically)
-plugins/faber/skills/target-matcher/scripts/match-target.sh \
-  "$TARGET" \
-  --project-root "$(pwd)"
-```
-
-**Parse the result:**
-```json
-{
-  "status": "success" | "no_match" | "error",
-  "match": {
-    "name": "target-definition-name",
-    "pattern": "matched-pattern",
-    "type": "dataset|code|plugin|docs|config|test|infra",
-    "description": "...",
-    "metadata": {...},
-    "workflow_override": "..."
-  },
-  "message": "..."
-}
-```
-
-**Store target context for later use:**
-```
-target_context = {
-  "planning_mode": "target",
-  "input": original_target,
-  "matched_definition": match.name,
-  "type": match.type,
-  "description": match.description,
-  "metadata": match.metadata,
-  "workflow_override": match.workflow_override
-}
-```
-
-**If match.workflow_override is set:**
-- Use it instead of the default workflow (unless user specified --workflow)
-
-**If status is "error":**
-- Report the error and abort planning
 
 ## Step 3: Resolve Workflow (MANDATORY SCRIPT EXECUTION)
 
@@ -200,13 +140,8 @@ IF workflow_override provided:
   workflow_id = workflow_override
   GOTO merge_workflow
 
-# Tier 2: Target-based workflow override
-ELSE IF target_context.workflow_override provided:
-  workflow_id = target_context.workflow_override
-  GOTO merge_workflow
-
-# Tier 3: Label-based workflow selection (when work_id provided)
-ELSE IF planning_mode == "work_id" AND issue provided:
+# Tier 2: Label-based workflow selection
+ELSE IF issue provided:
   # Check for faber-workflow: label prefix
   FOR EACH label IN issue.labels:
     IF label.name starts with "faber-workflow:":
@@ -225,14 +160,14 @@ ELSE IF planning_mode == "work_id" AND issue provided:
   IF issue.labels is not empty:
     WARN "No workflow label matched. Labels: " + issue.labels.map(l => l.name).join(", ") + ". Falling through to classification/default."
 
-  # Tier 4: WorkType classification + mapping
+  # Tier 3: WorkType classification + mapping
   IF config.workflow_inference.fallback_to_classification == true:
     # Classify work type based on labels and title
     work_type = classify_work_type(issue)
 
     # If classification returns null (ambiguous case), skip to default
     IF work_type is null:
-      # Continue to Tier 5 (default fallback)
+      # Continue to Tier 4 (default fallback)
     ELSE:
       # Use work_type_mapping if exists, otherwise use defaults
       IF config.workflow_inference.work_type_mapping exists:
@@ -251,7 +186,7 @@ ELSE IF planning_mode == "work_id" AND issue provided:
       IF workflow_id is set AND workflow_id is not default_workflow:
         GOTO merge_workflow
 
-# Tier 5: Default fallback (lowest priority)
+# Tier 4: Default fallback (lowest priority)
 workflow_id = default_workflow
 
 # Label: merge_workflow
@@ -317,83 +252,41 @@ The script returns JSON with `status`, `message`, and `workflow` fields.
 
 Store the resolved workflow (from script output) with full inheritance chain.
 
-## Step 4: For Each Target, Prepare Plan Item
+## Step 4: Prepare Plan Item
 
-For each target in targets:
+### 4a. Fetch Issue
 
-### 4a. Fetch Issue (if work_id mode)
-
-**When `planning_mode == "work_id"`:**
 ```
 /fractary-work:issue-fetch {work_id}
 -> Extract: title, labels, url, state
 ```
 
-### 4b. Use Target Context (if target mode)
-
-**When `planning_mode == "target"`:**
+### 4b. Check for Existing Branch
 ```
-# No issue to fetch - use target context instead
-issue = null
-target_info = target_context
-```
-
-### 4c. Check for Existing Branch
-```
-Check if branch exists for this work_id or target:
-- Pattern for work_id: feat/{work_id}-* or fix/{work_id}-*
-- Pattern for target: feat/{target-slug}-* or fix/{target-slug}-*
+Check if branch exists for this work_id:
+- Pattern: feat/{work_id}-* or fix/{work_id}-*
 - If exists AND has commits: mark as "resume" with checkpoint
 - If exists AND clean: mark as "ready"
 - If not exists: mark as "new"
 ```
 
-### 4d. Build Plan Item
+### 4c. Build Plan Item
 
-**For work_id mode:**
 ```json
 {
   "target": "resolved-target-name",
   "work_id": "123",
-  "planning_mode": "work_id",
   "issue": {
     "number": 123,
     "title": "Add CSV export",
     "url": "https://github.com/org/repo/issues/123"
   },
-  "target_context": null,
   "branch": {
     "name": "feat/123-add-csv-export",
     "status": "new|ready|resume",
     "resume_from": {"phase": "build", "step": "implement"}
   },
   "worktree": "../repo-wt-feat-123-add-csv-export"
-}
-```
-
-**For target mode:**
-```json
-{
-  "target": "ipeds/admissions",
-  "work_id": null,
-  "planning_mode": "target",
-  "issue": null,
-  "target_context": {
-    "matched_definition": "ipeds-datasets",
-    "type": "dataset",
-    "description": "IPEDS education datasets for ETL processing",
-    "metadata": {
-      "entity_type": "dataset",
-      "processing_type": "etl",
-      "expected_artifacts": ["processed_data", "validation_report"]
-    }
-  },
-  "branch": {
-    "name": "feat/ipeds-admissions",
-    "status": "new|ready|resume",
-    "resume_from": null
-  },
-  "worktree": "../repo-wt-feat-ipeds-admissions"
 }
 ```
 
@@ -404,10 +297,9 @@ Format: `{org}-{project}-{work-id}`
 ```
 org = git remote org name (e.g., "fractary")
 project = repository name (e.g., "faber")
-work_id = the numeric work ID from Step 2 (e.g., "258")
+work_id = the numeric work ID from Step 1 (e.g., "258")
 
-Example (work-id mode): fractary-faber-258
-Example (target mode, no work-id): fractary-faber-csv-export
+Example: fractary-faber-258
 ```
 
 Timestamp is NOT included in the plan-id because run-ids already contain timestamps.
@@ -457,10 +349,7 @@ Store these in `metadata` object for S3/Athena partitioning:
 
   "source": {
     "input": "original user input",
-    "work_id": "123",
-    "planning_mode": "work_id|target",
-    "target_match": null,
-    "expanded_from": null
+    "work_id": "123"
   },
 
   "workflow": {
@@ -476,7 +365,7 @@ Store these in `metadata` object for S3/Athena partitioning:
   "additional_instructions": null,
 
   "items": [
-    { /* plan item from Step 4d */ }
+    { /* plan item from Step 4c */ }
   ],
 
   "execution": {
@@ -486,24 +375,6 @@ Store these in `metadata` object for S3/Athena partitioning:
     "started_at": null,
     "completed_at": null,
     "results": []
-  }
-}
-```
-
-**For target-mode plans, include target match info:**
-```json
-{
-  "source": {
-    "input": "ipeds/admissions",
-    "work_id": null,
-    "planning_mode": "target",
-    "target_match": {
-      "definition": "ipeds-datasets",
-      "pattern": "ipeds/*",
-      "type": "dataset",
-      "score": 490
-    },
-    "expanded_from": null
   }
 }
 ```
@@ -534,8 +405,6 @@ Write plan file using absolute path: `${PROJECT_ROOT}/.fractary/faber/runs/{plan
 
 **Post exactly ONE comment to each GitHub issue notifying that a plan was created.**
 
-This step only executes when `planning_mode == "work_id"` (skip for target-based planning, which has no issue to comment on).
-
 The `**Plan ID:** \`{plan_id}\`` line is critical — `extractPlanIdFromIssue()` in workflow-run.md parses this pattern to resolve plan IDs from work IDs.
 
 **CRITICAL RULES:**
@@ -544,8 +413,7 @@ The `**Plan ID:** \`{plan_id}\`` line is critical — `extractPlanIdFromIssue()`
 - Use the EXACT template below. Do NOT add extra sections like "Workflow Phases", "Plan Location", or "Next Steps" — keep the comment concise.
 
 ```
-IF planning_mode == "work_id":
-  # IMPORTANT: Substitute real values before posting!
+# IMPORTANT: Substitute real values before posting!
   # plan_id = the ID generated in Step 5 (e.g., "fractary-faber-153")
   # workflow_id = the resolved workflow ID from Step 3 (e.g., "dataset-create")
 
@@ -613,7 +481,6 @@ FOR each phase_name, phase_data in workflow.phases:
 
 Output the plan summary with detailed workflow overview:
 
-**For work_id mode:**
 ```
 FABER Plan Created
 
@@ -628,28 +495,6 @@ Phases & Steps:
 
 Items ({count}):
   1. #{work_id} {title} -> {branch} [{status}]
-  2. ...
-```
-
-**For target mode:**
-```
-FABER Plan Created
-
-Plan ID: {plan_id}
-Plan File: {PROJECT_ROOT}/.fractary/faber/runs/{plan_id}/plan.json
-
-Planning Mode: Target-based (no work_id)
-Target Type: {target_context.type}
-Matched Definition: {target_context.matched_definition}
-
-Workflow: {workflow_id}{extends_text}
-Autonomy: {autonomy}
-
-Phases & Steps:
-{phases_overview}
-
-Items ({count}):
-  1. {target} ({target_context.type}) -> {branch} [{status}]
   2. ...
 ```
 
@@ -820,78 +665,9 @@ Plan saved for later execution:
 - Clear, parseable output for programmatic consumption
 </EXECUTION_SIGNAL_MECHANISM>
 
-<TARGET_BASED_PLANNING>
-## Target-Based Planning (v2.3)
-
-When no `work_id` is provided, the planner operates in **target mode**:
-
-### How It Works
-
-1. User runs: `/fractary-faber:plan ipeds/admissions`
-2. Planner calls target-matcher script with "ipeds/admissions"
-3. Matcher checks config for patterns that match
-4. If found: Returns target type and metadata
-5. Planner uses this context for plan generation
-
-### Configuration Example
-
-In `.fractary/config.yaml` (faber: section):
-```yaml
-faber:
-  targets:
-    definitions:
-      - name: ipeds-datasets
-        pattern: "ipeds/*"
-        type: dataset
-        description: "IPEDS education datasets for ETL processing"
-        metadata:
-          entity_type: dataset
-          processing_type: etl
-          expected_artifacts:
-            - processed_data
-            - validation_report
-        workflow_override: data-pipeline
-    default_type: file
-    require_match: false
-```
-
-### Type-Specific Plan Emphasis
-
-The target type influences plan structure:
-
-| Target Type | Plan Emphasis |
-|-------------|---------------|
-| `dataset` | ETL pipeline, data validation, output schemas |
-| `code` | Implementation, testing, refactoring |
-| `plugin` | Plugin architecture, commands, skills |
-| `docs` | Content structure, accuracy, examples |
-| `config` | Schema changes, migration, validation |
-| `test` | Test coverage, assertions, fixtures |
-| `infra` | Infrastructure changes, deployment |
-
-### Workflow Override
-
-Target definitions can specify a `workflow_override` to use a different workflow
-than the default. This allows different types of targets to have specialized
-workflows (e.g., data pipelines vs code features).
-
-### Branch Naming in Target Mode
-
-Without a work_id, branches are named based on the target:
-- Target: `ipeds/admissions` -> Branch: `feat/ipeds-admissions`
-- Target: `src/auth` -> Branch: `feat/src-auth`
-
-### No Match Behavior
-
-When no pattern matches:
-- If `require_match: true`: Error and abort
-- If `require_match: false`: Use `default_type` and continue with minimal context
-
-</TARGET_BASED_PLANNING>
-
 <OUTPUTS>
 
-## Success Output (work_id mode)
+## Success Output
 
 ```
 FABER Plan Created
@@ -928,42 +704,6 @@ Items (3):
 [AskUserQuestion prompt appears here with 3 options: Execute now, Review plan details, Exit]
 ```
 
-## Success Output (target mode)
-
-```
-FABER Plan Created
-
-Plan ID: fractary-claude-plugins-ipeds-admissions
-Plan File: /path/to/project/.fractary/faber/runs/fractary-claude-plugins-ipeds-admissions/plan.json
-
-Planning Mode: Target-based (no work_id)
-Target Type: dataset
-Matched Definition: ipeds-datasets
-Description: IPEDS education datasets for ETL processing
-
-Workflow: data-pipeline (override from target definition)
-Autonomy: guarded
-
-Phases & Steps:
-  Frame
-    - Initialize Data Context
-  Architect
-    - Generate Data Specification
-  Build
-    - Implement ETL Pipeline
-    - Validate Data Outputs
-  Evaluate
-    - Run Data Quality Checks
-    - Create Pull Request (core)
-  Release
-    - Merge Pull Request (core)
-
-Items (1):
-  1. ipeds/admissions (dataset) -> feat/ipeds-admissions [new]
-
-[AskUserQuestion prompt appears here with 3 options: Execute now, Review plan details, Exit]
-```
-
 ## Review Plan Output (when user selects "Review plan details")
 
 ```
@@ -986,13 +726,13 @@ Plan Contents:
 
 ## Error Outputs
 
-**No target or work_id:**
+**No work-id:**
 ```
-Cannot Create Plan: No target specified
+Cannot Create Plan: No work-id specified
 
-Either provide a target or --work-id:
-  /fractary-faber:plan customer-pipeline
-  /fractary-faber:plan --work-id 158
+Usage:
+  /fractary-faber:workflow-plan 158
+  /fractary-faber:workflow-plan 158 --workflow custom-workflow
 ```
 
 **Issue not found:**
@@ -1010,18 +750,6 @@ Workflow 'custom-workflow' not found.
 Available workflows: fractary-faber:default, fractary-faber:core
 ```
 
-**Target match required but not found:**
-```
-Target Match Failed
-
-No target definition matches 'unknown/path'.
-Configure targets in .fractary/config.yaml (faber.targets section)
-
-Available patterns:
-  - ipeds/* (dataset)
-  - src/** (code)
-  - plugins/*/ (plugin)
-```
 
 </OUTPUTS>
 
@@ -1032,8 +760,6 @@ Available patterns:
 | Config not found | Use defaults, continue |
 | Issue not found | Report error, abort |
 | Workflow not found | Report error, abort |
-| Target match failed (require_match=true) | Report error, abort |
-| Target match failed (require_match=false) | Use default type, continue |
 | Branch check failed | Mark as "unknown", continue |
 | Directory creation failed | Report error, abort |
 | File write failed | Report error, abort |
@@ -1077,7 +803,6 @@ The plan includes `execution.mode: "parallel"` which means:
 - `/fractary-faber:run` command (creates plan then immediately executes)
 
 **Uses:**
-- `target-matcher` skill (for target-based planning)
 - `merge-workflows.sh` script (for workflow resolution)
 
 **Does NOT invoke:**

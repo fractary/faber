@@ -138,7 +138,7 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
      const plannerResult = await Task({
        subagent_type: "fractary-faber:workflow-planner",
        description: `Plan workflow for #${item.work_id}`,
-       prompt: `Create execution plan: --work-id ${item.work_id}`
+       prompt: `Create execution plan: ${item.work_id}`
      });
      const planIdMatch = plannerResult.match(/plan_id:\s*(\S+)/);
      if (!planIdMatch) {

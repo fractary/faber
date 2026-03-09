@@ -3,7 +3,8 @@ name: workflow-plan-reporter
 description: Reads a FABER plan.json and outputs a formatted planning summary report.
 model: claude-haiku-4-5
 tools: Read, Bash, Glob
-color: blue
+color: orange
+memory: project
 ---
 
 # FABER Workflow Plan Reporter

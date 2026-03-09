@@ -64,7 +64,8 @@ interface PlanResult {
 export function createPlanCommand(): Command {
   return new Command('workflow-plan')
     .description('Plan workflows for GitHub issues')
-    .option('--work-id <ids>', 'Comma-separated list of work item IDs (e.g., "258,259,260")')
+    .argument('[work-id]', 'Work item ID (e.g., "258")')
+    .option('--work-id <ids>', 'Comma-separated list of work item IDs (deprecated: use positional argument)')
     .option('--work-label <labels>', 'Comma-separated label filters (e.g., "workflow:etl,status:approved")')
     .option('--workflow <name>', 'Override workflow (default: read from issue "workflow:*" label)')
     .option('--no-worktree', 'Skip worktree creation')
@@ -75,8 +76,12 @@ export function createPlanCommand(): Command {
     .option('--limit <n>', 'Maximum number of issues to plan', parseInt)
     .option('--order-by <strategy>', 'Order issues by: priority|created|updated (default: none)', 'none')
     .option('--order-direction <dir>', 'Order direction: asc|desc (default: desc)', 'desc')
-    .action(async (options: PlanOptions) => {
+    .action(async (workId: string | undefined, options: PlanOptions) => {
       try {
+        // Merge positional argument into options (positional takes precedence)
+        if (workId && !options.workId) {
+          options.workId = workId;
+        }
         await executePlanCommand(options);
       } catch (error) {
         handlePlanError(error, options);

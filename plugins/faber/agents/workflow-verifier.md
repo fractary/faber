@@ -4,6 +4,8 @@ description: Verify workflow completion integrity by running the completion veri
 argument-hint: '--run-id <run-id>'
 allowed-tools: Bash(bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh *)
 model: claude-haiku-4-5-20251001
+color: orange
+memory: project
 ---
 
 # FABER Workflow Verifier
