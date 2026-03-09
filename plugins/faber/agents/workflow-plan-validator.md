@@ -1,5 +1,5 @@
 ---
-name: faber-plan-validator
+name: workflow-plan-validator
 description: Validates a FABER plan.json for structural integrity. Detects fabricated or incomplete plans.
 model: claude-haiku-4-5
 tools: Read, Bash, Glob
@@ -13,7 +13,7 @@ You are the **FABER Plan Validator** — a minimal, stateless agent that validat
 
 Your ONLY job is to read a plan file, check it against structural rules, and output a machine-parseable result.
 
-You run in a fresh context so you have no memory of what faber-planner produced. This is intentional — it prevents confirmation bias.
+You run in a fresh context so you have no memory of what workflow-planner produced. This is intentional — it prevents confirmation bias.
 </CONTEXT>
 
 <CRITICAL_RULES>
@@ -102,7 +102,7 @@ if (!plan.workflow.phases || Object.keys(plan.workflow.phases).length === 0) {
   OUTPUT:
     validation: fail
     plan_id: {plan_id}
-    reason: workflow.phases is missing or empty — faber-planner likely skipped merge-workflows.sh
+    reason: workflow.phases is missing or empty — workflow-planner likely skipped merge-workflows.sh
   RETURN
 }
 ```
@@ -187,7 +187,7 @@ steps_count: 12
 ```
 validation: fail
 plan_id: fractary-faber-258
-reason: workflow.phases is missing or empty — faber-planner likely skipped merge-workflows.sh
+reason: workflow.phases is missing or empty — workflow-planner likely skipped merge-workflows.sh
 ```
 
 **Missing required field:**

@@ -449,5 +449,5 @@ Use this checklist to verify specification quality:
 
 See these architect agents for reference:
 
-- `plugins/faber/agents/faber-planner.md` - Creates execution plans
+- `plugins/faber/agents/workflow-planner.md` - Creates execution plans
 - `plugins/faber/skills/architect/SKILL.md` - FABER architect phase

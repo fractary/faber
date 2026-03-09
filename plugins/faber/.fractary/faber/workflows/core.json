@@ -93,10 +93,10 @@
           "prompt": "/fractary-repo:pr-review {pr_id} --wait-for-ci --auto-fix"
         }, 
         {
-          "id": "evaluate-pr-merge-test",
-          "name": "Merge PR to Test Branch",
-          "description": "Merge the pull request to the test branch.",
-          "prompt": "/fractary-repo:pr-merge {pr_id} --to-branch test",
+          "id": "evaluate-forward-to-test",
+          "name": "Forward Feature Branch to Test",
+          "description": "Merge the feature branch into the test branch for test deployment. The PR remains open targeting main.",
+          "prompt": "/fractary-repo:branch-forward --target test --create-from main --push --json",
           "changelog": {
             "event_type": "CODE_MERGED",
             "environment": "test"
@@ -128,13 +128,13 @@
           "id": "release-create-pr",
           "name": "Create Pull Request for Release",
           "description": "Create PR for release to production environment.",
-          "prompt": "/fractary-repo:commit-push-pr --work-id {work_id} --to-branch main"
+          "prompt": "/fractary-repo:commit-push-pr --work-id {work_id}"
         },
         {
           "id": "release-pr-merge-prod",
           "name": "Merge PR to Main Branch",
           "description": "Merge the pull request to the main branch.",
-          "prompt": "/fractary-repo:pr-merge {pr_id} --to-branch main --no-delete-branch",
+          "prompt": "/fractary-repo:pr-merge {pr_id} --strategy squash --delete-branch",
           "changelog": {
             "event_type": "CODE_MERGED",
             "environment": "prod"

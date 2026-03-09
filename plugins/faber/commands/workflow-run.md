@@ -2,7 +2,7 @@
 name: fractary-faber:workflow-run
 description: Execute a FABER plan created by faber plan CLI command
 argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new] [--resume-batch] [--workflow <id>] [--autonomy <level>]'
-allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task(fractary-faber:faber-planner), Task(fractary-faber:faber-plan-validator), Task(fractary-faber:workflow-plan-reporter), Task(fractary-faber:faber-workflow-verifier)
+allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task(fractary-faber:workflow-planner), Task(fractary-faber:workflow-plan-validator), Task(fractary-faber:workflow-plan-reporter), Task(fractary-faber:workflow-verifier)
 model: claude-sonnet-4-6
 ---
 
@@ -57,7 +57,7 @@ entire system. An honest pause is always the right answer.
 **Completion Verification Gate:** Before setting `status: "completed"`, you MUST invoke:
 ```javascript
 const verificationResult = await Task({
-  subagent_type: "fractary-faber:faber-workflow-verifier",
+  subagent_type: "fractary-faber:workflow-verifier",
   description: `Verify workflow completion for ${runId}`,
   prompt: `--run-id ${runId}`
 });
@@ -620,9 +620,9 @@ if (/^\d+$/.test(arg)) {
       if (workflow_override) plannerPrompt += ` --workflow ${workflow_override}`;
       if (autonomy_override) plannerPrompt += ` --autonomy ${autonomy_override}`;
 
-      // Spawn faber-planner to create the plan
+      // Spawn workflow-planner to create the plan
       const plannerResult = await Task({
-        subagent_type: "fractary-faber:faber-planner",
+        subagent_type: "fractary-faber:workflow-planner",
         description: `Plan workflow for #${work_id}`,
         prompt: plannerPrompt
       });
@@ -644,7 +644,7 @@ if (/^\d+$/.test(arg)) {
     // Update "Validate plan" bootstrap task → in_progress
     console.log(`\n→ Validating plan ${plan_id}...`);
     const validationResult = await Task({
-      subagent_type: "fractary-faber:faber-plan-validator",
+      subagent_type: "fractary-faber:workflow-plan-validator",
       description: `Validate plan ${plan_id}`,
       prompt: `Validate plan: --plan-id ${plan_id}`
     });
@@ -1378,7 +1378,7 @@ END FOR (phases)
 ```javascript
 // Run completion verification before marking as completed
 const verificationResult = await Task({
-  subagent_type: "fractary-faber:faber-workflow-verifier",
+  subagent_type: "fractary-faber:workflow-verifier",
   description: `Verify workflow completion for ${runId}`,
   prompt: `--run-id ${runId}`
 });
@@ -1947,7 +1947,7 @@ State is persisted to `.fractary/faber/runs/{plan_id}/state-{run_suffix}.json`:
 **Directory Structure:**
 ```
 .fractary/faber/runs/{plan_id}/
-├── plan.json                    # Execution plan (created by faber-planner)
+├── plan.json                    # Execution plan (created by workflow-planner)
 ├── state-2026-02-04T19-56-42Z.json  # First run state
 ├── state-2026-02-04T20-30-15Z.json  # Second run state (if re-run)
 └── ...

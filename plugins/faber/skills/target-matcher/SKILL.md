@@ -175,7 +175,7 @@ A warning is logged about the ambiguity.
 <INTEGRATION>
 
 ## Used By
-- `faber-planner` agent - To resolve target context before creating plans
+- `workflow-planner` agent - To resolve target context before creating plans
 
 ## Configuration
 Targets are configured in `.fractary/config.yaml` (faber.targets section):

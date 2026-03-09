@@ -1,5 +1,5 @@
 ---
-name: faber-planner
+name: workflow-planner
 description: Creates FABER execution plans without executing them. Phase 1 of two-phase architecture.
 model: claude-opus-4-6
 tools: Skill, SlashCommand, Read, Write, Bash, Glob, Grep, AskUserQuestion
@@ -441,7 +441,7 @@ Store these in `metadata` object for S3/Athena partitioning:
 {
   "id": "fractary-claude-plugins-csv-export",
   "created": "2025-12-08T16:00:00Z",
-  "created_by": "faber-planner",
+  "created_by": "workflow-planner",
 
   "metadata": {
     "org": "fractary",
@@ -758,7 +758,7 @@ This agent is complete when:
 <EXECUTION_SIGNAL_MECHANISM>
 ## How Execution Signal Works
 
-When the faber-planner completes, it communicates the user's decision to the calling command
+When the workflow-planner completes, it communicates the user's decision to the calling command
 via its final response text. The calling command (e.g., `/fractary-faber:run`) parses this response.
 
 **Signal Format:**
@@ -977,7 +977,7 @@ Plan Contents:
 {
   "id": "fractary-claude-plugins-csv-export",
   "created": "2025-12-08T16:00:00Z",
-  "created_by": "faber-planner",
+  "created_by": "workflow-planner",
   ...full plan JSON...
 }
 

@@ -41,7 +41,7 @@ documentation:
     - Analyzing trade-offs between different approaches
     - Breaking down complex problems into implementable components
   examples:
-    - faber-planner
+    - workflow-planner
     - feature-architect
     - api-designer
 
