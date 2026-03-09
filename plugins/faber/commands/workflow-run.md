@@ -616,7 +616,7 @@ if (/^\d+$/.test(arg)) {
       console.log(`→ No existing plan for #${work_id}. Auto-planning...`);
 
       // Build planner prompt with optional passthrough flags
-      let plannerPrompt = `Create execution plan: --work-id ${work_id}`;
+      let plannerPrompt = `Create execution plan: ${work_id}`;
       if (workflow_override) plannerPrompt += ` --workflow ${workflow_override}`;
       if (autonomy_override) plannerPrompt += ` --autonomy ${autonomy_override}`;
 
@@ -655,7 +655,7 @@ if (/^\d+$/.test(arg)) {
       const reason = reasonMatch ? reasonMatch[1].trim() : 'unknown reason';
       console.error(`\n❌ Plan validation failed: ${reason}`);
       console.error(`\nTo recreate the plan manually:`);
-      console.error(`  /fractary-faber:workflow-plan --work-id ${work_id}`);
+      console.error(`  /fractary-faber:workflow-plan ${work_id}`);
       return;
     }
     console.log(`✓ Plan validated`);

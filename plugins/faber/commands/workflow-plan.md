@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:workflow-plan
 description: Create a FABER execution plan (plan only — use workflow-run to execute)
-argument-hint: '[<target>] [--work-id <id>] [--workflow <id>] [--autonomy <level>] [--force-new]'
+argument-hint: '<work-id> [--workflow <id>] [--autonomy <level>] [--force-new]'
 allowed-tools: Task(fractary-faber:workflow-planner), Task(fractary-faber:workflow-plan-validator), Task(fractary-faber:workflow-plan-reporter), TodoWrite, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment)
 model: claude-sonnet-4-6
 ---
@@ -30,8 +30,14 @@ await TodoWrite({
 Update task "Check for existing plan" → in_progress.
 
 Parse `$ARGUMENTS` to extract:
-- `work_id`: value of `--work-id` flag (or null)
+- `work_id`: first positional argument (not starting with `--`), or value of `--work-id` flag (deprecated alias). Required.
 - `force_new`: true if `--force-new` flag is present
+
+If `--work-id` is used instead of positional, print deprecation warning:
+```
+⚠ --work-id flag is deprecated. Use positional argument instead:
+  /fractary-faber:workflow-plan 158
+```
 
 ```javascript
 let plan_id = null;
@@ -136,7 +142,7 @@ if (!validationMatch || validationMatch[1] === 'fail') {
   console.error(`\nPlan ID: ${plan_id}`);
   console.error(`\nTo recreate the plan:`);
   if (work_id) {
-    console.error(`  /fractary-faber:workflow-plan --work-id ${work_id} --force-new`);
+    console.error(`  /fractary-faber:workflow-plan ${work_id} --force-new`);
   } else {
     console.error(`  Re-run with the same arguments`);
   }
