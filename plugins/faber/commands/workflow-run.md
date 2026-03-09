@@ -1432,6 +1432,240 @@ console.log(`Phases completed: ${state.phases.filter(p => p.status === "complete
 console.log(`\nState file: ${statePath}`);
 ```
 
+## Phase 4: Post-Workflow Finalization (state-untracked, TodoWrite-tracked)
+
+After Phase 3 marks the workflow as "completed", run post-workflow finalization. This phase is **not tracked in the state file** (avoiding the chicken-and-egg problem where state updates after the last commit create lingering uncommitted files). Instead, steps are tracked via **TodoWrite** for agent accountability and user visibility.
+
+**Every action in Phase 4 is wrapped in try/catch. Failures are non-fatal — the workflow is already "completed".**
+
+### Register Phase 4 TodoWrite Items
+
+```javascript
+// Register finalization steps in TodoWrite for visibility
+TodoWrite([
+  { id: "finalize-adherence",    content: "Plan Adherence Report — verify planned vs executed steps",  status: "in_progress" },
+  { id: "finalize-hooks",        content: "Execute post_workflow hooks",                               status: "pending" },
+  { id: "finalize-commit-push",  content: "Final cleanup commit & push (state files, memory)",         status: "pending" },
+  { id: "finalize-pr-merge",     content: "Final PR merge & branch cleanup",                           status: "pending" },
+  { id: "finalize-close-issue",  content: "Close GitHub issue",                                        status: "pending" }
+]);
+```
+
+### Step 4.1: Plan Adherence Report [finalize-adherence]
+
+Compare the plan's defined steps against what was actually executed and report to the GitHub issue.
+
+```javascript
+try {
+  // Run adherence verification script
+  const adherenceResult = await Bash({
+    command: `bash plugins/faber/skills/run-manager/scripts/verify-plan-adherence.sh --run-id "${runId}" --base-path ".fractary/faber/runs" --format markdown`,
+    description: "Verify plan adherence"
+  });
+
+  const adherenceReport = adherenceResult.stdout;
+
+  // Post the adherence report as a comment on the GitHub issue
+  if (source_id) {
+    await Skill({
+      skill: "fractary-work:issue-comment",
+      args: `${source_id} --context "Post the following plan adherence report as a comment:\n${adherenceReport}"`
+    });
+  }
+
+  // Mark TodoWrite: completed
+  TodoWrite([{ id: "finalize-adherence", status: "completed" }]);
+} catch (e) {
+  console.warn("⚠️  Plan adherence report failed (non-fatal):", e.message);
+  TodoWrite([{ id: "finalize-adherence", status: "completed", content: "Plan Adherence Report — failed (non-fatal): " + e.message }]);
+}
+```
+
+### Step 4.2: Execute post_workflow Hooks [finalize-hooks]
+
+```javascript
+try {
+  // Execute any post_workflow hooks defined in the workflow config
+  // Uses the faber-hooks skill with the new post_workflow boundary
+  await Skill({
+    skill: "fractary-faber:faber-hooks",
+    args: JSON.stringify({
+      operation: "execute-all",
+      boundary: "post_workflow",
+      context_json: { work_id, run_id: runId, source_id },
+      continue_on_error: true
+    })
+  });
+
+  TodoWrite([{ id: "finalize-hooks", status: "completed" }]);
+} catch (e) {
+  console.warn("⚠️  post_workflow hooks failed (non-fatal):", e.message);
+  TodoWrite([{ id: "finalize-hooks", status: "completed", content: "Execute post_workflow hooks — skipped/failed: " + e.message }]);
+}
+```
+
+### Step 4.3: Final Cleanup Commit & Push [finalize-commit-push]
+
+Commit all lingering files (state, events, memory) to the feature branch.
+
+```javascript
+let hasCleanupChanges = false;
+try {
+  // Stage all lingering files from .fractary/ and .claude/ directories
+  await Bash({ command: `git add .fractary/ 2>/dev/null || true`, description: "Stage .fractary/ files" });
+  await Bash({ command: `git add .claude/ 2>/dev/null || true`, description: "Stage .claude/ files" });
+
+  // Check if there are staged changes
+  const diffResult = await Bash({ command: `git diff --cached --quiet 2>/dev/null; echo $?`, description: "Check for staged changes" });
+  hasCleanupChanges = diffResult.stdout.trim() !== "0";
+
+  if (hasCleanupChanges) {
+    // Get the current branch name
+    const branchResult = await Bash({ command: `git branch --show-current`, description: "Get current branch" });
+    const currentBranch = branchResult.stdout.trim();
+
+    await Bash({
+      command: `git commit -m "chore: post-workflow finalization [${work_id || runId}]"`,
+      description: "Commit lingering state/memory files"
+    });
+
+    await Bash({
+      command: `git push origin ${currentBranch}`,
+      description: "Push finalization commit"
+    });
+
+    console.log("✓ Lingering files committed and pushed");
+    TodoWrite([{ id: "finalize-commit-push", status: "completed" }]);
+  } else {
+    console.log("✓ No lingering files to commit");
+    TodoWrite([{ id: "finalize-commit-push", status: "completed", content: "Final cleanup commit & push — no changes to commit" }]);
+  }
+} catch (e) {
+  console.warn("⚠️  Final cleanup commit failed (non-fatal):", e.message);
+  TodoWrite([{ id: "finalize-commit-push", status: "completed", content: "Final cleanup commit & push — failed: " + e.message }]);
+}
+```
+
+### Step 4.4: Final PR Merge & Branch Cleanup [finalize-pr-merge]
+
+If there are changes to merge, ensure they get merged to main and clean up the branch.
+
+```javascript
+try {
+  if (hasCleanupChanges) {
+    const branchResult = await Bash({ command: `git branch --show-current`, description: "Get current branch" });
+    const currentBranch = branchResult.stdout.trim();
+
+    // Check if there's an open PR for this branch
+    const prListResult = await Bash({
+      command: `gh pr list --head "${currentBranch}" --json number,state --jq '.[0]' 2>/dev/null || echo '{}'`,
+      description: "Check for existing PR"
+    });
+
+    const prInfo = prListResult.stdout.trim();
+
+    if (prInfo && prInfo !== '{}' && prInfo !== '') {
+      const pr = JSON.parse(prInfo);
+      if (pr.state === "OPEN") {
+        // Open PR exists — merge it with branch deletion
+        await Bash({
+          command: `gh pr merge ${pr.number} --squash --delete-branch`,
+          description: "Merge existing PR with cleanup commit"
+        });
+        console.log(`✓ Merged existing PR #${pr.number} with finalization commit`);
+      } else {
+        // PR is closed/merged — create new one for the cleanup commit
+        await Bash({
+          command: `gh pr create --base main --title "chore: post-workflow finalization [${work_id || runId}]" --body "Automated post-workflow cleanup: state files, memory, events.\n\nRun ID: ${runId}"`,
+          description: "Create finalization PR"
+        });
+        const newPrResult = await Bash({
+          command: `gh pr list --head "${currentBranch}" --json number --jq '.[0].number'`,
+          description: "Get new PR number"
+        });
+        const newPrNumber = newPrResult.stdout.trim();
+        if (newPrNumber) {
+          await Bash({
+            command: `gh pr merge ${newPrNumber} --squash --delete-branch`,
+            description: "Merge finalization PR"
+          });
+          console.log(`✓ Created and merged finalization PR #${newPrNumber}`);
+        }
+      }
+    } else {
+      // No PR exists — create one for the cleanup
+      await Bash({
+        command: `gh pr create --base main --title "chore: post-workflow finalization [${work_id || runId}]" --body "Automated post-workflow cleanup: state files, memory, events.\n\nRun ID: ${runId}"`,
+        description: "Create finalization PR"
+      });
+      const newPrResult = await Bash({
+        command: `gh pr list --head "${currentBranch}" --json number --jq '.[0].number'`,
+        description: "Get new PR number"
+      });
+      const newPrNumber = newPrResult.stdout.trim();
+      if (newPrNumber) {
+        await Bash({
+          command: `gh pr merge ${newPrNumber} --squash --delete-branch`,
+          description: "Merge finalization PR"
+        });
+        console.log(`✓ Created and merged finalization PR #${newPrNumber}`);
+      }
+    }
+
+    TodoWrite([{ id: "finalize-pr-merge", status: "completed" }]);
+  } else {
+    console.log("✓ No cleanup PR needed (no changes)");
+    TodoWrite([{ id: "finalize-pr-merge", status: "completed", content: "Final PR merge — skipped (no changes)" }]);
+  }
+} catch (e) {
+  console.warn("⚠️  Final PR merge failed (non-fatal):", e.message);
+  TodoWrite([{ id: "finalize-pr-merge", status: "completed", content: "Final PR merge — failed: " + e.message }]);
+}
+```
+
+### Step 4.5: Close Issue [finalize-close-issue]
+
+Close the GitHub issue as the very last action. This is idempotent — if the issue was already closed by PR auto-link (`Closes #`), it will be detected and skipped.
+
+```javascript
+try {
+  if (source_id) {
+    // Check current issue state
+    const issueStateResult = await Bash({
+      command: `gh issue view ${source_id} --json state --jq '.state' 2>/dev/null || echo 'UNKNOWN'`,
+      description: "Check issue state"
+    });
+    const issueState = issueStateResult.stdout.trim();
+
+    if (issueState === "OPEN") {
+      await Bash({
+        command: `gh issue close ${source_id} --comment "✅ **Workflow completed successfully**\n\nRun ID: \`${runId}\`\nAll phases completed. Plan adherence report posted above.\n\n🤖 Closed by FABER post-workflow finalization"`,
+        description: "Close issue"
+      });
+      console.log(`✓ Issue #${source_id} closed`);
+    } else {
+      console.log(`✓ Issue #${source_id} already closed (state: ${issueState})`);
+    }
+
+    TodoWrite([{ id: "finalize-close-issue", status: "completed" }]);
+  } else {
+    console.log("✓ No issue to close (no source_id)");
+    TodoWrite([{ id: "finalize-close-issue", status: "completed", content: "Close issue — skipped (no source_id)" }]);
+  }
+} catch (e) {
+  console.warn("⚠️  Issue close failed (non-fatal):", e.message);
+  TodoWrite([{ id: "finalize-close-issue", status: "completed", content: "Close issue — failed: " + e.message }]);
+}
+```
+
+### Phase 4 Complete
+
+```javascript
+console.log("\n═══════════════════════════════════════════════════════════");
+console.log("  POST-WORKFLOW FINALIZATION COMPLETE");
+console.log("═══════════════════════════════════════════════════════════");
+```
+
 ### On Workflow Failure:
 
 ```javascript
@@ -1471,6 +1705,42 @@ console.error(`Error: ${errorMessage}`);
 console.error(`\nTo resume after fixing:`);
 console.error(`  /fractary-faber:workflow-run ${work_id} --resume ${runId}`);
 console.error(`\nState file: ${statePath}`);
+```
+
+### Failure Path: Reduced Post-Workflow Finalization
+
+Even on failure, commit lingering state and event files so they aren't lost. This is a minimal cleanup — no adherence report, no issue close, no branch deletion.
+
+```javascript
+// Register minimal finalization in TodoWrite
+TodoWrite([
+  { id: "finalize-commit-push", content: "Cleanup commit of state/event files (failure path)", status: "in_progress" }
+]);
+
+try {
+  await Bash({ command: `git add .fractary/ 2>/dev/null || true`, description: "Stage .fractary/ files" });
+  await Bash({ command: `git add .claude/ 2>/dev/null || true`, description: "Stage .claude/ files" });
+
+  const diffResult = await Bash({ command: `git diff --cached --quiet 2>/dev/null; echo $?`, description: "Check for staged changes" });
+  if (diffResult.stdout.trim() !== "0") {
+    await Bash({
+      command: `git commit -m "chore: post-workflow cleanup (failed) [${work_id || runId}]"`,
+      description: "Commit state files after failure"
+    });
+
+    const branchResult = await Bash({ command: `git branch --show-current`, description: "Get current branch" });
+    await Bash({
+      command: `git push origin ${branchResult.stdout.trim()}`,
+      description: "Push failure cleanup commit"
+    });
+    console.log("✓ State files committed after workflow failure");
+  }
+
+  TodoWrite([{ id: "finalize-commit-push", status: "completed" }]);
+} catch (e) {
+  console.warn("⚠️  Failure cleanup commit failed (non-fatal):", e.message);
+  TodoWrite([{ id: "finalize-commit-push", status: "completed", content: "Cleanup commit — failed: " + e.message }]);
+}
 ```
 
 </WORKFLOW>

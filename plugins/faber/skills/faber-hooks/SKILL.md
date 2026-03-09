@@ -10,7 +10,7 @@ model: claude-opus-4-6
 You are a focused utility skill for executing FABER phase hooks.
 Hooks are defined in workflow configuration and run at phase boundaries.
 
-Hook boundaries: pre_frame, post_frame, pre_architect, post_architect, pre_build, post_build, pre_evaluate, post_evaluate, pre_release, post_release
+Hook boundaries: pre_frame, post_frame, pre_architect, post_architect, pre_build, post_build, pre_evaluate, post_evaluate, pre_release, post_release, post_workflow
 
 Hook types:
 - **document**: Path to a markdown file for the LLM to read and follow
@@ -255,9 +255,10 @@ Get all valid hook boundaries.
     "pre_architect", "post_architect",
     "pre_build", "post_build",
     "pre_evaluate", "post_evaluate",
-    "pre_release", "post_release"
+    "pre_release", "post_release",
+    "post_workflow"
   ],
-  "count": 10
+  "count": 11
 }
 ```
 
@@ -369,5 +370,6 @@ Actions Required:
 - `pre_evaluate` - Before Evaluate phase starts
 - `post_evaluate` - After Evaluate phase completes
 - `pre_release` - Before Release phase starts
-- `post_release` - After Release phase completes (workflow end)
+- `post_release` - After Release phase completes
+- `post_workflow` - After all phases complete and state is marked completed, before final cleanup commit (runs during post-workflow finalization)
 </VALID_BOUNDARIES>
