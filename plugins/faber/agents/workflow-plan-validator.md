@@ -133,7 +133,7 @@ if (!plan.workflow.inheritance_chain || plan.workflow.inheritance_chain.length =
 }
 ```
 
-**Check 5: items array has at least one entry with non-null branch.name**
+**Check 5: items array is non-empty; non-new items must have branch.name**
 ```javascript
 if (!plan.items || plan.items.length === 0) {
   OUTPUT:
@@ -143,14 +143,22 @@ if (!plan.items || plan.items.length === 0) {
   RETURN
 }
 
-const itemsWithBranch = plan.items.filter(item => item.branch && item.branch.name);
-if (itemsWithBranch.length === 0) {
-  OUTPUT:
-    validation: fail
-    plan_id: {plan_id}
-    reason: no items have a branch.name — plan items are incomplete
-  RETURN
+// Items with status "new" have no branch yet — the branch is created during execution.
+// Only enforce branch.name for items that are NOT new (i.e., a run has started but branch is missing).
+const itemsRequiringBranch = plan.items.filter(
+  item => item.branch && item.branch.status !== 'new'
+);
+if (itemsRequiringBranch.length > 0) {
+  const itemsWithBranch = itemsRequiringBranch.filter(item => item.branch.name);
+  if (itemsWithBranch.length === 0) {
+    OUTPUT:
+      validation: fail
+      plan_id: {plan_id}
+      reason: non-new items have no branch.name — plan items are incomplete
+    RETURN
+  }
 }
+// If all items are status "new", branch.name being null is expected — continue to pass
 ```
 
 ## Step 4: Output Result
