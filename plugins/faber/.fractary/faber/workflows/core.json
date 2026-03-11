@@ -29,6 +29,12 @@
       "steps": [],
       "post_steps": [
         {
+          "id": "architect-session-clear",
+          "name": "Clear Context",
+          "description": "Start architect phase with fresh context.",
+          "prompt": "/clear"
+        },
+        {
           "id": "frame-commit-and-push",
           "name": "Commit and Push Changes",
           "description": "Ensure all frame changes are committed and pushed (which will also create a branch to push to).",
