@@ -1,6 +1,6 @@
 {
   "name": "fractary-faber",
-  "version": "3.8.53",
+  "version": "3.8.54",
   "description": "Universal SDLC workflow framework with unified orchestrator pattern (plan + run)",
   "commands": "./commands/",
   "agents": [
@@ -15,7 +15,8 @@
     "./agents/workflow-engineer.md",
     "./agents/workflow-debugger.md",
     "./agents/workflow-inspector.md",
-    "./agents/session-manager.md",
+    "./agents/session-loader.md",
+    "./agents/session-saver.md",
     "./agents/run-inspect.md"
   ],
   "skills": "./skills/",
