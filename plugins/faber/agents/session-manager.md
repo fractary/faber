@@ -59,6 +59,7 @@ Reloads critical artifacts into context based on workflow configuration.
 | `trigger` | string | No | What triggered this reload: `session_start`, `manual`, `phase_start`. Default: `manual` |
 | `artifacts` | string | No | Comma-separated list of specific artifact IDs to load. If omitted, loads all configured artifacts |
 | `force` | boolean | No | Force reload even if recently loaded. Default: false |
+| `context` | string | No | Phase-specific hint describing what artifacts and information are most critical for the current phase. Used to prioritize artifact loading and provide focused context summary. |
 | `dry_run` | boolean | No | Show what would be loaded without actually loading. Default: false |
 
 #### Algorithm
@@ -216,6 +217,15 @@ if workflow.critical_artifacts.phase_specific[current_phase]:
 if artifacts_parameter:
   requested_ids = artifacts_parameter.split(',')
   artifacts_to_load = filter(artifacts_to_load, id in requested_ids)
+
+# Context-aware prioritization
+if context_parameter:
+  LOG "Context hint: ${context}"
+  # The context hint informs the agent about what to prioritize when loading.
+  # It does NOT change WHICH artifacts are loaded — all configured artifacts still load.
+  # Instead, it guides the agent to:
+  #   1. Surface the hinted artifacts first in output
+  #   2. Include a brief oriented summary after loading
 ```
 
 **Step 5: Check if Reload Needed**
@@ -313,6 +323,9 @@ Session tracking:
 Context metadata:
   Last reload: 2026-01-04T14:30:00Z
   Total reloads: 3
+
+Phase context hint: {context}
+  Relevant loaded artifacts highlighted above.
 ```
 
 **Output format when `--work-id` used (issue context only, no workflow):**

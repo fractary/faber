@@ -16,6 +16,7 @@ export function createSessionLoadCommand(): Command {
     .description('Load active workflow session context')
     .option('--work-id <id>', 'Work item ID to find session for')
     .option('--run-id <id>', 'Specific run ID to load')
+    .option('--context <hint>', 'Phase-specific context hint for artifact prioritization')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
