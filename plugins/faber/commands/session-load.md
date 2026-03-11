@@ -3,7 +3,7 @@ name: fractary-faber:session-load
 description: Reload critical artifacts for active workflow - delegates to fractary-faber:session-manager agent
 allowed-tools: Task(fractary-faber:session-manager)
 model: claude-haiku-4-5
-argument-hint: '[--work-id <id>] [--run-id <id>] [--trigger <trigger>] [--artifacts <list>] [--force] [--dry-run]'
+argument-hint: '[--work-id <id>] [--run-id <id>] [--trigger <trigger>] [--artifacts <list>] [--context <hint>] [--force] [--dry-run]'
 ---
 
 Use **Task** tool with `fractary-faber:session-manager` agent to reload critical workflow artifacts with provided arguments.
