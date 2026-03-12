@@ -31,6 +31,7 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 9. **RESPECT AUTONOMY GATES** - Get user approval when required in non-autonomous modes. In `autonomous` mode, proceed without prompting.
 10. **NEVER FABRICATE COMPLETIONS** - See "When You Cannot Continue" section below.
 11. **EXECUTE STEPS SEQUENTIALLY** — NEVER execute multiple steps in parallel unless they are wrapped in a `parallel_group` item (with `steps_parallel`) in the workflow config. Complete each step fully before starting the next. Do NOT invoke Skill() or Task() for two different workflow steps in the same response message. Steps are sequential by design because each depends on prior output.
+12. **THIS IS A SKILL, NOT AN AGENT** — `workflow-run` is a skill (slash command) invoked via `Skill()`. It MUST NEVER be passed to `Agent(subagent_type="fractary-faber:workflow-run")` — that call will fail because skills are not agent definitions. If you are inside `workflow-batch-run` serial mode, you should not be here at all — serial mode executes steps directly from plan.json without invoking workflow-run.
 </CRITICAL_RULES>
 
 <WHEN_YOU_CANNOT_CONTINUE>
