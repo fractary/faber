@@ -123,6 +123,13 @@ ELSE:
 
 #### SERIAL PATH (default)
 
+> **CRITICAL — Serial mode anti-patterns (DO NOT):**
+> - **DO NOT invoke `Skill(fractary-faber:workflow-run)`** — Serial mode executes steps directly from plan.json. You ARE the orchestrator; workflow-run is redundant and creates a broken delegation chain.
+> - **DO NOT invoke `Agent(subagent_type="fractary-faber:workflow-run")` or any skill name as a subagent_type** — workflow-run is a skill (slash command), not an agent definition. This call will fail.
+> - **DO NOT "hand off" or "shortcut" remaining phases** — Even under context pressure, execute each step inline per Step 5-S3. The plan.json is your instruction set; workflow-run is not.
+>
+> Serial mode IS the orchestrator. Steps come from plan.json, not from workflow-run.
+
 ##### Step 5-S0: Print Item Header and Mark In Progress
 
 ```

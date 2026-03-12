@@ -20,6 +20,7 @@ Your ONLY job is to read the plan file and output the structured summary report.
 2. **NO QUESTIONS** — Do NOT use AskUserQuestion; you run as a subagent
 3. **NO TASK MANAGEMENT** — Do NOT use TaskCreate, TaskUpdate, TaskList, or TaskGet
 4. **ALWAYS OUTPUT** — Even if fields are missing, output what you can
+5. **NEVER COUNT MANUALLY** — All numeric values (step counts, phase counts, totals) MUST come from `jq` output via Bash. LLMs cannot reliably count array elements in large JSON. Your job is formatting, not arithmetic.
 </CRITICAL_RULES>
 
 <INPUTS>
@@ -59,33 +60,48 @@ CATCH:
   RETURN
 ```
 
-## Step 3: Extract Summary Fields
+## Step 3: Extract Summary Fields via Bash/jq
 
-```javascript
-const workflowId = plan.workflow?.id ?? 'unknown';
-const inheritanceChain = plan.workflow?.inheritance_chain ?? [];
-const phases = plan.workflow?.phases ?? {};
-const items = plan.items ?? [];
+> **CRITICAL**: Step and phase counts MUST be extracted using `jq` via Bash — NEVER count them yourself by reading JSON. LLMs cannot reliably count array elements in large JSON files. The jq output is the authoritative source for all numeric values in the report.
 
-const phasesCount = Object.keys(phases).length;
-const stepsCount = Object.values(phases)
-  .reduce((sum, phase) => sum + (phase.steps ? phase.steps.length : 0), 0);
+Run the following Bash commands to extract all summary fields mechanically:
 
-// Get item details from first item
-const firstItem = items[0] ?? {};
-const itemLabel = firstItem.label ?? firstItem.id ?? 'unknown';
-const itemUrl = firstItem.url ?? firstItem.issue_url ?? null;
-const itemDisplay = itemUrl ? `${itemLabel} — Issue ${itemUrl}` : itemLabel;
-
-const branchName = firstItem.branch?.name ?? 'unknown';
-const branchIsNew = firstItem.branch?.is_new ?? false;
-const branchDisplay = branchIsNew ? `${branchName} (new)` : branchName;
-
-const autonomy = plan.execution?.autonomy ?? 'unknown';
-
-// Phase order for display
-const phaseOrder = ['frame', 'architect', 'build', 'evaluate', 'release'];
+```bash
+# 1. Extract scalar fields
+Bash({ command: `jq -r '
+  .workflow.id // "unknown",
+  (.workflow.inheritance_chain // [] | join(",")),
+  (.items[0].label // .items[0].id // "unknown"),
+  (.items[0].url // .items[0].issue_url // ""),
+  (.items[0].branch.name // "unknown"),
+  (.items[0].branch.is_new // false),
+  (.execution.autonomy // "unknown")
+' "${planPath}"` })
 ```
+
+Parse the 7 output lines into: `workflowId`, `inheritanceChain` (comma-separated), `itemLabel`, `itemUrl`, `branchName`, `branchIsNew`, `autonomy`.
+
+```bash
+# 2. Extract per-phase step counts and step names (AUTHORITATIVE COUNTS)
+Bash({ command: `jq -r '
+  .workflow.phases | to_entries[] |
+  "PHASE:\(.key):\(.value.steps | length)",
+  (.value.steps[].name | "  STEP:\(.)")
+' "${planPath}"` })
+```
+
+Parse output lines:
+- Lines starting with `PHASE:` give `phaseName:stepCount`
+- Lines starting with `  STEP:` give step names for the preceding phase
+
+```bash
+# 3. Extract total step count (AUTHORITATIVE TOTAL)
+Bash({ command: `jq '[.workflow.phases[].steps | length] | add' "${planPath}"` })
+```
+
+This single number is `stepsCount`. The number of `PHASE:` lines from command #2 is `phasesCount`.
+
+Use these jq-extracted values as the ONLY source for all counts in the report. Do NOT re-count or adjust them.
 
 ## Step 4: Output Summary Report
 
@@ -115,7 +131,7 @@ Inherited workflows:
   ...
 ```
 
-Output steps grouped by phase. For each phase (in order: frame → architect → build → evaluate → release), if the phase exists and has steps, output:
+Output steps grouped by phase, using the `PHASE:` and `STEP:` lines from jq command #2 as the ONLY data source. For each phase (in order: frame → architect → build → evaluate → release), if it appeared in the jq output, output:
 
 ```
 Steps:
