@@ -1,8 +1,8 @@
 ---
 name: fractary-faber:workflow-batch-plan
-description: Plan a batch of FABER workflows for sequential unattended execution - creates batch directory and plans each item in a fresh context via Task spawning
+description: Plan a batch of FABER workflows for sequential unattended execution - creates batch directory and plans each item deterministically via CLI
 argument-hint: '<work-ids> [--name <batch-id>]'
-allowed-tools: Write, Task(fractary-faber:workflow-planner), Task(fractary-faber:workflow-plan-validator), Task(fractary-faber:workflow-plan-reporter)
+allowed-tools: Write, Bash, Read, Task(fractary-faber:workflow-plan-reporter)
 model: claude-sonnet-4-6
 ---
 
@@ -10,7 +10,7 @@ model: claude-sonnet-4-6
 
 ## Overview
 
-Creates a named batch of workflow plans for sequential unattended execution. Each item is planned in a fresh Claude context via Task spawning (true context isolation). The resulting batch ID is passed to `workflow-batch-run` for execution.
+Creates a named batch of workflow plans for sequential unattended execution. Each item is planned deterministically via the `fractary-faber workflow-plan` CLI command (no LLM involved in plan generation). The resulting batch ID is passed to `workflow-batch-run` for execution.
 
 ## Syntax
 
@@ -101,46 +101,66 @@ Print clearly so the user has the batch ID for the run step:
   State: .fractary/faber/batches/{batch-id}/state.json
 ═══════════════════════════════════════════════
 
-Planning {count} items in parallel...
+Planning {count} items via CLI (deterministic)...
 ```
 
-### Step 7: Plan All Items in Parallel
+### Step 7: Plan All Items via CLI in Parallel
 
-#### Phase A — Spawn all planners in a single message
+#### Phase A — Spawn all CLI plan commands in a single message
 
 Print before spawning:
 ```
-Planning {count} items in parallel...
+Planning {count} items in parallel via CLI...
 ```
 
-Launch **all** `workflow-planner` Tasks in a **single message** (parallel tool calls). Do not wait between spawns.
-
-When `--autonomous` flag was set, forward autonomy and auto-run to each planner:
+Launch **all** `Bash()` calls in a **single message** (parallel tool calls). Do not wait between spawns.
 
 ```
 // If --autonomous was provided:
-Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-1}", prompt="Create execution plan: {work-id-1} --autonomy autonomous --auto-run")
-Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-2}", prompt="Create execution plan: {work-id-2} --autonomy autonomous --auto-run")
+Bash(command="fractary-faber workflow-plan {work-id-1} --skip-confirm --json --autonomy autonomous", description="Plan workflow for #{work-id-1}")
+Bash(command="fractary-faber workflow-plan {work-id-2} --skip-confirm --json --autonomy autonomous", description="Plan workflow for #{work-id-2}")
 
 // If --autonomous was NOT provided:
-Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-1}", prompt="Create execution plan: {work-id-1} --auto-run")
-Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-2}", prompt="Create execution plan: {work-id-2} --auto-run")
+Bash(command="fractary-faber workflow-plan {work-id-1} --skip-confirm --json", description="Plan workflow for #{work-id-1}")
+Bash(command="fractary-faber workflow-plan {work-id-2} --skip-confirm --json", description="Plan workflow for #{work-id-2}")
 ... (all items in one message)
 ```
 
-> **Note**: `--auto-run` is always passed because batch planners should never prompt interactively. `--autonomy autonomous` is only passed when the batch was created with `--autonomous`.
+> **Why CLI instead of LLM agents**: The CLI's `workflow-plan` command generates plans deterministically via the SDK's `WorkflowResolver` — no LLM is involved. This eliminates the non-determinism that caused batch plans to have inconsistent step counts (38 vs 52, 49 vs 53) when LLM planner agents were used.
+
+> **What the CLI does for each item:**
+> - Fetches the issue from GitHub via `fractary-repo`
+> - Resolves workflow from issue labels (same Tier 1-4 strategy)
+> - Calls SDK `WorkflowResolver.resolveWorkflow()` (deterministic, equivalent to merge-workflows.sh)
+> - Builds plan.json via `AnthropicClient.generatePlan()` (deterministic, no LLM)
+> - Writes plan.json to `.fractary/faber/runs/{plan_id}/`
+> - Posts issue comment with plan summary
+> - Returns JSON with plan_id, steps count, etc.
 
 #### Phase B — Collect results, then update state.json
 
-After **all** Tasks have completed (wait for all results), process results sequentially in original order:
+After **all** Bash calls have completed (wait for all results), process results sequentially in original order:
 
-- **On success**: Update that item's entry in state.json:
+Parse the CLI's `--json` output. Successful output format:
+```json
+{
+  "status": "success",
+  "total": 1,
+  "successful": 1,
+  "failed": 0,
+  "results": [{"issue": {...}, "planId": "...", "branch": "...", "worktree": "..."}]
+}
+```
+
+- **On success** (exit code 0 and `status: "success"` in JSON output):
+  Extract `planId` from `results[0].planId`. Update that item's entry in state.json:
   ```json
   { "work_id": "{id}", "status": "planned", "plan_id": "{plan-id}", "error": null }
   ```
   Print: `  ✓ Planned #{work-id} → {plan-id}`
 
-- **On failure**: Update that item's entry in state.json:
+- **On failure** (non-zero exit code or `status: "error"` in JSON):
+  Update that item's entry in state.json:
   ```json
   { "work_id": "{id}", "status": "plan_failed", "error": "{error-summary}" }
   ```
@@ -148,58 +168,22 @@ After **all** Tasks have completed (wait for all results), process results seque
 
 Update top-level `updated_at` once after all items are processed.
 
-> **Why no conflict**: Planners only write to `.fractary/faber/runs/{plan_id}/plan.json`. The parent is the sole writer of `state.json`, and it only writes after all Tasks have returned — no concurrent access.
-
-> **Context isolation**: Each Task spawn creates a completely fresh Claude context — no carry-over of state, code, or context from prior items. This is the true `/clear` equivalent.
-
-> **Task isolation note**: The spawned `workflow-planner` agent must NOT use TaskCreate,
-> TaskUpdate, TaskList, or TaskGet for internal tracking (enforced by CRITICAL_RULES
-> rule 8 in workflow-planner). These tools are session-scoped — tasks created inside a
-> Task spawn appear in the parent session. If tasks appear in the session list after
-> planning completes, report this as a bug in the workflow-planner agent.
-
-### Step 7c: Validate All Planned Items in Parallel
-
-For each item where `status === "planned"` (plan_id is known), spawn a validation Task in parallel (all in a single message).
-
-When `--autonomous` flag was set, forward expected autonomy to validator:
-
-```
-// If --autonomous was provided:
-Task(subagent_type="fractary-faber:workflow-plan-validator",
-     description="Validate plan for #{work-id}",
-     prompt="Validate plan: --plan-id {plan_id} --expected-autonomy autonomous")
-
-// If --autonomous was NOT provided:
-Task(subagent_type="fractary-faber:workflow-plan-validator",
-     description="Validate plan for #{work-id}",
-     prompt="Validate plan: --plan-id {plan_id}")
-```
-
-After all validation Tasks complete, update state.json sequentially:
-- On validation pass: `item.status = "validated"`
-- On validation fail: `item.status = "validation_failed"`, `item.error = reason`
-
-Print per-item:
-- `  ✓ Validated #{work-id} → {plan_id}`
-- `  ✗ Validation failed #{work-id}: {reason}`
-
-Update top-level `updated_at` once after all items are processed.
+> **No validation step needed**: Since the CLI generates plans deterministically (not copied by an LLM), plans are correct by construction. The CLI validates plans against `plan.schema.json` during generation. The LLM validator's main purpose (catching LLM truncation/fabrication) is eliminated.
 
 ### Step 8: Final Report
 
 After all items are processed:
 
 1. Update state.json `status`:
-   - `"validated"` if all items validated successfully
-   - `"planning_partial"` if any items failed to plan or validate
+   - `"planned"` if all items planned successfully
+   - `"planning_partial"` if any items failed to plan
 
 2. Update `updated_at`.
 
-3. For each item with `status === "validated"`, invoke the plan reporter sequentially:
+3. For each item with `status === "planned"`, invoke the plan reporter sequentially:
 
 ```javascript
-for (const item of validatedItems) {
+for (const item of plannedItems) {
   await Task({
     subagent_type: "fractary-faber:workflow-plan-reporter",
     description: `Report plan summary for ${item.plan_id}`,
@@ -214,7 +198,7 @@ for (const item of validatedItems) {
 ═══════════════════════════════════════════════
   BATCH PLANNING COMPLETE
   Batch ID: {batch-id}
-  Total: {N} | Validated: {V} | Validation Failed: {VF} | Plan Failed: {K}
+  Total: {N} | Planned: {P} | Failed: {K}
 ═══════════════════════════════════════════════
 
 To run this batch overnight (unattended):

@@ -726,9 +726,13 @@ async function executeBatchPlanCommand(options: {
     try {
       // Invoke the existing workflow-plan CLI command as a subprocess
       const faberBin = process.argv[1];
+      const planArgs = [faberBin, 'workflow-plan', '--work-id', workId, '--skip-confirm'];
+      if (options.autonomous) {
+        planArgs.push('--autonomy', 'autonomous');
+      }
       const result = spawnSync(
         process.execPath,
-        [faberBin, 'workflow-plan', '--work-id', workId, '--skip-confirm'],
+        planArgs,
         { stdio: options.json ? 'pipe' : 'inherit', encoding: 'utf-8' }
       );
 

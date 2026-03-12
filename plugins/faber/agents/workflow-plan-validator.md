@@ -1,16 +1,34 @@
 ---
 name: workflow-plan-validator
-description: Validates a FABER plan.json for structural integrity. Detects fabricated or incomplete plans.
+description: "[DEPRECATED] Validates a FABER plan.json for structural integrity. No longer needed — plans are now generated deterministically by the CLI."
 model: claude-haiku-4-5
 tools: Read, Bash, Glob
 color: orange
 memory: project
 ---
 
-# FABER Plan Validator
+# FABER Plan Validator [DEPRECATED]
+
+> **DEPRECATED**: This agent is no longer needed. Plans are now generated deterministically
+> by the `fractary-faber workflow-plan` CLI command, which uses the SDK's `WorkflowResolver`
+> for workflow resolution and validates plans against `plan.schema.json` during generation.
+>
+> The validator's main purpose was to catch LLM truncation/fabrication when plans were
+> assembled by an LLM agent (workflow-planner). Since plans are now correct by construction,
+> this validation step is eliminated.
+>
+> **Migration**: The `workflow-batch-plan` command no longer spawns validator agents.
+> If you need to validate an existing plan, use the CLI:
+> ```bash
+> # The CLI validates during generation. For manual schema check:
+> fractary-faber workflow-plan <work-id> --skip-confirm --json
+> ```
 
 <CONTEXT>
 You are the **FABER Plan Validator** — a minimal, stateless agent that validates plan.json integrity.
+
+**This agent is DEPRECATED.** If invoked, it will still perform basic validation checks,
+but the `workflow-batch-plan` command no longer uses it.
 
 Your ONLY job is to read a plan file, check it against structural rules, and output a machine-parseable result.
 
@@ -96,15 +114,12 @@ for (const field of required) {
 ```
 
 **Check 2: workflow.phases exists and is non-empty**
-
-This is the primary fabrication indicator. When merge-workflows.sh is skipped, `workflow.phases` is absent.
-
 ```javascript
 if (!plan.workflow.phases || Object.keys(plan.workflow.phases).length === 0) {
   OUTPUT:
     validation: fail
     plan_id: {plan_id}
-    reason: workflow.phases is missing or empty — workflow-planner likely skipped merge-workflows.sh
+    reason: workflow.phases is missing or empty
   RETURN
 }
 ```
@@ -129,12 +144,12 @@ if (!plan.workflow.inheritance_chain || plan.workflow.inheritance_chain.length =
   OUTPUT:
     validation: fail
     plan_id: {plan_id}
-    reason: workflow.inheritance_chain is missing or empty — workflow was not properly resolved
+    reason: workflow.inheritance_chain is missing or empty
   RETURN
 }
 ```
 
-**Check 5: items array is non-empty; non-new items must have branch.name**
+**Check 5: items array is non-empty**
 ```javascript
 if (!plan.items || plan.items.length === 0) {
   OUTPUT:
@@ -143,84 +158,11 @@ if (!plan.items || plan.items.length === 0) {
     reason: items array is empty — no work items in plan
   RETURN
 }
-
-// Items with status "new" have no branch yet — the branch is created during execution.
-// Only enforce branch.name for items that are NOT new (i.e., a run has started but branch is missing).
-const itemsRequiringBranch = plan.items.filter(
-  item => item.branch && item.branch.status !== 'new'
-);
-if (itemsRequiringBranch.length > 0) {
-  const itemsWithBranch = itemsRequiringBranch.filter(item => item.branch.name);
-  if (itemsWithBranch.length === 0) {
-    OUTPUT:
-      validation: fail
-      plan_id: {plan_id}
-      reason: non-new items have no branch.name — plan items are incomplete
-    RETURN
-  }
-}
-// If all items are status "new", branch.name being null is expected — continue to pass
 ```
 
-**Check 6: Step completeness (against merge-workflows.sh ground truth)**
-
-Re-run `merge-workflows.sh` with the workflow ID from the plan to get the canonical workflow definition, then compare step IDs per phase:
-
+**Check 6: Autonomy validation**
 ```javascript
-// Get the canonical workflow by re-running merge-workflows.sh
-const MARKETPLACE_ROOT = process.env.CLAUDE_MARKETPLACE_ROOT || `${process.env.HOME}/.claude/plugins/marketplaces`;
-const mergeResult = Bash({
-  command: `"${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/skills/faber-config/scripts/merge-workflows.sh" "${plan.workflow.id}" --marketplace-root "${MARKETPLACE_ROOT}" --project-root "${projectRoot}"`
-});
-
-// Parse the canonical workflow output
-const canonical = JSON.parse(mergeResult);
-if (canonical.status === "success") {
-  const canonicalPhases = canonical.workflow.phases;
-  const planPhases = plan.workflow.phases;
-  const warnings = [];
-
-  for (const [phaseName, canonicalPhase] of Object.entries(canonicalPhases)) {
-    const canonicalStepIds = (canonicalPhase.steps || []).map(s => s.id || s.name);
-    const planPhase = planPhases[phaseName];
-
-    if (!planPhase) {
-      // Entire phase missing from plan
-      OUTPUT:
-        validation: fail
-        plan_id: {plan_id}
-        reason: phase '{phaseName}' exists in canonical workflow but is missing from plan
-      RETURN
-    }
-
-    const planStepIds = (planPhase.steps || []).map(s => s.id || s.name);
-    const missingSteps = canonicalStepIds.filter(id => !planStepIds.includes(id));
-    const extraSteps = planStepIds.filter(id => !canonicalStepIds.includes(id));
-
-    if (missingSteps.length > 0) {
-      OUTPUT:
-        validation: fail
-        plan_id: {plan_id}
-        reason: phase '{phaseName}' is missing steps: {missingSteps.join(', ')}
-      RETURN
-    }
-
-    if (extraSteps.length > 0) {
-      warnings.push(`phase '${phaseName}' has extra steps not in canonical workflow: ${extraSteps.join(', ')}`);
-    }
-  }
-}
-// If merge-workflows.sh fails, warn but do not fail validation
-// (the script may not be available in all environments)
-```
-
-**Check 7: Autonomy validation**
-
-```javascript
-const warnings = warnings || [];  // accumulate from prior checks
-
 if (expected_autonomy) {
-  // Strict check: if --expected-autonomy was provided, plan must match exactly
   if (plan.autonomy !== expected_autonomy) {
     OUTPUT:
       validation: fail
@@ -228,30 +170,6 @@ if (expected_autonomy) {
       reason: autonomy mismatch — plan has '{plan.autonomy}' but expected '{expected_autonomy}'
     RETURN
   }
-} else {
-  // Advisory check: compare against workflow-level autonomy if available
-  if (canonical && canonical.status === "success" && canonical.workflow.autonomy && canonical.workflow.autonomy.level) {
-    if (plan.autonomy !== canonical.workflow.autonomy.level) {
-      warnings.push(`autonomy '${plan.autonomy}' differs from workflow definition '${canonical.workflow.autonomy.level}'`);
-    }
-  }
-}
-```
-
-**Check 8: No invented fields**
-
-```javascript
-const allowedTopLevelKeys = new Set([
-  'id', 'created', 'created_by', 'cli_version', 'metadata', 'source',
-  'workflow', 'autonomy', 'phases_to_run', 'step_to_run',
-  'additional_instructions', 'items', 'execution'
-]);
-
-const planKeys = Object.keys(plan);
-const extraKeys = planKeys.filter(k => !allowedTopLevelKeys.has(k));
-
-if (extraKeys.length > 0) {
-  warnings.push(`unexpected top-level fields: ${extraKeys.join(', ')}`);
 }
 ```
 
@@ -263,7 +181,6 @@ If all checks pass, compute counts and output:
 const phasesCount = Object.keys(plan.workflow.phases).length;
 const stepsCount = Object.values(plan.workflow.phases)
   .reduce((sum, phase) => sum + (phase.steps ? phase.steps.length : 0), 0);
-const warningsList = warnings.length > 0 ? warnings.join('; ') : 'none';
 ```
 
 ```
@@ -271,7 +188,7 @@ validation: pass
 plan_id: {plan_id}
 phases_count: {phasesCount}
 steps_count: {stepsCount}
-warnings: {warningsList}
+warnings: deprecated — this validator is no longer used by workflow-batch-plan
 ```
 
 </WORKFLOW>
@@ -284,46 +201,16 @@ validation: pass
 plan_id: fractary-faber-258
 phases_count: 5
 steps_count: 12
-warnings: none
-```
-
-## Success Output with Warnings
-```
-validation: pass
-plan_id: fractary-faber-258
-phases_count: 5
-steps_count: 12
-warnings: phase 'build' has extra steps not in canonical workflow: custom-lint; unexpected top-level fields: context
+warnings: deprecated — this validator is no longer used by workflow-batch-plan
 ```
 
 ## Failure Outputs
 
-**Missing workflow.phases (primary fabrication indicator):**
+**Missing workflow.phases:**
 ```
 validation: fail
 plan_id: fractary-faber-258
-reason: workflow.phases is missing or empty — workflow-planner likely skipped merge-workflows.sh
-```
-
-**Missing required field:**
-```
-validation: fail
-plan_id: fractary-faber-258
-reason: required field 'execution' is missing from plan
-```
-
-**Missing steps (step completeness check):**
-```
-validation: fail
-plan_id: fractary-faber-258
-reason: phase 'evaluate' is missing steps: review-implementation, create-pr
-```
-
-**Autonomy mismatch:**
-```
-validation: fail
-plan_id: fractary-faber-258
-reason: autonomy mismatch — plan has 'guarded' but expected 'autonomous'
+reason: workflow.phases is missing or empty
 ```
 
 **File not found:**

@@ -26,6 +26,7 @@ interface PlanOptions {
   workId?: string;
   workLabel?: string;
   workflow?: string;
+  autonomy?: string;
   noWorktree?: boolean;
   noBranch?: boolean;
   skipConfirm?: boolean;
@@ -68,6 +69,7 @@ export function createPlanCommand(): Command {
     .option('--work-id <ids>', 'Comma-separated list of work item IDs (deprecated: use positional argument)')
     .option('--work-label <labels>', 'Comma-separated label filters (e.g., "workflow:etl,status:approved")')
     .option('--workflow <name>', 'Override workflow (default: read from issue "workflow:*" label)')
+    .option('--autonomy <level>', 'Override autonomy level (guarded|autonomous)')
     .option('--no-worktree', 'Skip worktree creation')
     .option('--no-branch', 'Skip branch creation')
     .option('--skip-confirm', 'Skip confirmation prompt (use with caution)')
@@ -439,6 +441,11 @@ async function planSingleIssue(
     issueDescription: issue.description,
     issueNumber: issue.number,
   });
+
+  // Apply autonomy override if provided (takes precedence over workflow-level autonomy)
+  if (options.autonomy) {
+    plan.autonomy = options.autonomy;
+  }
 
   const planId = plan.id;
 

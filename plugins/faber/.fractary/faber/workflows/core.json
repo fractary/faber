@@ -29,12 +29,6 @@
       "steps": [],
       "post_steps": [
         {
-          "id": "architect-session-clear",
-          "name": "Clear Context",
-          "description": "Start architect phase with fresh context.",
-          "prompt": "/clear"
-        },
-        {
           "id": "frame-commit-and-push",
           "name": "Commit and Push Changes",
           "description": "Ensure all frame changes are committed and pushed (which will also create a branch to push to).",
@@ -52,6 +46,12 @@
       "enabled": true,
       "description": "Design and plan - extend this phase in child workflows",
       "pre_steps": [
+        {
+          "id": "architect-session-clear",
+          "name": "Clear Context",
+          "description": "Start architect phase with fresh context.",
+          "prompt": "/clear"
+        },
         {
           "id": "architect-session-load",
           "name": "Reload Context",
@@ -87,6 +87,12 @@
       "description": "Implementation - extend this phase in child workflows",
       "pre_steps": [
         {
+          "id": "build-session-clear",
+          "name": "Clear Context",
+          "description": "Start build phase with fresh context.",
+          "prompt": "/clear"
+        },
+        {
           "id": "build-session-load",
           "name": "Reload Context",
           "description": "Reload critical artifacts at phase boundary for context freshness",
@@ -120,6 +126,12 @@
       "enabled": true,
       "description": "Review implementation and create PR",
       "pre_steps": [
+        {
+          "id": "evaluate-session-clear",
+          "name": "Clear Context",
+          "description": "Start evaluate phase with fresh context.",
+          "prompt": "/clear"
+        },
         {
           "id": "evaluate-session-load",
           "name": "Reload Context",
