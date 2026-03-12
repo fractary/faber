@@ -57,6 +57,8 @@ Usage: /fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--r
 
 Read `.fractary/faber/batches/{batch-id}/state.json`.
 
+Extract `state.autonomy` — this is the persisted autonomy level set by `workflow-batch-plan --autonomous`. It may be `"autonomous"` or `null`. This value is forwarded to auto-planning and validation Tasks in Step 5-S1, ensuring autonomy intent survives across the batch-plan → batch-run boundary without requiring the user to re-specify `--autonomous`.
+
 If not found:
 ```
 Error: Batch '{batch-id}' not found.
@@ -135,10 +137,15 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
 1. Get plan_id from state.json item: item.plan_id
    - If null/empty:
      console.log(`→ No plan for #${item.work_id}. Auto-planning...`);
+     // Build planner prompt — forward persisted autonomy if set
+     let plannerPrompt = `Create execution plan: ${item.work_id} --auto-run`;
+     if (state.autonomy) {
+       plannerPrompt += ` --autonomy ${state.autonomy}`;
+     }
      const plannerResult = await Task({
        subagent_type: "fractary-faber:workflow-planner",
        description: `Plan workflow for #${item.work_id}`,
-       prompt: `Create execution plan: ${item.work_id}`
+       prompt: plannerPrompt
      });
      const planIdMatch = plannerResult.match(/plan_id:\s*(\S+)/);
      if (!planIdMatch) {
@@ -152,10 +159,15 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
      Continue with execution using plan_id
 2. Validate plan before executing:
    ```javascript
+   // Build validator prompt — forward persisted autonomy if set
+   let validatorPrompt = `Validate plan: --plan-id ${plan_id}`;
+   if (state.autonomy) {
+     validatorPrompt += ` --expected-autonomy ${state.autonomy}`;
+   }
    const validationResult = await Task({
      subagent_type: "fractary-faber:workflow-plan-validator",
      description: `Validate plan ${plan_id}`,
-     prompt: `Validate plan: --plan-id ${plan_id}`
+     prompt: validatorPrompt
    });
 
    const validationMatch = validationResult.match(/validation:\s*(pass|fail)/);
