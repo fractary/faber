@@ -1371,7 +1371,8 @@ FOR EACH phase IN phases_to_execute (in order):
   END FOR (items)
 
   # ── 2.7: Phase Boundary Context Refresh ──
-  # The next phase's first pre_step is /session-load (reloads critical artifacts).
+  # The next phase's first pre_step is /fractary-faber:session-clear (clears context)
+  # followed by /fractary-faber:session-load (reloads critical artifacts).
   # Re-read state to ground orchestrator before continuing the loop.
   current_state = Read(file_path: state_path)
   LOG "── Phase {phase.name} complete ──"

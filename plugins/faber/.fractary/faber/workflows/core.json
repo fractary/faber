@@ -50,7 +50,7 @@
           "id": "architect-session-clear",
           "name": "Clear Context",
           "description": "Start architect phase with fresh context.",
-          "prompt": "/clear"
+          "prompt": "/fractary-faber:session-clear --phase architect --work-id {work_id} --run-id {run_id}"
         },
         {
           "id": "architect-session-load",
@@ -90,7 +90,7 @@
           "id": "build-session-clear",
           "name": "Clear Context",
           "description": "Start build phase with fresh context.",
-          "prompt": "/clear"
+          "prompt": "/fractary-faber:session-clear --phase build --work-id {work_id} --run-id {run_id}"
         },
         {
           "id": "build-session-load",
@@ -130,7 +130,7 @@
           "id": "evaluate-session-clear",
           "name": "Clear Context",
           "description": "Start evaluate phase with fresh context.",
-          "prompt": "/clear"
+          "prompt": "/fractary-faber:session-clear --phase evaluate --work-id {work_id} --run-id {run_id}"
         },
         {
           "id": "evaluate-session-load",

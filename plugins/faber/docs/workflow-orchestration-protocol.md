@@ -33,6 +33,7 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 - Commands handle their own argument parsing and execution strategy
 - Do not parse, manipulate, or reinterpret command strings
 - Trust commands to do what they're designed to do
+- Built-in CLI commands like `/clear` cannot be invoked via Skill. Phase boundary context clearing uses `/fractary-faber:session-clear` instead, which attempts `/clear` internally and falls back to an explicit context boundary marker
 
 > **🚫 ANTI-PATTERN: Never bypass the Skill tool for `/` prompts.**
 >
