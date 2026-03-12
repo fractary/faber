@@ -30,6 +30,7 @@ interface PlanOptions {
   noWorktree?: boolean;
   noBranch?: boolean;
   skipConfirm?: boolean;
+  forceNew?: boolean;
   output?: string;
   json?: boolean;
   // Backlog management options
@@ -77,6 +78,7 @@ export function createPlanCommand(): Command {
     .option('--json', 'Output as JSON (shorthand for --output json)')
     .option('--limit <n>', 'Maximum number of issues to plan', parseInt)
     .option('--order-by <strategy>', 'Order issues by: priority|created|updated (default: none)', 'none')
+    .option('--force-new', 'Force new plan generation even if a plan already exists')
     .option('--order-direction <dir>', 'Order direction: asc|desc (default: desc)', 'desc')
     .action(async (workId: string | undefined, options: PlanOptions) => {
       try {
@@ -429,26 +431,6 @@ async function planSingleIssue(
   const branch = `feature/${issue.number}`;
   const worktree = `~/.claude-worktrees/${organization}-${project}-${issue.number}`;
 
-  // Generate deterministic plan from resolved workflow
-  if (outputFormat === 'text') {
-    console.log(chalk.gray('  → Generating plan...'));
-    process.stdout.write(''); // Force flush
-  }
-
-  const plan = await anthropicClient.generatePlan({
-    workflow: issue.workflow!,
-    issueTitle: issue.title,
-    issueDescription: issue.description,
-    issueNumber: issue.number,
-  });
-
-  // Apply autonomy override if provided (takes precedence over workflow-level autonomy)
-  if (options.autonomy) {
-    plan.autonomy = options.autonomy;
-  }
-
-  const planId = plan.id;
-
   // Create branch without checking it out (so it won't conflict with worktree creation)
   if (!options.noBranch) {
     if (outputFormat === 'text') {
@@ -510,6 +492,50 @@ async function planSingleIssue(
       // Non-fatal: if cleanup fails, workflow-run will handle conflict detection
     }
   }
+
+  // Check for existing plan in worktree (skip if found, unless --force-new)
+  if (!options.forceNew && !options.noWorktree) {
+    const runsDir = path.join(worktreePath, '.fractary', 'faber', 'runs');
+    try {
+      const entries = await fs.readdir(runsDir);
+      for (const entry of entries) {
+        const planFile = path.join(runsDir, entry, 'plan.json');
+        try {
+          await fs.access(planFile);
+          // Found existing plan
+          if (outputFormat === 'text') {
+            console.log(chalk.yellow(`  ⚠️  Plan already exists: ${entry} — skipping (use --force-new to regenerate)`));
+          }
+          return {
+            issue,
+            planId: entry,
+            branch,
+            worktree: worktreePath,
+          };
+        } catch { /* no plan.json in this entry */ }
+      }
+    } catch { /* runs dir doesn't exist — proceed with planning */ }
+  }
+
+  // Generate deterministic plan from resolved workflow
+  if (outputFormat === 'text') {
+    console.log(chalk.gray('  → Generating plan...'));
+    process.stdout.write(''); // Force flush
+  }
+
+  const plan = await anthropicClient.generatePlan({
+    workflow: issue.workflow!,
+    issueTitle: issue.title,
+    issueDescription: issue.description,
+    issueNumber: issue.number,
+  });
+
+  // Apply autonomy override if provided (takes precedence over workflow-level autonomy)
+  if (options.autonomy) {
+    plan.autonomy = options.autonomy;
+  }
+
+  const planId = plan.id;
 
   // Write plan to worktree
   if (!options.noWorktree) {
