@@ -15,7 +15,7 @@ Creates a named batch of workflow plans for sequential unattended execution. Eac
 ## Syntax
 
 ```
-/fractary-faber:workflow-batch-plan <work-ids> [--name <batch-id>]
+/fractary-faber:workflow-batch-plan <work-ids> [--name <batch-id>] [--autonomous]
 ```
 
 ## Arguments
@@ -24,6 +24,7 @@ Creates a named batch of workflow plans for sequential unattended execution. Eac
 |----------|----------|-------------|
 | `<work-ids>` | Yes | Comma-separated work item IDs (e.g., "258,259,260") |
 | `--name <batch-id>` | No | Custom batch name (default: `batch-YYYY-MM-DDTHH-MM-SSZ`) |
+| `--autonomous` | No | Set autonomy level to "autonomous" for all plans. Persisted in state.json so `workflow-batch-run` can forward it without needing the original flag. |
 
 ## Protocol
 
@@ -32,6 +33,7 @@ Creates a named batch of workflow plans for sequential unattended execution. Eac
 From `$ARGUMENTS`:
 1. Extract positional comma-separated IDs (e.g., "258,259,260")
 2. Extract `--name <value>` if present (the custom batch ID)
+3. Extract `--autonomous` flag (boolean — true if present, false otherwise)
 
 Validate:
 - At least one work ID provided
@@ -76,6 +78,7 @@ Write to `.fractary/faber/batches/{batch-id}/state.json`:
 {
   "batch_id": "{batch-id}",
   "status": "planning",
+  "autonomy": "autonomous",
   "created_at": "{iso-timestamp}",
   "updated_at": "{iso-timestamp}",
   "items": [
@@ -83,6 +86,8 @@ Write to `.fractary/faber/batches/{batch-id}/state.json`:
   ]
 }
 ```
+
+The `autonomy` field is set to `"autonomous"` when `--autonomous` flag is provided, or `null` when omitted. This persists the autonomy intent so that `workflow-batch-run` can forward it to auto-planning and validation without needing the original flag.
 
 ### Step 6: Report Batch ID
 
@@ -110,11 +115,20 @@ Planning {count} items in parallel...
 
 Launch **all** `workflow-planner` Tasks in a **single message** (parallel tool calls). Do not wait between spawns.
 
+When `--autonomous` flag was set, forward autonomy and auto-run to each planner:
+
 ```
-Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-1}", prompt="Create execution plan: {work-id-1}")
-Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-2}", prompt="Create execution plan: {work-id-2}")
+// If --autonomous was provided:
+Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-1}", prompt="Create execution plan: {work-id-1} --autonomy autonomous --auto-run")
+Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-2}", prompt="Create execution plan: {work-id-2} --autonomy autonomous --auto-run")
+
+// If --autonomous was NOT provided:
+Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-1}", prompt="Create execution plan: {work-id-1} --auto-run")
+Task(subagent_type="fractary-faber:workflow-planner", description="Plan workflow for #{work-id-2}", prompt="Create execution plan: {work-id-2} --auto-run")
 ... (all items in one message)
 ```
+
+> **Note**: `--auto-run` is always passed because batch planners should never prompt interactively. `--autonomy autonomous` is only passed when the batch was created with `--autonomous`.
 
 #### Phase B — Collect results, then update state.json
 
@@ -146,9 +160,17 @@ Update top-level `updated_at` once after all items are processed.
 
 ### Step 7c: Validate All Planned Items in Parallel
 
-For each item where `status === "planned"` (plan_id is known), spawn a validation Task in parallel (all in a single message):
+For each item where `status === "planned"` (plan_id is known), spawn a validation Task in parallel (all in a single message).
+
+When `--autonomous` flag was set, forward expected autonomy to validator:
 
 ```
+// If --autonomous was provided:
+Task(subagent_type="fractary-faber:workflow-plan-validator",
+     description="Validate plan for #{work-id}",
+     prompt="Validate plan: --plan-id {plan_id} --expected-autonomy autonomous")
+
+// If --autonomous was NOT provided:
 Task(subagent_type="fractary-faber:workflow-plan-validator",
      description="Validate plan for #{work-id}",
      prompt="Validate plan: --plan-id {plan_id}")
@@ -214,7 +236,10 @@ To run interactively:
 # Plan 5 issues
 /fractary-faber:workflow-batch-plan 258,259,260,261,262 --name sprint-02
 
-# Plan then run (two-step)
-/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-03
-/fractary-faber:workflow-batch-run --batch sprint-03 --autonomous
+# Plan with autonomous flag (persisted in state.json for batch-run)
+/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-03 --autonomous
+
+# Plan then run — batch-run reads persisted autonomy from state.json
+/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-03 --autonomous
+/fractary-faber:workflow-batch-run --batch sprint-03
 ```

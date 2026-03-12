@@ -252,6 +252,26 @@ The script returns JSON with `status`, `message`, and `workflow` fields.
 
 Store the resolved workflow (from script output) with full inheritance chain.
 
+## Step 5b: Resolve Autonomy Level
+
+Determine the effective autonomy level using 4-tier precedence (highest wins):
+
+```
+1. --autonomy flag override (from Step 1: autonomy_override)
+   → If autonomy_override is non-null, use it
+
+2. resolved_workflow.autonomy.level (from merge-workflows.sh output in Step 3)
+   → If the resolved workflow object contains an autonomy.level field, use it
+
+3. config.default_autonomy (from .fractary/config.yaml loaded in Step 2)
+   → If faber.default_autonomy is set in config, use it
+
+4. Hardcoded fallback: "guarded"
+   → If none of the above are set, default to "guarded"
+```
+
+Store the result as `resolved_autonomy` for use in Step 6.
+
 ## Step 4: Prepare Plan Item
 
 ### 4a. Fetch Issue
@@ -329,6 +349,8 @@ Store these in `metadata` object for S3/Athena partitioning:
 
 ## Step 6: Build Plan Artifact
 
+**CRITICAL — Verbatim Workflow Copy**: The `workflow` object in plan.json MUST be copied verbatim from the merge-workflows.sh output. Do NOT omit fields, add fields, rename keys, reorder phases/steps, or modify any values. The workflow object is a deterministic snapshot — any deviation introduces non-determinism across batch runs.
+
 ```json
 {
   "id": "fractary-claude-plugins-csv-export",
@@ -356,10 +378,10 @@ Store these in `metadata` object for S3/Athena partitioning:
     "id": "fractary-faber:default",
     "resolved_at": "2025-12-08T16:00:00Z",
     "inheritance_chain": ["fractary-faber:default", "fractary-faber:core"],
-    "phases": { /* full resolved workflow */ }
+    "phases": { /* full resolved workflow — copied VERBATIM from merge-workflows.sh */ }
   },
 
-  "autonomy": "guarded",
+  "autonomy": "resolved_autonomy",  // from Step 5b (4-tier precedence)
   "phases_to_run": null,
   "step_to_run": null,
   "additional_instructions": null,

@@ -29,11 +29,12 @@ You run in a fresh context so you have no memory of what workflow-planner produc
 You receive a prompt in the format:
 
 ```
-Validate plan: --plan-id <id>
+Validate plan: --plan-id <id> [--expected-autonomy <level>]
 ```
 
 Parse:
 - `plan_id`: value after `--plan-id`
+- `expected_autonomy`: value after `--expected-autonomy` (optional, may be null)
 - `project_root`: auto-detected via `Bash({ command: "pwd" })` (or use value after optional `--project-root` if provided)
 </INPUTS>
 
@@ -41,7 +42,7 @@ Parse:
 
 ## Step 1: Parse Arguments and Detect Project Root
 
-Extract `plan_id` from the prompt string. If `--project-root` is present, use that value. Otherwise:
+Extract `plan_id` and optional `expected_autonomy` from the prompt string. If `--project-root` is present, use that value. Otherwise:
 
 ```javascript
 const projectRoot = await Bash({ command: "pwd" }).trim();
@@ -161,6 +162,99 @@ if (itemsRequiringBranch.length > 0) {
 // If all items are status "new", branch.name being null is expected — continue to pass
 ```
 
+**Check 6: Step completeness (against merge-workflows.sh ground truth)**
+
+Re-run `merge-workflows.sh` with the workflow ID from the plan to get the canonical workflow definition, then compare step IDs per phase:
+
+```javascript
+// Get the canonical workflow by re-running merge-workflows.sh
+const MARKETPLACE_ROOT = process.env.CLAUDE_MARKETPLACE_ROOT || `${process.env.HOME}/.claude/plugins/marketplaces`;
+const mergeResult = Bash({
+  command: `"${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/skills/faber-config/scripts/merge-workflows.sh" "${plan.workflow.id}" --marketplace-root "${MARKETPLACE_ROOT}" --project-root "${projectRoot}"`
+});
+
+// Parse the canonical workflow output
+const canonical = JSON.parse(mergeResult);
+if (canonical.status === "success") {
+  const canonicalPhases = canonical.workflow.phases;
+  const planPhases = plan.workflow.phases;
+  const warnings = [];
+
+  for (const [phaseName, canonicalPhase] of Object.entries(canonicalPhases)) {
+    const canonicalStepIds = (canonicalPhase.steps || []).map(s => s.id || s.name);
+    const planPhase = planPhases[phaseName];
+
+    if (!planPhase) {
+      // Entire phase missing from plan
+      OUTPUT:
+        validation: fail
+        plan_id: {plan_id}
+        reason: phase '{phaseName}' exists in canonical workflow but is missing from plan
+      RETURN
+    }
+
+    const planStepIds = (planPhase.steps || []).map(s => s.id || s.name);
+    const missingSteps = canonicalStepIds.filter(id => !planStepIds.includes(id));
+    const extraSteps = planStepIds.filter(id => !canonicalStepIds.includes(id));
+
+    if (missingSteps.length > 0) {
+      OUTPUT:
+        validation: fail
+        plan_id: {plan_id}
+        reason: phase '{phaseName}' is missing steps: {missingSteps.join(', ')}
+      RETURN
+    }
+
+    if (extraSteps.length > 0) {
+      warnings.push(`phase '${phaseName}' has extra steps not in canonical workflow: ${extraSteps.join(', ')}`);
+    }
+  }
+}
+// If merge-workflows.sh fails, warn but do not fail validation
+// (the script may not be available in all environments)
+```
+
+**Check 7: Autonomy validation**
+
+```javascript
+const warnings = warnings || [];  // accumulate from prior checks
+
+if (expected_autonomy) {
+  // Strict check: if --expected-autonomy was provided, plan must match exactly
+  if (plan.autonomy !== expected_autonomy) {
+    OUTPUT:
+      validation: fail
+      plan_id: {plan_id}
+      reason: autonomy mismatch — plan has '{plan.autonomy}' but expected '{expected_autonomy}'
+    RETURN
+  }
+} else {
+  // Advisory check: compare against workflow-level autonomy if available
+  if (canonical && canonical.status === "success" && canonical.workflow.autonomy && canonical.workflow.autonomy.level) {
+    if (plan.autonomy !== canonical.workflow.autonomy.level) {
+      warnings.push(`autonomy '${plan.autonomy}' differs from workflow definition '${canonical.workflow.autonomy.level}'`);
+    }
+  }
+}
+```
+
+**Check 8: No invented fields**
+
+```javascript
+const allowedTopLevelKeys = new Set([
+  'id', 'created', 'created_by', 'cli_version', 'metadata', 'source',
+  'workflow', 'autonomy', 'phases_to_run', 'step_to_run',
+  'additional_instructions', 'items', 'execution'
+]);
+
+const planKeys = Object.keys(plan);
+const extraKeys = planKeys.filter(k => !allowedTopLevelKeys.has(k));
+
+if (extraKeys.length > 0) {
+  warnings.push(`unexpected top-level fields: ${extraKeys.join(', ')}`);
+}
+```
+
 ## Step 4: Output Result
 
 If all checks pass, compute counts and output:
@@ -169,6 +263,7 @@ If all checks pass, compute counts and output:
 const phasesCount = Object.keys(plan.workflow.phases).length;
 const stepsCount = Object.values(plan.workflow.phases)
   .reduce((sum, phase) => sum + (phase.steps ? phase.steps.length : 0), 0);
+const warningsList = warnings.length > 0 ? warnings.join('; ') : 'none';
 ```
 
 ```
@@ -176,6 +271,7 @@ validation: pass
 plan_id: {plan_id}
 phases_count: {phasesCount}
 steps_count: {stepsCount}
+warnings: {warningsList}
 ```
 
 </WORKFLOW>
@@ -188,6 +284,16 @@ validation: pass
 plan_id: fractary-faber-258
 phases_count: 5
 steps_count: 12
+warnings: none
+```
+
+## Success Output with Warnings
+```
+validation: pass
+plan_id: fractary-faber-258
+phases_count: 5
+steps_count: 12
+warnings: phase 'build' has extra steps not in canonical workflow: custom-lint; unexpected top-level fields: context
 ```
 
 ## Failure Outputs
@@ -204,6 +310,20 @@ reason: workflow.phases is missing or empty — workflow-planner likely skipped 
 validation: fail
 plan_id: fractary-faber-258
 reason: required field 'execution' is missing from plan
+```
+
+**Missing steps (step completeness check):**
+```
+validation: fail
+plan_id: fractary-faber-258
+reason: phase 'evaluate' is missing steps: review-implementation, create-pr
+```
+
+**Autonomy mismatch:**
+```
+validation: fail
+plan_id: fractary-faber-258
+reason: autonomy mismatch — plan has 'guarded' but expected 'autonomous'
 ```
 
 **File not found:**
