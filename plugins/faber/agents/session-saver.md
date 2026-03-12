@@ -133,6 +133,59 @@ get_current_environment():
   }
 ```
 
+**Step 4.5: Write Continuation Note (Tier 2)**
+
+Goal: Write a rich continuation note to state.json so the next session can quickly understand what was being worked on.
+
+Logic:
+```
+# Get git state
+git_commit = bash("git rev-parse --short HEAD")
+git_branch = bash("git rev-parse --abbrev-ref HEAD")
+has_uncommitted = bash("git diff --quiet HEAD && git diff --cached --quiet HEAD") fails → true, succeeds → false
+
+# Build Tier 2 continuation note
+state.continuation_note = {
+  saved_at: now(),                    # ISO 8601
+  saved_by: "agent:session-saver",
+  trigger: --reason parameter OR "manual",
+  phase: state.current_phase,
+  step: state.current_step,
+  step_id: state.current_step_id,
+
+  # Tier 2 fields — use Claude's context awareness
+  working_on: <1-3 sentence summary of what was actively being worked on.
+              Be specific: mention file names, function names, concepts.
+              Example: "Implementing the retry logic in upload-handler.ts,
+              specifically the exponential backoff for S3 failures.">,
+
+  key_files: <list of files actively being edited/read in this session,
+             not just artifact paths. Extract from recent tool calls.>,
+
+  artifact_paths: {
+    spec_path: state.artifacts.spec_path,
+    branch: state.artifacts.branch,
+    pr_number: state.artifacts.pr_number,
+    pr_url: state.artifacts.pr_url
+  },
+
+  git_state: {
+    commit: git_commit,
+    branch: git_branch,
+    has_uncommitted: has_uncommitted
+  },
+
+  context_hints: <guidance for the next session on what to prioritize.
+                 Example: "Build phase 60% complete — spec and implementation
+                 files most critical. Tests not yet started.">
+}
+```
+
+Important:
+- `working_on` should capture the essence of current work from your conversation context
+- `key_files` should list files you've been reading/editing, not just workflow artifacts
+- `context_hints` should help the next session orient quickly without reading everything
+
 **Step 5: Move to History**
 
 Goal: Add completed session to session_history

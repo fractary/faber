@@ -195,8 +195,21 @@
         "total_sessions": {
           "type": "integer",
           "description": "Total number of sessions (current + historical)"
+        },
+        "last_session_end": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of last session end (ISO 8601)"
+        },
+        "last_session_end_reason": {
+          "type": "string",
+          "description": "Reason for last session end (e.g., 'other', 'user_exit', 'timeout')"
         }
       }
+    },
+    "continuation_note": {
+      "$ref": "#/definitions/continuation_note",
+      "description": "Session continuation context written by hooks (Tier 1) or agents (Tier 2) for cross-session recovery"
     },
     "context_metadata": {
       "type": "object",
@@ -421,6 +434,88 @@
           "type": "string",
           "enum": ["reload_critical_artifacts", "none", "manual_trigger"],
           "description": "Action taken in response to compaction"
+        }
+      }
+    },
+    "continuation_note": {
+      "type": "object",
+      "description": "Context snapshot for session continuation — written by hooks (Tier 1: machine data only) or agents (Tier 2: includes working_on/context_hints)",
+      "required": ["saved_at", "saved_by", "trigger"],
+      "properties": {
+        "saved_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this note was written (ISO 8601)"
+        },
+        "saved_by": {
+          "type": "string",
+          "enum": ["hook:pre-compact", "hook:session-end", "agent:session-saver"],
+          "description": "Who wrote this note — determines tier (hook = Tier 1, agent = Tier 2)"
+        },
+        "trigger": {
+          "type": "string",
+          "enum": ["compaction", "session_end", "manual"],
+          "description": "What triggered the note"
+        },
+        "phase": {
+          "type": "string",
+          "description": "Current workflow phase when note was written"
+        },
+        "step": {
+          "type": "string",
+          "description": "Current step name when note was written"
+        },
+        "step_id": {
+          "type": "string",
+          "description": "Full step identifier (e.g., 'build:implement')"
+        },
+        "working_on": {
+          "type": ["string", "null"],
+          "description": "Tier 2 only: Natural language summary of current work (1-3 sentences)"
+        },
+        "key_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tier 2 only: Files actively being edited/read"
+        },
+        "artifact_paths": {
+          "type": "object",
+          "description": "Key artifact paths from workflow state",
+          "properties": {
+            "spec_path": {
+              "type": "string"
+            },
+            "branch": {
+              "type": "string"
+            },
+            "pr_number": {
+              "type": "string"
+            },
+            "pr_url": {
+              "type": "string"
+            }
+          }
+        },
+        "git_state": {
+          "type": "object",
+          "description": "Git state snapshot at time of note",
+          "properties": {
+            "commit": {
+              "type": "string"
+            },
+            "branch": {
+              "type": "string"
+            },
+            "has_uncommitted": {
+              "type": "boolean"
+            }
+          }
+        },
+        "context_hints": {
+          "type": ["string", "null"],
+          "description": "Tier 2 only: Guidance for next session on what to prioritize"
         }
       }
     },

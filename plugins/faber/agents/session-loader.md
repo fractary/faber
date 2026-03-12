@@ -122,6 +122,10 @@ Validate state integrity:
 - Check state is valid JSON
 - If invalid, return error with recovery suggestions
 
+5. Extract `continuation_note` if present:
+   - Store `continuation_note` for use in Steps 4 and 8
+   - Note the `saved_by` field to determine tier (hook = Tier 1, agent = Tier 2)
+
 **Step 3: Detect and Create Session**
 
 Session detection logic:
@@ -191,8 +195,11 @@ if artifacts_parameter:
   artifacts_to_load = filter(artifacts_to_load, id in requested_ids)
 
 # Context-aware prioritization
-if context_parameter:
-  LOG "Context hint: ${context}"
+# Use explicit --context parameter if provided; otherwise fall back to continuation_note.context_hints
+effective_context = context_parameter OR continuation_note.context_hints OR null
+
+if effective_context:
+  LOG "Context hint: ${effective_context}"
   # The context hint informs the agent about what to prioritize when loading.
   # It does NOT change WHICH artifacts are loaded — all configured artifacts still load.
   # Instead, it guides the agent to:
@@ -296,8 +303,32 @@ Context metadata:
   Last reload: 2026-01-04T14:30:00Z
   Total reloads: 3
 
-Phase context hint: {context}
+Phase context hint: {effective_context}
   Relevant loaded artifacts highlighted above.
+```
+
+**Continuation Note (if present):**
+
+If `continuation_note` exists in state, include it in the report:
+
+Tier 2 note (saved_by == "agent:session-saver"):
+```
+Continuation context (from previous session):
+  Working on: {continuation_note.working_on}
+  Key files: {continuation_note.key_files | join(", ")}
+  Context hints: {continuation_note.context_hints}
+  Phase/Step: {continuation_note.phase}/{continuation_note.step}
+  Git state: {continuation_note.git_state.branch}@{continuation_note.git_state.commit} (uncommitted: {continuation_note.git_state.has_uncommitted})
+```
+
+Tier 1 note (saved_by starts with "hook:"):
+```
+Continuation context (from hook — limited detail):
+  Phase/Step: {continuation_note.phase}/{continuation_note.step}
+  Step ID: {continuation_note.step_id}
+  Artifact paths: {continuation_note.artifact_paths}
+  Git state: {continuation_note.git_state.branch}@{continuation_note.git_state.commit} (uncommitted: {continuation_note.git_state.has_uncommitted})
+  Note: working_on/context_hints unavailable (hook-written note). Review state and artifacts to determine current work.
 ```
 
 **Output format when `--work-id` used (issue context only, no workflow):**
