@@ -18,6 +18,13 @@ Executes all planned items from an existing batch. Runs in **serial mode by defa
 - Serial mode (default): Full step-level task list visible in UI, steps run in parent context
 - `--parallel`: Each Task spawn = completely fresh context, zero carry-over; only batch-level tasks visible
 
+<CRITICAL_RULES>
+1. **SERIAL MODE = YOU ARE THE ORCHESTRATOR** — In serial mode (default), you execute steps directly from plan.json. There is no delegation. You read the plan, you invoke the skills/prompts, you update state. This is the entire design.
+2. **SEQUENTIAL EXECUTION IS MANDATORY** — Without `--parallel`, complete item N fully (all phases, all steps) before starting item N+1. Never launch multiple items simultaneously.
+3. **NEVER INVOKE workflow-run** — Not as `Skill(fractary-faber:workflow-run)`, not as `Agent(subagent_type="fractary-faber:workflow-run")`, not as `Bash(fractary-faber workflow-run ...)`, not as `Task(...)`. Serial mode replaces workflow-run entirely. You execute steps directly per Step 5-S3.
+4. **BASH IS NOT AVAILABLE** — Check the `allowed-tools` header above. Bash is intentionally excluded from this skill. Any attempt to use Bash will fail. Execute steps via Skill() or direct prompt execution only.
+</CRITICAL_RULES>
+
 ## Syntax
 
 ```
@@ -123,14 +130,62 @@ ELSE:
 
 #### SERIAL PATH (default)
 
-> **CRITICAL — Serial mode anti-patterns (DO NOT):**
-> - **DO NOT invoke `Skill(fractary-faber:workflow-run)`** — Serial mode executes steps directly from plan.json. You ARE the orchestrator; workflow-run is redundant and creates a broken delegation chain.
-> - **DO NOT invoke `Agent(subagent_type="fractary-faber:workflow-run")` or any skill name as a subagent_type** — workflow-run is a skill (slash command), not an agent definition. This call will fail.
-> - **DO NOT "hand off" or "shortcut" remaining phases** — Even under context pressure, execute each step inline per Step 5-S3. The plan.json is your instruction set; workflow-run is not.
->
-> Serial mode IS the orchestrator. Steps come from plan.json, not from workflow-run.
+<SERIAL_MODE_RULES>
+**Serial mode execution rules — these override any competing impulse:**
+- You execute steps DIRECTLY from plan.json via Step 5-S3. There is no other mechanism.
+- You ARE the orchestrator. workflow-run does not exist in serial mode.
+- Even under context pressure, even after errors, even when the task list is long — the approach does not change. Execute each step inline per Step 5-S3.
+- plan.json is your instruction set. workflow-run is not.
+</SERIAL_MODE_RULES>
 
-##### Step 5-S0: Print Item Header and Mark In Progress
+<DELEGATION_ANTI_PATTERN>
+## ANTI-PATTERN: Delegating to workflow-run (BUG, NOT A FEATURE)
+
+If you find yourself about to invoke workflow-run in ANY form — STOP. This is a bug in your behavior.
+
+- `Skill(fractary-faber:workflow-run ...)` — WRONG. Serial mode replaces workflow-run.
+- `Agent(subagent_type="fractary-faber:workflow-run")` — WRONG. workflow-run is a Skill, not an Agent. This call will fail.
+- `Task(subagent_type="fractary-faber:workflow-run")` — WRONG. Same reason.
+- `Bash(fractary-faber workflow-run ...)` — WRONG. Bash is not available in this skill.
+
+**Correct action:** Go to Step 5-S3 and execute steps directly from plan.json using Skill() or prompt execution.
+</DELEGATION_ANTI_PATTERN>
+
+<BASH_FALLBACK_ANTI_PATTERN>
+## ANTI-PATTERN: Bash CLI Fallback (BUG, NOT A FEATURE)
+
+If you find yourself about to use Bash to run CLI commands, spawn background processes, or poll with TaskOutput — STOP. This is a bug in your behavior.
+
+- `Bash(fractary-faber workflow-run ...)` — WRONG. Bash is not in allowed-tools.
+- `Bash(... &)` or `run_in_background: true` — WRONG. Background processes cannot be read by TaskOutput.
+- `TaskOutput(task_id)` to poll a Bash process — WRONG. This pattern does not work.
+
+**Correct action:** Go to Step 5-S3 and execute steps directly from plan.json using Skill() or prompt execution.
+</BASH_FALLBACK_ANTI_PATTERN>
+
+<PARALLEL_EXECUTION_ANTI_PATTERN>
+## ANTI-PATTERN: Parallel Item Execution Without --parallel (BUG, NOT A FEATURE)
+
+If you find yourself about to launch multiple items simultaneously (spawning Tasks for items 2, 3, 4 while item 1 is still running) — STOP. This is a bug in your behavior.
+
+Serial mode means: complete item N fully, then start item N+1. No exceptions.
+
+The `--parallel` flag was NOT provided. You MUST execute items one at a time, sequentially.
+
+**Correct action:** Complete the current item through all phases/steps (Step 5-S3), then return to Step 5-S0 for the next item.
+</PARALLEL_EXECUTION_ANTI_PATTERN>
+
+<LARGE_CONTEXT_GUIDANCE>
+After loading batch state, creating batch-level tasks, and creating step-level tasks, your context will be large. This is NORMAL. This is expected. Do NOT change your execution strategy because of context size. Do NOT switch to delegation, Bash fallback, or parallel execution because "context is getting large." The approach is always the same: execute steps directly from plan.json per Step 5-S3, one item at a time.
+</LARGE_CONTEXT_GUIDANCE>
+
+##### Step 5-S0: Pre-Execution Checkpoint and Item Header
+
+**Before each item, mentally verify:**
+- I will execute steps DIRECTLY via Skill() or prompt execution (Step 5-S3)
+- I will NOT invoke workflow-run in any form (not Skill, not Agent, not Task, not Bash)
+- I will NOT use Bash (it is not in allowed-tools)
+- I will complete this item fully before starting the next
 
 ```
 Print: ═══ Workflow {i}/{total}: #{work-id} ═══
@@ -226,6 +281,8 @@ For each phase_name in PHASE_ORDER:
 
 ##### Step 5-S3: Execute Each Phase/Step Directly
 
+**Execute steps HERE, directly. Do NOT delegate to workflow-run or Bash CLI. You invoke Skill() or execute the prompt yourself, right now, in this context.**
+
 For each phase_name in PHASE_ORDER (in order), for each step in that phase's steps:
 
 ```
@@ -276,6 +333,8 @@ taskId = stepTaskIds["{phase_name}:{step.id}"]
 > The only valid terminal states are:
 > (a) All items processed → proceed to Step 6 Final Report
 > (b) User explicitly selects "Stop" via AskUserQuestion in interactive mode
+
+> **CRITICAL — No strategy changes after failure**: Encountering an error does NOT change the execution approach. After marking an item as failed, return to Step 5-S0 for the next item and continue with the same direct-execution approach (Step 5-S3). Do NOT switch to workflow-run delegation, Bash fallback, or parallel execution after a failure.
 
 ##### Step 5-S4: Mark Batch Item Complete
 
