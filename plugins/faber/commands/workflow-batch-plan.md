@@ -81,6 +81,7 @@ Write to `.fractary/faber/batches/{batch-id}/state.json`:
   "batch_id": "{batch-id}",
   "status": "planning",
   "autonomy": "autonomous",
+  "force_new": true,
   "created_at": "{iso-timestamp}",
   "updated_at": "{iso-timestamp}",
   "items": [
@@ -90,6 +91,8 @@ Write to `.fractary/faber/batches/{batch-id}/state.json`:
 ```
 
 The `autonomy` field is set to `"autonomous"` when `--autonomous` flag is provided, or `null` when omitted. This persists the autonomy intent so that `workflow-batch-run` can forward it to auto-planning and validation without needing the original flag.
+
+The `force_new` field is set to `true` when `--force-new` flag is provided, or `false` when omitted. This persists the force-new intent so that `workflow-batch-run` knows that prior work findings are expected and informational only — the orchestrator must not self-block based on step results indicating work was already done.
 
 ### Step 6: Report Batch ID
 
