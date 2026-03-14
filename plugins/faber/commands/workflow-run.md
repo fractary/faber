@@ -127,6 +127,41 @@ Steps depend on each other. Execute one step, complete it, then execute the next
 The ONLY exception: steps inside a declared `parallel_group` (steps_parallel) in the config.
 </PARALLEL_STEP_ANTI_PATTERN>
 
+<ORCHESTRATOR_SELF_BLOCKING_ANTI_PATTERN>
+## 🚫 ANTI-PATTERN: Orchestrator Self-Blocking Based on Step Results (BUG, NOT A FEATURE)
+
+If you find yourself about to skip remaining steps, set status to "blocked", or stop
+a workflow because a research/inspection step found that:
+- Prior work exists for this issue (e.g., "already completed under WORK-128")
+- Another issue already completed this work
+- The table/resource/artifact already exists
+- Nothing appears to need changing
+- The work was "already done"
+
+— STOP. This is a bug in your behavior.
+
+**Your job is to execute every step in plan.json, in order.** You do NOT have authority
+to decide that a workflow should not proceed based on step output content. Only these
+conditions can stop execution:
+
+1. A step fails AND result_handling.on_failure is blocking (per the failure handling protocol)
+2. The user explicitly tells you to stop (interactive mode only, via AskUserQuestion)
+3. A tool/skill is unavailable or errors out (actual failure, not informational output)
+
+"The work was already done" is NEVER a valid reason to stop. The user may want to
+re-validate, re-deploy, fill artifact gaps, or simply verify current state. That is
+their decision, not yours.
+
+**When `--force-new` was used:** Prior work findings are explicitly expected — the user
+knows this work was done before and wants the full workflow to run anyway. Research
+findings about duplicates or prior completions are INFORMATIONAL ONLY.
+
+**Correct action:** Continue to the next step in plan.json. If a step's work is
+already done, let the step itself be a no-op. The engineer can decide nothing needs
+to change. The validator can confirm everything passes. The evaluator can verify
+the existing deployment. Every step gets a chance to run.
+</ORCHESTRATOR_SELF_BLOCKING_ANTI_PATTERN>
+
 <INPUTS>
 
 **Syntax:**

@@ -565,6 +565,7 @@ export function createBatchPlanCommand(): Command {
     .requiredOption('--work-id <ids>', 'Comma-separated work item IDs (e.g., "258,259,260")')
     .option('--name <batch-id>', 'Custom batch name/ID (default: auto-generated timestamp)')
     .option('--autonomous', 'Continue on plan failures without prompting')
+    .option('--force-new', 'Force new plan generation even if plans already exist')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
@@ -617,6 +618,7 @@ interface BatchState {
   batch_id: string;
   status: 'planning' | 'planned' | 'planning_partial' | 'in_progress' | 'completed' | 'completed_with_failures' | 'paused';
   autonomous: boolean;
+  force_new: boolean;
   created_at: string;
   updated_at: string;
   items: BatchItem[];
@@ -648,6 +650,7 @@ async function executeBatchPlanCommand(options: {
   workId: string;
   name?: string;
   autonomous?: boolean;
+  forceNew?: boolean;
   json?: boolean;
 }): Promise<void> {
   const workIds = options.workId.split(',').map((id: string) => id.trim()).filter(Boolean);
@@ -689,6 +692,7 @@ async function executeBatchPlanCommand(options: {
     batch_id: batchId,
     status: 'planning',
     autonomous: options.autonomous ?? false,
+    force_new: options.forceNew ?? false,
     created_at: now,
     updated_at: now,
     items: workIds.map((id) => ({

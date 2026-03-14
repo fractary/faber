@@ -66,6 +66,8 @@ Read `.fractary/faber/batches/{batch-id}/state.json`.
 
 Extract `state.autonomy` — this is the persisted autonomy level set by `workflow-batch-plan --autonomous`. It may be `"autonomous"` or `null`. This value is forwarded to auto-planning and validation Tasks in Step 5-S1, ensuring autonomy intent survives across the batch-plan → batch-run boundary without requiring the user to re-specify `--autonomous`.
 
+Extract `state.force_new` — this is the persisted force-new intent set by `workflow-batch-plan --force-new`. When `true`, the orchestrator knows that prior work findings are expected and informational only. This flag also merges with the `--force-new` runtime flag (either being `true` means force-new is active).
+
 If not found:
 ```
 Error: Batch '{batch-id}' not found.
@@ -178,6 +180,41 @@ The `--parallel` flag was NOT provided. You MUST execute items one at a time, se
 <LARGE_CONTEXT_GUIDANCE>
 After loading batch state, creating batch-level tasks, and creating step-level tasks, your context will be large. This is NORMAL. This is expected. Do NOT change your execution strategy because of context size. Do NOT switch to delegation, Bash fallback, or parallel execution because "context is getting large." The approach is always the same: execute steps directly from plan.json per Step 5-S3, one item at a time.
 </LARGE_CONTEXT_GUIDANCE>
+
+<ORCHESTRATOR_SELF_BLOCKING_ANTI_PATTERN>
+## ANTI-PATTERN: Orchestrator Self-Blocking Based on Step Results (BUG, NOT A FEATURE)
+
+If you find yourself about to skip remaining steps, set status to "blocked", or stop
+a workflow because a research/inspection step found that:
+- Prior work exists for this issue (e.g., "already completed under WORK-128")
+- Another issue already completed this work
+- The table/resource/artifact already exists
+- Nothing appears to need changing
+- The work was "already done"
+
+— STOP. This is a bug in your behavior.
+
+**Your job is to execute every step in plan.json, in order.** You do NOT have authority
+to decide that a workflow should not proceed based on step output content. Only these
+conditions can stop execution:
+
+1. A step fails AND result_handling.on_failure is blocking (per Step 5-S3 failure handling)
+2. The user explicitly tells you to stop (interactive mode only, via AskUserQuestion)
+3. A tool/skill is unavailable or errors out (actual failure, not informational output)
+
+"The work was already done" is NEVER a valid reason to stop. The user may want to
+re-validate, re-deploy, fill artifact gaps, or simply verify current state. That is
+their decision, not yours.
+
+**When `force_new` is set in batch state:** Prior work findings are explicitly expected —
+the user knows this work was done before and wants the full workflow to run anyway.
+Research findings about duplicates or prior completions are INFORMATIONAL ONLY.
+
+**Correct action:** Continue to the next step in plan.json. If a step's work is
+already done, let the step itself be a no-op. The engineer can decide nothing needs
+to change. The validator can confirm everything passes. The evaluator can verify
+the existing deployment. Every step gets a chance to run.
+</ORCHESTRATOR_SELF_BLOCKING_ANTI_PATTERN>
 
 ##### Step 5-S0: Pre-Execution Checkpoint and Item Header
 
