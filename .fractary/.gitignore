@@ -12,7 +12,13 @@ docs/archive/
 codex/cache/
 
 # ===== fractary-faber (managed) =====
-# faber/runs/ is committed to source control (plans, state files)
+# faber/runs/plan.json IS committed (deterministic, safe to share)
+# faber/runs/state-*.json are EXCLUDED during active runs to prevent git-reversion
+#   — a `git pull` during an active workflow would revert a tracked state file to
+#     an older committed version, causing silent loss of progress and fabrication risk.
+#   — State files are force-committed only at Phase 4 finalization (workflow complete).
+#   — To commit a completed state file: git add -f .fractary/faber/runs/{plan_id}/state-*.json
+faber/runs/*/state-*.json
 # .active-run-id is worktree-local state and must NOT be committed
 faber/runs/.active-run-id
 # ===== end fractary-faber =====

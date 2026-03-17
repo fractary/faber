@@ -1305,6 +1305,44 @@ console.log(`Total steps: ${stepTodos.length}`);
 
 **Note:** The step ID is included in the `content` field (e.g., `"(core-fetch-issue)"`) because the TodoWrite tool does not support custom fields beyond `content`, `status`, and `activeForm`. This provides traceability to cross-reference todos with state file entries and plan definitions.
 
+### Step 1.7b: Validate Step ID Prefix Convention
+
+Before execution begins, verify all step IDs follow `{phase}-{action}` naming. A step defined under the `release` phase must begin with `release-`. Steps that violate this are silently skipped by prefix-based orchestrators, a root cause of the WORK-275/346 fabrication incidents.
+
+```javascript
+try {
+  const prefixResult = await Bash({
+    command: `bash plugins/faber/skills/run-manager/scripts/validate-plan-step-ids.sh --plan-file "${planPath}"`,
+    description: "Validate plan step_id prefix convention"
+  });
+
+  if (prefixResult.exitCode !== 0) {
+    // Log violations to output — do NOT abort (legacy plans may exist)
+    // But escalate: post a warning comment to the GitHub issue
+    console.warn(`\n⚠️  STEP ID PREFIX VIOLATIONS detected in plan.json:`);
+    console.warn(prefixResult.stdout);
+    console.warn(`Steps with wrong prefix will be silently skipped by prefix-based orchestrators.`);
+    console.warn(`These steps MUST still be executed — iterate through plan.json steps array directly, not by prefix scan.`);
+    if (source_id) {
+      await Skill({
+        skill: "fractary-work:issue-comment",
+        args: `${source_id} --body "⚠️ **FABER Step ID Prefix Warning**: Plan contains steps whose IDs do not match their phase prefix. These will be explicitly enumerated from plan.json to prevent silent skipping.\n\`\`\`\n${prefixResult.stdout}\n\`\`\`"`
+      });
+    }
+  } else {
+    console.log("✓ Step ID prefix convention validated");
+  }
+} catch (e) {
+  console.warn(`⚠️  Step ID validation skipped (non-fatal): ${e.message}`);
+}
+```
+
+> **GIT-REVERSION WARNING:** Active state files (`.fractary/faber/runs/{plan_id}/state-*.json`) live in the git-tracked tree. A `git pull` during an active workflow can silently revert the state file to an older committed version, making completed steps appear pending. **If you run `git pull` during a workflow:**
+> 1. Do NOT assume state is current.
+> 2. Run `validate-state-integrity.sh --run-id <run-id>` to verify state vs event log.
+> 3. Reconstruct state from events if reverted (run-manager `reconstruct-state` operation).
+> The transition guard in section 2.5 provides a secondary check — a fresh disk read before each write will surface stale state — but manual verification after any git pull is required.
+
 ## Phase 2: Workflow Execution
 
 **You are the orchestrator.** Execute all phase steps directly in this session — do NOT delegate to sub-agents. You have full context, all tools, and the full orchestration protocol loaded. Direct execution gives step-level task list visibility and avoids context loss between phases.
@@ -1366,6 +1404,17 @@ FOR EACH phase IN phases_to_execute (in order):
          substituting {work_id}, {plan_id}, {run_id}, etc.)
 
       # ── 2.5: On success ──
+      # TRANSITION GUARD (mandatory — prevents batch fabrication):
+      #   Re-read current state from disk (catches git-reversion and stale in-memory state).
+      #   Construct proposed state with this one step marked completed.
+      #   Validate via script — fails if more than 1 step is being completed in this write.
+      #   If validation fails, HALT immediately — do not write state.
+      current_state = Read(file_path: state_path)   # Fresh read from disk
+      proposed_state = deepcopy(current_state) with phases[phase.name].steps[step.id].status = "completed"
+      Bash: validate-state-transition.sh \
+              --current {state_path} \
+              --proposed-json '{JSON.stringify(proposed_state)}'
+      # Exit code != 0 → transition invalid → set status="paused", report, halt execution
       Update state: phases[phase.name].steps[step.id].status = "completed", updated_at = now
       Emit step_complete event
       Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → completed
@@ -1395,8 +1444,14 @@ FOR EACH phase IN phases_to_execute (in order):
           Task(description=s.name, prompt=s.prompt with {work_id}/{plan_id}/{run_id} substituted)
       WAIT for all Tasks to complete
 
-      # Record results for each step
+      # Record results for each step (one at a time — transition guard applies per step)
       FOR EACH (s, result) IN zip(pending, results):
+        current_state = Read(file_path: state_path)   # Fresh read before each write
+        proposed_state = deepcopy(current_state) with phases[phase.name].steps[s.id].status = "completed"
+        Bash: validate-state-transition.sh \
+                --current {state_path} \
+                --proposed-json '{JSON.stringify(proposed_state)}'
+        # Exit code != 0 → halt — do not record this step as complete
         Update state: phases[phase.name].steps[s.id].status = "completed", updated_at = now
         Emit step_complete event for s
         Update TodoWrite: "[{phase.name}] {s.name} ({s.id})" → completed
@@ -1419,6 +1474,26 @@ END FOR (phases)
 ### On Successful Completion:
 
 ```javascript
+// TaskList guard: assert zero pending tasks remain before invoking completion gate.
+// An orchestrator that batch-fabricated steps would have pending TodoWrite tasks.
+// This check catches task-queue divergence from state-file divergence independently.
+const allTasks = await TaskList();
+const pendingTasks = allTasks.filter(t => t.status === "pending" || t.status === "in_progress");
+if (pendingTasks.length > 0) {
+  console.error(`\n❌ TaskList guard FAILED: ${pendingTasks.length} task(s) still pending:`);
+  pendingTasks.forEach(t => console.error(`  - [${t.status}] ${t.content}`));
+  const pausedState = {
+    ...state,
+    status: "paused",
+    pause_reason: `TaskList guard: ${pendingTasks.length} task(s) pending before completion — resolve then resume`,
+    updated_at: new Date().toISOString()
+  };
+  await Write({ file_path: statePath, content: JSON.stringify(pausedState, null, 2) });
+  console.error(`\nTo resume: /fractary-faber:workflow-run ${work_id} --resume ${runId}`);
+  return;
+}
+console.log(`TaskList check: ${allTasks.length} tasks, 0 pending ✓`);
+
 // Run completion verification before marking as completed
 const verificationResult = await Task({
   subagent_type: "fractary-faber:workflow-verifier",
@@ -1554,6 +1629,10 @@ Commit all lingering files (state, events, memory) to the feature branch.
 ```javascript
 let hasCleanupChanges = false;
 try {
+  // Force-add state file (gitignored during active run to prevent git-reversion;
+  // committed only here at workflow completion via -f to override .gitignore)
+  await Bash({ command: `git add -f "${statePath}" 2>/dev/null || true`, description: "Force-add completed state file" });
+
   // Stage all lingering files from .fractary/ and .claude/ directories
   await Bash({ command: `git add .fractary/ 2>/dev/null || true`, description: "Stage .fractary/ files" });
   await Bash({ command: `git add .claude/ 2>/dev/null || true`, description: "Stage .claude/ files" });

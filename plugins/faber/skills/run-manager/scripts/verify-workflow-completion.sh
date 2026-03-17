@@ -9,7 +9,8 @@
 #   1. Event-state cross-validation (via validate-state-integrity.sh)
 #   2. All enabled phases are completed or skipped
 #   3. Claimed step count matches expected steps from plan
-#   4. workflow_complete event exists in event log
+#   4. Step ID prefix convention (all steps follow {phase}-{action} naming)
+#   5. workflow_complete event exists in event log
 #
 # Usage:
 #   verify-workflow-completion.sh --run-id <id> [--base-path <path>]
@@ -51,7 +52,8 @@ while [[ $# -gt 0 ]]; do
             echo "  1. Event-state cross-validation (all success claims backed by events)"
             echo "  2. All enabled phases are completed or skipped"
             echo "  3. Claimed vs expected step count from plan"
-            echo "  4. workflow_complete event exists"
+            echo "  4. Step ID prefix convention ({phase}-{action} naming)"
+            echo "  5. workflow_complete event exists"
             exit 0
             ;;
         *)
@@ -204,7 +206,35 @@ else
 fi
 
 # ============================================================
-# Check 4: workflow_complete Event Exists
+# Check 4: Step ID Prefix Convention (all steps follow {phase}-{action})
+# ============================================================
+PREFIX_SCRIPT="$SCRIPT_DIR/validate-plan-step-ids.sh"
+if [[ -f "$PLAN_FILE" && -x "$PREFIX_SCRIPT" ]]; then
+    PREFIX_RESULT=$("$PREFIX_SCRIPT" --plan-file "$PLAN_FILE" 2>/dev/null) || true
+    PREFIX_STATUS=$(echo "$PREFIX_RESULT" | jq -r '.status // "error"')
+
+    if [[ "$PREFIX_STATUS" == "pass" ]]; then
+        CHECKS=$(echo "$CHECKS" | jq \
+            '. + [{"check": "step_id_prefix_convention", "status": "pass", "detail": "All step IDs follow {phase}-{action} convention"}]')
+    elif [[ "$PREFIX_STATUS" == "fail" ]]; then
+        VIOLATIONS=$(echo "$PREFIX_RESULT" | jq -c '.violations // []')
+        ALL_PASSED=false
+        CHECKS=$(echo "$CHECKS" | jq --argjson v "$VIOLATIONS" \
+            '. + [{"check": "step_id_prefix_convention", "status": "fail", "detail": "Step IDs violate {phase}-{action} convention — steps may have been silently skipped", "violations": $v}]')
+    else
+        CHECKS=$(echo "$CHECKS" | jq \
+            '. + [{"check": "step_id_prefix_convention", "status": "warn", "detail": "Step ID prefix validation returned error or unknown status"}]')
+    fi
+elif [[ ! -f "$PLAN_FILE" ]]; then
+    CHECKS=$(echo "$CHECKS" | jq \
+        '. + [{"check": "step_id_prefix_convention", "status": "warn", "detail": "Plan file not found — cannot validate step ID prefixes"}]')
+else
+    CHECKS=$(echo "$CHECKS" | jq \
+        '. + [{"check": "step_id_prefix_convention", "status": "warn", "detail": "validate-plan-step-ids.sh not found or not executable"}]')
+fi
+
+# ============================================================
+# Check 5: workflow_complete Event Exists
 # ============================================================
 EVENTS_LOOKUP=$(mktemp)
 trap 'rm -f "$EVENTS_LOOKUP"' EXIT
