@@ -1,7 +1,7 @@
 ---
 name: fractary-faber:workflow-batch-run
 description: Execute a planned FABER batch sequentially (serial mode, default) or in parallel (--parallel). Serial mode runs steps in the parent context with full task list visibility; parallel mode spawns sub-agents per item for concurrency with batch-level-only visibility.
-argument-hint: '--batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new] [--parallel]'
+argument-hint: '--batch <batch-id> [--autonomy <level>] [--resume] [--phase <phases>] [--force-new] [--parallel]'
 allowed-tools: Read(.fractary/faber/**), Write, Task(fractary-faber:workflow-planner), Task(fractary-faber:workflow-plan-validator), Task(fractary-faber:workflow-plan-reporter), Skill, TaskCreate, TaskUpdate, AskUserQuestion
 model: claude-sonnet-4-6
 ---
@@ -13,7 +13,7 @@ model: claude-sonnet-4-6
 Executes all planned items from an existing batch. Runs in **serial mode by default** — steps execute in the parent context with full task list visibility. Use `--parallel` to spawn sub-agents per item for concurrency (batch-level visibility only).
 
 **Key behaviors:**
-- `--autonomous`: Auto-skip failed items, no user prompts (designed for overnight unattended runs)
+- `--autonomy autonomous`: Auto-skip failed items, no user prompts (designed for overnight unattended runs)
 - `--resume`: Skip already-completed items (safe to re-run after interruption)
 - Serial mode (default): Full step-level task list visible in UI, steps run in parent context
 - `--parallel`: Each Task spawn = completely fresh context, zero carry-over; only batch-level tasks visible
@@ -28,7 +28,7 @@ Executes all planned items from an existing batch. Runs in **serial mode by defa
 ## Syntax
 
 ```
-/fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new] [--parallel]
+/fractary-faber:workflow-batch-run --batch <batch-id> [--autonomy <level>] [--resume] [--phase <phases>] [--force-new] [--parallel]
 ```
 
 ## Arguments
@@ -36,7 +36,7 @@ Executes all planned items from an existing batch. Runs in **serial mode by defa
 | Option | Required | Description |
 |--------|----------|-------------|
 | `--batch <batch-id>` | Yes | Batch ID from `workflow-batch-plan` (e.g., `overnight-sprint-01`) |
-| `--autonomous` | No | Skip user prompts on failure, auto-continue to next item |
+| `--autonomy <level>` | No | Autonomy level override (e.g., `autonomous`, `guarded`, `assisted`). When `autonomous`: skip user prompts on failure, auto-continue to next item. Merges with persisted autonomy from state.json. |
 | `--resume` | No | Resume from last completed item (skip completed/skipped items) |
 | `--phase <phases>` | No | Execute only specified phase(s) — comma-separated (e.g., `build` or `build,evaluate`) |
 | `--force-new` | No | Force fresh start for each item, bypassing auto-resume |
@@ -48,7 +48,7 @@ Executes all planned items from an existing batch. Runs in **serial mode by defa
 
 From `$ARGUMENTS`:
 1. Extract `--batch <value>` — required
-2. Extract `--autonomous` flag
+2. Extract `--autonomy <value>` if present, or null
 3. Extract `--resume` flag
 4. Extract `--phase <value>` — optional (e.g., `build` or `build,evaluate`)
 5. Extract `--force-new` flag
@@ -57,14 +57,14 @@ From `$ARGUMENTS`:
 If `--batch` is missing, error:
 ```
 Error: --batch <batch-id> is required.
-Usage: /fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume] [--phase <phases>] [--force-new] [--parallel]
+Usage: /fractary-faber:workflow-batch-run --batch <batch-id> [--autonomy <level>] [--resume] [--phase <phases>] [--force-new] [--parallel]
 ```
 
 ### Step 2: Load Batch State
 
 Read `.fractary/faber/batches/{batch-id}/state.json`.
 
-Extract `state.autonomy` — this is the persisted autonomy level set by `workflow-batch-plan --autonomous`. It may be `"autonomous"` or `null`. This value is forwarded to auto-planning and validation Tasks in Step 5-S1, ensuring autonomy intent survives across the batch-plan → batch-run boundary without requiring the user to re-specify `--autonomous`.
+Extract `state.autonomy` — this is the persisted autonomy level set by `workflow-batch-plan --autonomy <level>`. It may be `"autonomous"`, another level, or `null`. If `--autonomy` was also passed at runtime, the runtime value takes precedence over the persisted value. The resolved autonomy is forwarded to auto-planning and validation Tasks in Step 5-S1, ensuring autonomy intent survives across the batch-plan → batch-run boundary without requiring the user to re-specify `--autonomy`.
 
 Extract `state.force_new` — this is the persisted force-new intent set by `workflow-batch-plan --force-new`. When `true`, the orchestrator knows that prior work findings are expected and informational only. This flag also merges with the `--force-new` runtime flag (either being `true` means force-new is active).
 
@@ -460,7 +460,7 @@ Batch state saved to:
 If any failures:
 ```
 To retry failed items:
-  /fractary-faber:workflow-batch-run --batch {batch-id} --autonomous --resume
+  /fractary-faber:workflow-batch-run --batch {batch-id} --autonomy autonomous --resume
 ```
 
 ## Step-Level Recovery
@@ -472,27 +472,27 @@ Step-level recovery (auto-fix, retries within a single workflow) is handled by t
 ```bash
 # Plan first, then run in serial mode (default — full task list visible)
 /fractary-faber:workflow-batch-plan 258,259,260 --name overnight-sprint-01
-/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomy autonomous
 
 # Run in parallel mode (sub-agents, batch-level visibility only)
-/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --parallel
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomy autonomous --parallel
 
 # Resume after interruption
-/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --resume
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomy autonomous --resume
 
 # Interactive run (prompts on failure)
 /fractary-faber:workflow-batch-run --batch overnight-sprint-01
 
 # Run only the build and evaluate phases for all items
-/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --phase build,evaluate
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomy autonomous --phase build,evaluate
 
 # Force fresh start for all items (ignore existing workflow state)
-/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --force-new
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomy autonomous --force-new
 
 # Phase filter + force new combined
-/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomous --phase build,evaluate --force-new
+/fractary-faber:workflow-batch-run --batch overnight-sprint-01 --autonomy autonomous --phase build,evaluate --force-new
 
 # Two worktrees, different batches — no state collision
-# Worktree 1: /fractary-faber:workflow-batch-run --batch sprint-backend --autonomous
-# Worktree 2: /fractary-faber:workflow-batch-run --batch sprint-frontend --autonomous
+# Worktree 1: /fractary-faber:workflow-batch-run --batch sprint-backend --autonomy autonomous
+# Worktree 2: /fractary-faber:workflow-batch-run --batch sprint-frontend --autonomy autonomous
 ```

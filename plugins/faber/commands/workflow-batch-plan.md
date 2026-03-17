@@ -15,7 +15,7 @@ Creates a named batch of workflow plans for sequential unattended execution. Eac
 ## Syntax
 
 ```
-/fractary-faber:workflow-batch-plan <work-ids> [--name <batch-id>] [--autonomous] [--force-new]
+/fractary-faber:workflow-batch-plan <work-ids> [--name <batch-id>] [--autonomy <level>] [--force-new]
 ```
 
 ## Arguments
@@ -24,7 +24,7 @@ Creates a named batch of workflow plans for sequential unattended execution. Eac
 |----------|----------|-------------|
 | `<work-ids>` | Yes | Comma-separated work item IDs (e.g., "258,259,260") |
 | `--name <batch-id>` | No | Custom batch name (default: `batch-YYYY-MM-DDTHH-MM-SSZ`) |
-| `--autonomous` | No | Set autonomy level to "autonomous" for all plans. Persisted in state.json so `workflow-batch-run` can forward it without needing the original flag. |
+| `--autonomy <level>` | No | Autonomy level for all plans (e.g., `autonomous`, `guarded`, `assisted`). Persisted in state.json so `workflow-batch-run` can forward it without needing the original flag. |
 | `--force-new` | No | Force new plan generation even if plans already exist for the items |
 
 ## Protocol
@@ -34,7 +34,7 @@ Creates a named batch of workflow plans for sequential unattended execution. Eac
 From `$ARGUMENTS`:
 1. Extract positional comma-separated IDs (e.g., "258,259,260")
 2. Extract `--name <value>` if present (the custom batch ID)
-3. Extract `--autonomous` flag (boolean — true if present, false otherwise)
+3. Extract `--autonomy <value>` if present (e.g., `autonomous`, `guarded`, `assisted`), or null if omitted
 4. Extract `--force-new` flag (boolean — true if present, false otherwise)
 
 Validate:
@@ -80,8 +80,8 @@ Write to `.fractary/faber/batches/{batch-id}/state.json`:
 {
   "batch_id": "{batch-id}",
   "status": "planning",
-  "autonomy": "autonomous",
-  "force_new": true,
+  "autonomy": "{autonomy_level or null}",
+  "force_new": false,
   "created_at": "{iso-timestamp}",
   "updated_at": "{iso-timestamp}",
   "items": [
@@ -90,7 +90,7 @@ Write to `.fractary/faber/batches/{batch-id}/state.json`:
 }
 ```
 
-The `autonomy` field is set to `"autonomous"` when `--autonomous` flag is provided, or `null` when omitted. This persists the autonomy intent so that `workflow-batch-run` can forward it to auto-planning and validation without needing the original flag.
+The `autonomy` field is set to the value of `--autonomy` if provided (e.g., `"autonomous"`), or `null` when omitted. This persists the autonomy intent so that `workflow-batch-run` can forward it to auto-planning and validation without needing the original flag.
 
 The `force_new` field is set to `true` when `--force-new` flag is provided, or `false` when omitted. This persists the force-new intent so that `workflow-batch-run` knows that prior work findings are expected and informational only — the orchestrator must not self-block based on step results indicating work was already done.
 
@@ -121,19 +121,14 @@ Planning {count} items in parallel via CLI...
 Launch **all** `Bash()` calls in a **single message** (parallel tool calls). Do not wait between spawns.
 
 ```
-// If --autonomous was provided:
-Bash(command="fractary-faber workflow-plan {work-id-1} --skip-confirm --json --autonomy autonomous", description="Plan workflow for #{work-id-1}")
-Bash(command="fractary-faber workflow-plan {work-id-2} --skip-confirm --json --autonomy autonomous", description="Plan workflow for #{work-id-2}")
-
-// If --autonomous was NOT provided:
-Bash(command="fractary-faber workflow-plan {work-id-1} --skip-confirm --json", description="Plan workflow for #{work-id-1}")
-Bash(command="fractary-faber workflow-plan {work-id-2} --skip-confirm --json", description="Plan workflow for #{work-id-2}")
-
-// If --force-new was provided, append --force-new to any of the above:
-Bash(command="fractary-faber workflow-plan {work-id-1} --skip-confirm --json --force-new", description="Plan workflow for #{work-id-1}")
-Bash(command="fractary-faber workflow-plan {work-id-2} --skip-confirm --json --force-new", description="Plan workflow for #{work-id-2}")
+// Base command — append --autonomy and/or --force-new if provided:
+Bash(command="fractary-faber workflow-plan {work-id-1} --skip-confirm --json [--autonomy {autonomy_level}] [--force-new]", description="Plan workflow for #{work-id-1}")
+Bash(command="fractary-faber workflow-plan {work-id-2} --skip-confirm --json [--autonomy {autonomy_level}] [--force-new]", description="Plan workflow for #{work-id-2}")
 ... (all items in one message)
 ```
+
+- If `autonomy_level` is set: append `--autonomy {autonomy_level}`
+- If `force_new` is true: append `--force-new`
 
 > **Why CLI instead of LLM agents**: The CLI's `workflow-plan` command generates plans deterministically via the SDK's `WorkflowResolver` — no LLM is involved. This eliminates the non-determinism that caused batch plans to have inconsistent step counts (38 vs 52, 49 vs 53) when LLM planner agents were used.
 
@@ -211,7 +206,7 @@ for (const item of plannedItems) {
 ═══════════════════════════════════════════════
 
 To run this batch overnight (unattended):
-  /fractary-faber:workflow-batch-run --batch {batch-id} --autonomous
+  /fractary-faber:workflow-batch-run --batch {batch-id} --autonomy autonomous
 
 To run interactively:
   /fractary-faber:workflow-batch-run --batch {batch-id}
@@ -229,13 +224,13 @@ To run interactively:
 # Plan 5 issues
 /fractary-faber:workflow-batch-plan 258,259,260,261,262 --name sprint-02
 
-# Plan with autonomous flag (persisted in state.json for batch-run)
-/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-03 --autonomous
+# Plan with autonomy level (persisted in state.json for batch-run)
+/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-03 --autonomy autonomous
 
 # Force re-planning items that already have plans
-/fractary-faber:workflow-batch-plan 105,110 --autonomous --force-new
+/fractary-faber:workflow-batch-plan 105,110 --autonomy autonomous --force-new
 
 # Plan then run — batch-run reads persisted autonomy from state.json
-/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-03 --autonomous
+/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-03 --autonomy autonomous
 /fractary-faber:workflow-batch-run --batch sprint-03
 ```
