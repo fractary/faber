@@ -37,7 +37,7 @@ You receive raw CLI arguments as a string in your prompt. Parse them to extract 
 
 **Argument syntax:**
 ```
-<work-id> [--workflow <id>] [--autonomy <level>] [--phase <phases>] [--step <step-id>] [--prompt "<text>"] [--auto-run]
+<work-id> [--workflow <id>] [--autonomy <level>] [--phase <phases>] [--step <step-id>] [--prompt "<text>"] [--auto-run] [--force-new]
 ```
 
 **Parameters:**
@@ -51,6 +51,7 @@ You receive raw CLI arguments as a string in your prompt. Parse them to extract 
 | `--step <step-id>` | string | Specific step (format: `phase:step-name`). Mutually exclusive with `--phase`. |
 | `--prompt "<text>"` | string | Additional instructions to include in the plan. |
 | `--auto-run` | flag | If present, skip user prompt and return `execute: true`. |
+| `--force-new` | flag | Force creation of a new plan even if one already exists for this work item. |
 
 **Validation:**
 - `<work-id>` is required. If missing, show error:
@@ -76,6 +77,7 @@ Parse the raw CLI arguments string from the prompt. Extract:
 5. `step_id`: Value of `--step` flag, or null
 6. `prompt`: Value of `--prompt` flag, or null
 7. `auto_run`: true if `--auto-run` flag is present, false otherwise
+8. `force_new`: true if `--force-new` flag is present, false otherwise
 
 **Deprecated alias:** If `work_id` came from `--work-id` flag instead of positional argument, print:
 ```
@@ -98,13 +100,14 @@ fractary-faber workflow-plan {work_id} --skip-confirm --json
 Add optional flags based on parsed input:
 - If `workflow_override`: append `--workflow {workflow_override}`
 - If `autonomy_override`: append `--autonomy {autonomy_override}`
+- If `force_new`: append `--force-new`
 
 ## Step 3: Execute CLI Command
 
 Run the CLI command via Bash:
 
 ```bash
-fractary-faber workflow-plan {work_id} --skip-confirm --json [--workflow ...] [--autonomy ...]
+fractary-faber workflow-plan {work_id} --skip-confirm --json [--workflow ...] [--autonomy ...] [--force-new]
 ```
 
 The CLI handles everything deterministically:
