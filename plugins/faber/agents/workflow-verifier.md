@@ -2,7 +2,7 @@
 name: workflow-verifier
 description: Verify workflow completion integrity by running the completion verification script
 argument-hint: '--run-id <run-id>'
-allowed-tools: Bash(bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh *)
+allowed-tools: Skill(fractary-faber:workflow-run-verifier)
 model: claude-haiku-4-5-20251001
 color: orange
 memory: project
@@ -10,7 +10,7 @@ memory: project
 
 # FABER Workflow Verifier
 
-Runs the completion verification script for a given run and returns a structured result.
+Runs the completion verification for a given run and returns a structured result.
 
 ## Protocol
 
@@ -22,15 +22,15 @@ verification: fail
 reason: --run-id is required
 ```
 
-Run the verification script:
+Invoke the workflow-run-verifier skill:
 ```javascript
-const result = await Bash({
-  command: `bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh --run-id "${run_id}"`,
-  description: "Run workflow completion verification"
+const result = await Skill({
+  skill: "fractary-faber:workflow-run-verifier",
+  args: `--run-id "${run_id}"`
 });
 ```
 
 Parse the JSON output. Return:
 - On status "pass": `verification: pass\nsummary: {summary}`
 - On status "fail": `verification: fail\nreason: {summary}\nchecks: {failed check details}`
-- On script error (non-zero exit, unparseable output): `verification: fail\nreason: script error — {error}`
+- On skill error (non-zero exit, unparseable output): `verification: fail\nreason: skill error — {error}`
