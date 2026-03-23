@@ -12,6 +12,28 @@ The Frame phase is responsible for:
 
 ## Implementation Steps
 
+### Step 0: Detect Working Directory Context
+
+Before any other operations, detect whether this workflow is running inside a git worktree. This is critical for ensuring subagents write files to the correct location.
+
+```bash
+git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+cwd=$(pwd)
+if [ "$git_root" != "$cwd" ]; then
+  worktree_cwd="$cwd"
+  echo "Working inside a git worktree: $cwd (git root: $git_root)"
+fi
+```
+
+If `worktree_cwd` is set, ALL subsequent subagent invocations in this workflow MUST include the following context:
+
+```
+IMPORTANT: This workflow is running inside a git worktree at: {worktree_cwd}
+All file read/write operations MUST use paths relative to {worktree_cwd}.
+Do NOT use `git rev-parse --show-toplevel` to anchor file paths — it returns the git root,
+not the active worktree. Use $PWD or construct absolute paths from {worktree_cwd}.
+```
+
 ### Step 1: Fetch Work Item
 
 Use the work-manager agent to retrieve work item details:
@@ -134,7 +156,14 @@ Domain-specific environment preparation:
 
 For engineering work, prepare the development environment:
 
-**Create Branch with Worktree**:
+**Read Worktree Config**:
+```bash
+worktree_enabled=$(fractary-faber config get faber.worktree.enabled --raw 2>/dev/null || echo "false")
+# Normalize: treat anything other than literal "true" as false
+[ "$worktree_enabled" = "true" ] || worktree_enabled="false"
+```
+
+**Create Branch**:
 ```markdown
 Use the @agent-fractary-repo:repo-manager agent with the following request:
 {
@@ -145,12 +174,14 @@ Use the @agent-fractary-repo:repo-manager agent with the following request:
     "prefix": "{branch_prefix}",
     "description": "{work_item_title}",
     "base_branch": "main",
-    "worktree": true
+    "worktree": {worktree_enabled}
   }
 }
 ```
 
-**CRITICAL**: The `worktree: true` parameter ensures the workflow executes in an isolated worktree.
+**NOTE**: `worktree` defaults to `false`. Claude Code's `--worktree` flag is the recommended
+isolation mechanism (see SPEC-006). Set `faber.worktree.enabled: true` in `.fractary/config.yaml`
+only if you want FABER to manage the worktree lifecycle directly.
 
 **Branch Prefix Mapping**: Map work_type to branch prefix:
 - `/bug` → `fix`

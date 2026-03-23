@@ -38,6 +38,7 @@ export interface GitHubConfig {
 }
 
 export interface WorktreeConfig {
+  enabled?: boolean;           // Default false — FABER does not manage worktrees by default (see SPEC-006)
   location?: string;
   inherit_from_claude?: boolean;
 }

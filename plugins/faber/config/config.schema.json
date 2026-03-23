@@ -77,6 +77,18 @@
           }
         }
       }
+    },
+    "worktree": {
+      "type": "object",
+      "description": "Worktree management settings. By default FABER does not manage worktrees — Claude Code's --worktree flag is the preferred isolation mechanism.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Set to true if you want FABER to create and manage the git worktree lifecycle. Default false: Claude Code's --worktree flag is preferred. See SPEC-006 for details."
+        }
+      }
     }
   },
   "definitions": {

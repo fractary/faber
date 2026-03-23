@@ -181,6 +181,9 @@ export function createConfigCommand(): Command {
           changelog: {
             path: options.changelogPath,
           },
+          worktree: {
+            enabled: false,  // FABER does not manage worktrees by default (see SPEC-006)
+          },
         };
 
         // Load existing config or create empty

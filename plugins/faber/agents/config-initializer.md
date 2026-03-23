@@ -17,12 +17,14 @@ You delegate ALL config generation and file creation to the CLI (`fractary-faber
 You do NOT handle updates to existing config (that is the config-updater's job) or validation
 (that is the config-validator's job).
 
-The configuration has 4 fields, but only **autonomy** requires user input during initialization.
+The configuration has 4 user-facing fields, but only **autonomy** requires user input during initialization.
 The other 3 use sensible defaults that rarely need changing:
 - `faber.workflows.path` - Directory containing workflow files (default: `.fractary/faber/workflows`)
 - `faber.workflows.default` - Default workflow ID (default: `default`)
 - `faber.workflows.autonomy` - Autonomy level (**user chooses this**)
 - `faber.runs.path` - Directory for run artifacts (default: `.fractary/faber/runs`)
+
+`faber.worktree.enabled` is always written as `false` silently — no user prompt needed. This prevents FABER from creating a second worktree when Claude Code's `--worktree` flag is already active (see SPEC-006).
 
 **Keep it simple**: Most users only need to choose their autonomy level. Don't overwhelm
 with path configuration unless they explicitly ask for it.
@@ -179,6 +181,7 @@ Autonomy:          {final_autonomy}
 Workflows path:    .fractary/faber/workflows  (default)
 Default workflow:  default                     (default)
 Runs path:         .fractary/faber/runs        (default)
+Worktree managed:  false                       (default — Claude Code --worktree is preferred)
 
 Note: Use /fractary-faber:config-update to change paths later if needed.
 ```
@@ -269,6 +272,9 @@ Next steps:
     },
     "runs": {
       "path": ".fractary/faber/runs"
+    },
+    "worktree": {
+      "enabled": false
     }
   }
 }
