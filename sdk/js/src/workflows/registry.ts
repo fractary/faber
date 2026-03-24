@@ -6,6 +6,7 @@
  */
 
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { z } from 'zod';
@@ -17,17 +18,29 @@ import { findProjectRoot } from '../config.js';
 // Schema Validation
 // ============================================================================
 
+const LocalFileSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .regex(
+    /^[a-zA-Z0-9][a-zA-Z0-9._/-]*\.(yaml|yml|json)$/,
+    'Local file must be a .yaml, .yml, or .json path'
+  );
+
+const PluginRefSchema = z
+  .string()
+  .regex(
+    /^[a-z][a-z0-9-]*@[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/,
+    'Plugin reference must match {alias}@{marketplace-id}:{workflow-name}'
+  );
+
 const WorkflowEntrySchema = z.object({
   id: z
     .string()
     .min(1)
     .max(64)
     .regex(/^[a-z][a-z0-9-]*$/, 'Workflow ID must be lowercase alphanumeric with hyphens'),
-  file: z
-    .string()
-    .min(1)
-    .max(255)
-    .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.(yaml|yml|json)$/, 'File must be a .yaml, .yml, or .json file'),
+  file: z.union([LocalFileSchema, PluginRefSchema]),
   description: z.string().max(500).optional(),
 });
 
@@ -56,6 +69,50 @@ export class RegistryWorkflowNotFoundError extends WorkflowRegistryError {
     );
     this.name = 'RegistryWorkflowNotFoundError';
   }
+}
+
+// ============================================================================
+// Plugin Workflow Resolution
+// ============================================================================
+
+const PLUGIN_REF_PATTERN = /^([a-z][a-z0-9-]*)@([a-z][a-z0-9-]*):([a-z][a-z0-9-]*)$/;
+
+function isPluginRef(file: string): boolean {
+  return PLUGIN_REF_PATTERN.test(file);
+}
+
+function resolvePluginWorkflow(file: string): string | null {
+  const match = file.match(PLUGIN_REF_PATTERN);
+  if (!match) return null;
+  const [, , marketplaceId, workflowName] = match;
+
+  const pluginCacheRoot =
+    process.env.CLAUDE_MARKETPLACE_ROOT ??
+    path.join(os.homedir(), '.claude', 'plugins', 'cache');
+
+  const packageDir = path.join(pluginCacheRoot, marketplaceId, marketplaceId);
+  if (!fs.existsSync(packageDir)) return null;
+
+  const versions = fs
+    .readdirSync(packageDir)
+    .filter((v) => /^\d+\.\d+\.\d+/.test(v))
+    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+
+  if (versions.length === 0) return null;
+
+  for (const ext of ['json', 'yaml', 'yml']) {
+    const candidate = path.join(
+      packageDir,
+      versions[0],
+      '.fractary',
+      'faber',
+      'workflows',
+      `${workflowName}.${ext}`
+    );
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  return null;
 }
 
 // ============================================================================
@@ -215,6 +272,19 @@ export function getWorkflowPath(options: GetWorkflowOptions): string {
     : path.join(projectRoot, workflowsPath);
 
   const workflow = getWorkflow(options);
+
+  if (isPluginRef(workflow.file)) {
+    const resolved = resolvePluginWorkflow(workflow.file);
+    if (!resolved) {
+      const pluginId = workflow.file.split('@')[1].split(':')[0];
+      throw new WorkflowRegistryError(
+        `Cannot resolve plugin workflow '${workflow.file}'. ` +
+          `Is the plugin installed? Run: fractary-faber plugin install ${pluginId}`
+      );
+    }
+    return resolved;
+  }
+
   return path.join(workflowsDir, workflow.file);
 }
 
