@@ -1396,7 +1396,30 @@ FOR EACH phase IN phases_to_execute (in order):
       Emit step_start event
 
       # ── 2.4: Execute step per orchestration protocol ──
-      IF step.skill is set:
+      #
+      # EXECUTOR ROUTING: Check if step has an external executor configured.
+      # If step.executor is defined, delegate to external model/service via CLI.
+      # If not, use default behavior (direct execution by you).
+      #
+      IF step.executor is defined (step has an "executor" field with "provider"):
+        # External executor — invoke via Bash, parse JSON result
+        LOG "⫸ External executor: {step.executor.provider}" + (step.executor.model if set)
+        result_json = Bash: echo '<step-input-json>' | node -e "
+          import('@fractary/faber').then(m => m.executeStepCli());
+        "
+        # Where <step-input-json> is:
+        # {"stepId":"<step.id>","prompt":"<step.prompt with vars substituted>",
+        #  "executor":<step.executor>,"context":{"workId":"<work_id>","phase":"<phase>"}}
+        #
+        # Parse result_json as ExecutorResult:
+        #   result.status → 'success' | 'warning' | 'failure'
+        #   result.output → text output from external model
+        #   result.error → error message if failure
+        #
+        # Apply result_handling based on result.status (same as normal steps)
+        # The output text can be used as context for subsequent steps
+
+      ELSE IF step.skill is set:
         Skill(skill=step.skill, args=resolved_args)
       ELSE:
         Interpret and execute step.prompt directly

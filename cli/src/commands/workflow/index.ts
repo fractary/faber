@@ -14,6 +14,8 @@ import {
   inspectWorkflow,
   debugWorkflow,
   listWorkflows,
+  ExecutorRegistry,
+  WorkflowExecutor,
 } from '@fractary/faber';
 import { parsePositiveInteger } from '../../utils/validation.js';
 
@@ -977,6 +979,130 @@ async function executeBatchRunCommand(options: {
   if (anyFailed && !options.autonomous) {
     process.exit(1);
   }
+}
+
+/**
+ * Create the workflow-execute command (multi-model CLI-native execution)
+ */
+export function createWorkflowExecuteCommand(): Command {
+  return new Command('workflow-execute')
+    .description('Execute a workflow using the multi-model executor framework (CLI-native, no Claude Code required)')
+    .argument('<plan-path>', 'Path to plan.json file')
+    .option('--model <model>', 'Default model for steps without an explicit executor (default: claude-sonnet-4-6-20250514)')
+    .option('--phase <phases>', 'Execute only specified phase(s) — comma-separated')
+    .option('--step <step-id>', 'Execute only a specific step')
+    .option('--json', 'Output as JSON')
+    .action(async (planPath: string, options: { model?: string; phase?: string; step?: string; json?: boolean }) => {
+      try {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+
+        // Load plan
+        const resolvedPath = path.resolve(planPath);
+        const planContent = await fs.readFile(resolvedPath, 'utf-8');
+        const plan = JSON.parse(planContent);
+
+        if (!plan.workflow?.phases) {
+          throw new Error('Invalid plan: missing workflow.phases');
+        }
+
+        // Create executor registry with defaults
+        const registry = ExecutorRegistry.createDefault();
+
+        // Override default model if specified
+        const workflowExecutor = plan.workflow.executor || (options.model ? {
+          provider: 'claude',
+          model: options.model,
+        } : undefined);
+
+        // Create workflow executor
+        const executor = new WorkflowExecutor(registry);
+
+        // Parse options
+        const phasesToRun = options.phase?.split(',').map((p: string) => p.trim()) ?? null;
+
+        // Extract work ID from plan
+        const workId = plan.source?.work_id || plan.items?.[0]?.work_id || 'unknown';
+        const issue = plan.items?.[0]?.issue;
+
+        if (!options.json) {
+          console.log(chalk.blue.bold('FABER Multi-Model Workflow Execution'));
+          console.log(chalk.gray('═'.repeat(50)));
+          console.log(chalk.gray(`Plan: ${resolvedPath}`));
+          console.log(chalk.gray(`Work ID: ${workId}`));
+          console.log(chalk.gray(`Workflow: ${plan.workflow.id}`));
+          if (workflowExecutor) {
+            console.log(chalk.gray(`Default executor: ${workflowExecutor.provider}${workflowExecutor.model ? ` (${workflowExecutor.model})` : ''}`));
+          }
+          console.log('');
+        }
+
+        // Execute
+        const result = await executor.execute(
+          {
+            phases: plan.workflow.phases,
+            executor: workflowExecutor,
+            phase_executors: plan.workflow.phase_executors,
+            result_handling: plan.workflow.result_handling,
+          },
+          {
+            workId,
+            issue: issue ? { number: issue.number, title: issue.title, body: '' } : undefined,
+            workingDirectory: path.dirname(resolvedPath),
+            phasesToRun: phasesToRun || undefined,
+            stepToRun: options.step || null,
+            onPhaseStart: (phase: string) => {
+              if (!options.json) {
+                console.log(chalk.cyan(`\n→ Phase: ${phase.toUpperCase()}`));
+              }
+            },
+            onStepStart: (phase: string, step: any, index: number, total: number) => {
+              if (!options.json) {
+                const executor = step.executor;
+                const providerTag = executor
+                  ? chalk.magenta(`[${executor.provider}${executor.model ? `:${executor.model}` : ''}]`)
+                  : chalk.gray('[default]');
+                console.log(chalk.gray(`  [${index + 1}/${total}] ${step.name} ${providerTag}`));
+              }
+            },
+            onStepComplete: (_phase: string, step: any, stepResult: any) => {
+              if (!options.json) {
+                const icon = stepResult.status === 'success' ? chalk.green('✓') :
+                             stepResult.status === 'warning' ? chalk.yellow('⚠') :
+                             chalk.red('✗');
+                console.log(`  ${icon} ${step.id} (${stepResult.metadata.duration_ms}ms)`);
+                if (stepResult.metadata.tokens_used) {
+                  console.log(chalk.gray(`    tokens: ${stepResult.metadata.tokens_used.input}→${stepResult.metadata.tokens_used.output}`));
+                }
+              }
+            },
+            onPhaseComplete: (phase: string, status: string) => {
+              if (!options.json) {
+                const icon = status === 'completed' ? chalk.green('✓') :
+                             status === 'skipped' ? chalk.gray('⏭') :
+                             chalk.red('✗');
+                console.log(`  ${icon} Phase ${phase} ${status}`);
+              }
+            },
+          },
+        );
+
+        if (options.json) {
+          console.log(JSON.stringify({ status: 'success', data: result }, null, 2));
+        } else {
+          console.log(chalk.gray('\n' + '═'.repeat(50)));
+          const statusIcon = result.status === 'completed' ? chalk.green('✓') : chalk.red('✗');
+          console.log(`${statusIcon} Workflow ${result.status} (${result.duration_ms}ms)`);
+          console.log(chalk.gray(`  Steps: ${result.steps_completed}/${result.steps_total}`));
+        }
+
+        if (result.status === 'failed') {
+          process.exit(1);
+        }
+      } catch (error) {
+        handleWorkflowError(error, options);
+      }
+    });
 }
 
 // Helper functions
