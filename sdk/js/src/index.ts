@@ -11,6 +11,7 @@
  * - workflow: FABER workflow orchestration
  * - storage: Artifact storage (local and Codex integration)
  * - agents: Agent type templates and selection
+ * - executors: Multi-model step execution framework
  */
 
 // Core exports
@@ -32,6 +33,9 @@ export * from './workflow/index.js';
 export * from './storage/index.js';
 export * from './agents/index.js';
 export * from './changelog/index.js';
+
+// Executors module
+export * from './executors/index.js';
 
 // Auth module
 export * from './auth/index.js';

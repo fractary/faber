@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
+import type { StepExecutorConfig } from '../executors/types.js';
 
 // ============================================================================
 // Workflow File Types
@@ -72,6 +73,13 @@ export interface WorkflowStep {
   source?: string;
   /** Position type (added during merge) */
   position?: 'pre_step' | 'step' | 'post_step';
+  /**
+   * Executor configuration for this step.
+   * When specified, routes execution to the given provider/model instead of
+   * the default Claude Code direct execution.
+   * Config cascade: step.executor > phase_executors[phase] > workflow.executor > default
+   */
+  executor?: StepExecutorConfig;
 }
 
 /**
@@ -165,6 +173,18 @@ export interface WorkflowFileConfig {
   context?: ContextOverlays;
   /** Default result handling for all steps in all phases (workflow-level global default) */
   result_handling?: StepResultHandling;
+  /**
+   * Default executor for all steps in this workflow.
+   * Steps without their own executor config inherit this.
+   * In inheritance, child workflow executor overrides parent.
+   */
+  executor?: StepExecutorConfig;
+  /**
+   * Per-phase executor overrides.
+   * Steps in a phase without their own executor config use the phase executor.
+   * Cascade: step.executor > phase_executors[phase] > workflow.executor > default
+   */
+  phase_executors?: Partial<Record<string, StepExecutorConfig>>;
 }
 
 /**
@@ -191,6 +211,10 @@ export interface ResolvedWorkflow {
   context?: ContextOverlays;
   /** Global result handling default for all steps */
   result_handling?: StepResultHandling;
+  /** Default executor for all steps (child overrides parent in inheritance) */
+  executor?: StepExecutorConfig;
+  /** Per-phase executor overrides (child overrides parent in inheritance) */
+  phase_executors?: Partial<Record<string, StepExecutorConfig>>;
 }
 
 /**
@@ -492,6 +516,15 @@ export class WorkflowResolver {
     // Include workflow-level result_handling if defined
     if (childWorkflow.result_handling) {
       resolved.result_handling = childWorkflow.result_handling;
+    }
+
+    // Include executor config (child overrides parent in inheritance)
+    const mergedExecutor = this.mergeExecutorConfig(chain);
+    if (mergedExecutor.executor) {
+      resolved.executor = mergedExecutor.executor;
+    }
+    if (mergedExecutor.phase_executors && Object.keys(mergedExecutor.phase_executors).length > 0) {
+      resolved.phase_executors = mergedExecutor.phase_executors;
     }
 
     return resolved;
@@ -956,6 +989,34 @@ export class WorkflowResolver {
     }
 
     return result;
+  }
+
+  /**
+   * Merge executor configuration from the inheritance chain.
+   * Child executor config overrides parent (most specific wins).
+   * Phase executors merge: child phase overrides parent for the same phase.
+   */
+  private mergeExecutorConfig(chain: string[]): {
+    executor?: StepExecutorConfig;
+    phase_executors?: Partial<Record<string, StepExecutorConfig>>;
+  } {
+    let executor: StepExecutorConfig | undefined;
+    let phase_executors: Partial<Record<string, StepExecutorConfig>> = {};
+
+    // Iterate root→child (reversed chain) so child overrides parent
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const workflow = this.workflowCache.get(chain[i])!;
+
+      if (workflow.executor) {
+        executor = workflow.executor;
+      }
+
+      if (workflow.phase_executors) {
+        phase_executors = { ...phase_executors, ...workflow.phase_executors };
+      }
+    }
+
+    return { executor, phase_executors };
   }
 
   /**

@@ -65,6 +65,22 @@
     "result_handling": {
       "$ref": "#/definitions/step_result_handling",
       "description": "Default result handling for all steps in all phases. Cascades: step-level > phase-level > workflow-level > schema defaults. Define common handlers (like workflow-debug) once instead of per-step."
+    },
+    "executor": {
+      "$ref": "#/definitions/step_executor",
+      "description": "Default executor for all steps in this workflow. Steps without their own executor config inherit this. In inheritance, child overrides parent."
+    },
+    "phase_executors": {
+      "type": "object",
+      "description": "Per-phase executor overrides. Cascade: step.executor > phase_executors[phase] > workflow.executor > system default.",
+      "properties": {
+        "frame": { "$ref": "#/definitions/step_executor" },
+        "architect": { "$ref": "#/definitions/step_executor" },
+        "build": { "$ref": "#/definitions/step_executor" },
+        "evaluate": { "$ref": "#/definitions/step_executor" },
+        "release": { "$ref": "#/definitions/step_executor" }
+      },
+      "additionalProperties": false
     }
   },
   "definitions": {
@@ -219,6 +235,10 @@
         },
         "result_handling": {
           "$ref": "#/definitions/step_result_handling"
+        },
+        "executor": {
+          "$ref": "#/definitions/step_executor",
+          "description": "Executor configuration for this step. When specified, routes execution to the given provider/model instead of default Claude Code execution. Cascade: step > phase_executors > workflow.executor > default."
         },
         "changelog": {
           "type": "object",
@@ -462,6 +482,47 @@
           ],
           "default": "stop",
           "description": "Action when step fails: 'stop' shows intelligent prompt with options (default), or a slash command to invoke for recovery. The command receives step context and can return a recovery plan."
+        }
+      }
+    },
+    "step_executor": {
+      "type": "object",
+      "description": "Executor configuration that routes step execution to a specific provider/model. When omitted, the step uses default Claude Code direct execution. Built-in providers: claude, openai, openai-compatible, http, command.",
+      "required": ["provider"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "Provider identifier: 'claude' (Anthropic API), 'openai' (OpenAI API), 'openai-compatible' (any compatible endpoint), 'http' (generic HTTP POST), 'command' (shell command)"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model identifier within the provider (e.g., 'gpt-4o', 'claude-haiku-4-5', 'llama3')"
+        },
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Base URL for openai-compatible or http providers (e.g., 'http://localhost:11434/v1')"
+        },
+        "api_key_env": {
+          "type": "string",
+          "pattern": "^[A-Z_][A-Z0-9_]*$",
+          "description": "Environment variable name containing the API key. When omitted, uses provider default (e.g., OPENAI_API_KEY for 'openai')"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum tokens for the response"
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Sampling temperature"
+        },
+        "system_prompt": {
+          "type": "string",
+          "description": "System prompt override for this execution. Useful for specializing model behavior (e.g., 'You are an image generation assistant')."
         }
       }
     },
