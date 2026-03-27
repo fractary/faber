@@ -2,7 +2,7 @@
 name: fractary-faber-workflow-run
 description: Execute a FABER plan created by faber plan CLI command
 argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new] [--resume-batch] [--workflow <id>] [--autonomy <level>]'
-allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task(fractary-faber-workflow-planner), Task(fractary-faber-workflow-plan-validator), Task(fractary-faber-workflow-plan-reporter), Task(fractary-faber-workflow-verifier)
+allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Agent(fractary-faber-workflow-planner), Agent(fractary-faber-workflow-plan-validator), Agent(fractary-faber-workflow-plan-reporter), Agent(fractary-faber-workflow-verifier)
 model: claude-sonnet-4-6
 ---
 
@@ -14,7 +14,7 @@ You are executing a FABER workflow with YOU as the primary orchestrator.
 This is NOT delegation for workflow step execution — YOU execute each workflow step directly.
 You maintain full context throughout the entire workflow execution.
 
-EXCEPTION: Auto-planning (when no plan exists) and plan validation MUST delegate via Task(). Do not attempt to construct or fabricate plans yourself.
+EXCEPTION: Auto-planning (when no plan exists) and plan validation MUST delegate via Agent(). Do not attempt to construct or fabricate plans yourself.
 
 This command replaces the old workflow-execute pattern (command → skill → agent) with direct orchestration by the main Claude agent.
 </CONTEXT>
@@ -30,7 +30,7 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 8. **HANDLE ERRORS GRACEFULLY** - Use retry logic when configured, stop when appropriate.
 9. **RESPECT AUTONOMY GATES** - Get user approval when required in non-autonomous modes. In `autonomous` mode, proceed without prompting.
 10. **NEVER FABRICATE COMPLETIONS** - See "When You Cannot Continue" section below.
-11. **EXECUTE STEPS SEQUENTIALLY** — NEVER execute multiple steps in parallel unless they are wrapped in a `parallel_group` item (with `steps_parallel`) in the workflow config. Complete each step fully before starting the next. Do NOT invoke Skill() or Task() for two different workflow steps in the same response message. Steps are sequential by design because each depends on prior output.
+11. **EXECUTE STEPS SEQUENTIALLY** — NEVER execute multiple steps in parallel unless they are wrapped in a `parallel_group` item (with `steps_parallel`) in the workflow config. Complete each step fully before starting the next. Do NOT invoke Skill() or Agent() for two different workflow steps in the same response message. Steps are sequential by design because each depends on prior output.
 12. **THIS IS A SKILL, NOT AN AGENT** — `workflow-run` is a skill (slash command) invoked via `Skill()`. It MUST NEVER be passed to `Agent(subagent_type="fractary-faber-workflow-run")` — that call will fail because skills are not agent definitions. If you are inside `workflow-batch-run` serial mode, you should not be here at all — serial mode executes steps directly from plan.json without invoking workflow-run.
 </CRITICAL_RULES>
 
@@ -57,7 +57,7 @@ entire system. An honest pause is always the right answer.
 
 **Completion Verification Gate:** Before setting `status: "completed"`, you MUST invoke:
 ```javascript
-const verificationResult = await Task({
+const verificationResult = await Agent({
   subagent_type: "fractary-faber-workflow-verifier",
   description: `Verify workflow completion for ${runId}`,
   prompt: `--run-id ${runId}`
@@ -120,7 +120,7 @@ The workflow MUST continue. Context management is automatic and handled by the s
 <PARALLEL_STEP_ANTI_PATTERN>
 ## 🚫 ANTI-PATTERN: Unsolicited Parallel Step Execution (BUG, NOT A FEATURE)
 
-If you find yourself about to call Skill() or Task() for two different workflow
+If you find yourself about to call Skill() or Agent() for two different workflow
 steps in the same response message — STOP. This is a bug in your behavior.
 
 Steps depend on each other. Execute one step, complete it, then execute the next.
@@ -657,7 +657,7 @@ if (/^\d+$/.test(arg)) {
       if (autonomy_override) plannerPrompt += ` --autonomy ${autonomy_override}`;
 
       // Spawn workflow-planner to create the plan
-      const plannerResult = await Task({
+      const plannerResult = await Agent({
         subagent_type: "fractary-faber-workflow-planner",
         description: `Plan workflow for #${work_id}`,
         prompt: plannerPrompt
@@ -679,7 +679,7 @@ if (/^\d+$/.test(arg)) {
     // Validate plan integrity (runs regardless of whether plan was auto-created or pre-existing)
     // Update "Validate plan" bootstrap task → in_progress
     console.log(`\n→ Validating plan ${plan_id}...`);
-    const validationResult = await Task({
+    const validationResult = await Agent({
       subagent_type: "fractary-faber-workflow-plan-validator",
       description: `Validate plan ${plan_id}`,
       prompt: `Validate plan: --plan-id ${plan_id}`
@@ -698,7 +698,7 @@ if (/^\d+$/.test(arg)) {
     // Update "Validate plan" bootstrap task → completed
 
     // Show plan summary before execution begins
-    await Task({
+    await Agent({
       subagent_type: "fractary-faber-workflow-plan-reporter",
       description: `Report plan summary for ${plan_id}`,
       prompt: `Report plan: --plan-id ${plan_id}`
@@ -1464,7 +1464,7 @@ FOR EACH phase IN phases_to_execute (in order):
       # Execute all pending steps simultaneously via Task agents
       results = run all pending simultaneously:
         FOR EACH s IN pending:
-          Task(description=s.name, prompt=s.prompt with {work_id}/{plan_id}/{run_id} substituted)
+          Agent(description=s.name, prompt=s.prompt with {work_id}/{plan_id}/{run_id} substituted)
       WAIT for all Tasks to complete
 
       # Record results for each step (one at a time — transition guard applies per step)
@@ -1518,7 +1518,7 @@ if (pendingTasks.length > 0) {
 console.log(`TaskList check: ${allTasks.length} tasks, 0 pending ✓`);
 
 // Run completion verification before marking as completed
-const verificationResult = await Task({
+const verificationResult = await Agent({
   subagent_type: "fractary-faber-workflow-verifier",
   description: `Verify workflow completion for ${runId}`,
   prompt: `--run-id ${runId}`
