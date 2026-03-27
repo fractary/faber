@@ -54,13 +54,13 @@ faber:
 **How to use multiple workflows:**
 ```bash
 # Use default workflow (general development)
-/fractary-faber:run 123
+/fractary-faber-run 123
 
 # Use cloud workflow (infrastructure changes)
-/fractary-faber:run 456 --workflow cloud
+/fractary-faber-run 456 --workflow cloud
 
 # Use hotfix workflow (critical patches)
-/fractary-faber:run 789 --workflow hotfix
+/fractary-faber-run 789 --workflow hotfix
 ```
 
 ## Architecture
@@ -132,7 +132,7 @@ Each skill should:
 - Follow the 3-layer architecture (command → agent → skill → script)
 - Document clearly what it does
 
-**Example**: `skills/terraform-manager/SKILL.md`
+**Example**: `skills/fractary-faber-terraform-manager/SKILL.md`
 
 ```markdown
 # Terraform Manager Skill
@@ -311,7 +311,7 @@ This file will be copied to `.fractary/faber/workflows/cloud.json` during projec
 
 The init command **copies workflow templates** and **adds references** to the core FABER config using the **template-copy pattern**:
 
-**Example**: `commands/init.md`
+**Example**: `commands/fractary-faber-init.md`
 
 ```markdown
 # /fractary-faber-cloud:configure
@@ -331,7 +331,7 @@ Initialize cloud infrastructure workflow for FABER.
 
 ## Prerequisites
 
-- Core FABER must be initialized first: `/fractary-faber:configure`
+- Core FABER must be initialized first: `/fractary-faber-configure`
 
 ## Usage
 
@@ -347,7 +347,7 @@ Initialize cloud infrastructure workflow for FABER.
 ## Implementation (Template-Copy Pattern)
 
 This command should:
-1. Check if core FABER config exists (require `/fractary-faber:configure` first)
+1. Check if core FABER config exists (require `/fractary-faber-configure` first)
 2. Create `.fractary/faber/workflows/` directory if needed
 3. Copy workflow template:
    - From: `plugins/faber-cloud/config/workflows/cloud.json`
@@ -370,16 +370,16 @@ The "cloud" workflow will be available:
 
 ```bash
 # Use cloud workflow for infrastructure issues
-/fractary-faber:run 123 --workflow cloud
+/fractary-faber-run 123 --workflow cloud
 
 # Status for cloud workflow
-/fractary-faber:status 123
+/fractary-faber-status 123
 ```
 
 ## See Also
 
-- Core FABER: `/fractary-faber:configure`
-- Workflow selection: `/fractary-faber:run --help`
+- Core FABER: `/fractary-faber-configure`
+- Workflow selection: `/fractary-faber-run --help`
 ```
 
 ### Step 5: Create GitHub Issue Templates (Recommended)
@@ -536,7 +536,7 @@ function initFaberCloudWorkflow() {
 
   Usage:
     1. Create issue using "Cloud Infrastructure Change" template
-    2. Run: /fractary-faber:run <issue-number>
+    2. Run: /fractary-faber-run <issue-number>
     3. FABER detects "workflow:cloud" label and uses cloud workflow
 
   Customize:
@@ -642,7 +642,7 @@ After running `/fractary-faber-cloud:configure`, users can:
 2. Select "Cloud Infrastructure Change" template
 3. Fill out the form
 4. Issue is created with `workflow:cloud` label
-5. Run `/fractary-faber:run <issue-number>` to execute cloud workflow
+5. Run `/fractary-faber-run <issue-number>` to execute cloud workflow
 ```
 
 ### Step 6: Implement Init Logic (Template-Copy Pattern)
@@ -656,7 +656,7 @@ function initFaberCloudWorkflow() {
   // 1. Check prerequisites
   const unifiedConfigPath = '.fractary/config.yaml'
   if (!exists(unifiedConfigPath)) {
-    error("Core FABER not initialized. Run /fractary-faber:configure first")
+    error("Core FABER not initialized. Run /fractary-faber-configure first")
     return
   }
 
@@ -684,7 +684,7 @@ function initFaberCloudWorkflow() {
   // 5. CRITICAL: Verify default workflow reference exists
   const defaultWorkflow = config.workflows.find(w => w.id === 'default')
   if (!defaultWorkflow) {
-    error("Default workflow not found. This should never happen. Re-run /fractary-faber:configure")
+    error("Default workflow not found. This should never happen. Re-run /fractary-faber-configure")
     return
   }
 
@@ -733,7 +733,7 @@ function initFaberCloudWorkflow() {
     - .fractary/config.yaml (added workflow reference to faber: section)
 
   Usage:
-    /fractary-faber:run <work-id> --workflow cloud
+    /fractary-faber-run <work-id> --workflow cloud
 
   Customize:
     Edit .fractary/faber/workflows/cloud.json
@@ -748,7 +748,7 @@ When testing your plugin integration, verify both workflow and issue template in
 
 ```bash
 # Test integration
-1. /fractary-faber:configure                    # Core FABER
+1. /fractary-faber-configure                    # Core FABER
 2. /fractary-faber-cloud:configure              # Your plugin
 
 # Verify files created
@@ -760,7 +760,7 @@ When testing your plugin integration, verify both workflow and issue template in
 
 # Test issue template
 6. Create test issue using "Cloud Infrastructure Change" template on GitHub
-7. /fractary-faber:run <issue-number>      # Should auto-detect workflow from label
+7. /fractary-faber-run <issue-number>      # Should auto-detect workflow from label
 ```
 
 ## Best Practices
@@ -863,7 +863,7 @@ Show users how to customize your workflows:
 
 1. Initialize core FABER:
    ```bash
-   /fractary-faber:configure
+   /fractary-faber-configure
    ```
 
 2. Initialize your plugin:
@@ -879,13 +879,13 @@ Show users how to customize your workflows:
 
 4. Run audit:
    ```bash
-   /fractary-faber:audit
+   /fractary-faber-audit
    # Should validate both workflows
    ```
 
 5. Test workflow:
    ```bash
-   /fractary-faber:run 123 --workflow cloud --autonomy dry-run
+   /fractary-faber-run 123 --workflow cloud --autonomy dry-run
    ```
 
 ## Examples

@@ -30,7 +30,7 @@ FABER is a **tool-agnostic workflow framework** that automates the complete soft
 
 ```bash
 cd your-project
-/fractary-faber:config-init
+/fractary-faber-config-init
 ```
 
 This auto-detects your project settings and creates the `faber:` section in `.fractary/config.yaml`.
@@ -58,7 +58,7 @@ fractary-faber workflow-plan --work-id 123
 # Navigate to worktree and run workflow
 cd ~/.claude-worktrees/{organization}-{project}-123
 claude
-/fractary-faber:workflow-run 123
+/fractary-faber-workflow-run 123
 ```
 
 **Batch Planning**: Plan multiple workflows at once:
@@ -115,7 +115,7 @@ Claude Code will automatically discover the plugin.
 **Option 1: Auto-Initialize** (Recommended)
 
 ```bash
-/fractary-faber:config-init
+/fractary-faber-config-init
 ```
 
 Creates the `faber:` section in `.fractary/config.yaml` with default workflow configuration.
@@ -208,16 +208,16 @@ fractary-faber workflow-plan --work-id 123 --json
 
 ```bash
 # Initialize FABER in a project
-/fractary-faber:config-init
+/fractary-faber-config-init
 
 # Execute workflow with work-id (recommended)
-/fractary-faber:workflow-run 123
+/fractary-faber-workflow-run 123
 
 # Or use full plan-id
-/fractary-faber:workflow-run fractary-faber-123-20260106-143022
+/fractary-faber-workflow-run fractary-faber-123-20260106-143022
 
 # Check workflow status
-/fractary-faber:run-inspect
+/fractary-faber-run-inspect
 ```
 
 ### Advanced Usage
@@ -226,7 +226,7 @@ fractary-faber workflow-plan --work-id 123 --json
 
 ```bash
 # Resume an existing workflow
-/fractary-faber:workflow-run 123 --resume
+/fractary-faber-workflow-run 123 --resume
 ```
 
 ### Supported Input Formats
@@ -301,7 +301,7 @@ faber:
 Override per workflow:
 
 ```bash
-/fractary-faber:workflow-run 123 --autonomy autonomous
+/fractary-faber-workflow-run 123 --autonomy autonomous
 ```
 
 ## Architecture
@@ -342,18 +342,18 @@ Layer 3: Scripts (Deterministic Operations)
 - `file-manager` - R2/S3/local storage adapters
 
 #### Commands (User Interface)
-- `/fractary-faber:config-init` - Initialize FABER in a project (first-time setup)
-- `/fractary-faber:config-update` - Update existing FABER configuration
-- `/fractary-faber:config-validate` - Validate FABER configuration
-- `/fractary-faber:workflow-run` - Execute workflow
-- `/fractary-faber:workflow-plan` - Plan workflow
-- `/fractary-faber:workflow-create` - Create workflow definition
-- `/fractary-faber:workflow-update` - Update workflow definition
-- `/fractary-faber:workflow-inspect` - Inspect workflow state
-- `/fractary-faber:workflow-debugger` - Debug workflow issues
-- `/fractary-faber:run-inspect` - Show workflow run status
-- `/fractary-faber:session-load` - Load session state
-- `/fractary-faber:session-save` - Save session state
+- `/fractary-faber-config-init` - Initialize FABER in a project (first-time setup)
+- `/fractary-faber-config-update` - Update existing FABER configuration
+- `/fractary-faber-config-validate` - Validate FABER configuration
+- `/fractary-faber-workflow-run` - Execute workflow
+- `/fractary-faber-workflow-plan` - Plan workflow
+- `/fractary-faber-workflow-create` - Create workflow definition
+- `/fractary-faber-workflow-update` - Update workflow definition
+- `/fractary-faber-workflow-inspect` - Inspect workflow state
+- `/fractary-faber-workflow-debugger` - Debug workflow issues
+- `/fractary-faber-run-inspect` - Show workflow run status
+- `/fractary-faber-session-load` - Load session state
+- `/fractary-faber-session-save` - Save session state
 
 ## Domain Support
 
@@ -364,28 +364,28 @@ FABER supports multiple work domains:
 - Code implementation and testing
 - Pull requests and code review
 
-**Usage**: `/fractary-faber:workflow-run 123`
+**Usage**: `/fractary-faber-workflow-run 123`
 
 ### Design 🚧 (Future)
 - Design brief generation
 - Asset creation
 - Design review and publication
 
-**Usage**: `/fractary-faber:workflow-run 123 --workflow design`
+**Usage**: `/fractary-faber-workflow-run 123 --workflow design`
 
 ### Writing 🚧 (Future)
 - Content outlines
 - Writing and editing
 - Content review and publication
 
-**Usage**: `/fractary-faber:workflow-run 123 --workflow writing`
+**Usage**: `/fractary-faber-workflow-run 123 --workflow writing`
 
 ### Data 🚧 (Future)
 - Pipeline design and implementation
 - Data quality checks
 - Pipeline deployment
 
-**Usage**: `/fractary-faber:workflow-run 123 --workflow data`
+**Usage**: `/fractary-faber-workflow-run 123 --workflow data`
 
 ## Platform Support
 
@@ -421,7 +421,7 @@ fractary-faber workflow-plan --work-id 123
 # Step 2: Navigate to worktree and execute (Claude Code)
 cd ~/.claude-worktrees/fractary-myproject-123
 claude
-/fractary-faber:workflow-run 123
+/fractary-faber-workflow-run 123
 
 # FABER executes:
 # 1. Frame: Fetches issue, creates branch
@@ -431,7 +431,7 @@ claude
 # 5. Release: Creates PR, waits for approval
 
 # Check status (in Claude session)
-/fractary-faber:status
+/fractary-faber-status
 
 # Approve and merge (manual)
 # - Review PR
@@ -457,12 +457,12 @@ fractary-faber workflow-plan --work-label "workflow:etl,status:approved"
 # Terminal 1: Execute workflow for issue #123
 cd ~/.claude-worktrees/fractary-myproject-123
 claude
-/fractary-faber:workflow-run 123
+/fractary-faber-workflow-run 123
 
 # Terminal 2: Execute workflow for issue #124 (parallel!)
 cd ~/.claude-worktrees/fractary-myproject-124
 claude
-/fractary-faber:workflow-run 124
+/fractary-faber-workflow-run 124
 
 # Each workflow runs in its own worktree with no conflicts
 ```
@@ -473,10 +473,10 @@ claude
 
 ```bash
 # Show current workflow status
-/fractary-faber:run-inspect
+/fractary-faber-run-inspect
 
 # Inspect workflow details
-/fractary-faber:workflow-inspect
+/fractary-faber-workflow-inspect
 ```
 
 ### View Run Details
@@ -489,7 +489,7 @@ claude
 ### Common Issues
 
 #### "Configuration file not found"
-**Solution**: Run `/fractary-faber:config-init` or copy a preset
+**Solution**: Run `/fractary-faber-config-init` or copy a preset
 
 #### "Authentication failed"
 **Solution**: Configure platform authentication
@@ -507,7 +507,7 @@ claude
 Run with dry-run to see what would happen:
 
 ```bash
-/fractary-faber:workflow-run 123 --autonomy dry-run
+/fractary-faber-workflow-run 123 --autonomy dry-run
 ```
 
 ## Safety Features

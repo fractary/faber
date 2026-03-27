@@ -777,7 +777,7 @@ Each FABER phase is implemented as a **Deep Agents middleware** with:
 ### 5.2 Base Agent Configuration
 
 ```python
-# faber/agents/base.py
+# faber/agents/fractary-faber-base.py
 
 from typing import List, Optional, Any
 from dataclasses import dataclass, field
@@ -812,7 +812,7 @@ def create_faber_agent(config: FaberAgentConfig):
 ### 5.3 Frame Agent
 
 ```python
-# faber/agents/frame.py
+# faber/agents/fractary-faber-frame.py
 
 from ..tools.work_tools import fetch_issue, classify_work_type, create_issue_comment
 from .base import FaberAgentConfig, create_faber_agent
@@ -860,7 +860,7 @@ def create_frame_agent():
 ### 5.4 Architect Agent
 
 ```python
-# faber/agents/architect.py
+# faber/agents/fractary-faber-architect.py
 
 from ..tools.spec_tools import (
     create_specification,
@@ -921,7 +921,7 @@ def create_architect_agent():
 ### 5.5 Build Agent
 
 ```python
-# faber/agents/build.py
+# faber/agents/fractary-faber-build.py
 
 from ..tools.repo_tools import (
     create_branch,
@@ -982,7 +982,7 @@ def create_build_agent():
 ### 5.6 Evaluate Agent
 
 ```python
-# faber/agents/evaluate.py
+# faber/agents/fractary-faber-evaluate.py
 
 from ..tools.spec_tools import validate_specification
 from ..tools.work_tools import create_issue_comment
@@ -1042,7 +1042,7 @@ def create_evaluate_agent():
 ### 5.7 Release Agent
 
 ```python
-# faber/agents/release.py
+# faber/agents/fractary-faber-release.py
 
 from ..tools.repo_tools import git_push, create_pull_request
 from ..tools.work_tools import create_issue_comment
@@ -1448,7 +1448,7 @@ if __name__ == "__main__":
 ### 8.2 Run Command
 
 ```python
-# faber/cli/commands/run.py
+# faber/cli/commands/fractary-faber-run.py
 
 import click
 from ...workflows.graph import run_faber_workflow
@@ -1623,7 +1623,7 @@ observability:
 
 **Implementation**:
 ```python
-# faber/agents/middleware.py
+# faber/agents/fractary-faber-middleware.py
 
 from abc import ABC, abstractmethod
 from typing import List, Any

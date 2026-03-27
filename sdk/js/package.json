@@ -39,8 +39,8 @@
       "default": "./dist/storage/index.js"
     },
     "./agents": {
-      "types": "./dist/agents/index.d.ts",
-      "default": "./dist/agents/index.js"
+      "types": "./dist/agents/fractary-faber-index.d.ts",
+      "default": "./dist/agents/fractary-faber-index.js"
     },
     "./auth": {
       "types": "./dist/auth/index.d.ts",

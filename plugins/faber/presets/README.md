@@ -73,14 +73,14 @@ This directory contains pre-configured FABER workflow presets for common use cas
    ```
 5. **Start using FABER**:
    ```bash
-   /fractary-faber:run --work-id 123
+   /fractary-faber-run --work-id 123
    ```
 
 ### Method 2: Use init command (Auto-detection)
 
 1. **Run init command** to auto-detect settings:
    ```bash
-   /fractary-faber:configure
+   /fractary-faber-configure
    ```
 2. **Compare with preset** to see what's different:
    ```bash
@@ -196,16 +196,16 @@ After creating or modifying your config, validate it:
 
 ```bash
 # Validate configuration
-/fractary-faber:audit
+/fractary-faber-audit
 
 # Test with dry-run
-/fractary-faber:run --work-id 123 --autonomy dry-run
+/fractary-faber-run --work-id 123 --autonomy dry-run
 ```
 
 ## Troubleshooting
 
 ### "Configuration file not found"
-Run `/fractary-faber:configure` or copy a preset
+Run `/fractary-faber-configure` or copy a preset
 
 ### "Authentication failed"
 Configure platform authentication:
@@ -225,7 +225,7 @@ Review `safety.protected_paths` in config
 3. **Use `software-autonomous`** only for non-critical work
 4. **Customize for your needs** - presets are starting points
 5. **Version control your config** - commit `.faber.config.toml`
-6. **Test with dry-run first** - `/fractary-faber:run --work-id <id> --autonomy dry-run`
+6. **Test with dry-run first** - `/fractary-faber-run --work-id <id> --autonomy dry-run`
 
 ## Additional Resources
 

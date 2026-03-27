@@ -7,7 +7,7 @@
 
 ## Overview
 
-Create `/fractary-faber:workflow-plan-run` command that combines planning and execution in a single invocation, with intelligent auto-resume capability. This eliminates the need for manual user intervention between planning and execution phases.
+Create `/fractary-faber-workflow-plan-run` command that combines planning and execution in a single invocation, with intelligent auto-resume capability. This eliminates the need for manual user intervention between planning and execution phases.
 
 ## Key Requirements
 
@@ -31,7 +31,7 @@ This applies to both `workflow-run` and the new `workflow-plan-run` command.
 
 ### Part 1: Enhance Auto-Resume for workflow-run
 
-**File**: `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/workflow-run.md`
+**File**: `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/fractary-faber-workflow-run.md`
 
 **Current Behavior**:
 - Requires `plan_id` parameter
@@ -55,7 +55,7 @@ This applies to both `workflow-run` and the new `workflow-plan-run` command.
 
 ### Part 2: Modify faber-planner for Auto-Execute Mode
 
-**File**: `/mnt/c/GitHub/fractary/faber/plugins/faber/agents/faber-planner.md`
+**File**: `/mnt/c/GitHub/fractary/faber/plugins/faber/agents/fractary-faber-faber-planner.md`
 
 **Change Location**: Lines 38-57 (INPUTS section) and Lines 470-548 (Step 8c)
 
@@ -95,13 +95,13 @@ This applies to both `workflow-run` and the new `workflow-plan-run` command.
 
 ### Part 3: Create workflow-plan-run Command
 
-**File**: `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/workflow-plan-run.md` (NEW)
+**File**: `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/fractary-faber-workflow-plan-run.md` (NEW)
 
 **Command Structure**:
 
 #### Frontmatter
 ```yaml
-name: fractary-faber:workflow-plan-run
+name: fractary-faber-workflow-plan-run
 description: Create FABER plan and execute it in one command with auto-resume
 argument-hint: '[<target>] [--work-id <id>] [--workflow <id>] [--phase <phases>]'
 allowed-tools: Task, Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite
@@ -161,7 +161,7 @@ await TodoWrite({
 
 // Invoke faber-planner with auto_execute: true
 const plannerResult = await Task({
-  subagent_type: "fractary-faber:faber-planner",
+  subagent_type: "fractary-faber-faber-planner",
   description: `Create FABER plan for work item ${work_id || target}`,
   prompt: `<parameters>
     ${target ? `target: ${target}` : ''}
@@ -286,14 +286,14 @@ function findIncompleteRunsForWorkId(workId) {
 ## Files to Create/Modify
 
 ### Create (1 file)
-1. `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/workflow-plan-run.md` - New unified command
+1. `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/fractary-faber-workflow-plan-run.md` - New unified command
 
 ### Modify (2 files)
-1. `/mnt/c/GitHub/fractary/faber/plugins/faber/agents/faber-planner.md`
+1. `/mnt/c/GitHub/fractary/faber/plugins/faber/agents/fractary-faber-faber-planner.md`
    - Add `auto_execute` parameter to INPUTS section (lines 38-57)
    - Modify Step 8c to conditionally skip AskUserQuestion (lines 470-548)
 
-2. `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/workflow-run.md`
+2. `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/fractary-faber-workflow-run.md`
    - Add auto-resume detection in Step 1.3 (before line 135)
    - Add `--force-new` flag handling in Step 1.1 (after line 70)
 
@@ -301,7 +301,7 @@ function findIncompleteRunsForWorkId(workId) {
 
 ### Phase 1: Planner Enhancement
 1. Modify `faber-planner.md` to add `auto_execute` parameter
-2. Test backward compatibility: `/fractary-faber:workflow-plan --work-id 999` should still prompt
+2. Test backward compatibility: `/fractary-faber-workflow-plan --work-id 999` should still prompt
 
 ### Phase 2: Workflow-Run Auto-Resume
 1. Add auto-resume detection to `workflow-run.md`
@@ -311,14 +311,14 @@ function findIncompleteRunsForWorkId(workId) {
 
 ### Phase 3: Create Plan-Run Command
 1. Create `workflow-plan-run.md` with all steps documented above
-2. Test basic flow: `/fractary-faber:workflow-plan-run --work-id 999`
+2. Test basic flow: `/fractary-faber-workflow-plan-run --work-id 999`
 3. Test auto-resume: Run command, stop, run again (should auto-resume)
 4. Test force-new: Run command, stop, run with `--force-new` (should re-plan)
 
 ### Phase 4: Integration Testing
 1. Test phase filters: `--phase build,evaluate`
 2. Test step filters: `--step core-implement-solution`
-3. Test target-based planning: `/fractary-faber:workflow-plan-run ipeds/admissions`
+3. Test target-based planning: `/fractary-faber-workflow-plan-run ipeds/admissions`
 4. Test error recovery: Trigger failure in build phase, re-run command (should auto-resume)
 
 ### Phase 5: Documentation

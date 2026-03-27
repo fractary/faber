@@ -439,7 +439,7 @@ $ echo $?
 In `@fractary/cli`, register FABER commands:
 
 ```typescript
-// packages/cli/src/commands/faber/index.ts
+// packages/cli/src/commands/fractary-faber-faber/index.ts
 
 import { Command } from 'commander';
 import { FaberBridge } from './bridge';
@@ -487,7 +487,7 @@ export function registerFaberCommands(program: Command): void {
 ### 6.2 Bridge Implementation
 
 ```typescript
-// packages/cli/src/commands/faber/bridge.ts
+// packages/cli/src/commands/fractary-faber-faber/bridge.ts
 
 import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
@@ -585,7 +585,7 @@ export class FaberBridge extends EventEmitter {
 ### 6.3 Output Formatting
 
 ```typescript
-// packages/cli/src/commands/faber/run.ts
+// packages/cli/src/commands/fractary-faber-faber/run.ts
 
 import { FaberBridge } from './bridge';
 import { createSpinner } from 'nanospinner';
@@ -743,7 +743,7 @@ def test_bridge_run():
 ```typescript
 // packages/cli/tests/faber.test.ts
 
-import { FaberBridge } from '../src/commands/faber/bridge';
+import { FaberBridge } from '../src/commands/fractary-faber-faber/bridge';
 
 describe('FaberBridge', () => {
   it('should run workflow via subprocess', async () => {

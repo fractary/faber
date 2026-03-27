@@ -183,7 +183,7 @@ def create_tool_executor(tool_def: ToolDefinition) -> ToolExecutor:
 - [ ] Create regular `NativeMiddleware` agent if caching disabled
 - [ ] Support different LLM providers (anthropic, openai, google)
 
-**Dependencies**: `agents/base.py`, `agents/cached_claude_agent.py`, `langchain_anthropic`, `langchain_openai`
+**Dependencies**: `agents/fractary-faber-base.py`, `agents/fractary-faber-cached_claude_agent.py`, `langchain_anthropic`, `langchain_openai`
 
 **Estimated Time**: 5-6 hours
 
@@ -229,7 +229,7 @@ class AgentFactory:
 
 ### 2.5 Cached Context Builder
 
-**File**: `python/faber/agents/cached_context.py`
+**File**: `python/faber/agents/fractary-faber-cached_context.py`
 
 **Purpose**: Build cacheable context from caching configuration
 
@@ -281,7 +281,7 @@ class CachedAgentContext:
 
 ### 2.6 Enhanced Cached Claude Agent
 
-**File**: `python/faber/agents/cached_claude_agent.py`
+**File**: `python/faber/agents/fractary-faber-cached_claude_agent.py`
 
 **Purpose**: Agent that uses Anthropic SDK with prompt caching
 
@@ -347,7 +347,7 @@ result = tool_api.invoke_tool(
 
 **File**: `python/faber/accessibility/compiler.py`
 
-**Purpose**: Update workflow compiler to support step-level agents/tools
+**Purpose**: Update workflow compiler to support step-level agents/fractary-faber-tools
 
 **Current State**: Compiler treats each phase as single agent invocation
 
@@ -382,7 +382,7 @@ workflow.add_edge("build.loader-validate", "build.loader-deploy")
 
 **File**: `python/faber/definitions/converters.py`
 
-**Purpose**: Convert Claude Code agents/skills to YAML format
+**Purpose**: Convert Claude Code agents/fractary-faber-skills to YAML format
 
 **Tasks**:
 - [ ] Implement `convert_claude_agent(path, output_name)`
@@ -422,7 +422,7 @@ workflow.add_edge("build.loader-validate", "build.loader-deploy")
 
 ### 3.1 Agent Commands
 
-**File**: `cli/commands/agent.py` (or fractary-cli if separate repo)
+**File**: `cli/commands/fractary-faber-agent.py` (or fractary-cli if separate repo)
 
 **Tasks**:
 - [ ] Create `agent` command group
@@ -463,7 +463,7 @@ def list(tags):
 
 ### 3.2 Tool Commands
 
-**File**: `cli/commands/tool.py`
+**File**: `cli/commands/fractary-faber-tool.py`
 
 **Tasks**:
 - [ ] Create `tool` command group
@@ -483,7 +483,7 @@ def list(tags):
 
 ### 3.3 Init Command
 
-**File**: `cli/commands/init.py`
+**File**: `cli/commands/fractary-faber-init.py`
 
 **Tasks**:
 - [ ] Create `init` command
@@ -511,10 +511,10 @@ $ fractary init
 ✓ Created .fractary/tools/
 ✓ Created .fractary/workflows/
 ✓ Created .fractary/docs/
-✓ Created example agent: .fractary/agents/example.yaml
+✓ Created example agent: .fractary/agents/fractary-faber-example.yaml
 
 Next steps:
-  1. Edit .fractary/agents/example.yaml
+  1. Edit .fractary/agents/fractary-faber-example.yaml
   2. Run: fractary agent list
   3. Test: fractary agent invoke example "Hello"
 ```
@@ -523,7 +523,7 @@ Next steps:
 
 ### 3.4 Validation Command
 
-**File**: `cli/commands/validate.py`
+**File**: `cli/commands/fractary-faber-validate.py`
 
 **Tasks**:
 - [ ] Create `validate-all` command
@@ -541,7 +541,7 @@ Next steps:
 
 ### 3.5 Schema Export Command
 
-**File**: `cli/commands/schema.py`
+**File**: `cli/commands/fractary-faber-schema.py`
 
 **Tasks**:
 - [ ] Create `schema export <type>` command
@@ -606,9 +606,9 @@ $ fractary schema export tool > tool-schema.json
 ### 4.3 Example Projects
 
 **Tasks**:
-- [ ] Create example: Data engineering project with Glue agents/tools
-- [ ] Create example: Infrastructure project with Terraform agents/tools
-- [ ] Create example: Web app project with development agents/tools
+- [ ] Create example: Data engineering project with Glue agents/fractary-faber-tools
+- [ ] Create example: Infrastructure project with Terraform agents/fractary-faber-tools
+- [ ] Create example: Web app project with development agents/fractary-faber-tools
 - [ ] Document each example with README
 
 **Files**: `examples/`
@@ -694,7 +694,7 @@ rich = "^13.0"
 - [x] Built-in tool registry (2h)
 - [x] Unit tests for above (8-10h)
 
-**Milestone**: Can define agents/tools in YAML and load them programmatically
+**Milestone**: Can define agents/fractary-faber-tools in YAML and load them programmatically
 
 ---
 
@@ -706,7 +706,7 @@ rich = "^13.0"
 - [x] Workflow compiler updates (6-8h)
 - [x] Integration tests (6h)
 
-**Milestone**: Can use agents/tools via SDK, convert from Claude Code
+**Milestone**: Can use agents/fractary-faber-tools via SDK, convert from Claude Code
 
 ---
 
@@ -741,9 +741,9 @@ rich = "^13.0"
 - [ ] YAML tool definition can be loaded and executed
 - [ ] Agents can use both built-in and custom tools
 - [ ] Prompt caching works and saves tokens
-- [ ] CLI can create, list, invoke agents/tools
-- [ ] Can convert Claude Code agents/skills to YAML
-- [ ] Workflows can reference agents/tools by name
+- [ ] CLI can create, list, invoke agents/fractary-faber-tools
+- [ ] Can convert Claude Code agents/fractary-faber-skills to YAML
+- [ ] Workflows can reference agents/fractary-faber-tools by name
 - [ ] All tests passing
 - [ ] Examples work end-to-end
 - [ ] Documentation complete
@@ -812,7 +812,7 @@ examples/
 **SDK**:
 - `python/faber/accessibility/compiler.py` - Add step-level support
 - `python/faber/accessibility/schemas.py` - Add Step schema
-- `python/faber/agents/cached_claude_agent.py` - Enhance caching
+- `python/faber/agents/fractary-faber-cached_claude_agent.py` - Enhance caching
 
 **CLI**:
 - `cli/main.py` - Register new command groups

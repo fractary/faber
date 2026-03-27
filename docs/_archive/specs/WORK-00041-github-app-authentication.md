@@ -524,7 +524,7 @@ export GITHUB_APP_PRIVATE_KEY="LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQ0K..."
 - [ ] Write integration tests for setup wizard flow
 
 **Files to Modify**:
-- `cli/src/commands/init.ts`
+- `cli/src/commands/fractary-faber-init.ts`
 
 ### Phase 6: Documentation and Testing
 
@@ -565,7 +565,7 @@ export GITHUB_APP_PRIVATE_KEY="LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQ0K..."
 | `cli/src/lib/config.ts` | Load GitHub App configuration from settings file |
 | `cli/src/lib/sdk-config-adapter.ts` | Use GitHubAppAuth for token generation when configured |
 | `cli/src/lib/repo-client.ts` | Support dynamic token refresh for long-running operations |
-| `cli/src/commands/init.ts` | Add GitHub App setup option to workflow-init command |
+| `cli/src/commands/fractary-faber-init.ts` | Add GitHub App setup option to workflow-init command |
 | `cli/package.json` | Add `jsonwebtoken` dependency |
 | `cli/README.md` | Document GitHub App authentication option |
 | `CHANGELOG.md` | Document new feature |

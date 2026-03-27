@@ -168,7 +168,7 @@ After user provides feedback, workflow-run must resume correctly:
 3. **Update State** - Clear `feedback_request`, add to `feedback_history`
 4. **Emit Approval** - If approval type, emit `approval_granted`
 5. **Process Action** - Determine next action based on response
-6. **Resume workflow-run** - Re-invoke `/fractary-faber:workflow-run --resume {run_id}`
+6. **Resume workflow-run** - Re-invoke `/fractary-faber-workflow-run --resume {run_id}`
 
 ### Actions
 
@@ -415,5 +415,5 @@ The `@faber` trigger in issue comments is planned for future implementation:
 - [STATE-TRACKING.md](./STATE-TRACKING.md) - Dual-state tracking with feedback fields
 - [RUN-ID-SYSTEM.md](./RUN-ID-SYSTEM.md) - Run isolation and event logging
 - [AUTONOMY.md](./AUTONOMY.md) - Autonomy levels and approval gates
-- `skills/feedback-handler/SKILL.md` - Feedback handler skill documentation
-- [workflow-run.md](../commands/workflow-run.md) - Orchestration protocol and resume handling
+- `skills/fractary-faber-feedback-handler/SKILL.md` - Feedback handler skill documentation
+- [workflow-run.md](../commands/fractary-faber-workflow-run.md) - Orchestration protocol and resume handling

@@ -70,7 +70,7 @@ Always mock external dependencies in unit tests.
 **Verification**:
 ```bash
 # Run aggregator and check output
-/fractary-faber:knowledge-aggregator --category test_failure --format json | jq '.entries[] | select(.id == "KB-test-001")'
+/fractary-faber-knowledge-aggregator --category test_failure --format json | jq '.entries[] | select(.id == "KB-test-001")'
 
 # Expected fields present:
 # - id: "KB-test-001"
@@ -115,7 +115,7 @@ Create test file `.fractary/faber/knowledge-base/legacy-entry.json`:
 **Verification**:
 ```bash
 # Run aggregator and check output
-/fractary-faber:knowledge-aggregator --category missing_dependency --format json | jq '.entries[] | select(.id == "KB-legacy-001")'
+/fractary-faber-knowledge-aggregator --category missing_dependency --format json | jq '.entries[] | select(.id == "KB-legacy-001")'
 
 # Expected: Entry present with all fields
 ```
@@ -140,10 +140,10 @@ Create test file `.fractary/faber/knowledge-base/legacy-entry.json`:
 **Verification**:
 ```bash
 # First call - populates cache
-time /fractary-faber:knowledge-aggregator --format json > /dev/null
+time /fractary-faber-knowledge-aggregator --format json > /dev/null
 
 # Second call - uses cache
-time /fractary-faber:knowledge-aggregator --format json > /dev/null
+time /fractary-faber-knowledge-aggregator --format json > /dev/null
 
 # Check cache file
 cat .fractary/cache/kb-aggregator-cache.json | jq '.entries | keys | length'
@@ -182,7 +182,7 @@ old_mtime=$(cat .fractary/cache/kb-aggregator-cache.json | jq -r '.entries["some
 echo "# Updated content" >> .fractary/faber/knowledge-base/some-file.md
 
 # Run aggregator
-/fractary-faber:knowledge-aggregator --format json > /dev/null
+/fractary-faber-knowledge-aggregator --format json > /dev/null
 
 # Check new mtime
 new_mtime=$(cat .fractary/cache/kb-aggregator-cache.json | jq -r '.entries["some-file.md"].mtime')
@@ -210,11 +210,11 @@ new_mtime=$(cat .fractary/cache/kb-aggregator-cache.json | jq -r '.entries["some
 **Verification**:
 ```bash
 # Run aggregator
-/fractary-faber:knowledge-aggregator --format json | jq '.total_sources'
+/fractary-faber-knowledge-aggregator --format json | jq '.total_sources'
 # Expected: 2 (core + plugin)
 
 # Check source attribution
-/fractary-faber:knowledge-aggregator --format json | jq '.entries[] | {id, source}'
+/fractary-faber-knowledge-aggregator --format json | jq '.entries[] | {id, source}'
 # Expected: mix of "core" and "test-plugin" sources
 ```
 
@@ -236,11 +236,11 @@ new_mtime=$(cat .fractary/cache/kb-aggregator-cache.json | jq -r '.entries["some
 **Verification**:
 ```bash
 # Filter by category
-/fractary-faber:knowledge-aggregator --category type_system --format json | jq '.entries | length'
+/fractary-faber-knowledge-aggregator --category type_system --format json | jq '.entries | length'
 # Expected: 1 (only type_system entries)
 
 # Verify category matches
-/fractary-faber:knowledge-aggregator --category type_system --format json | jq '.entries[].category'
+/fractary-faber-knowledge-aggregator --category type_system --format json | jq '.entries[].category'
 # Expected: all "type_system"
 ```
 
@@ -262,11 +262,11 @@ new_mtime=$(cat .fractary/cache/kb-aggregator-cache.json | jq -r '.entries["some
 **Verification**:
 ```bash
 # Filter by phase and agent
-/fractary-faber:knowledge-aggregator --phase build --agent software-engineer --format json | jq '.entries[0]'
+/fractary-faber-knowledge-aggregator --phase build --agent software-engineer --format json | jq '.entries[0]'
 # Expected: Entry 1 with highest relevance score
 
 # Check relevance score includes agent boost
-/fractary-faber:knowledge-aggregator --phase build --agent software-engineer --format json | jq '.entries[0].relevance_score'
+/fractary-faber-knowledge-aggregator --phase build --agent software-engineer --format json | jq '.entries[0].relevance_score'
 # Expected: Higher than without agent match
 ```
 
@@ -288,11 +288,11 @@ new_mtime=$(cat .fractary/cache/kb-aggregator-cache.json | jq -r '.entries["some
 **Verification**:
 ```bash
 # Filter by single tag
-/fractary-faber:knowledge-aggregator --tags typescript --format json | jq '.entries | length'
+/fractary-faber-knowledge-aggregator --tags typescript --format json | jq '.entries | length'
 # Expected: 1
 
 # Filter by shared tag
-/fractary-faber:knowledge-aggregator --tags imports --format json | jq '.entries | length'
+/fractary-faber-knowledge-aggregator --tags imports --format json | jq '.entries | length'
 # Expected: 2
 ```
 
@@ -313,7 +313,7 @@ new_mtime=$(cat .fractary/cache/kb-aggregator-cache.json | jq -r '.entries["some
 **Verification**:
 ```bash
 # Get entries sorted by relevance
-/fractary-faber:knowledge-aggregator --format json | jq '.entries | sort_by(-.relevance_score) | .[0:2] | .[] | {id, verified, relevance_score}'
+/fractary-faber-knowledge-aggregator --format json | jq '.entries | sort_by(-.relevance_score) | .[0:2] | .[] | {id, verified, relevance_score}'
 # Expected: verified=true entry has higher score
 ```
 
@@ -335,7 +335,7 @@ new_mtime=$(cat .fractary/cache/kb-aggregator-cache.json | jq -r '.entries["some
 **Verification**:
 ```bash
 # Get limited results
-result=$(/fractary-faber:knowledge-aggregator --limit 5 --format json)
+result=$(/fractary-faber-knowledge-aggregator --limit 5 --format json)
 
 # Check returned count
 echo "$result" | jq '.returned_count'
@@ -371,7 +371,7 @@ echo "$result" | jq '.entries | length'
 mv .fractary/faber/knowledge-base .fractary/faber/knowledge-base.bak
 
 # Run aggregator
-/fractary-faber:knowledge-aggregator --format json | jq '{total_entries, returned_count}'
+/fractary-faber-knowledge-aggregator --format json | jq '{total_entries, returned_count}'
 # Expected: both 0
 
 # Restore KB
@@ -424,11 +424,11 @@ grep "Path traversal attempt" .fractary/logs/*.log 2>/dev/null
 ```bash
 # Time first run (no cache)
 rm -f .fractary/cache/kb-aggregator-cache.json
-time /fractary-faber:knowledge-aggregator --format json > /dev/null
+time /fractary-faber-knowledge-aggregator --format json > /dev/null
 # Expected: Reasonable time
 
 # Time cached run
-time /fractary-faber:knowledge-aggregator --format json > /dev/null
+time /fractary-faber-knowledge-aggregator --format json > /dev/null
 # Expected: Significantly faster
 ```
 

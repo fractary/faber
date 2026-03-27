@@ -91,7 +91,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Workflow identifier (e.g., fractary-faber:default, dataset-create)"
+          "description": "Workflow identifier (e.g., fractary-faber-default, dataset-create)"
         },
         "resolved_at": {
           "type": "string",

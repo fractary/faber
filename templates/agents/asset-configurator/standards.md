@@ -323,7 +323,7 @@ Use this checklist to validate configurator agent definitions.
   - Exit codes documentation
 
 - [ ] **SHOULD have** `<RELATED_COMMANDS>` section
-  - Links to related commands/agents
+  - Links to related commands/fractary-faber-agents
   - Integration points with other tools
 
 ## Implementation Validation
@@ -403,5 +403,5 @@ Test these scenarios:
 
 See these configurator agents for reference:
 
-- `plugins/faber/agents/configurator.md` - Full-featured FABER configurator
+- `plugins/faber/agents/fractary-faber-configurator.md` - Full-featured FABER configurator
 - Plugin initializers in various fractary plugins

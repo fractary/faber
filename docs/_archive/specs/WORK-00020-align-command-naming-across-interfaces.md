@@ -28,7 +28,7 @@ An audit of FABER interfaces revealed naming inconsistencies:
 | SDK | Workflow methods use verb-first (`workflow.run()`, `workflow.getStatus()`) | Some methods inconsistent |
 | CLI | Top-level workflow commands (`run`, `status`, `init`) | Commands lack noun context |
 | MCP | Mixed (`workflow_run`, `events_consolidate`) | Inconsistent noun-verb ordering in events |
-| Plugin | Verb-first (`fractary-faber:run`, `fractary-faber:plan`) | Commands don't indicate what they operate on |
+| Plugin | Verb-first (`fractary-faber-run`, `fractary-faber-plan`) | Commands don't indicate what they operate on |
 
 ## Solution
 
@@ -41,7 +41,7 @@ Standardize all FABER-specific interfaces to use **noun-first, verb-second** nam
 | SDK | `{module}.{noun}.{verb}()` or `{module}.{verb}()` | `workflow.run()`, `state.workflow.create()` |
 | CLI | `{noun}-{verb}` with domain groups | `workflow-run`, `workflow-status` |
 | MCP | `fractary_faber_{noun}_{verb}` | `fractary_faber_workflow_run`, `fractary_faber_event_emit` |
-| Plugin | `fractary-faber:{noun}-{verb}` | `fractary-faber:workflow-run`, `fractary-faber:workflow-plan` |
+| Plugin | `fractary-faber-{noun}-{verb}` | `fractary-faber-workflow-run`, `fractary-faber-workflow-plan` |
 
 ## In-Scope Components
 
@@ -158,14 +158,14 @@ The following are managed in the `fractary/core` project and should have their o
 **fractary-faber (8 renames):**
 | Current | Target |
 |---------|--------|
-| `fractary-faber:init` | `fractary-faber:workflow-init` |
-| `fractary-faber:run` | `fractary-faber:workflow-run` |
-| `fractary-faber:plan` | `fractary-faber:workflow-plan` |
-| `fractary-faber:execute` | `fractary-faber:workflow-execute` |
-| `fractary-faber:execute-deterministic` | `fractary-faber:workflow-execute-deterministic` |
-| `fractary-faber:archive` | `fractary-faber:workflow-archive` |
-| `fractary-faber:review` | `fractary-faber:workflow-review` |
-| `fractary-faber:build` | `fractary-faber:workflow-build` |
+| `fractary-faber-init` | `fractary-faber-workflow-init` |
+| `fractary-faber-run` | `fractary-faber-workflow-run` |
+| `fractary-faber-plan` | `fractary-faber-workflow-plan` |
+| `fractary-faber-execute` | `fractary-faber-workflow-execute` |
+| `fractary-faber-execute-deterministic` | `fractary-faber-workflow-execute-deterministic` |
+| `fractary-faber-archive` | `fractary-faber-workflow-archive` |
+| `fractary-faber-review` | `fractary-faber-workflow-review` |
+| `fractary-faber-build` | `fractary-faber-workflow-build` |
 
 **fractary-faber-cloud (13 renames):**
 | Current | Target |
@@ -262,7 +262,7 @@ class StateManager {
 
 **Files to modify:**
 - `/cli/src/index.ts`
-- `/cli/src/commands/workflow/index.ts`
+- `/cli/src/commands/fractary-faber-workflow/index.ts`
 
 **Implementation approach:**
 1. Rename 7 workflow commands to `workflow-{verb}` pattern

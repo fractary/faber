@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-The `faber plan` CLI (v1.3.2) generates workflow execution plans that are **missing the resolved `prompt` fields** from the workflow definition chain. This means the downstream workflow runner (`/fractary-faber:workflow-run`) receives plans without the executable slash commands that drive step execution, making it impossible for the runner to invoke the correct skills/agents for each step.
+The `faber plan` CLI (v1.3.2) generates workflow execution plans that are **missing the resolved `prompt` fields** from the workflow definition chain. This means the downstream workflow runner (`/fractary-faber-workflow-run`) receives plans without the executable slash commands that drive step execution, making it impossible for the runner to invoke the correct skills/fractary-faber-agents for each step.
 
 ## Observed Behavior
 
@@ -46,7 +46,7 @@ The plan should include the resolved slash command `prompt` from the workflow de
         "prompt": "/fractary-faber-code:engineer --work-id {work_id}",
         "source": "fractary-faber-code:default",
         "result_handling": {
-          "on_failure": "/fractary-faber:workflow-debug --work-id {work_id} --run-id {run_id} --problem \"{error}\" --auto-fix"
+          "on_failure": "/fractary-faber-workflow-debug --work-id {work_id} --run-id {run_id} --problem \"{error}\" --auto-fix"
         }
       },
       {
@@ -55,7 +55,7 @@ The plan should include the resolved slash command `prompt` from the workflow de
         "prompt": "/fractary-faber-code:engineer-validate --work-id {work_id}",
         "source": "fractary-faber-code:default",
         "result_handling": {
-          "on_failure": "/fractary-faber:workflow-debug --work-id {work_id} --run-id {run_id} --problem \"{error}\" --auto-fix"
+          "on_failure": "/fractary-faber-workflow-debug --work-id {work_id} --run-id {run_id} --problem \"{error}\" --auto-fix"
         }
       },
       {
@@ -249,17 +249,17 @@ const plan: WorkflowPlan = {
    - Steps from faber-code:default (e.g., `build-engineer`) should have `prompt: "/fractary-faber-code:engineer --work-id {work_id}"`
    - Steps added by the project workflow that have prompts (e.g., evaluate publish steps) should also have their prompts
    - `result_handling` should be present where defined in workflow definitions
-4. Run workflow: `/fractary-faber:workflow-run <work-id>` - runner should find and execute prompts
+4. Run workflow: `/fractary-faber-workflow-run <work-id>` - runner should find and execute prompts
 
 ## Discovery Context
 
-Found during workflow execution of etl.corthion.ai issue #153 (IPEDS EFFY 2024). The workflow runner could not determine which skills/agents to invoke because the plan only had `action` + `details`, forcing it to either look up the workflow definitions at runtime (not implemented) or improvise (wrong behavior).
+Found during workflow execution of etl.corthion.ai issue #153 (IPEDS EFFY 2024). The workflow runner could not determine which skills/fractary-faber-agents to invoke because the plan only had `action` + `details`, forcing it to either look up the workflow definitions at runtime (not implemented) or improvise (wrong behavior).
 
 ### Workflow Chain for Reference
 
 ```
-faber@fractary-faber:core
-+-- auto-reload-context  ->  /fractary-faber:session-load
+faber@fractary-faber-core
++-- auto-reload-context  ->  /fractary-faber-session-load
 +-- core-fetch-issue     ->  /fractary-work:issue-fetch --work-id {work_id}
 +-- frame-commit-and-push -> /fractary-repo:commit-push --work-id {work_id}
 +-- build-create-pr      ->  /fractary-repo:commit-push-pr --work-id {work_id}

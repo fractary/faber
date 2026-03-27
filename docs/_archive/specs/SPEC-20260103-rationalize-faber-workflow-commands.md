@@ -60,7 +60,7 @@ But the existence of workflow-build/review/archive/execute creates confusion:
 **Goal**: Add --phase and --steps arguments for granular control.
 
 **Files to modify**:
-- `plugins/faber/commands/workflow-run.md`
+- `plugins/faber/commands/fractary-faber-workflow-run.md`
 - `plugins/faber/docs/workflow-orchestration-protocol.md`
 
 **Changes**:
@@ -72,13 +72,13 @@ But the existence of workflow-build/review/archive/execute creates confusion:
    - Examples:
      ```bash
      # Run only build phase
-     /fractary-faber:workflow-run <plan-id> --phase build
+     /fractary-faber-workflow-run <plan-id> --phase build
 
      # Run build and evaluate phases
-     /fractary-faber:workflow-run <plan-id> --phases build,evaluate
+     /fractary-faber-workflow-run <plan-id> --phases build,evaluate
 
      # Run specific step
-     /fractary-faber:workflow-run <plan-id> --step core-implement-solution
+     /fractary-faber-workflow-run <plan-id> --step core-implement-solution
      ```
 
 2. **Clarify direct execution**:
@@ -99,11 +99,11 @@ But the existence of workflow-build/review/archive/execute creates confusion:
 **Goal**: Remove workflow-build, workflow-review, workflow-archive, and workflow-execute commands.
 
 **Files to modify**:
-- `plugins/faber/commands/workflow-build.md` - DELETE
-- `plugins/faber/commands/workflow-review.md` - DELETE
-- `plugins/faber/commands/workflow-archive.md` - DELETE
-- `plugins/faber/commands/workflow-execute.md` - DELETE
-- `plugins/faber/commands/workflow-execute-deterministic.md` - EVALUATE (may also need to remove)
+- `plugins/faber/commands/fractary-faber-workflow-build.md` - DELETE
+- `plugins/faber/commands/fractary-faber-workflow-review.md` - DELETE
+- `plugins/faber/commands/fractary-faber-workflow-archive.md` - DELETE
+- `plugins/faber/commands/fractary-faber-workflow-execute.md` - DELETE
+- `plugins/faber/commands/fractary-faber-workflow-execute-deterministic.md` - EVALUATE (may also need to remove)
 - `plugins/faber/marketplace-config.json` - Remove deleted commands from manifest
 
 **Recommended**: Remove immediately rather than deprecate (clean break):
@@ -128,13 +128,13 @@ But the existence of workflow-build/review/archive/execute creates confusion:
    - Remove archive-related configuration
 
 2. **Review all step prompts** in build/evaluate/release phases:
-   - Replace any references to `/fractary-faber:workflow-build`, `/fractary-faber:workflow-review`, or `/fractary-faber:workflow-archive` with direct instructions
+   - Replace any references to `/fractary-faber-workflow-build`, `/fractary-faber-workflow-review`, or `/fractary-faber-workflow-archive` with direct instructions
    - Example transformations:
      ```json
      // OLD (delegating to command)
      {
        "step_id": "build-implementation",
-       "prompt": "/fractary-faber:workflow-build"
+       "prompt": "/fractary-faber-workflow-build"
      }
 
      // NEW (direct instruction)
@@ -170,19 +170,19 @@ But the existence of workflow-build/review/archive/execute creates confusion:
 
    ```bash
    # Full workflow (all phases)
-   /fractary-faber:workflow-run <plan-id>
+   /fractary-faber-workflow-run <plan-id>
 
    # Specific phase
-   /fractary-faber:workflow-run <plan-id> --phase build
+   /fractary-faber-workflow-run <plan-id> --phase build
 
    # Multiple phases
-   /fractary-faber:workflow-run <plan-id> --phases build,evaluate
+   /fractary-faber-workflow-run <plan-id> --phases build,evaluate
 
    # Specific step
-   /fractary-faber:workflow-run <plan-id> --step core-implement-solution
+   /fractary-faber-workflow-run <plan-id> --step core-implement-solution
 
    # Resume from failure
-   /fractary-faber:workflow-run <plan-id> --resume <run-id>
+   /fractary-faber-workflow-run <plan-id> --resume <run-id>
    ```
    ```
 
@@ -192,10 +192,10 @@ But the existence of workflow-build/review/archive/execute creates confusion:
 
    The following commands have been REMOVED in favor of the unified orchestrator pattern:
 
-   - `/fractary-faber:workflow-build` → Use `/fractary-faber:workflow-run <plan-id> --phase build`
-   - `/fractary-faber:workflow-review` → Use `/fractary-faber:workflow-run <plan-id>` (review is part of evaluate phase)
-   - `/fractary-faber:workflow-archive` → REMOVED (archive functionality removed entirely)
-   - `/fractary-faber:workflow-execute` → Use `/fractary-faber:workflow-run <plan-id>`
+   - `/fractary-faber-workflow-build` → Use `/fractary-faber-workflow-run <plan-id> --phase build`
+   - `/fractary-faber-workflow-review` → Use `/fractary-faber-workflow-run <plan-id>` (review is part of evaluate phase)
+   - `/fractary-faber-workflow-archive` → REMOVED (archive functionality removed entirely)
+   - `/fractary-faber-workflow-execute` → Use `/fractary-faber-workflow-run <plan-id>`
 
    **Why?** The orchestrator pattern (workflow-run) maintains full context across all phases, enabling better decision-making and eliminating context loss between phase boundaries. Granular control is now available via --phase and --steps arguments.
 
@@ -222,13 +222,13 @@ But the existence of workflow-build/review/archive/execute creates confusion:
 ## Critical Files
 
 ### Commands
-- `plugins/faber/commands/workflow-run.md` - Primary execution command (ADD --phase and --steps arguments)
-- `plugins/faber/commands/workflow-plan.md` - Planning command (KEEP as-is)
-- `plugins/faber/commands/workflow-build.md` - REMOVE
-- `plugins/faber/commands/workflow-review.md` - REMOVE
-- `plugins/faber/commands/workflow-archive.md` - REMOVE
-- `plugins/faber/commands/workflow-execute.md` - REMOVE
-- `plugins/faber/commands/workflow-execute-deterministic.md` - EVALUATE (may also need to remove)
+- `plugins/faber/commands/fractary-faber-workflow-run.md` - Primary execution command (ADD --phase and --steps arguments)
+- `plugins/faber/commands/fractary-faber-workflow-plan.md` - Planning command (KEEP as-is)
+- `plugins/faber/commands/fractary-faber-workflow-build.md` - REMOVE
+- `plugins/faber/commands/fractary-faber-workflow-review.md` - REMOVE
+- `plugins/faber/commands/fractary-faber-workflow-archive.md` - REMOVE
+- `plugins/faber/commands/fractary-faber-workflow-execute.md` - REMOVE
+- `plugins/faber/commands/fractary-faber-workflow-execute-deterministic.md` - EVALUATE (may also need to remove)
 
 ### Documentation
 - `plugins/faber/docs/workflow-orchestration-protocol.md` - Protocol definition (remove archive references)
@@ -242,8 +242,8 @@ But the existence of workflow-build/review/archive/execute creates confusion:
 - `plugins/faber/marketplace-config.json` - Plugin manifest (remove deleted commands)
 
 ### Agents
-- `plugins/faber/agents/faber-planner.md` - Planning agent (keep, used by workflow-plan)
-- `plugins/faber/agents/faber-manager.md` - Legacy manager (evaluate if still needed)
+- `plugins/faber/agents/fractary-faber-faber-planner.md` - Planning agent (keep, used by workflow-plan)
+- `plugins/faber/agents/fractary-faber-faber-manager.md` - Legacy manager (evaluate if still needed)
 
 ## Success Criteria
 
@@ -261,13 +261,13 @@ After implementation:
 ## Breaking Changes
 
 This is a **breaking change** for users who:
-- Have scripts or automation that call `/fractary-faber:workflow-build`
-- Have scripts or automation that call `/fractary-faber:workflow-review`
-- Have scripts or automation that call `/fractary-faber:workflow-archive`
-- Have scripts or automation that call `/fractary-faber:workflow-execute`
+- Have scripts or automation that call `/fractary-faber-workflow-build`
+- Have scripts or automation that call `/fractary-faber-workflow-review`
+- Have scripts or automation that call `/fractary-faber-workflow-archive`
+- Have scripts or automation that call `/fractary-faber-workflow-execute`
 - Rely on archive functionality
 
-**Migration path**: Update scripts to use `/fractary-faber:workflow-run` with appropriate `--phase` or `--steps` arguments.
+**Migration path**: Update scripts to use `/fractary-faber-workflow-run` with appropriate `--phase` or `--steps` arguments.
 
 ## Version
 

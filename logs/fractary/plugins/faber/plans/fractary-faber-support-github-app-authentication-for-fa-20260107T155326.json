@@ -24,11 +24,11 @@
   },
 
   "workflow": {
-    "id": "fractary-faber:default",
+    "id": "fractary-faber-default",
     "resolved_at": "2026-01-07T15:53:26Z",
     "inheritance_chain": [
-      "fractary-faber:default",
-      "fractary-faber:core"
+      "fractary-faber-default",
+      "fractary-faber-core"
     ],
     "phases": {
       "frame": {
@@ -38,8 +38,8 @@
             "id": "auto-reload-context",
             "name": "Reload Context",
             "description": "Automatically reload critical artifacts for session continuity",
-            "prompt": "/fractary-faber:prime-context",
-            "source": "fractary-faber:core",
+            "prompt": "/fractary-faber-prime-context",
+            "source": "fractary-faber-core",
             "position": "pre_step"
           },
           {
@@ -47,7 +47,7 @@
             "name": "Fetch Issue",
             "description": "Fetch existing issue. Reads referenced docs and existing commits.",
             "prompt": "/fractary-work:issue-fetch --work-id {work_id}",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "pre_step"
           },
           {
@@ -55,7 +55,7 @@
             "name": "Refine Issue",
             "description": "Clarify issue details with user",
             "prompt": "/fractary-work:issue-clarify --work-id {work_id}",
-            "source": "fractary-faber:default",
+            "source": "fractary-faber-default",
             "position": "pre_step"
           },
           {
@@ -63,7 +63,7 @@
             "name": "Commit and Push Changes",
             "description": "Ensure all frame changes are committed and pushed",
             "prompt": "/fractary-repo:commit-push",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ]
@@ -76,7 +76,7 @@
             "name": "Generate Specification",
             "description": "Create technical specification from issue context",
             "prompt": "/fractary-spec:create --work-id {work_id}",
-            "source": "fractary-faber:default",
+            "source": "fractary-faber-default",
             "position": "step"
           },
           {
@@ -84,7 +84,7 @@
             "name": "Refine Specification",
             "description": "Critically review spec and gather clarifications from user",
             "prompt": "/fractary-spec:refine --work-id {work_id}",
-            "source": "fractary-faber:default",
+            "source": "fractary-faber-default",
             "position": "step"
           },
           {
@@ -92,7 +92,7 @@
             "name": "Commit and Push Changes",
             "description": "Ensure all build changes are committed and pushed",
             "prompt": "/fractary-repo:commit-push",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ]
@@ -105,7 +105,7 @@
             "name": "Implement Solution",
             "description": "Implement based on specification following project patterns",
             "prompt": "Implement the solution according to the specification. Follow existing project patterns and conventions. Create atomic commits for each logical unit of work. Run tests to verify the implementation. Ensure code quality and completeness.",
-            "source": "fractary-faber:default",
+            "source": "fractary-faber-default",
             "position": "step"
           },
           {
@@ -113,7 +113,7 @@
             "name": "Commit and Push Changes",
             "description": "Ensure all build changes are committed and pushed",
             "prompt": "/fractary-repo:commit-push",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ]
@@ -126,7 +126,7 @@
             "name": "Create Pull Request",
             "description": "Create PR for the implementation (skips if PR already exists). Links to issue for auto-close on merge.",
             "prompt": "/fractary-repo:commit-push-pr",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           },
           {
@@ -134,7 +134,7 @@
             "name": "Review PR CI Checks",
             "description": "Wait for and review CI/CD pipeline results",
             "prompt": "/fractary-repo:pr-review --wait-for-ci",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ],
@@ -148,7 +148,7 @@
             "name": "Merge Pull Request",
             "description": "Merge the PR and delete branch",
             "prompt": "/fractary-repo:pr-merge {pr_number} --delete-branch",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           },
           {
@@ -159,7 +159,7 @@
             "guards": {
               "skip_if": "!state.worktree || state.worktree.created_by !== 'fractary-faber'"
             },
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ]

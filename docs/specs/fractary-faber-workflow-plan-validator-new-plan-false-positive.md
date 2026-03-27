@@ -1,7 +1,7 @@
 # Spec: Fix workflow-plan-validator false positive on new plans
 
 **Target project**: fractary-faber
-**Target file**: `plugins/faber/agents/workflow-plan-validator.md`
+**Target file**: `plugins/faber/agents/fractary-faber-workflow-plan-validator.md`
 **Check affected**: Check 5 (branch.name validation)
 
 ---
@@ -53,7 +53,7 @@ The current logic treats both cases identically and fails both.
 
 ## Required Change
 
-**File**: `plugins/faber/agents/workflow-plan-validator.md`
+**File**: `plugins/faber/agents/fractary-faber-workflow-plan-validator.md`
 
 **Check 5 heading** (currently `items array has at least one entry with non-null branch.name`):
 

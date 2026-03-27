@@ -41,7 +41,7 @@ cd ~/.claude-worktrees/fractary-myproject-258
 claude
 
 # Run workflow (uses work-id, fetches plan from issue)
-/fractary-faber:workflow-run 258
+/fractary-faber-workflow-run 258
 ```
 
 ### Worktree Path Pattern
@@ -69,7 +69,7 @@ claude
 
 ### Workflow Start: Conflict Detection
 
-When you start a workflow (`/fractary-faber:workflow-run`), FABER checks if another workflow is already active in the current worktree by reading `.fractary/faber/runs/.active-run-id`.
+When you start a workflow (`/fractary-faber-workflow-run`), FABER checks if another workflow is already active in the current worktree by reading `.fractary/faber/runs/.active-run-id`.
 
 **If conflict detected:**
 ```
@@ -82,7 +82,7 @@ For concurrent workflows, use separate worktrees.
 Recommended approach:
   1. Use 'faber plan --work-id 259' to create plan + worktree
   2. Navigate to worktree: cd ~/.claude-worktrees/fractary-myproject-259
-  3. Run workflow: /fractary-faber:workflow-run 259
+  3. Run workflow: /fractary-faber-workflow-run 259
 
 How would you like to proceed?
   1. Cancel and use CLI (Recommended)
@@ -100,7 +100,7 @@ faber plan --work-id 259
 # Execute in new worktree
 cd ~/.claude-worktrees/fractary-myproject-259
 claude
-/fractary-faber:workflow-run 259
+/fractary-faber-workflow-run 259
 ```
 
 ### Option 2: Take Over This Worktree
@@ -293,17 +293,17 @@ $ faber plan --work-id 258,259,260
 # Terminal 1:
 $ cd ~/.claude-worktrees/fractary-myproject-258
 $ claude
-> /fractary-faber:workflow-run 258
+> /fractary-faber-workflow-run 258
 
 # Terminal 2:
 $ cd ~/.claude-worktrees/fractary-myproject-259
 $ claude
-> /fractary-faber:workflow-run 259
+> /fractary-faber-workflow-run 259
 
 # Terminal 3:
 $ cd ~/.claude-worktrees/fractary-myproject-260
 $ claude
-> /fractary-faber:workflow-run 260
+> /fractary-faber-workflow-run 260
 ```
 
 ### Switching Between Workflows
@@ -312,12 +312,12 @@ $ claude
 # Work on issue 258
 $ cd ~/.claude-worktrees/fractary-myproject-258
 $ claude
-> /fractary-faber:workflow-run 258 --resume
+> /fractary-faber-workflow-run 258 --resume
 
 # Switch to issue 259
 $ cd ~/.claude-worktrees/fractary-myproject-259
 $ claude
-> /fractary-faber:workflow-run 259 --resume
+> /fractary-faber-workflow-run 259 --resume
 
 # Return to main worktree
 $ cd /mnt/c/GitHub/fractary/myproject
@@ -428,7 +428,7 @@ In workflow config (e.g., `workflows/core.json`):
    ```bash
    git worktree add ~/.claude-worktrees/fractary-myproject-259 -b feature/259
    cd ~/.claude-worktrees/fractary-myproject-259
-   /fractary-faber:workflow-run 259
+   /fractary-faber-workflow-run 259
    ```
 
 ### Can't Remove Worktree
@@ -466,7 +466,7 @@ In workflow config (e.g., `workflows/core.json`):
 faber plan --work-id 260
 cd ~/.claude-worktrees/fractary-myproject-260
 claude
-/fractary-faber:workflow-run 260
+/fractary-faber-workflow-run 260
 ```
 
 ## Best Practices

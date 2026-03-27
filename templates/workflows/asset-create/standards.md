@@ -177,7 +177,7 @@ Use this checklist when reviewing asset-create workflows:
 - [ ] Workflow has `workflow_type: "asset-create"`
 - [ ] Workflow has valid `asset_type` field
 - [ ] All five phases are defined and enabled
-- [ ] Workflow extends `fractary-faber:core` or appropriate parent
+- [ ] Workflow extends `fractary-faber-core` or appropriate parent
 
 ### Frame Phase
 - [ ] Has research step(s)
@@ -223,7 +223,7 @@ Use this checklist when reviewing asset-create workflows:
   "id": "dataset-create",
   "workflow_type": "asset-create",
   "asset_type": "dataset",
-  "extends": "fractary-faber:core",
+  "extends": "fractary-faber-core",
   "phases": {
     "frame": {
       "enabled": true,

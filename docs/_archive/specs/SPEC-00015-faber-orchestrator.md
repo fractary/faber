@@ -2492,7 +2492,7 @@ program.parse();
 ### 20.4 Example Command Implementation
 
 ```typescript
-// src/tools/faber/commands/run.ts
+// src/tools/faber/commands/fractary-faber-run.ts
 
 import { Command } from 'commander';
 import chalk from 'chalk';

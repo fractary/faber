@@ -1,5 +1,5 @@
 """
-Converters - Convert Claude Code agents/skills to YAML format.
+Converters - Convert Claude Code agents/fractary-faber-skills to YAML format.
 
 Helps migrate existing Claude Code definitions to the new universal format.
 """

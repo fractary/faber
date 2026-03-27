@@ -11,14 +11,14 @@ affects: fractary-faber plugin (workflow-plan skill, faber-planner agent)
 
 ## Background
 
-During WORK-128, the `/fractary-faber:workflow-plan` skill was invoked. The skill's
-frontmatter explicitly listed `Task(fractary-faber:faber-planner)` as the only permitted tool.
+During WORK-128, the `/fractary-faber-workflow-plan` skill was invoked. The skill's
+frontmatter explicitly listed `Task(fractary-faber-faber-planner)` as the only permitted tool.
 
 Execution sequence:
-1. `Task(fractary-faber:faber-planner)` called — ran for ~17 minutes
+1. `Task(fractary-faber-faber-planner)` called — ran for ~17 minutes
 2. Failed with `UND_ERR_SOCKET` (Node.js undici — TCP socket closed before response delivered)
-3. Claude incorrectly substituted `Skill(fractary-faber:workflow-plan)` (not in allowed tools)
-4. That in turn called `Task(fractary-faber:faber-planner)` again — ~20 more minutes wasted
+3. Claude incorrectly substituted `Skill(fractary-faber-workflow-plan)` (not in allowed tools)
+4. That in turn called `Task(fractary-faber-faber-planner)` again — ~20 more minutes wasted
 5. Total wasted time: ~37 minutes across two executions
 
 **Root causes identified:**
@@ -52,7 +52,7 @@ Add an explicit `## On Failure` section to the `workflow-plan.md` frontmatter or
 ```markdown
 ## On Failure
 
-If `Task(fractary-faber:faber-planner)` fails for any reason (socket error, API error,
+If `Task(fractary-faber-faber-planner)` fails for any reason (socket error, API error,
 timeout, or any other error):
 
 1. **STOP immediately** — do not attempt any other tool call
@@ -71,7 +71,7 @@ re-running.
 ### Files to Modify in fractary-faber
 
 ```
-.claude/skills/fractary-faber/workflow-plan.md   (or equivalent path in fractary-faber repo)
+.claude/skills/fractary-faber-fractary-faber/workflow-plan.md   (or equivalent path in fractary-faber repo)
 ```
 
 ---
@@ -121,7 +121,7 @@ The run directory path:
 ### Files to Modify in fractary-faber
 
 ```
-.claude/agents/fractary-faber/faber-planner.md   (or equivalent path in fractary-faber repo)
+.claude/agents/fractary-faber-fractary-faber/faber-planner.md   (or equivalent path in fractary-faber repo)
 ```
 
 ---

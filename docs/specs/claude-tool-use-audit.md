@@ -40,7 +40,7 @@ The unique Claude Code tools referenced across all plugins:
 | `workflow-plan-reporter` | `Read, Bash, Glob` |
 | `workflow-plan-validator` | `Read, Bash, Glob` (DEPRECATED) |
 | `workflow-planner` | `Skill, SlashCommand, Read, Write, Bash, Glob, Grep, AskUserQuestion` |
-| `workflow-verifier` | `Skill(fractary-faber:workflow-run-verifier)` |
+| `workflow-verifier` | `Skill(fractary-faber-workflow-run-verifier)` |
 
 ### Skills (`plugins/faber/skills/`)
 
@@ -54,23 +54,23 @@ The unique Claude Code tools referenced across all plugins:
 
 | Command | allowed-tools |
 |---------|---------------|
-| `config-init` | `Task(fractary-faber:config-initializer)` |
-| `config-update` | `Task(fractary-faber:config-updater)` |
-| `config-validate` | `Task(fractary-faber:config-validator)` |
-| `install-github-app` | `Task(fractary-faber:github-installer)` |
-| `run-inspect` | `Task(fractary-faber:run-inspect)` |
+| `config-init` | `Task(fractary-faber-config-initializer)` |
+| `config-update` | `Task(fractary-faber-config-updater)` |
+| `config-validate` | `Task(fractary-faber-config-validator)` |
+| `install-github-app` | `Task(fractary-faber-github-installer)` |
+| `run-inspect` | `Task(fractary-faber-run-inspect)` |
 | `session-clear` | `Skill, Read, Bash` |
-| `session-load` | `Task(fractary-faber:session-loader)` |
-| `session-save` | `Task(fractary-faber:session-saver)` |
-| `workflow-batch-plan` | `Write, Bash, Read, Task(fractary-faber:workflow-plan-reporter)` |
+| `session-load` | `Task(fractary-faber-session-loader)` |
+| `session-save` | `Task(fractary-faber-session-saver)` |
+| `workflow-batch-plan` | `Write, Bash, Read, Task(fractary-faber-workflow-plan-reporter)` |
 | `workflow-batch-run` | `Read, Write, Skill, TaskCreate, TaskUpdate, AskUserQuestion, Task(workflow-planner), Task(workflow-plan-validator), Task(workflow-plan-reporter)` |
-| `workflow-create` | `Task(fractary-faber:workflow-engineer)` |
-| `workflow-debug` | `Task(fractary-faber:workflow-debugger)` |
-| `workflow-inspect` | `Task(fractary-faber:workflow-inspector)` |
+| `workflow-create` | `Task(fractary-faber-workflow-engineer)` |
+| `workflow-debug` | `Task(fractary-faber-workflow-debugger)` |
+| `workflow-inspect` | `Task(fractary-faber-workflow-inspector)` |
 | `workflow-plan` | `TodoWrite, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment), Task(workflow-planner), Task(workflow-plan-validator), Task(workflow-plan-reporter)` |
-| `workflow-plan-report` | `Task(fractary-faber:workflow-plan-reporter)` |
+| `workflow-plan-report` | `Task(fractary-faber-workflow-plan-reporter)` |
 | `workflow-run` | `Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task(workflow-planner), Task(workflow-plan-validator), Task(workflow-plan-reporter), Task(workflow-verifier)` |
-| `workflow-update` | `Task(fractary-faber:workflow-engineer)` |
+| `workflow-update` | `Task(fractary-faber-workflow-engineer)` |
 
 ---
 

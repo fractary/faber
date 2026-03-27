@@ -22,11 +22,11 @@ The following commands have been **REMOVED** (no deprecation period):
 
 | Removed Command | Replacement | Migration |
 |----------------|-------------|-----------|
-| `/fractary-faber:workflow-build` | `/fractary-faber:workflow-run <plan-id> --phase build` | Use `--phase` for granular control |
-| `/fractary-faber:workflow-review` | `/fractary-faber:workflow-run <plan-id>` | Review is automatic in evaluate phase |
-| `/fractary-faber:workflow-archive` | *(removed entirely)* | Archive functionality removed |
-| `/fractary-faber:workflow-execute` | `/fractary-faber:workflow-run <plan-id>` | Use `workflow-run` directly |
-| `/fractary-faber:workflow-execute-deterministic` | `/fractary-faber:workflow-run <plan-id>` | Protocol-based execution prevents step skipping |
+| `/fractary-faber-workflow-build` | `/fractary-faber-workflow-run <plan-id> --phase build` | Use `--phase` for granular control |
+| `/fractary-faber-workflow-review` | `/fractary-faber-workflow-run <plan-id>` | Review is automatic in evaluate phase |
+| `/fractary-faber-workflow-archive` | *(removed entirely)* | Archive functionality removed |
+| `/fractary-faber-workflow-execute` | `/fractary-faber-workflow-run <plan-id>` | Use `workflow-run` directly |
+| `/fractary-faber-workflow-execute-deterministic` | `/fractary-faber-workflow-run <plan-id>` | Protocol-based execution prevents step skipping |
 
 #### New Capabilities
 
@@ -34,22 +34,22 @@ The following commands have been **REMOVED** (no deprecation period):
 
 ```bash
 # Full workflow (all phases)
-/fractary-faber:workflow-run <plan-id>
+/fractary-faber-workflow-run <plan-id>
 
 # Execute specific phase
-/fractary-faber:workflow-run <plan-id> --phase build
+/fractary-faber-workflow-run <plan-id> --phase build
 
 # Execute multiple phases
-/fractary-faber:workflow-run <plan-id> --phase build,evaluate
+/fractary-faber-workflow-run <plan-id> --phase build,evaluate
 
 # Execute single step
-/fractary-faber:workflow-run <plan-id> --step core-implement-solution
+/fractary-faber-workflow-run <plan-id> --step core-implement-solution
 
 # Execute multiple steps
-/fractary-faber:workflow-run <plan-id> --step step1,step2
+/fractary-faber-workflow-run <plan-id> --step step1,step2
 
 # Resume from failure
-/fractary-faber:workflow-run <plan-id> --resume <run-id>
+/fractary-faber-workflow-run <plan-id> --resume <run-id>
 ```
 
 #### Archive Functionality Removed
@@ -99,7 +99,7 @@ If you have custom workflow definitions that reference removed commands:
 // OLD (in workflow JSON)
 {
   "id": "my-step",
-  "prompt": "/fractary-faber:workflow-build"
+  "prompt": "/fractary-faber-workflow-build"
 }
 
 // NEW (direct instruction)
@@ -128,7 +128,7 @@ All capabilities are preserved:
 ### Getting Help
 
 If you encounter issues migrating:
-1. Review the [workflow-run documentation](plugins/faber/commands/workflow-run.md)
+1. Review the [workflow-run documentation](plugins/faber/commands/fractary-faber-workflow-run.md)
 2. Check the [orchestration protocol](plugins/faber/docs/workflow-orchestration-protocol.md)
 3. File an issue at https://github.com/fractary/faber/issues
 
@@ -153,7 +153,7 @@ All FABER interfaces now use consistent **noun-first, verb-second** naming:
 - **SDK**: Noun-grouped methods (`state.workflow.create()` instead of `createWorkflow()`)
 - **CLI**: Noun-verb commands (`workflow-run` instead of `run`)
 - **MCP**: Noun-verb tools (`fractary_faber_event_consolidate` instead of `events_consolidate`)
-- **Plugins**: Noun-verb commands (`fractary-faber:workflow-run` instead of `fractary-faber:run`)
+- **Plugins**: Noun-verb commands (`fractary-faber-workflow-run` instead of `fractary-faber-run`)
 
 ## Backwards Compatibility
 
@@ -350,14 +350,14 @@ All workflow commands now have a `workflow-` prefix:
 
 | Old Command (Deprecated) | New Command | Status |
 |-------------------------|-------------|--------|
-| `/fractary-faber:init` | `/fractary-faber:workflow-init` | ✅ Renamed (no alias) |
-| `/fractary-faber:run` | `/fractary-faber:workflow-run` | ✅ Renamed (no alias) |
-| `/fractary-faber:plan` | `/fractary-faber:workflow-plan` | ✅ Renamed (no alias) |
-| `/fractary-faber:execute` | `/fractary-faber:workflow-execute` | ✅ Renamed (no alias) |
-| `/fractary-faber:execute-deterministic` | `/fractary-faber:workflow-execute-deterministic` | ✅ Renamed (no alias) |
-| `/fractary-faber:archive` | `/fractary-faber:workflow-archive` | ✅ Renamed (no alias) |
-| `/fractary-faber:review` | `/fractary-faber:workflow-review` | ✅ Renamed (no alias) |
-| `/fractary-faber:build` | `/fractary-faber:workflow-build` | ✅ Renamed (no alias) |
+| `/fractary-faber-init` | `/fractary-faber-workflow-init` | ✅ Renamed (no alias) |
+| `/fractary-faber-run` | `/fractary-faber-workflow-run` | ✅ Renamed (no alias) |
+| `/fractary-faber-plan` | `/fractary-faber-workflow-plan` | ✅ Renamed (no alias) |
+| `/fractary-faber-execute` | `/fractary-faber-workflow-execute` | ✅ Renamed (no alias) |
+| `/fractary-faber-execute-deterministic` | `/fractary-faber-workflow-execute-deterministic` | ✅ Renamed (no alias) |
+| `/fractary-faber-archive` | `/fractary-faber-workflow-archive` | ✅ Renamed (no alias) |
+| `/fractary-faber-review` | `/fractary-faber-workflow-review` | ✅ Renamed (no alias) |
+| `/fractary-faber-build` | `/fractary-faber-workflow-build` | ✅ Renamed (no alias) |
 
 **Note**: Plugin commands are hard renames without backwards compatibility aliases. Update all references immediately.
 

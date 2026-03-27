@@ -79,7 +79,7 @@ This specification details the implementation plan for evolving FABER to use Cla
 1. **User initiates workflow** (via app.fractary.com web UI)
 2. **Container launches** with repository cloned to `/workspace`
 3. **Claude Code starts** with initial message: "Run FABER workflow for issue #123"
-4. **Orchestrator agent activates** (loaded from `/agents/faber-orchestrator.md`)
+4. **Orchestrator agent activates** (loaded from `/agents/fractary-faber-faber-orchestrator.md`)
 5. **Orchestrator uses TodoWrite** to create workflow plan
 6. **For each phase**:
    - Orchestrator updates TodoWrite (phase → in_progress)
@@ -573,7 +573,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 ### 3.4 FABER Orchestrator Agent
 
-**Location**: `agents/faber-orchestrator.md`
+**Location**: `agents/fractary-faber-faber-orchestrator.md`
 
 **Purpose**: Main orchestrator that runs FABER workflows using Task tool
 
@@ -671,7 +671,7 @@ await fractary_faber_event_emit({
 
 ```javascript
 const result = await Task({
-  subagent_type: `fractary-faber:${phase}`,
+  subagent_type: `fractary-faber-${phase}`,
   description: `Execute ${phase} phase`,
   prompt: `Execute ${phase} phase for work item #123.
 
@@ -817,7 +817,7 @@ Phase agents are spawned by the orchestrator via Task tool. They are defined as 
 
 #### Frame Agent
 
-**File**: `agents/faber-frame.md`
+**File**: `agents/fractary-faber-faber-frame.md`
 
 ```markdown
 # FABER Frame Phase Agent
@@ -902,7 +902,7 @@ Return JSON matching PhaseResult contract:
 
 #### Architect Agent
 
-**File**: `agents/faber-architect.md`
+**File**: `agents/fractary-faber-faber-architect.md`
 
 ```markdown
 # FABER Architect Phase Agent
@@ -997,7 +997,7 @@ Based on the Frame phase output, create a detailed implementation plan with:
 
 #### Build Agent
 
-**File**: `agents/faber-build.md`
+**File**: `agents/fractary-faber-faber-build.md`
 
 ```markdown
 # FABER Build Phase Agent
@@ -1084,7 +1084,7 @@ Implement the solution by:
 
 #### Evaluate Agent
 
-**File**: `agents/faber-evaluate.md`
+**File**: `agents/fractary-faber-faber-evaluate.md`
 
 ```markdown
 # FABER Evaluate Phase Agent
@@ -1173,7 +1173,7 @@ Provide:
 
 #### Release Agent
 
-**File**: `agents/faber-release.md`
+**File**: `agents/fractary-faber-faber-release.md`
 
 ```markdown
 # FABER Release Phase Agent
@@ -1463,8 +1463,8 @@ Update workflow tools to support orchestrator:
 
 **Goals**: Orchestrator agent, phase agent definitions
 
-- [ ] Create `agents/faber-orchestrator.md`
-- [ ] Create phase agents: `agents/faber-frame.md`, `agents/faber-architect.md`, etc.
+- [ ] Create `agents/fractary-faber-faber-orchestrator.md`
+- [ ] Create phase agents: `agents/fractary-faber-faber-frame.md`, `agents/fractary-faber-faber-architect.md`, etc.
 - [ ] Test orchestrator manually with Claude Code CLI
 - [ ] Verify Task tool spawning works correctly
 - [ ] Verify TodoWrite state tracking

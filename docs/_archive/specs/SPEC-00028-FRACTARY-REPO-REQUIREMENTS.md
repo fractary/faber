@@ -699,7 +699,7 @@ try {
   console.error("\nFalling back to manual instructions:");
   console.error(`  git worktree add ${worktreePath} -b ${branchName}`);
   console.error(`  cd ${worktreePath}`);
-  console.error("  /fractary-faber:workflow-run <plan-id>");
+  console.error("  /fractary-faber-workflow-run <plan-id>");
   throw new Error("Worktree creation failed");
 }
 ```
@@ -730,7 +730,7 @@ fractary-repo/
 
 ### Command Structure (Example)
 
-**File**: `commands/worktree-create.md`
+**File**: `commands/fractary-faber-worktree-create.md`
 
 ```markdown
 ---

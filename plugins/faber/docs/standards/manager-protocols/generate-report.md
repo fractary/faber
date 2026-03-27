@@ -590,7 +590,7 @@ FUNCTION saveReport(report, context):
 
 ```pseudocode
 FUNCTION emitReportGenerated(context, report_path):
-  Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+  Bash: plugins/faber/skills/fractary-faber-run-manager/scripts/emit-event.sh \
     --run-id "{context.run_id}" \
     --type "report_generated" \
     --status "completed" \

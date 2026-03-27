@@ -36,7 +36,7 @@ if [ -n "$CONTEXT_HINTS" ]; then
   CONTEXT_PARTS="${CONTEXT_PARTS} Context hints: ${CONTEXT_HINTS}."
 fi
 
-CONTEXT_PARTS="${CONTEXT_PARTS} Please run /fractary-faber:session-load --trigger session_start now to restore critical workflow state, specifications, and artifacts before continuing."
+CONTEXT_PARTS="${CONTEXT_PARTS} Please run /fractary-faber-session-load --trigger session_start now to restore critical workflow state, specifications, and artifacts before continuing."
 
 # Output additionalContext instructing Claude to restore workflow context
 jq -n \

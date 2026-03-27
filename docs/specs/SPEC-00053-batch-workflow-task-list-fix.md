@@ -16,9 +16,9 @@
 
 ## Summary
 
-When running `/fractary-faber:workflow-batch-run`, the user expects to see the full,
+When running `/fractary-faber-workflow-batch-run`, the user expects to see the full,
 phase-prefixed task list from `plan.json` (all 36 steps across 5 phases), mirroring
-what they see during a normal `/fractary-faber:workflow-run`. Instead, a bad 10-item
+what they see during a normal `/fractary-faber-workflow-run`. Instead, a bad 10-item
 partial task list appeared. This document identifies the root causes and the changes
 required in the `fractary-faber` plugin to fix this for all future batch runs.
 
@@ -41,7 +41,7 @@ required in the `fractary-faber` plugin to fix this for all future batch runs.
 
 ## Root Cause 1: faber-planner Uses TaskCreate for Internal Tracking
 
-**Where:** `fractary-faber:faber-planner` agent definition (in the fractary-faber plugin)
+**Where:** `fractary-faber-faber-planner` agent definition (in the fractary-faber plugin)
 
 **What happens:** The planner creates TaskCreate entries to track its own planning steps
 (e.g., "Reload context for workflow #229", "Research codebase for issue #229"). These
@@ -61,7 +61,7 @@ all its tasks before returning.
 
 ## Root Cause 2: workflow-batch-run Hides Execution Task List in Sub-Agent Context
 
-**Where:** `fractary-faber:workflow-batch-run` skill definition (in the fractary-faber plugin)
+**Where:** `fractary-faber-workflow-batch-run` skill definition (in the fractary-faber plugin)
 
 **What happens:** `workflow-batch-run` spawns a `general-purpose` sub-agent per work item,
 which calls `workflow-run`. The workflow-run inside that sub-agent creates the correct
@@ -164,7 +164,7 @@ batch task.
 
 ### Change 1: `faber-planner` agent
 
-**File:** Agent definition for `fractary-faber:faber-planner`
+**File:** Agent definition for `fractary-faber-faber-planner`
 
 **Change:** Remove all `TaskCreate` calls from the planner's execution instructions.
 The planner's progress is already tracked in `plan.json` and the run state files.
@@ -191,7 +191,7 @@ that deletes all tasks it created (`TaskUpdate` status=deleted for each).
 
 ### Change 2: `workflow-batch-run` skill
 
-**File:** Skill definition for `fractary-faber:workflow-batch-run`
+**File:** Skill definition for `fractary-faber-workflow-batch-run`
 
 #### Header changes:
 - Update `description` to mention serial/parallel modes
@@ -277,7 +277,7 @@ Step 5-P2: Spawn sub-agent per item (existing behavior)
   Task(
     subagent_type="general-purpose",
     prompt="Execute FABER workflow for #{work_id}.
-            Use the Skill tool to invoke: fractary-faber:workflow-run {work_id}
+            Use the Skill tool to invoke: fractary-faber-workflow-run {work_id}
             Autonomous execution. Follow the complete workflow to completion."
   )
   Spawn all items simultaneously.
@@ -311,7 +311,7 @@ Step 4b: Create batch-level tasks
 
 ### Change 4: `workflow-batch-plan` skill
 
-**File:** Skill definition for `fractary-faber:workflow-batch-plan`
+**File:** Skill definition for `fractary-faber-workflow-batch-plan`
 
 **Change:** Add a note after the Task spawn in Step 7 documenting the task isolation
 requirement — that the spawned faber-planner must not use TaskCreate, enforced by
@@ -348,9 +348,9 @@ No changes to `workflow-run` are required.
 ## Scope
 
 All changes are in the **fractary-faber plugin** skill/agent definitions:
-- `fractary-faber:faber-planner` agent
-- `fractary-faber:workflow-batch-plan` skill
-- `fractary-faber:workflow-batch-run` skill
+- `fractary-faber-faber-planner` agent
+- `fractary-faber-workflow-batch-plan` skill
+- `fractary-faber-workflow-batch-run` skill
 
 **No changes required in this project (`etl.corthion.ai`)** or the `fractary-faber-code`,
 `fractary-faber-cloud`, or `fractary-core` plugins.

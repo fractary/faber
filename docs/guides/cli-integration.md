@@ -491,8 +491,8 @@ def run_overnight_batch(work_ids: list[str], batch_name: str) -> dict:
 
 **In Claude Code** (with true context isolation per item via Task spawning):
 ```
-/fractary-faber:workflow-batch-plan 258,259,260,261 --name overnight-01
-/fractary-faber:workflow-batch-run --batch overnight-01 --autonomous
+/fractary-faber-workflow-batch-plan 258,259,260,261 --name overnight-01
+/fractary-faber-workflow-batch-run --batch overnight-01 --autonomous
 ```
 
 #### Run Complete Workflow

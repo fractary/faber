@@ -184,7 +184,7 @@ describe('WorkflowResolver', () => {
       it('should prepend ancestor global context to child global context', async () => {
         createWorkflow('project', 'child', {
           id: 'child',
-          extends: 'faber@fractary-faber:base',
+          extends: 'faber@fractary-faber-base',
           context: {
             global: 'Child global context',
           },
@@ -198,7 +198,7 @@ describe('WorkflowResolver', () => {
       it('should prepend ancestor phase context to child phase context', async () => {
         createWorkflow('project', 'child-phase', {
           id: 'child-phase',
-          extends: 'faber@fractary-faber:base',
+          extends: 'faber@fractary-faber-base',
           context: {
             phases: {
               build: 'Child build context',
@@ -216,7 +216,7 @@ describe('WorkflowResolver', () => {
       it('should override ancestor step context with child step context', async () => {
         createWorkflow('project', 'child-step', {
           id: 'child-step',
-          extends: 'faber@fractary-faber:base',
+          extends: 'faber@fractary-faber-base',
           context: {
             steps: {
               implement: 'Child implement step (overrides base)',
@@ -233,7 +233,7 @@ describe('WorkflowResolver', () => {
       it('should merge step contexts when different step IDs', async () => {
         createWorkflow('project', 'child-new-step', {
           id: 'child-new-step',
-          extends: 'faber@fractary-faber:base',
+          extends: 'faber@fractary-faber-base',
           context: {
             steps: {
               'new-step': 'Child new step context',
@@ -251,7 +251,7 @@ describe('WorkflowResolver', () => {
       it('should inherit ancestor context when child has none', async () => {
         createWorkflow('project', 'no-child-context', {
           id: 'no-child-context',
-          extends: 'faber@fractary-faber:base',
+          extends: 'faber@fractary-faber-base',
           // No context defined
         });
 
@@ -270,7 +270,7 @@ describe('WorkflowResolver', () => {
 
         createWorkflow('project', 'child-only-context', {
           id: 'child-only-context',
-          extends: 'faber@fractary-faber:no-ctx-base',
+          extends: 'faber@fractary-faber-no-ctx-base',
           context: {
             global: 'Child only global',
           },
@@ -302,7 +302,7 @@ describe('WorkflowResolver', () => {
         // Create parent extending core
         createWorkflow('fractary-faber', 'default', {
           id: 'default',
-          extends: 'faber@fractary-faber:core',
+          extends: 'faber@fractary-faber-core',
           context: {
             global: 'Default global',
             phases: {
@@ -319,7 +319,7 @@ describe('WorkflowResolver', () => {
       it('should accumulate global context from all ancestors (grandparent → parent → child)', async () => {
         createWorkflow('project', 'grandchild', {
           id: 'grandchild',
-          extends: 'faber@fractary-faber:default',
+          extends: 'faber@fractary-faber-default',
           context: {
             global: 'Grandchild global',
           },
@@ -333,7 +333,7 @@ describe('WorkflowResolver', () => {
       it('should accumulate phase context through inheritance chain', async () => {
         createWorkflow('project', 'grandchild-phase', {
           id: 'grandchild-phase',
-          extends: 'faber@fractary-faber:default',
+          extends: 'faber@fractary-faber-default',
           context: {
             phases: {
               build: 'Grandchild build',
@@ -356,7 +356,7 @@ describe('WorkflowResolver', () => {
       it('should resolve step contexts with proper override chain', async () => {
         createWorkflow('project', 'grandchild-step', {
           id: 'grandchild-step',
-          extends: 'faber@fractary-faber:default',
+          extends: 'faber@fractary-faber-default',
           context: {
             steps: {
               'core-step': 'Grandchild overrides core step',
@@ -378,15 +378,15 @@ describe('WorkflowResolver', () => {
       it('should preserve inheritance chain in resolved workflow', async () => {
         createWorkflow('project', 'grandchild-chain', {
           id: 'grandchild-chain',
-          extends: 'faber@fractary-faber:default',
+          extends: 'faber@fractary-faber-default',
         });
 
         const resolved = await resolver.resolveWorkflow('grandchild-chain');
 
         expect(resolved.inheritance_chain).toEqual([
           'grandchild-chain',
-          'faber@fractary-faber:default',
-          'faber@fractary-faber:core',
+          'faber@fractary-faber-default',
+          'faber@fractary-faber-core',
         ]);
       });
     });
@@ -495,7 +495,7 @@ describe('WorkflowResolver', () => {
 
         createWorkflow('project', 'extends-legacy', {
           id: 'extends-legacy',
-          extends: 'faber@fractary-faber:legacy',
+          extends: 'faber@fractary-faber-legacy',
           context: {
             global: 'New context on child',
           },
@@ -504,7 +504,7 @@ describe('WorkflowResolver', () => {
         const resolved = await resolver.resolveWorkflow('extends-legacy');
 
         expect(resolved.context?.global).toBe('New context on child');
-        expect(resolved.inheritance_chain).toEqual(['extends-legacy', 'faber@fractary-faber:legacy']);
+        expect(resolved.inheritance_chain).toEqual(['extends-legacy', 'faber@fractary-faber-legacy']);
       });
 
       it('should preserve other workflow properties alongside context', async () => {
@@ -611,17 +611,17 @@ describe('WorkflowResolver', () => {
     }
 
     describe('Explicit plugin@marketplace:workflow Format', () => {
-      it('should resolve explicit format: faber@fractary-faber:default', async () => {
+      it('should resolve explicit format: faber@fractary-faber-default', async () => {
         createExplicitWorkflow('fractary-faber', 'faber', 'default', {
           id: 'default',
           description: 'Default workflow from explicit format',
         });
 
-        const resolved = await resolver.resolveWorkflow('faber@fractary-faber:default');
+        const resolved = await resolver.resolveWorkflow('faber@fractary-faber-default');
 
         expect(resolved.id).toBe('default');
         expect(resolved.description).toBe('Default workflow from explicit format');
-        expect(resolved.inheritance_chain).toEqual(['faber@fractary-faber:default']);
+        expect(resolved.inheritance_chain).toEqual(['faber@fractary-faber-default']);
       });
 
       it('should resolve explicit format with different marketplace', async () => {
@@ -651,7 +651,7 @@ describe('WorkflowResolver', () => {
         // Create child extending parent using explicit format
         createWorkflow('project', 'my-workflow', {
           id: 'my-workflow',
-          extends: 'faber@fractary-faber:core',
+          extends: 'faber@fractary-faber-core',
           description: 'My custom workflow',
           context: {
             global: 'My custom context',
@@ -661,7 +661,7 @@ describe('WorkflowResolver', () => {
         const resolved = await resolver.resolveWorkflow('my-workflow');
 
         expect(resolved.id).toBe('my-workflow');
-        expect(resolved.inheritance_chain).toEqual(['my-workflow', 'faber@fractary-faber:core']);
+        expect(resolved.inheritance_chain).toEqual(['my-workflow', 'faber@fractary-faber-core']);
         expect(resolved.context?.global).toBe('Core global context\n\nMy custom context');
       });
 

@@ -137,8 +137,8 @@ Use the `--workflow` flag to explicitly specify which workflow to use:
 
 ```bash
 # Use specific workflow
-/fractary-faber:run --work-id 123 --workflow fractary-faber:bug
-/fractary-faber:run --work-id 456 --workflow fractary-faber:feature
+/fractary-faber-run --work-id 123 --workflow fractary-faber-bug
+/fractary-faber-run --work-id 456 --workflow fractary-faber-feature
 ```
 
 ##### 2. Target-Based Override
@@ -167,10 +167,10 @@ Issues with `workflow:` label prefix explicitly specify the workflow:
 
 ```bash
 # Issue has label "workflow:hotfix" → uses hotfix workflow
-/fractary-faber:run --work-id 123
+/fractary-faber-run --work-id 123
 
 # Issue has label "workflow:custom" → uses custom workflow
-/fractary-faber:run --work-id 456
+/fractary-faber-run --work-id 456
 ```
 
 **Label Mapping Configuration:**
@@ -181,10 +181,10 @@ Configure `workflow_inference.label_mapping` to map common labels to workflows:
 {
   "workflow_inference": {
     "label_mapping": {
-      "bug": "fractary-faber:bug",
-      "defect": "fractary-faber:bug",
-      "feature": "fractary-faber:feature",
-      "enhancement": "fractary-faber:feature"
+      "bug": "fractary-faber-bug",
+      "defect": "fractary-faber-bug",
+      "feature": "fractary-faber-feature",
+      "enhancement": "fractary-faber-feature"
     }
   }
 }
@@ -194,10 +194,10 @@ Configure `workflow_inference.label_mapping` to map common labels to workflows:
 
 ```bash
 # Issue #123 has label "bug" → automatically uses bug workflow
-/fractary-faber:run --work-id 123
+/fractary-faber-run --work-id 123
 
 # Issue #456 has label "feature" → automatically uses feature workflow
-/fractary-faber:run --work-id 456
+/fractary-faber-run --work-id 456
 ```
 
 ##### 4. WorkType Classification (Intelligent Fallback)
@@ -213,11 +213,11 @@ When no labels match, FABER classifies the issue's work type based on labels and
 {
   "workflow_inference": {
     "work_type_mapping": {
-      "bug": "fractary-faber:bug",
-      "feature": "fractary-faber:feature",
-      "patch": "fractary-faber:bug",
-      "chore": "fractary-faber:default",
-      "infrastructure": "fractary-faber:default"
+      "bug": "fractary-faber-bug",
+      "feature": "fractary-faber-feature",
+      "patch": "fractary-faber-bug",
+      "chore": "fractary-faber-default",
+      "infrastructure": "fractary-faber-default"
     }
   }
 }
@@ -225,19 +225,19 @@ When no labels match, FABER classifies the issue's work type based on labels and
 
 ```bash
 # Issue title: "Fix login error" → classifies as bug → uses bug workflow
-/fractary-faber:run --work-id 789
+/fractary-faber-run --work-id 789
 
 # Issue title: "Add user authentication" → classifies as feature → uses feature workflow
-/fractary-faber:run --work-id 101
+/fractary-faber-run --work-id 101
 ```
 
 ##### 5. Default Fallback (Lowest Priority)
 
-If no selection method applies, uses `default_workflow` from config (or `fractary-faber:default`):
+If no selection method applies, uses `default_workflow` from config (or `fractary-faber-default`):
 
 ```json
 {
-  "default_workflow": "fractary-faber:default"
+  "default_workflow": "fractary-faber-default"
 }
 ```
 
@@ -271,7 +271,7 @@ If no `--workflow` flag is provided AND no labels match, uses the first workflow
 
 ```bash
 # No --workflow flag, issue has no matching labels → uses workflows[0] (typically "default")
-/fractary-faber:run 789
+/fractary-faber-run 789
 ```
 
 **Selection Priority:**
@@ -307,7 +307,7 @@ If no `--workflow` flag is provided AND no labels match, uses the first workflow
 
 4. **Validate**:
    ```bash
-   /fractary-faber:audit
+   /fractary-faber-audit
    ```
 
 ## Workflow Schema
@@ -347,7 +347,7 @@ Old TOML configs embedded workflows inline. To migrate:
 2. Convert to JSON format
 3. Save as `workflows/default.json`
 4. Update config.json to reference file
-5. Validate with `/fractary-faber:audit`
+5. Validate with `/fractary-faber-audit`
 
 ## See Also
 

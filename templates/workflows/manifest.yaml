@@ -20,7 +20,7 @@ workflow_types:
       End-to-end workflow for creating new assets from requirements.
       The "asset" prefix is a placeholder - projects customize it for their domain
       (e.g., dataset, catalog, api, report, model).
-    default_extends: fractary-faber:core
+    default_extends: fractary-faber-core
     asset_types:
       - dataset
       - catalog

@@ -250,10 +250,10 @@ Each event follows a common schema:
 
 ```bash
 # Target with work ID
-/fractary-faber:run customer-analytics --work-id 158
+/fractary-faber-run customer-analytics --work-id 158
 
 # Work ID only (target inferred)
-/fractary-faber:run --work-id 158
+/fractary-faber-run --work-id 158
 ```
 
 A new run ID is generated automatically.
@@ -262,10 +262,10 @@ A new run ID is generated automatically.
 
 ```bash
 # Resume from where it failed
-/fractary-faber:run --resume fractary/claude-plugins/a1b2c3d4-...
+/fractary-faber-run --resume fractary/claude-plugins/a1b2c3d4-...
 
 # Resume from a specific step
-/fractary-faber:run --resume fractary/claude-plugins/a1b2c3d4-... --step build:implement
+/fractary-faber-run --resume fractary/claude-plugins/a1b2c3d4-... --step build:implement
 ```
 
 Resume:
@@ -278,10 +278,10 @@ Resume:
 
 ```bash
 # Re-run with different autonomy
-/fractary-faber:run --rerun fractary/claude-plugins/a1b2c3d4-... --autonomy autonomous
+/fractary-faber-run --rerun fractary/claude-plugins/a1b2c3d4-... --autonomy autonomous
 
 # Re-run specific phases only
-/fractary-faber:run --rerun fractary/claude-plugins/a1b2c3d4-... --phase build,evaluate
+/fractary-faber-run --rerun fractary/claude-plugins/a1b2c3d4-... --phase build,evaluate
 ```
 
 Re-run:
@@ -294,10 +294,10 @@ Re-run:
 
 ```bash
 # View current/recent runs
-/fractary-faber:status
+/fractary-faber-status
 
 # View specific run
-/fractary-faber:status --run-id fractary/claude-plugins/a1b2c3d4-...
+/fractary-faber-status --run-id fractary/claude-plugins/a1b2c3d4-...
 ```
 
 ## Event Gateway

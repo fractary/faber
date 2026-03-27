@@ -286,4 +286,4 @@ program
 
 - Original findings: fractary/cli WORK-00359-phase-0-findings.md
 - Refined spec: fractary/cli WORK-00005-fix-cli-spec-module-blockers.md
-- CLI implementation: fractary/cli src/tools/faber/commands/spec/index.ts (already has --json)
+- CLI implementation: fractary/cli src/tools/faber/commands/fractary-faber-spec/index.ts (already has --json)

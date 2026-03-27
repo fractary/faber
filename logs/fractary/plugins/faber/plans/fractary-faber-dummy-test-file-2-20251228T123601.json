@@ -24,9 +24,9 @@
   },
 
   "workflow": {
-    "id": "fractary-faber:default",
+    "id": "fractary-faber-default",
     "resolved_at": "2025-12-28T12:36:01Z",
-    "inheritance_chain": ["fractary-faber:default", "fractary-faber:core"],
+    "inheritance_chain": ["fractary-faber-default", "fractary-faber-core"],
     "phases": {
       "frame": {
         "enabled": true,
@@ -39,7 +39,7 @@
             "arguments": {
               "issue_number": "{work_id}"
             },
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "pre_step"
           },
           {
@@ -50,7 +50,7 @@
             "arguments": {
               "work_id": "{work_id}"
             },
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "pre_step"
           }
         ]
@@ -66,7 +66,7 @@
             "arguments": {
               "work_id": "{work_id}"
             },
-            "source": "fractary-faber:default",
+            "source": "fractary-faber-default",
             "position": "step"
           },
           {
@@ -77,7 +77,7 @@
             "arguments": {
               "work_id": "{work_id}"
             },
-            "source": "fractary-faber:default",
+            "source": "fractary-faber-default",
             "position": "step"
           }
         ]
@@ -89,11 +89,11 @@
             "id": "implement",
             "name": "Implement Solution",
             "description": "Implement based on specification following project patterns",
-            "command": "/fractary-faber:build",
+            "command": "/fractary-faber-build",
             "arguments": {
               "work_id": "{work_id}"
             },
-            "source": "fractary-faber:default",
+            "source": "fractary-faber-default",
             "position": "step"
           },
           {
@@ -104,7 +104,7 @@
             "arguments": {
               "work_id": "{work_id}"
             },
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ]
@@ -116,11 +116,11 @@
             "id": "core-issue-review",
             "name": "Review Issue Implementation",
             "description": "Verify implementation completeness against issue requirements",
-            "command": "/fractary-faber:review",
+            "command": "/fractary-faber-review",
             "arguments": {
               "work_id": "{work_id}"
             },
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "pre_step"
           },
           {
@@ -131,7 +131,7 @@
             "arguments": {
               "work_id": "{work_id}"
             },
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           },
           {
@@ -142,7 +142,7 @@
             "arguments": {
               "work_id": "{work_id}"
             },
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           },
           {
@@ -153,7 +153,7 @@
             "arguments": {
               "wait_for_ci": true
             },
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ],
@@ -170,7 +170,7 @@
             "arguments": {
               "delete_branch": true
             },
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ]

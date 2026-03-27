@@ -1053,7 +1053,7 @@ allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*)
 ```
 
 This provides:
-- ✅ Exact control over which agents/skills can be invoked
+- ✅ Exact control over which agents/fractary-faber-skills can be invoked
 - ✅ Namespace isolation (e.g., only fractary-repo:* agents)
 - ✅ Clear audit trail of permitted operations
 - ✅ Security against unintended invocations
@@ -1430,7 +1430,7 @@ Description of what this agent returns
 - ❌ Logic that belongs in the SDK
 - ❌ Platform-specific code (use SDK)
 - ❌ Script execution (use MCP or SDK)
-- ❌ Routing to other agents/skills
+- ❌ Routing to other agents/fractary-faber-skills
 
 **Expertise Skills:**
 

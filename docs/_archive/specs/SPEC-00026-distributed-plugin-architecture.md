@@ -403,7 +403,7 @@ steps = [
 
 **Automatic detection and adaptation:**
 1. User references agent: `@claude:work-manager`
-2. Faber loads `plugins/work/agents/work-manager.md`
+2. Faber loads `plugins/work/agents/fractary-faber-work-manager.md`
 3. `ClaudeCodeAdapter.detect()` returns true
 4. `ClaudeCodeAdapter.load()` parses the agent
 5. If orchestrating in LangGraph: `ClaudeCodeAdapter.toLangGraph()` adapts
@@ -455,7 +455,7 @@ For users who want to **explicitly convert** an agent to another framework forma
 ```bash
 # Convert Claude Code agent to LangChain
 fractary-forge convert \
-  --from plugins/work/agents/work-manager.md \
+  --from plugins/work/agents/fractary-faber-work-manager.md \
   --to work_manager.py \
   --format langchain
 
@@ -527,8 +527,8 @@ git clone https://github.com/acme/agents plugins/acme-agents
 
 [workflow.build]
 steps = [
-  { agent = "~/.claude/plugins/work/agents/work-manager.md" },     # Claude Code
-  { agent = "./plugins/acme-agents/code_generator.py" },           # LangChain
+  { agent = "~/.claude/plugins/work/agents/fractary-faber-work-manager.md" },     # Claude Code
+  { agent = "./plugins/acme-agents/fractary-faber-code_generator.py" },           # LangChain
   { agent = "../other-project/plugins/reviewer.md" }               # Claude Code
 ]
 ```

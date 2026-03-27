@@ -7,13 +7,13 @@ This guide helps you diagnose and resolve common FABER workflow issues.
 Start with the diagnostic script to check system health:
 
 ```bash
-plugins/faber/skills/core/scripts/diagnostics.sh
+plugins/faber/skills/fractary-faber-core/scripts/diagnostics.sh
 ```
 
 For detailed output:
 
 ```bash
-plugins/faber/skills/core/scripts/diagnostics.sh --verbose
+plugins/faber/skills/fractary-faber-core/scripts/diagnostics.sh --verbose
 ```
 
 ## Common Problems
@@ -24,12 +24,12 @@ plugins/faber/skills/core/scripts/diagnostics.sh --verbose
 
 **Symptoms:**
 - Error message: `FABER-001: Configuration file not found`
-- Cannot run `/fractary-faber:run`
+- Cannot run `/fractary-faber-run`
 - First time using FABER in project
 
 **Solution:**
 ```bash
-/fractary-faber:configure
+/fractary-faber-configure
 ```
 
 This creates the `faber:` section in `.fractary/config.yaml` with default settings.
@@ -77,7 +77,7 @@ faber:
 **Diagnosis:**
 ```bash
 # Validate configuration
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
+plugins/faber/skills/fractary-faber-core/scripts/config-validate.sh .fractary/config.yaml
 ```
 
 **Solutions:**
@@ -140,7 +140,7 @@ faber:
 
 **Diagnosis:**
 ```bash
-plugins/faber/skills/core/scripts/lock-check.sh
+plugins/faber/skills/fractary-faber-core/scripts/lock-check.sh
 ```
 
 **Solutions:**
@@ -154,13 +154,13 @@ plugins/faber/skills/core/scripts/lock-check.sh
 **If lock is stale (process no longer exists):**
 ```bash
 # Check lock status
-plugins/faber/skills/core/scripts/lock-check.sh
+plugins/faber/skills/fractary-faber-core/scripts/lock-check.sh
 
 # If PID is dead, remove lock
-plugins/faber/skills/core/scripts/lock-release.sh
+plugins/faber/skills/fractary-faber-core/scripts/lock-release.sh
 
 # Retry workflow
-/fractary-faber:run <work-id>
+/fractary-faber-run <work-id>
 ```
 
 **Prevention:**
@@ -181,8 +181,8 @@ Stale locks (>5 minutes old) are automatically cleaned on next run.
 1. Review phase output for specific errors
 2. Check state file for details:
    ```bash
-   plugins/faber/skills/core/scripts/state-read.sh .current_phase
-   plugins/faber/skills/core/scripts/state-read.sh .phase_results
+   plugins/faber/skills/fractary-faber-core/scripts/state-read.sh .current_phase
+   plugins/faber/skills/fractary-faber-core/scripts/state-read.sh .phase_results
    ```
 
 **Solutions:**
@@ -215,7 +215,7 @@ Stale locks (>5 minutes old) are automatically cleaned on next run.
 
 **Resume after fixing:**
 ```bash
-/fractary-faber:run <work-id> --resume
+/fractary-faber-run <work-id> --resume
 ```
 
 **Related Error Codes:** FABER-200, FABER-201, FABER-202, FABER-203
@@ -265,7 +265,7 @@ ls -lt .fractary/faber/backups/
 cp .fractary/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/faber/state.json
 
 # Resume workflow
-/fractary-faber:run <work-id> --resume
+/fractary-faber-run <work-id> --resume
 ```
 
 **Option 2:** Start fresh
@@ -274,10 +274,10 @@ cp .fractary/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/faber/state.json
 mv .fractary/faber/state.json .fractary/faber/state.json.corrupted
 
 # Initialize new state
-plugins/faber/skills/core/scripts/state-init.sh <work-id>
+plugins/faber/skills/fractary-faber-core/scripts/state-init.sh <work-id>
 
 # Restart workflow (cannot resume)
-/fractary-faber:run <work-id>
+/fractary-faber-run <work-id>
 ```
 
 **Related Error Codes:** FABER-100, FABER-101, FABER-102
@@ -294,10 +294,10 @@ plugins/faber/skills/core/scripts/state-init.sh <work-id>
 **Solution:**
 ```bash
 # Migrate state to current version
-plugins/faber/skills/core/scripts/state-migrate.sh
+plugins/faber/skills/fractary-faber-core/scripts/state-migrate.sh
 
 # Verify migration
-plugins/faber/skills/core/scripts/state-validate.sh .fractary/faber/state.json
+plugins/faber/skills/fractary-faber-core/scripts/state-validate.sh .fractary/faber/state.json
 ```
 
 **Related Error Codes:** FABER-103
@@ -567,10 +567,10 @@ du -sh .fractary/
 
 ```bash
 # Run with verbose output
-/fractary-faber:run <work-id> --verbose
+/fractary-faber-run <work-id> --verbose
 
 # Check diagnostics
-plugins/faber/skills/core/scripts/diagnostics.sh --verbose
+plugins/faber/skills/fractary-faber-core/scripts/diagnostics.sh --verbose
 ```
 
 ### Inspect state
@@ -580,16 +580,16 @@ plugins/faber/skills/core/scripts/diagnostics.sh --verbose
 cat .fractary/faber/state.json | jq
 
 # Query specific fields
-plugins/faber/skills/core/scripts/state-read.sh .work_id
-plugins/faber/skills/core/scripts/state-read.sh .current_phase
-plugins/faber/skills/core/scripts/state-read.sh .phase_results
+plugins/faber/skills/fractary-faber-core/scripts/state-read.sh .work_id
+plugins/faber/skills/fractary-faber-core/scripts/state-read.sh .current_phase
+plugins/faber/skills/fractary-faber-core/scripts/state-read.sh .phase_results
 ```
 
 ### Check configuration
 
 ```bash
 # Validate configuration
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
+plugins/faber/skills/fractary-faber-core/scripts/config-validate.sh .fractary/config.yaml
 
 # View FABER configuration
 yq '.faber' .fractary/config.yaml
@@ -609,7 +609,7 @@ cat .fractary/faber/logs/workflow-YYYYMMDD-HHMMSS.log
 
 ```bash
 # See what will happen without making changes
-/fractary-faber:run <work-id> --autonomy dry-run
+/fractary-faber-run <work-id> --autonomy dry-run
 ```
 
 ---
@@ -619,20 +619,20 @@ cat .fractary/faber/logs/workflow-YYYYMMDD-HHMMSS.log
 ### Run diagnostics
 
 ```bash
-plugins/faber/skills/core/scripts/diagnostics.sh --verbose
+plugins/faber/skills/fractary-faber-core/scripts/diagnostics.sh --verbose
 ```
 
 ### Check system status
 
 ```bash
 # Configuration status
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
+plugins/faber/skills/fractary-faber-core/scripts/config-validate.sh .fractary/config.yaml
 
 # State status
-plugins/faber/skills/core/scripts/state-validate.sh .fractary/faber/state.json
+plugins/faber/skills/fractary-faber-core/scripts/state-validate.sh .fractary/faber/state.json
 
 # Lock status
-plugins/faber/skills/core/scripts/lock-check.sh
+plugins/faber/skills/fractary-faber-core/scripts/lock-check.sh
 
 # Dependencies
 command -v jq
@@ -651,7 +651,7 @@ When reporting issues, include:
 
 2. **Diagnostic output:**
    ```bash
-   plugins/faber/skills/core/scripts/diagnostics.sh --verbose > diagnostics.txt
+   plugins/faber/skills/fractary-faber-core/scripts/diagnostics.sh --verbose > diagnostics.txt
    ```
 
 3. **Configuration (sanitized):**
@@ -698,7 +698,7 @@ When reporting issues, include:
 
 2. **Test changes in dry-run mode first:**
    ```bash
-   /fractary-faber:run <work-id> --autonomy dry-run
+   /fractary-faber-run <work-id> --autonomy dry-run
    ```
 
 3. **Keep backups:**
@@ -714,7 +714,7 @@ When reporting issues, include:
 
 5. **Validate after configuration changes:**
    ```bash
-   plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
+   plugins/faber/skills/fractary-faber-core/scripts/config-validate.sh .fractary/config.yaml
    ```
 
 ---

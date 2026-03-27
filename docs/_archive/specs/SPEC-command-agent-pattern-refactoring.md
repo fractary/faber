@@ -45,7 +45,7 @@ Exemplified by `workflow-plan.md` and `init.md`:
 **Command File (12 lines):**
 ```markdown
 ---
-name: fractary-faber:command-name
+name: fractary-faber-command-name
 description: Short description - delegates to agent-name
 allowed-tools: Task(agent-name)
 model: claude-haiku-4-5
@@ -54,7 +54,7 @@ model: claude-haiku-4-5
 Use Task tool with agent to perform operation.
 
 Task(
-  subagent_type="fractary-faber:agent-name",
+  subagent_type="fractary-faber-agent-name",
   description="Short description",
   prompt="Operation: $ARGUMENTS"
 )
@@ -92,21 +92,21 @@ These need both refactoring and renaming:
 ### Priority 1: workflow-audit Command → Workflow Audit Agent
 
 **Current State:**
-- File: `plugins/faber/commands/audit.md` (79+ lines)
+- File: `plugins/faber/commands/fractary-faber-audit.md` (79+ lines)
 - Has: Validation steps, error detection, scoring logic
 - Problem: All implementation in command file
 
 **Refactoring:**
 
 1. **Rename:** `audit.md` → `workflow-audit.md`
-2. **Create Agent:** `plugins/faber/agents/workflow-audit.md`
+2. **Create Agent:** `plugins/faber/agents/fractary-faber-workflow-audit.md`
    - Move all validation logic from audit.md
    - Implement configuration validation algorithm
    - Add SDK integration for config loading
    - Include completeness scoring
    - Error detection and reporting
 
-3. **Simplify Command:** `plugins/faber/commands/workflow-audit.md`
+3. **Simplify Command:** `plugins/faber/commands/fractary-faber-workflow-audit.md`
    - Reduce to 12 lines (like init.md pattern)
    - Parse arguments: `--verbose`, `--fix`, `--check`
    - Delegate to workflow-audit agent via Task tool
@@ -115,7 +115,7 @@ These need both refactoring and renaming:
 **Agent Implementation:**
 ```markdown
 ---
-name: fractary-faber:workflow-audit
+name: fractary-faber-workflow-audit
 description: Validate FABER workflow configuration and report issues
 model: claude-sonnet-4-6
 tools: Read, Glob, Bash
@@ -159,9 +159,9 @@ Perform comprehensive validation of FABER configuration files.
 **Command Pattern:**
 ```markdown
 ---
-name: fractary-faber:workflow-audit
+name: fractary-faber-workflow-audit
 description: Validate FABER workflow configuration - delegates to workflow-audit agent
-allowed-tools: Task(fractary-faber:workflow-audit)
+allowed-tools: Task(fractary-faber-workflow-audit)
 model: claude-haiku-4-5
 argument-hint: '[--verbose] [--fix] [--check <aspect>]'
 ---
@@ -169,7 +169,7 @@ argument-hint: '[--verbose] [--fix] [--check <aspect>]'
 Use Task tool with workflow-audit agent to validate configuration.
 
 Task(
-  subagent_type="fractary-faber:workflow-audit",
+  subagent_type="fractary-faber-workflow-audit",
   description="Validate FABER workflow configuration",
   prompt="Audit workflow configuration: $ARGUMENTS"
 )
@@ -178,21 +178,21 @@ Task(
 ### Priority 2: workflow-status Command → Workflow Status Agent
 
 **Current State:**
-- File: `plugins/faber/commands/status.md` (250+ lines)
+- File: `plugins/faber/commands/fractary-faber-status.md` (250+ lines)
 - Has: State loading, log querying, formatting logic
 - Problem: All implementation in command file
 
 **Refactoring:**
 
 1. **Rename:** `status.md` → `workflow-status.md`
-2. **Create Agent:** `plugins/faber/agents/workflow-status.md`
+2. **Create Agent:** `plugins/faber/agents/fractary-faber-workflow-status.md`
    - Move all status display logic
    - Implement state file loading
    - Log querying and parsing
    - Status formatting
    - Error handling
 
-3. **Simplify Command:** `plugins/faber/commands/workflow-status.md`
+3. **Simplify Command:** `plugins/faber/commands/fractary-faber-workflow-status.md`
    - Reduce to 12 lines
    - Parse arguments: `--work-id`, `--workflow-id`, `--verbose`, `--json`
    - Delegate to workflow-status agent
@@ -201,7 +201,7 @@ Task(
 **Agent Implementation:**
 ```markdown
 ---
-name: fractary-faber:workflow-status
+name: fractary-faber-workflow-status
 description: Display workflow execution status
 model: claude-sonnet-4-6
 tools: Read, Glob, Bash
@@ -238,9 +238,9 @@ Display current and historical workflow execution status.
 **Command Pattern:**
 ```markdown
 ---
-name: fractary-faber:workflow-status
+name: fractary-faber-workflow-status
 description: Display workflow execution status - delegates to workflow-status agent
-allowed-tools: Task(fractary-faber:workflow-status)
+allowed-tools: Task(fractary-faber-workflow-status)
 model: claude-haiku-4-5
 argument-hint: '[--work-id <id>] [--workflow-id <id>] [--verbose] [--json]'
 ---
@@ -248,7 +248,7 @@ argument-hint: '[--work-id <id>] [--workflow-id <id>] [--verbose] [--json]'
 Use Task tool with workflow-status agent to display status.
 
 Task(
-  subagent_type="fractary-faber:workflow-status",
+  subagent_type="fractary-faber-workflow-status",
   description="Display workflow execution status",
   prompt="Show workflow status: $ARGUMENTS"
 )
@@ -257,7 +257,7 @@ Task(
 ### Priority 3: workflow-debugger Command → Workflow Debugger Agent
 
 **Current State:**
-- File: `plugins/faber/commands/debugger.md` (186 lines)
+- File: `plugins/faber/commands/fractary-faber-debugger.md` (186 lines)
 - Has: Problem detection, root cause analysis, solution generation
 - Problem: All implementation in command file
 - Note: Agent already referenced but not implemented
@@ -265,14 +265,14 @@ Task(
 **Refactoring:**
 
 1. **Rename:** `debugger.md` → `workflow-debugger.md`
-2. **Create Agent:** `plugins/faber/agents/workflow-debugger.md`
+2. **Create Agent:** `plugins/faber/agents/fractary-faber-workflow-debugger.md`
    - Move all debugging logic
    - Implement diagnostic algorithms
    - Root cause analysis
    - Solution generation
    - Fix application
 
-3. **Simplify Command:** `plugins/faber/commands/workflow-debugger.md`
+3. **Simplify Command:** `plugins/faber/commands/fractary-faber-workflow-debugger.md`
    - Reduce to 12 lines
    - Parse arguments: `--work-id`, `--auto-fix`
    - Delegate to workflow-debugger agent
@@ -281,7 +281,7 @@ Task(
 **Agent Implementation:**
 ```markdown
 ---
-name: fractary-faber:workflow-debugger
+name: fractary-faber-workflow-debugger
 description: Debug FABER workflow execution issues
 model: claude-sonnet-4-6
 tools: Read, Write, Glob, Grep, Bash
@@ -319,9 +319,9 @@ Diagnose and fix workflow execution issues.
 **Command Pattern:**
 ```markdown
 ---
-name: fractary-faber:workflow-debug
+name: fractary-faber-workflow-debug
 description: Debug workflow execution issues - delegates to workflow-debugger agent
-allowed-tools: Task(fractary-faber:workflow-debugger)
+allowed-tools: Task(fractary-faber-workflow-debugger)
 model: claude-haiku-4-5
 argument-hint: '[--work-id <id>] [--auto-fix]'
 ---
@@ -329,7 +329,7 @@ argument-hint: '[--work-id <id>] [--auto-fix]'
 Use Task tool with workflow-debugger agent to diagnose issues.
 
 Task(
-  subagent_type="fractary-faber:workflow-debugger",
+  subagent_type="fractary-faber-workflow-debugger",
   description="Debug workflow execution issues",
   prompt="Debug workflow: $ARGUMENTS"
 )
@@ -341,37 +341,37 @@ Task(
 1. Rename `prime-context.md` → `session-load.md`
 2. Rename `session-end.md` → `session-save.md`
 3. Change skill references → agent references (session-manager agent)
-4. Create/verify `plugins/faber/agents/session-manager.md` exists
-5. Test: `/fractary-faber:session-load` and `/fractary-faber:session-save`
+4. Create/verify `plugins/faber/agents/fractary-faber-session-manager.md` exists
+5. Test: `/fractary-faber-session-load` and `/fractary-faber-session-save`
 
 ### Phase 1: workflow-audit Command (Simplest, clear validation logic)
 1. Rename `audit.md` → `workflow-audit.md`
-2. Create `plugins/faber/agents/workflow-audit.md`
-3. Update `plugins/faber/commands/workflow-audit.md` to lightweight wrapper
-4. Test: `/fractary-faber:workflow-audit`
+2. Create `plugins/faber/agents/fractary-faber-workflow-audit.md`
+3. Update `plugins/faber/commands/fractary-faber-workflow-audit.md` to lightweight wrapper
+4. Test: `/fractary-faber-workflow-audit`
 5. Verify: Validation works, reports generated
 
 ### Phase 2: workflow-status Command (Medium complexity, state reading)
 1. Rename `status.md` → `workflow-status.md`
-2. Create `plugins/faber/agents/workflow-status.md`
-3. Update `plugins/faber/commands/workflow-status.md` to lightweight wrapper
-4. Test: `/fractary-faber:workflow-status --work-id 123`
+2. Create `plugins/faber/agents/fractary-faber-workflow-status.md`
+3. Update `plugins/faber/commands/fractary-faber-workflow-status.md` to lightweight wrapper
+4. Test: `/fractary-faber-workflow-status --work-id 123`
 5. Verify: Status displayed, JSON output works
 
 ### Phase 3: workflow-debugger Command (Most complex, diagnostics)
 1. Rename `debugger.md` → `workflow-debugger.md`
-2. Create `plugins/faber/agents/workflow-debugger.md`
-3. Update `plugins/faber/commands/workflow-debugger.md` to lightweight wrapper
-4. Test: `/fractary-faber:workflow-debug --work-id 123`
+2. Create `plugins/faber/agents/fractary-faber-workflow-debugger.md`
+3. Update `plugins/faber/commands/fractary-faber-workflow-debugger.md` to lightweight wrapper
+4. Test: `/fractary-faber-workflow-debug --work-id 123`
 5. Verify: Issues detected, solutions proposed
 
 ## Critical Files
 
 ### Files to Create (4 agents):
-1. `plugins/faber/agents/session-manager.md` - Session context loading/saving agent
-2. `plugins/faber/agents/workflow-audit.md` - Workflow config validation agent
-3. `plugins/faber/agents/workflow-status.md` - Workflow status display agent
-4. `plugins/faber/agents/workflow-debugger.md` - Workflow debugging agent
+1. `plugins/faber/agents/fractary-faber-session-manager.md` - Session context loading/saving agent
+2. `plugins/faber/agents/fractary-faber-workflow-audit.md` - Workflow config validation agent
+3. `plugins/faber/agents/fractary-faber-workflow-status.md` - Workflow status display agent
+4. `plugins/faber/agents/fractary-faber-workflow-debugger.md` - Workflow debugging agent
 
 ### Files to Rename + Update (5 commands):
 1. `prime-context.md` → `session-load.md` - Change to agent, keep lightweight
@@ -414,28 +414,28 @@ Task(
 
 **Session Commands:**
 ```bash
-/fractary-faber:session-load
-/fractary-faber:session-save
+/fractary-faber-session-load
+/fractary-faber-session-save
 ```
 
 **Workflow Audit:**
 ```bash
-/fractary-faber:workflow-audit
-/fractary-faber:workflow-audit --verbose
-/fractary-faber:workflow-audit --fix
+/fractary-faber-workflow-audit
+/fractary-faber-workflow-audit --verbose
+/fractary-faber-workflow-audit --fix
 ```
 
 **Workflow Status:**
 ```bash
-/fractary-faber:workflow-status
-/fractary-faber:workflow-status --work-id 123
-/fractary-faber:workflow-status --json
+/fractary-faber-workflow-status
+/fractary-faber-workflow-status --work-id 123
+/fractary-faber-workflow-status --json
 ```
 
 **Workflow Debugger:**
 ```bash
-/fractary-faber:workflow-debug --work-id 123
-/fractary-faber:workflow-debug --work-id 123 --auto-fix
+/fractary-faber-workflow-debug --work-id 123
+/fractary-faber-workflow-debug --work-id 123 --auto-fix
 ```
 
 ### Success Criteria:

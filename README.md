@@ -164,7 +164,7 @@ fractary-faber workflow-plan --work-id 258
 # 2. Execute workflow (in Claude Code session)
 cd ~/.claude-worktrees/fractary-myproject-258
 claude
-/fractary-faber:workflow-run 258
+/fractary-faber-workflow-run 258
 ```
 
 **Batch Planning:**

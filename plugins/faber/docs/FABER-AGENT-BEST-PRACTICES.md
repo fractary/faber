@@ -156,11 +156,11 @@ Run the validation script to check skill compliance:
 
 ```bash
 # Quick format check
-./plugins/faber/skills/response-validator/scripts/check-format.sh \
+./plugins/faber/skills/fractary-faber-response-validator/scripts/check-format.sh \
   '{"status":"success","message":"Done"}'
 
 # Full schema validation
-./plugins/faber/skills/response-validator/scripts/validate-response.sh \
+./plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"success","message":"Done"}'
 ```
 

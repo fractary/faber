@@ -47,7 +47,7 @@ variables:
 
 # Default workflow configuration
 defaults:
-  extends: fractary-faber:core
+  extends: fractary-faber-core
   autonomy:
     level: guarded
     pause_before_release: true

@@ -113,7 +113,7 @@ User → Command (parse args, capture context)
 
 ### 1. Command Definition
 
-**File**: `/commands/issue-create-bulk.md`
+**File**: `/commands/fractary-faber-issue-create-bulk.md`
 
 ```markdown
 ---
@@ -150,7 +150,7 @@ If no template:
 
 ### 2. Agent Definition
 
-**File**: `/agents/issue-bulk-creator.md`
+**File**: `/agents/fractary-faber-issue-bulk-creator.md`
 
 ```markdown
 ---
@@ -452,8 +452,8 @@ EOF
 
 ## Files to Create
 
-1. **`/commands/issue-create-bulk.md`** - Command definition
-2. **`/agents/issue-bulk-creator.md`** - Agent definition
+1. **`/commands/fractary-faber-issue-create-bulk.md`** - Command definition
+2. **`/agents/fractary-faber-issue-bulk-creator.md`** - Agent definition
 3. **`/docs/guides/bulk-issue-creation.md`** - User guide (see below)
 
 ## Files to Modify

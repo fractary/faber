@@ -17,7 +17,7 @@ Complete guide to configuring FABER workflow for your projects using the new JSO
 
 ```bash
 # Generate default FABER configuration
-/fractary-faber:config-init
+/fractary-faber-config-init
 
 # This creates the faber: section in .fractary/config.yaml
 # and sets up .fractary/faber/workflows/ for project workflows
@@ -37,11 +37,11 @@ vim .fractary/config.yaml  # Add/edit faber: section
 
 ```bash
 # Validate configuration
-/fractary-faber:audit
+/fractary-faber-audit
 
 # Customize workflows, phases, hooks for your project
 # Then validate again
-/fractary-faber:audit --verbose
+/fractary-faber-audit --verbose
 ```
 
 ## Configuration File Location
@@ -77,8 +77,8 @@ When FABER resolves a workflow, it searches in a specific order. Understanding t
 
 2. **Plugin-Provided Workflows** (installed plugin cache)
    - Workflows shipped with the FABER plugin
-   - Use `fractary-faber:` namespace prefix
-   - Example: `fractary-faber:default`, `fractary-faber:core`
+   - Use `fractary-faber-` namespace prefix
+   - Example: `fractary-faber-default`, `fractary-faber-core`
    - Located in: `~/.claude/plugins/cache/fractary/fractary-faber/{version}/config/workflows/`
 
 3. **Built-in Defaults**
@@ -89,7 +89,7 @@ When FABER resolves a workflow, it searches in a specific order. Understanding t
 
 | Prefix | Source | Example |
 |--------|--------|---------|
-| `fractary-faber:` | Plugin installation | `fractary-faber:default` |
+| `fractary-faber-` | Plugin installation | `fractary-faber-default` |
 | `project:` | Project `.fractary/` | `project:my-workflow` |
 | (none) | Searches project first, then plugin | `default` |
 
@@ -118,7 +118,7 @@ Workflows can extend other workflows using the `extends` field:
 ```json
 {
   "id": "hotfix",
-  "extends": "fractary-faber:default",
+  "extends": "fractary-faber-default",
   "description": "Fast-track workflow for critical fixes",
   "phases": {
     "architect": {
@@ -129,15 +129,15 @@ Workflows can extend other workflows using the `extends` field:
 ```
 
 The inheritance chain is resolved in order:
-1. Start with the base workflow (`fractary-faber:default`)
+1. Start with the base workflow (`fractary-faber-default`)
 2. Apply each extension's overrides
 3. Result is a fully merged workflow
 
 **Example inheritance chain**:
 ```
-fractary-faber:core (base primitives)
+fractary-faber-core (base primitives)
     |
-    +-- fractary-faber:default (adds spec generation, implementation)
+    +-- fractary-faber-default (adds spec generation, implementation)
         |
         +-- project:hotfix (disables architect phase)
 ```
@@ -146,7 +146,7 @@ fractary-faber:core (base primitives)
 
 1. **Use plugin workflows as-is** for standard development
 2. **Extend plugin workflows** rather than copying them
-3. **Use `fractary-faber:` prefix** when explicitly referencing plugin workflows
+3. **Use `fractary-faber-` prefix** when explicitly referencing plugin workflows
 4. **Keep project workflows in `.fractary/`** for version control
 
 ## Configuration Structure
@@ -161,24 +161,24 @@ The FABER plugin provides two centrally-maintained workflows that most projects 
 
 | Workflow | Namespace | Purpose |
 |----------|-----------|---------|
-| `fractary-faber:core` | Plugin | Base primitives: issue management, branching, PR lifecycle |
-| `fractary-faber:default` | Plugin | Standard software dev workflow (extends `core` + spec generation + implementation) |
+| `fractary-faber-core` | Plugin | Base primitives: issue management, branching, PR lifecycle |
+| `fractary-faber-default` | Plugin | Standard software dev workflow (extends `core` + spec generation + implementation) |
 
-**`fractary-faber:core`** contains only the essential primitives:
+**`fractary-faber-core`** contains only the essential primitives:
 - **Frame**: Fetch/create issue, create/switch branch
 - **Build** (post): Commit and push
 - **Evaluate**: Issue review, commit fixes, create PR, review CI checks
 - **Release**: Merge PR
 
-**`fractary-faber:default`** extends `core` and adds:
+**`fractary-faber-default`** extends `core` and adds:
 - **Architect**: Generate specification from issue
 - **Build**: Implement solution based on spec
 
-These workflows are maintained in the plugin source code and update automatically when the plugin is updated. Projects reference them via the `fractary-faber:` namespace prefix.
+These workflows are maintained in the plugin source code and update automatically when the plugin is updated. Projects reference them via the `fractary-faber-` namespace prefix.
 
-**For most projects**: Simply run `/fractary-faber:config-init` and use the default workflow as-is. The config will reference `fractary-faber:default` which provides a complete software development workflow.
+**For most projects**: Simply run `/fractary-faber-config-init` and use the default workflow as-is. The config will reference `fractary-faber-default` which provides a complete software development workflow.
 
-**For custom needs**: Create project-specific workflows in `.fractary/faber/workflows/` that extend either `fractary-faber:core` or `fractary-faber:default`.
+**For custom needs**: Create project-specific workflows in `.fractary/faber/workflows/` that extend either `fractary-faber-core` or `fractary-faber-default`.
 
 ### Main Configuration File (config.json)
 
@@ -243,7 +243,7 @@ Each workflow file contains the complete phase definitions, hooks, and autonomy 
 
 ### Workflows Array
 
-Projects can define multiple workflows for different scenarios. The `/fractary-faber:config-init` command creates workflow templates and references them in config.json.
+Projects can define multiple workflows for different scenarios. The `/fractary-faber-config-init` command creates workflow templates and references them in config.json.
 
 #### Important: Always Keep the Default Workflow
 
@@ -285,7 +285,7 @@ vim .fractary/faber/workflows/documentation.json
 
 # Add reference to .fractary/config.yaml faber: section
 # Then validate
-/fractary-faber:audit
+/fractary-faber-audit
 ```
 
 **Why keep the default workflow?**
@@ -297,11 +297,11 @@ vim .fractary/faber/workflows/documentation.json
 **How to use multiple workflows:**
 ```bash
 # Use default workflow (when --workflow not specified)
-/fractary-faber:run 123
+/fractary-faber-run 123
 
 # Use specific custom workflow
-/fractary-faber:run 456 --workflow hotfix
-/fractary-faber:run 789 --workflow documentation
+/fractary-faber-run 456 --workflow hotfix
+/fractary-faber-run 789 --workflow documentation
 ```
 
 Each workflow defines its own phases, hooks, and autonomy level.
@@ -351,7 +351,7 @@ Step IDs must be unique across ALL phases in a workflow. This allows unambiguous
 
 ```bash
 # Target specific step
-/fractary-faber:run --work-id 123 --step build:implement
+/fractary-faber-run --work-id 123 --step build:implement
 
 # If "implement" existed in both build and evaluate phases, this would be ambiguous
 # Solution: use unique IDs like "build-implement" and "evaluate-implement"
@@ -384,7 +384,7 @@ Workflow validation now checks for:
 
 ```bash
 # Run validation
-/fractary-faber:audit
+/fractary-faber-audit
 
 # Output includes step ID validation:
 # All step IDs are unique across phases
@@ -562,8 +562,8 @@ fractary-faber runs plan-path {id}   # Path to specific plan
 
 ### Plan Lifecycle
 
-1. **Created** by `/fractary-faber:plan` or `/fractary-faber:run`
-2. **Read** by `/fractary-faber:workflow-run`
+1. **Created** by `/fractary-faber-plan` or `/fractary-faber-run`
+2. **Read** by `/fractary-faber-workflow-run`
 3. **Updated** with execution results
 4. **Committed** to git for team visibility and persistence
 

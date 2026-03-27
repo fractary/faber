@@ -10,7 +10,7 @@
 The CLI planning command has been implemented with the following structure:
 
 **Files Created:**
-- `/cli/src/commands/plan/index.ts` - Main plan command implementation
+- `/cli/src/commands/fractary-faber-plan/index.ts` - Main plan command implementation
 - `/cli/src/lib/config.ts` - Configuration manager (reads Claude Code settings)
 - `/cli/src/lib/anthropic-client.ts` - Anthropic API client for plan generation
 - `/cli/src/lib/repo-client.ts` - Wrapper for fractary-repo CLI commands

@@ -196,7 +196,7 @@ Operation requires user input before it can continue. The skill has presented qu
 - `on_pending_input: "wait"` (default) - Workflow halts, saves state, waits for user
 - Manager saves workflow state for resume capability
 - User is notified of pending questions
-- Resume command provided: `/fractary-faber:run --work-id {id} --resume {run_id}`
+- Resume command provided: `/fractary-faber-run --work-id {id} --resume {run_id}`
 
 **Best-effort fallback:**
 If `pending_input.can_proceed_without` is `true` and user doesn't respond within a reasonable time or explicitly skips:

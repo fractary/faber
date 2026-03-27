@@ -215,7 +215,7 @@ export async function execute(params: { issueId: string }) {
 ### Command Integration
 
 ```typescript
-// commands/work.ts
+// commands/fractary-faber-work.ts
 import { Command } from 'commander';
 import { WorkManager } from '@fractary/faber/work';
 
@@ -495,7 +495,7 @@ test('fetches issue', async () => {
 
 ## Migration from claude-plugins
 
-If migrating existing skills/commands from claude-plugins:
+If migrating existing skills/fractary-faber-commands from claude-plugins:
 
 ### Before (claude-plugins)
 

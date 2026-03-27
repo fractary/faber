@@ -10,9 +10,9 @@ Protocol for reloading critical workflow artifacts on-demand to recover from con
 - **Automatic (via hooks)**:
   - SessionStart Hook after context compaction (`session_start` trigger)
   - SessionStart Hook when resuming workflow (`session_start` trigger)
-  - PreCompact Hook before context compaction (saves session via `/fractary-faber:session-save`)
-  - SessionEnd Hook on normal exit (saves session via `/fractary-faber:session-save`)
-- **Manual**: User runs `/fractary-faber:session-load` (manual trigger)
+  - PreCompact Hook before context compaction (saves session via `/fractary-faber-session-save`)
+  - SessionEnd Hook on normal exit (saves session via `/fractary-faber-session-save`)
+- **Manual**: User runs `/fractary-faber-session-load` (manual trigger)
 - **Workflow pre_step**: Frame phase automatic reload (session_start trigger) [optional, hooks preferred]
 - **Phase transition**: When specific artifacts needed for next phase (phase_transition trigger)
 
@@ -70,8 +70,8 @@ ELSE
 
   IF active_runs.length == 0 THEN
     ERROR: "No active workflow found"
-    SUGGEST: "Use /fractary-faber:workflow-run to start a new workflow"
-    SUGGEST: "Or specify run ID: /fractary-faber:session-load --run-id {id}"
+    SUGGEST: "Use /fractary-faber-workflow-run to start a new workflow"
+    SUGGEST: "Or specify run ID: /fractary-faber-session-load --run-id {id}"
     EXIT 1
 
   ELSE IF active_runs.length == 1 THEN
@@ -92,7 +92,7 @@ ELSE
 - **Path**: `.fractary/faber/runs/.active-run-id`
 - **Format**: Single line containing run ID (e.g., `fractary-faber-258-20260105-143022`)
 - **Purpose**: Enables hooks to know which workflow to operate on
-- **Created by**: `/fractary-faber:workflow-run` command
+- **Created by**: `/fractary-faber-workflow-run` command
 - **Used by**: PreCompact, SessionStart, SessionEnd hooks
 
 **find_active_runs() Implementation**:
@@ -144,7 +144,7 @@ IF not state.has("run_id") OR not state.has("workflow_id") THEN
 workflow_id = state.workflow_id
 
 # Load workflow configuration
-IF workflow_id.startsWith("fractary-faber:") THEN
+IF workflow_id.startsWith("fractary-faber-") THEN
   # Built-in workflow
   workflow_name = workflow_id.split(":")[1]
   config_path = "plugins/faber/config/workflows/${workflow_name}.json"
@@ -658,7 +658,7 @@ To ensure correct implementation, validate:
 ### PreCompact Hook
 
 **Trigger**: Before context compaction
-**Action**: `/fractary-faber:session-save --reason compaction`
+**Action**: `/fractary-faber-session-save --reason compaction`
 **Purpose**: Save session metadata before context is lost
 
 ```json
@@ -670,7 +670,7 @@ To ensure correct implementation, validate:
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-save --reason compaction",
+            "command": "/fractary-faber-session-save --reason compaction",
             "timeout": 60
           }
         ]
@@ -683,7 +683,7 @@ To ensure correct implementation, validate:
 ### SessionStart Hook
 
 **Triggers**: After compaction (`compact` matcher) or workflow resume (`resume` matcher)
-**Action**: `/fractary-faber:session-load --trigger session_start`
+**Action**: `/fractary-faber-session-load --trigger session_start`
 **Purpose**: Restore critical artifacts when new session begins
 
 ```json
@@ -695,7 +695,7 @@ To ensure correct implementation, validate:
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-load --trigger session_start"
+            "command": "/fractary-faber-session-load --trigger session_start"
           }
         ]
       },
@@ -704,7 +704,7 @@ To ensure correct implementation, validate:
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-load --trigger session_start"
+            "command": "/fractary-faber-session-load --trigger session_start"
           }
         ]
       }
@@ -716,7 +716,7 @@ To ensure correct implementation, validate:
 ### SessionEnd Hook
 
 **Trigger**: On session termination (logout, clear, exit)
-**Action**: `/fractary-faber:session-save --reason normal`
+**Action**: `/fractary-faber-session-save --reason normal`
 **Purpose**: Save final session state
 
 ```json
@@ -727,7 +727,7 @@ To ensure correct implementation, validate:
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-save --reason normal"
+            "command": "/fractary-faber-session-save --reason normal"
           }
         ]
       }
@@ -752,7 +752,7 @@ To ensure correct implementation, validate:
   - SessionStart Hook (after compaction or resume)
   - Workflow pre_steps [optional, hooks preferred]
 - **Manual**:
-  - `/fractary-faber:session-load` command
+  - `/fractary-faber-session-load` command
   - Phase transition handlers with `reload_triggers: ["phase_transition:X->Y"]`
 
 ### Calls
@@ -774,11 +774,11 @@ To ensure correct implementation, validate:
 
 - **Context Reconstitution**: `context-reconstitution.md` - Initial context loading at workflow start
 - **Commands**:
-  - `plugins/faber/commands/session-load.md` - Context reload command
-  - `plugins/faber/commands/session-save.md` - Session save command
-- **Skill**: `plugins/faber/skills/context-manager/SKILL.md` - Context manager skill definition
+  - `plugins/faber/commands/fractary-faber-session-load.md` - Context reload command
+  - `plugins/faber/commands/fractary-faber-session-save.md` - Session save command
+- **Skill**: `plugins/faber/skills/fractary-faber-context-manager/SKILL.md` - Context manager skill definition
 - **Algorithms**:
-  - `plugins/faber/agents/session-manager.md` - Session management agent
+  - `plugins/faber/agents/fractary-faber-session-manager.md` - Session management agent
 - **Schemas**:
   - `plugins/faber/config/workflow.schema.json` - Artifact configuration schema
   - `plugins/faber/config/state.schema.json` - Session and metadata schema

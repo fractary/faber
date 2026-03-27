@@ -12,7 +12,7 @@ affects: fractary-faber plugin (faber-planner agent)
 ## Background
 
 During issue #142 (`doe/scorecard_institution` v2025-10-03), the `faber-planner` agent was
-invoked via `/fractary-faber:workflow-plan --work-id 142`. Issue #142 carries the label
+invoked via `/fractary-faber-workflow-plan --work-id 142`. Issue #142 carries the label
 `faber-workflow:catalog-create`, which is the standard label format for this project.
 
 The planner silently fell through to the generic `default` workflow instead of `catalog-create`.
@@ -26,8 +26,8 @@ was merged to `main` via PR #144 before the problem was identified.
 
 ## Root Cause
 
-**File:** `.claude/plugins/marketplaces/fractary-faber/plugins/faber/agents/faber-planner.md`
-(also at cache path: `~/.claude/plugins/cache/fractary-faber/fractary-faber/3.8.44/agents/faber-planner.md`)
+**File:** `.claude/plugins/marketplaces/fractary-faber/plugins/faber/agents/fractary-faber-faber-planner.md`
+(also at cache path: `~/.claude/plugins/cache/fractary-faber/fractary-faber/3.8.44/agents/fractary-faber-faber-planner.md`)
 
 **Lines 191–195 (Tier 3 label resolution):**
 
@@ -101,7 +101,7 @@ Pass `--workflow <name>` directly on every invocation. This activates Tier 1 res
 (explicit argument), which bypasses label lookup entirely:
 
 ```bash
-/fractary-faber:workflow-plan --work-id 142 --workflow catalog-create
+/fractary-faber-workflow-plan --work-id 142 --workflow catalog-create
 ```
 
 ### Workaround 2: `label_mapping` config (if supported by installed version)
@@ -129,7 +129,7 @@ check before relying on this workaround.
 
 2. **Re-run** with explicit workflow flag to generate the correct artifact:
    ```bash
-   /fractary-faber:workflow-plan --work-id 142 --workflow catalog-create --auto-run --autonomous
+   /fractary-faber-workflow-plan --work-id 142 --workflow catalog-create --auto-run --autonomous
    ```
 
 ---

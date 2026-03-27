@@ -19,7 +19,7 @@
     },
     "default_workflow": {
       "type": "string",
-      "description": "Default workflow ID to use when none specified. Can be namespaced (e.g., 'fractary-faber:default') or project-local (e.g., 'my-workflow'). If omitted, uses 'fractary-faber:default'."
+      "description": "Default workflow ID to use when none specified. Can be namespaced (e.g., 'fractary-faber-default') or project-local (e.g., 'my-workflow'). If omitted, uses 'fractary-faber-default'."
     },
     "workflow_namespaces": {
       "$ref": "#/definitions/workflow_namespaces"
@@ -152,7 +152,7 @@
         },
         "workflow_override": {
           "type": "string",
-          "description": "Optional workflow ID to use for this target type instead of the default workflow. Can be namespaced (e.g., 'fractary-faber:data-pipeline') or project-local."
+          "description": "Optional workflow ID to use for this target type instead of the default workflow. Can be namespaced (e.g., 'fractary-faber-data-pipeline') or project-local."
         }
       }
     },
@@ -207,7 +207,7 @@
         },
         "extends": {
           "type": "string",
-          "description": "Parent workflow to extend. Use namespaced format: 'fractary-faber:default' for core workflows."
+          "description": "Parent workflow to extend. Use namespaced format: 'fractary-faber-default' for core workflows."
         },
         "skip_steps": {
           "type": "array",
@@ -650,7 +650,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Map issue labels to workflow IDs. Example: {\"bug\": \"fractary-faber:bug\", \"feature\": \"fractary-faber:feature\"}"
+          "description": "Map issue labels to workflow IDs. Example: {\"bug\": \"fractary-faber-bug\", \"feature\": \"fractary-faber-feature\"}"
         },
         "fallback_to_classification": {
           "type": "boolean",

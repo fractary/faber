@@ -55,7 +55,7 @@ The FABER configuration (the `faber:` section in `.fractary/config.yaml`) does n
 
 **Recovery:**
 ```bash
-/fractary-faber:configure
+/fractary-faber-configure
 ```
 
 This will create a default configuration from the standard template.
@@ -82,7 +82,7 @@ The configuration file exists but contains invalid JSON syntax.
 
 ```bash
 # Validate configuration
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
+plugins/faber/skills/fractary-faber-core/scripts/config-validate.sh .fractary/config.yaml
 
 # Restore faber section from template
 # (Copy the faber: section from plugins/faber/config/templates/standard.yaml)
@@ -107,7 +107,7 @@ The configuration file is valid JSON but does not conform to the FABER configura
 **Recovery:**
 ```bash
 # Get detailed validation errors
-plugins/faber/skills/core/scripts/config-validate.sh .fractary/config.yaml
+plugins/faber/skills/fractary-faber-core/scripts/config-validate.sh .fractary/config.yaml
 
 # Review error output and fix issues
 # Reference: plugins/faber/config/config.schema.json
@@ -179,10 +179,10 @@ The workflow state file `.fractary/faber/state.json` does not exist when attempt
 **Recovery:**
 ```bash
 # Initialize state for new workflow
-plugins/faber/skills/core/scripts/state-init.sh <work-id>
+plugins/faber/skills/fractary-faber-core/scripts/state-init.sh <work-id>
 
 # Or start a new workflow
-/fractary-faber:run <work-id>
+/fractary-faber-run <work-id>
 ```
 
 ---
@@ -207,7 +207,7 @@ ls -lt .fractary/faber/backups/
 cp .fractary/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/faber/state.json
 
 # If no backups available, start new workflow
-plugins/faber/skills/core/scripts/state-init.sh <work-id>
+plugins/faber/skills/fractary-faber-core/scripts/state-init.sh <work-id>
 ```
 
 ---
@@ -236,7 +236,7 @@ ls -lt .fractary/faber/backups/
 cp .fractary/faber/backups/state-YYYYMMDD_HHMMSS.json .fractary/faber/state.json
 
 # Or reinitialize
-plugins/faber/skills/core/scripts/state-init.sh <work-id>
+plugins/faber/skills/fractary-faber-core/scripts/state-init.sh <work-id>
 ```
 
 ---
@@ -257,7 +257,7 @@ The state file version does not match the current FABER version.
 **Recovery:**
 ```bash
 # Run migration script to upgrade state
-plugins/faber/skills/core/scripts/state-migrate.sh
+plugins/faber/skills/fractary-faber-core/scripts/state-migrate.sh
 ```
 
 ---
@@ -306,7 +306,7 @@ A FABER phase (Frame, Architect, Build, Evaluate, Release) failed to execute suc
 2. Fix underlying issues
 3. Retry the phase:
    ```bash
-   /fractary-faber:run <work-id> --resume
+   /fractary-faber-run <work-id> --resume
    ```
 
 ---
@@ -656,7 +656,7 @@ Unable to acquire the workflow lock file to prevent concurrent execution.
 **Recovery:**
 Another workflow is running. Wait or check lock status:
 ```bash
-plugins/faber/skills/core/scripts/lock-check.sh
+plugins/faber/skills/fractary-faber-core/scripts/lock-check.sh
 ```
 
 If lock is stale (no active process), it will be auto-cleaned on next run.
@@ -680,10 +680,10 @@ Attempted to start a workflow while another workflow is already running.
 Wait for other workflow to complete or manually release lock:
 ```bash
 # Check lock status
-plugins/faber/skills/core/scripts/lock-check.sh
+plugins/faber/skills/fractary-faber-core/scripts/lock-check.sh
 
 # If process is no longer running, remove stale lock
-plugins/faber/skills/core/scripts/lock-release.sh
+plugins/faber/skills/fractary-faber-core/scripts/lock-release.sh
 ```
 
 ---
@@ -704,7 +704,7 @@ A lock file exists but the process that created it is no longer running.
 **Recovery:**
 Stale lock will be auto-cleaned. Retry workflow execution:
 ```bash
-/fractary-faber:run <work-id>
+/fractary-faber-run <work-id>
 ```
 
 The lock will be automatically removed if it's older than 5 minutes and the PID is not active.
@@ -718,8 +718,8 @@ The lock will be automatically removed if it's older than 5 minutes and the PID 
 Use the error reporting script to display formatted error messages:
 
 ```bash
-plugins/faber/skills/core/scripts/error-report.sh FABER-001
-plugins/faber/skills/core/scripts/error-report.sh FABER-501 "Work item #123"
+plugins/faber/skills/fractary-faber-core/scripts/error-report.sh FABER-001
+plugins/faber/skills/fractary-faber-core/scripts/error-report.sh FABER-501 "Work item #123"
 ```
 
 ### Getting Recovery Suggestions
@@ -727,7 +727,7 @@ plugins/faber/skills/core/scripts/error-report.sh FABER-501 "Work item #123"
 Extract recovery suggestions programmatically:
 
 ```bash
-RECOVERY=$(plugins/faber/skills/core/scripts/error-recovery.sh FABER-403)
+RECOVERY=$(plugins/faber/skills/fractary-faber-core/scripts/error-recovery.sh FABER-403)
 echo "$RECOVERY"
 ```
 

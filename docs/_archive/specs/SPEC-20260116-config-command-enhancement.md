@@ -12,45 +12,45 @@ Transform the `/init` commands into comprehensive `/config` commands for both `f
 
 | Plugin | Old Command (DELETE) | New Command | Agent |
 |--------|---------------------|-------------|-------|
-| faber | `/fractary-faber:init` | `/fractary-faber:config` | `config-manager` |
+| faber | `/fractary-faber-init` | `/fractary-faber-config` | `config-manager` |
 | faber-cloud | `/fractary-faber-cloud:init` | `/fractary-faber-cloud:config` | `config-agent` |
 
 **No backward compatibility** - `/init` commands will be completely removed and replaced by `/config`.
 
 ---
 
-## Phase 1: FABER Core Plugin (`fractary-faber:config`)
+## Phase 1: FABER Core Plugin (`fractary-faber-config`)
 
 ### Files to Create/Modify
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `plugins/faber/commands/config.md` | **Create** | New config command definition |
-| `plugins/faber/commands/init.md` | **Delete** | Remove old init command |
-| `plugins/faber/agents/config-manager.md` | **Create** | New comprehensive config agent |
-| `plugins/faber/agents/faber-initializer.md` | **Delete** | Remove old initializer agent |
+| `plugins/faber/commands/fractary-faber-config.md` | **Create** | New config command definition |
+| `plugins/faber/commands/fractary-faber-init.md` | **Delete** | Remove old init command |
+| `plugins/faber/agents/fractary-faber-config-manager.md` | **Create** | New comprehensive config agent |
+| `plugins/faber/agents/fractary-faber-faber-initializer.md` | **Delete** | Remove old initializer agent |
 
-### 1.1 Create `commands/config.md`
+### 1.1 Create `commands/fractary-faber-config.md`
 
 ```yaml
 ---
-name: fractary-faber:config
+name: fractary-faber-config
 description: Configure FABER - initialization, updates, and management
-allowed-tools: Task(fractary-faber:config-manager)
+allowed-tools: Task(fractary-faber-config-manager)
 model: claude-haiku-4-5
 argument-hint: '[--context "description of changes"] [--force] [--json]'
 ---
 ```
 
-### 1.2 Delete `commands/init.md`
+### 1.2 Delete `commands/fractary-faber-init.md`
 
 Simply delete this file. No replacement or alias needed.
 
-### 1.3 Delete `agents/faber-initializer.md`
+### 1.3 Delete `agents/fractary-faber-faber-initializer.md`
 
 Simply delete this file. The new `config-manager` agent replaces it entirely.
 
-### 1.4 Create `agents/config-manager.md`
+### 1.4 Create `agents/fractary-faber-config-manager.md`
 
 **Key Features:**
 
@@ -155,7 +155,7 @@ Simply delete this file. The new `config-manager` agent replaces it entirely.
 
    Next Steps:
      1. Review config: cat .fractary/faber/config.yaml
-     2. Run a workflow: /fractary-faber:workflow-plan <issue-number>
+     2. Run a workflow: /fractary-faber-workflow-plan <issue-number>
    ```
 
 ---
@@ -166,12 +166,12 @@ Simply delete this file. The new `config-manager` agent replaces it entirely.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `plugins/faber-cloud/commands/config.md` | **Create** | New config command definition |
-| `plugins/faber-cloud/commands/init.md` | **Delete** | Remove old init command |
-| `plugins/faber-cloud/agents/config-agent.md` | **Create** | New comprehensive config agent |
-| `plugins/faber-cloud/agents/init-agent.md` | **Delete** | Remove old init agent |
+| `plugins/faber-cloud/commands/fractary-faber-config.md` | **Create** | New config command definition |
+| `plugins/faber-cloud/commands/fractary-faber-init.md` | **Delete** | Remove old init command |
+| `plugins/faber-cloud/agents/fractary-faber-config-agent.md` | **Create** | New comprehensive config agent |
+| `plugins/faber-cloud/agents/fractary-faber-init-agent.md` | **Delete** | Remove old init agent |
 
-### 2.1 Create `commands/config.md`
+### 2.1 Create `commands/fractary-faber-config.md`
 
 ```yaml
 ---
@@ -183,15 +183,15 @@ argument-hint: '[--context "description of changes"] [--provider aws] [--iac ter
 ---
 ```
 
-### 2.2 Delete `commands/init.md`
+### 2.2 Delete `commands/fractary-faber-init.md`
 
 Simply delete this file.
 
-### 2.3 Delete `agents/init-agent.md`
+### 2.3 Delete `agents/fractary-faber-init-agent.md`
 
 Simply delete this file. The new `config-agent` replaces it entirely.
 
-### 2.4 Create `agents/config-agent.md`
+### 2.4 Create `agents/fractary-faber-config-agent.md`
 
 **Key Features (similar to config-manager with cloud-specific logic):**
 
@@ -341,9 +341,9 @@ validate_yaml() {
 
 ## Implementation Order
 
-1. **Phase 1a**: Create `fractary-faber:config` command file
+1. **Phase 1a**: Create `fractary-faber-config` command file
 2. **Phase 1b**: Create `config-manager` agent
-3. **Phase 1c**: Delete `fractary-faber:init` command and `faber-initializer` agent
+3. **Phase 1c**: Delete `fractary-faber-init` command and `faber-initializer` agent
 4. **Phase 2a**: Create `fractary-faber-cloud:config` command file
 5. **Phase 2b**: Create `config-agent` agent
 6. **Phase 2c**: Delete `fractary-faber-cloud:init` command and `init-agent` agent
@@ -358,13 +358,13 @@ validate_yaml() {
 
 1. **Fresh Init (no existing config)**
    ```bash
-   /fractary-faber:config
+   /fractary-faber-config
    # Should: auto-detect, ask confirmations, show preview, create config
    ```
 
 2. **Update with --context**
    ```bash
-   /fractary-faber:config --context "change autonomy to autonomous"
+   /fractary-faber-config --context "change autonomy to autonomous"
    # Should: show current vs proposed, ask confirmation, backup, update
    ```
 
@@ -382,7 +382,7 @@ validate_yaml() {
 
 5. **Validation Rejection**
    ```bash
-   /fractary-faber:config --context "rm -rf /"
+   /fractary-faber-config --context "rm -rf /"
    # Should: reject with validation error (shell metacharacters)
    ```
 
@@ -393,18 +393,18 @@ validate_yaml() {
 
 7. **Old Command Error**
    ```bash
-   /fractary-faber:init
-   # Should: fail with "command not found" - use /fractary-faber:config
+   /fractary-faber-init
+   # Should: fail with "command not found" - use /fractary-faber-config
    ```
 
 ### Manual Verification Steps
 
-1. Run `/fractary-faber:config` on a fresh project
+1. Run `/fractary-faber-config` on a fresh project
 2. Verify AskUserQuestion prompts appear for each auto-detected value
 3. Verify preview shows all proposed changes before applying
 4. Verify explicit confirmation required
 5. Verify config file created with correct values
-6. Run `/fractary-faber:config --context "change X"` on existing config
+6. Run `/fractary-faber-config --context "change X"` on existing config
 7. Verify backup file created with timestamp
 8. Verify changes applied correctly
 9. Test on both Linux and macOS (cross-platform timestamps)

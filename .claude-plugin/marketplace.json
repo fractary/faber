@@ -7,7 +7,7 @@
   },
   "metadata": {
     "description": "Core FABER workflow orchestration framework.",
-    "version": "3.0.47",
+    "version": "3.0.48",
     "pluginRoot": "./plugins"
   },
   "plugins": [
@@ -15,7 +15,7 @@
       "name": "fractary-faber",
       "source": "./plugins/faber",
       "description": "Universal SDLC workflow framework - Frame → Architect → Build → Evaluate → Release",
-      "version": "3.8.64",
+      "version": "3.8.65",
       "author": {
         "name": "The Fractary",
         "url": "https://github.com/fractary"
@@ -39,20 +39,20 @@
       "strict": true,
       "commands": "./commands/",
       "agents": [
-        "./agents/config-initializer.md",
-        "./agents/config-updater.md",
-        "./agents/config-validator.md",
-        "./agents/workflow-planner.md",
-        "./agents/workflow-plan-validator.md",
-        "./agents/workflow-plan-reporter.md",
-        "./agents/github-installer.md",
-        "./agents/workflow-verifier.md",
-        "./agents/workflow-engineer.md",
-        "./agents/workflow-debugger.md",
-        "./agents/workflow-inspector.md",
-        "./agents/session-loader.md",
-        "./agents/session-saver.md",
-        "./agents/run-inspect.md"
+        "./agents/fractary-faber-config-initializer.md",
+        "./agents/fractary-faber-config-updater.md",
+        "./agents/fractary-faber-config-validator.md",
+        "./agents/fractary-faber-workflow-planner.md",
+        "./agents/fractary-faber-workflow-plan-validator.md",
+        "./agents/fractary-faber-workflow-plan-reporter.md",
+        "./agents/fractary-faber-github-installer.md",
+        "./agents/fractary-faber-workflow-verifier.md",
+        "./agents/fractary-faber-workflow-engineer.md",
+        "./agents/fractary-faber-workflow-debugger.md",
+        "./agents/fractary-faber-workflow-inspector.md",
+        "./agents/fractary-faber-session-loader.md",
+        "./agents/fractary-faber-session-saver.md",
+        "./agents/fractary-faber-run-inspect.md"
       ],
       "skills": "./skills/",
       "hooks": "./hooks/hooks.json"

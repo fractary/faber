@@ -334,7 +334,7 @@ For each built-in agent (frame, architect, build, evaluate, release):
 **Before (Python):**
 
 ```python
-# faber/python/faber/agents/frame.py
+# faber/python/faber/agents/fractary-faber-frame.py
 class FrameAgent(BaseAgent):
     """Frame phase agent - gathers requirements and classifies work type."""
 
@@ -372,7 +372,7 @@ class FrameAgent(BaseAgent):
 **After (YAML):**
 
 ```yaml
-# forge/definitions/agents/frame-agent.yaml
+# forge/definitions/agents/fractary-faber-frame-agent.yaml
 name: frame-agent
 type: agent
 description: |
@@ -425,7 +425,7 @@ tags:
 
 ```bash
 # Validate converted agent
-forge validate forge/definitions/agents/frame-agent.yaml
+forge validate forge/definitions/agents/fractary-faber-frame-agent.yaml
 # Expected: ✓ Valid
 
 # Test invocation
@@ -446,7 +446,7 @@ forge exec frame-agent --task "Classify issue #123"
    - Install first-party agents on `faber init`
 
 ```typescript
-// faber/src/commands/init.ts
+// faber/src/commands/fractary-faber-init.ts
 export class InitCommand {
   async run() {
     // ... existing init logic ...
@@ -475,7 +475,7 @@ export class InitCommand {
    - Point to YAML equivalents
 
 ```python
-# faber/python/faber/agents/frame.py
+# faber/python/faber/agents/fractary-faber-frame.py
 class FrameAgent(BaseAgent):
     def __init__(self):
         warnings.warn(
@@ -724,11 +724,11 @@ After migration complete:
 | python/faber/definitions/agent_factory.py | src/definitions/factory/ | To migrate |
 | python/faber/definitions/tool_executor.py | src/definitions/executor/ | To migrate |
 | python/faber/definitions/converters.py | src/definitions/converters/ | To migrate |
-| python/faber/agents/frame.py | definitions/agents/frame-agent.yaml | To convert |
-| python/faber/agents/architect.py | definitions/agents/architect-agent.yaml | To convert |
-| python/faber/agents/build.py | definitions/agents/build-agent.yaml | To convert |
-| python/faber/agents/evaluate.py | definitions/agents/evaluate-agent.yaml | To convert |
-| python/faber/agents/release.py | definitions/agents/release-agent.yaml | To convert |
+| python/faber/agents/fractary-faber-frame.py | definitions/agents/fractary-faber-frame-agent.yaml | To convert |
+| python/faber/agents/fractary-faber-architect.py | definitions/agents/fractary-faber-architect-agent.yaml | To convert |
+| python/faber/agents/fractary-faber-build.py | definitions/agents/fractary-faber-build-agent.yaml | To convert |
+| python/faber/agents/fractary-faber-evaluate.py | definitions/agents/fractary-faber-evaluate-agent.yaml | To convert |
+| python/faber/agents/fractary-faber-release.py | definitions/agents/fractary-faber-release-agent.yaml | To convert |
 
 ### Appendix B: Dependencies
 

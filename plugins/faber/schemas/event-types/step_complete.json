@@ -57,7 +57,7 @@
       "source": "build-skill",
       "message": "Implementation step completed successfully",
       "metadata": {
-        "skill": "fractary-faber:build",
+        "skill": "fractary-faber-build",
         "output": {
           "files_modified": 15,
           "lines_added": 450,
@@ -68,7 +68,7 @@
         {
           "type": "file",
           "name": "run-manager/SKILL.md",
-          "path": "plugins/faber/skills/run-manager/SKILL.md"
+          "path": "plugins/faber/skills/fractary-faber-run-manager/SKILL.md"
         }
       ]
     }
