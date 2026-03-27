@@ -2,7 +2,7 @@
 name: fractary-faber-workflow-batch-plan
 description: Plan a batch of FABER workflows for sequential unattended execution - creates batch directory and plans each item deterministically via CLI
 argument-hint: '<work-ids> [--name <batch-id>]'
-allowed-tools: Write, Bash, Read, Task(fractary-faber-workflow-plan-reporter)
+allowed-tools: Write, Bash, Read, Agent(fractary-faber-workflow-plan-reporter)
 model: claude-sonnet-4-6
 ---
 
@@ -188,7 +188,7 @@ After all items are processed:
 
 ```javascript
 for (const item of plannedItems) {
-  await Task({
+  await Agent({
     subagent_type: "fractary-faber-workflow-plan-reporter",
     description: `Report plan summary for ${item.plan_id}`,
     prompt: `Report plan: --plan-id ${item.plan_id}`

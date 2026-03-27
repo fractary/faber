@@ -2,7 +2,7 @@
 name: fractary-faber-workflow-plan
 description: Create a FABER execution plan (plan only — use workflow-run to execute)
 argument-hint: '<work-id> [--workflow <id>] [--autonomy <level>] [--force-new]'
-allowed-tools: Task(fractary-faber-workflow-planner), Task(fractary-faber-workflow-plan-validator), Task(fractary-faber-workflow-plan-reporter), TodoWrite, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment)
+allowed-tools: Agent(fractary-faber-workflow-planner), Agent(fractary-faber-workflow-plan-validator), Agent(fractary-faber-workflow-plan-reporter), TodoWrite, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment)
 model: claude-sonnet-4-6
 ---
 
@@ -81,7 +81,7 @@ Otherwise, update task "Create plan with workflow-planner" → in_progress.
 ```javascript
 let plannerResult;
 try {
-  plannerResult = await Task({
+  plannerResult = await Agent({
     subagent_type: "fractary-faber-workflow-planner",
     description: "Create FABER execution plan",
     prompt: `Create execution plan: $ARGUMENTS`
@@ -89,7 +89,7 @@ try {
 } catch (error) {
   // Infrastructure failure (socket error, timeout, UND_ERR_SOCKET, etc.)
   // STOP — do not substitute tools, do not retry
-  console.error(`Task(workflow-planner) failed with infrastructure error: ${error.message}`);
+  console.error(`Agent(workflow-planner) failed with infrastructure error: ${error.message}`);
   console.error("");
   console.error("The planner agent may have completed before the connection dropped.");
   console.error("Check .fractary/faber/runs/ for partial artifacts before retrying.");
@@ -127,7 +127,7 @@ Update task "Create plan with workflow-planner" → completed.
 Update task "Validate plan with workflow-plan-validator" → in_progress.
 
 ```javascript
-const validationResult = await Task({
+const validationResult = await Agent({
   subagent_type: "fractary-faber-workflow-plan-validator",
   description: `Validate plan ${plan_id}`,
   prompt: `Validate plan: --plan-id ${plan_id}`
@@ -159,7 +159,7 @@ Update task "Validate plan with workflow-plan-validator" → completed.
 Update task "Report planning summary" → in_progress.
 
 ```javascript
-await Task({
+await Agent({
   subagent_type: "fractary-faber-workflow-plan-reporter",
   description: `Report planning summary for ${plan_id}`,
   prompt: `Report plan: --plan-id ${plan_id}`
@@ -170,12 +170,12 @@ Update task "Report planning summary" → completed.
 
 ## On Task Failure
 
-If ANY `Task()` call in this protocol fails with an infrastructure error (socket error,
+If ANY `Agent()` call in this protocol fails with an infrastructure error (socket error,
 timeout, API error, `UND_ERR_SOCKET`, or any non-domain error):
 
 1. **STOP immediately** — do not attempt any other tool call or retry
 2. **Report the exact error** to the user verbatim
-3. **Check for partial artifacts** — if `Task(workflow-planner)` failed, the agent may have
+3. **Check for partial artifacts** — if `Agent(workflow-planner)` failed, the agent may have
    completed before the connection dropped. Inform the user to check:
    - `.fractary/faber/runs/{plan-id}/plan.json` (may exist on disk)
    - Re-run with `--force-new` only if no valid plan exists

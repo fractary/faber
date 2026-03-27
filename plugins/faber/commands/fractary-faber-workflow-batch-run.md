@@ -2,7 +2,7 @@
 name: fractary-faber-workflow-batch-run
 description: Execute a planned FABER batch sequentially (serial mode, default) or in parallel (--parallel). Serial mode runs steps in the parent context with full task list visibility; parallel mode spawns sub-agents per item for concurrency with batch-level-only visibility.
 argument-hint: '--batch <batch-id> [--autonomy <level>] [--resume] [--phase <phases>] [--force-new] [--parallel]'
-allowed-tools: Read(.fractary/faber/**), Write, Task(fractary-faber-workflow-planner), Task(fractary-faber-workflow-plan-validator), Task(fractary-faber-workflow-plan-reporter), Skill, TaskCreate, TaskUpdate, AskUserQuestion
+allowed-tools: Read(.fractary/faber/**), Write, Agent(fractary-faber-workflow-planner), Agent(fractary-faber-workflow-plan-validator), Agent(fractary-faber-workflow-plan-reporter), Skill, TaskCreate, TaskUpdate, AskUserQuestion
 model: claude-sonnet-4-6
 ---
 
@@ -21,7 +21,7 @@ Executes all planned items from an existing batch. Runs in **serial mode by defa
 <CRITICAL_RULES>
 1. **SERIAL MODE = YOU ARE THE ORCHESTRATOR** — In serial mode (default), you execute steps directly from plan.json. There is no delegation. You read the plan, you invoke the skills/fractary-faber-prompts, you update state. This is the entire design.
 2. **SEQUENTIAL EXECUTION IS MANDATORY** — Without `--parallel`, complete item N fully (all phases, all steps) before starting item N+1. Never launch multiple items simultaneously.
-3. **NEVER INVOKE workflow-run** — Not as `Skill(fractary-faber-workflow-run)`, not as `Agent(subagent_type="fractary-faber-workflow-run")`, not as `Bash(fractary-faber workflow-run ...)`, not as `Task(...)`. Serial mode replaces workflow-run entirely. You execute steps directly per Step 5-S3.
+3. **NEVER INVOKE workflow-run** — Not as `Skill(fractary-faber-workflow-run)`, not as `Agent(subagent_type="fractary-faber-workflow-run")`, not as `Bash(fractary-faber workflow-run ...)`, not as `Agent(...)`. Serial mode replaces workflow-run entirely. You execute steps directly per Step 5-S3.
 4. **BASH IS NOT AVAILABLE** — Check the `allowed-tools` header above. Bash is intentionally excluded from this skill. Any attempt to use Bash will fail. Execute steps via Skill() or direct prompt execution only.
 </CRITICAL_RULES>
 
@@ -147,7 +147,7 @@ If you find yourself about to invoke workflow-run in ANY form — STOP. This is 
 
 - `Skill(fractary-faber-workflow-run ...)` — WRONG. Serial mode replaces workflow-run.
 - `Agent(subagent_type="fractary-faber-workflow-run")` — WRONG. workflow-run is a Skill, not an Agent. This call will fail.
-- `Task(subagent_type="fractary-faber-workflow-run")` — WRONG. Same reason.
+- `Agent(subagent_type="fractary-faber-workflow-run")` — WRONG. Same reason.
 - `Bash(fractary-faber workflow-run ...)` — WRONG. Bash is not available in this skill.
 
 **Correct action:** Go to Step 5-S3 and execute steps directly from plan.json using Skill() or prompt execution.
@@ -241,7 +241,7 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
      if (state.autonomy) {
        plannerPrompt += ` --autonomy ${state.autonomy}`;
      }
-     const plannerResult = await Task({
+     const plannerResult = await Agent({
        subagent_type: "fractary-faber-workflow-planner",
        description: `Plan workflow for #${item.work_id}`,
        prompt: plannerPrompt
@@ -263,7 +263,7 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
    if (state.autonomy) {
      validatorPrompt += ` --expected-autonomy ${state.autonomy}`;
    }
-   const validationResult = await Task({
+   const validationResult = await Agent({
      subagent_type: "fractary-faber-workflow-plan-validator",
      description: `Validate plan ${plan_id}`,
      prompt: validatorPrompt
@@ -282,7 +282,7 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
    ```
 3. Show plan summary before executing this item:
    ```javascript
-   await Task({
+   await Agent({
      subagent_type: "fractary-faber-workflow-plan-reporter",
      description: `Report plan summary for ${plan_id}`,
      prompt: `Report plan: --plan-id ${plan_id}`
@@ -398,7 +398,7 @@ Print:
 ##### Step 5-P2: Spawn Sub-Agent Per Item (existing behavior)
 
 ```
-Task(
+Agent(
   subagent_type="general-purpose",
   description="Execute FABER workflow for #{work_id}",
   prompt="Execute the FABER workflow for work item #{work_id}.

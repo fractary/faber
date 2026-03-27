@@ -2,7 +2,7 @@
 name: fractary-faber-workflow-plan-report
 description: Display a formatted summary report for a FABER plan
 argument-hint: '<plan-id>'
-allowed-tools: Task(fractary-faber-workflow-plan-reporter)
+allowed-tools: Agent(fractary-faber-workflow-plan-reporter)
 model: claude-sonnet-4-6
 ---
 
@@ -15,7 +15,7 @@ Display a formatted planning summary for an existing FABER plan.
 Invoke the `workflow-plan-reporter` agent with the plan ID from `$ARGUMENTS`:
 
 ```javascript
-await Task({
+await Agent({
   subagent_type: "fractary-faber-workflow-plan-reporter",
   description: `Report planning summary for ${plan_id}`,
   prompt: `Report plan: --plan-id ${plan_id}`
