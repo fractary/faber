@@ -2,7 +2,7 @@
 name: fractary-faber-workflow-run
 description: Execute a FABER plan created by faber plan CLI command
 argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phases>] [--step <step-id>] [--worktree] [--force-new] [--resume-batch] [--workflow <id>] [--autonomy <level>]'
-allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Agent(fractary-faber-workflow-planner), Agent(fractary-faber-workflow-plan-validator), Agent(fractary-faber-workflow-plan-reporter), Agent(fractary-faber-workflow-verifier)
+allowed-tools: Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TaskCreate, TaskUpdate, TaskList, TaskGet, Agent(fractary-faber-workflow-planner), Agent(fractary-faber-workflow-plan-validator), Agent(fractary-faber-workflow-plan-reporter), Agent(fractary-faber-workflow-verifier)
 model: claude-sonnet-4-6
 ---
 
@@ -25,7 +25,7 @@ This command replaces the old workflow-execute pattern (command → skill → ag
 3. **FOLLOW THE PROTOCOL** - The orchestration protocol is your instruction manual. Follow it exactly.
 4. **MAINTAIN STATE** - Update state file BEFORE and AFTER every step. State is sacred.
 5. **EXECUTE GUARDS** - All guards are mandatory. Never skip them.
-6. **USE TODOWRITE** - Track progress with TodoWrite for all steps.
+6. **USE TASK TOOLS** - Track progress with TaskCreate/TaskUpdate for all steps.
 7. **EMIT EVENTS** - Every significant action emits an event for audit trail. Events BEFORE state.
 8. **HANDLE ERRORS GRACEFULLY** - Use retry logic when configured, stop when appropriate.
 9. **RESPECT AUTONOMY GATES** - Get user approval when required in non-autonomous modes. In `autonomous` mode, proceed without prompting.
@@ -80,12 +80,12 @@ Context limits are **NOT** a reason to stop, pause, or ask the user for permissi
 1. **Auto-compaction** — Claude Code automatically compacts context when space is low
 2. **Hooks** — PreCompact fires `session-save`, SessionStart fires `session-load` to restore artifacts
 3. **State/Plan files** — Persisted to disk, survive any compaction
-4. **TodoWrite** — Persists across compaction, shows exactly where you left off
+4. **Task list** — Persists across compaction (TaskList shows where you left off)
 5. **Step re-fetching** — Each step re-fetches the GitHub issue (via work_id) with all progress comments
 
 **Recovery procedure** (if you feel uncertain about position after compaction):
 1. Call `/fractary-faber-session-load` to restore critical artifacts
-2. Read TodoWrite to see completed/pending steps
+2. Call TaskList to see completed/pending steps
 3. Continue execution from the next pending step
 
 **NEVER:**
@@ -109,13 +109,44 @@ If you find yourself about to write any of the following phrases — **STOP. Thi
 
 **The correct action when context feels low:**
 1. Call `/fractary-faber-session-load` to restore critical artifacts
-2. Read TodoWrite to find the next pending step
+2. Call TaskList to find the next pending step
 3. Continue executing from that step without interruption
 
 **NEVER** set `status="paused"` with a `pause_reason` mentioning context, tokens, or budget.
 
 The workflow MUST continue. Context management is automatic and handled by the system — it is not your responsibility to manage it by stopping.
 </TOKEN_BUDGET_ANTI_PATTERN>
+
+<TASK_MAP_RECOVERY>
+## Task ID Map Recovery After Context Compaction
+
+After context compaction, the in-memory `stepTaskIds`, `bootstrapTaskIds`, and `finalizeTaskIds` maps may be lost. To recover:
+
+```javascript
+async function reconstructTaskMaps() {
+  const allTasks = await TaskList();
+  const stepTaskIds = {};
+  const bootstrapTaskIds = {};
+  const finalizeTaskIds = {};
+
+  for (const task of allTasks) {
+    // Check metadata first (most reliable — set during TaskCreate)
+    if (task.metadata?.faberKey) {
+      stepTaskIds[task.metadata.faberKey] = task.id;
+      continue;
+    }
+    // Fallback: parse subject patterns for step tasks
+    const stepMatch = task.subject.match(/^\[(\w+)\] .+ \((.+)\)$/);
+    if (stepMatch) {
+      stepTaskIds[`${stepMatch[1]}:${stepMatch[2]}`] = task.id;
+    }
+  }
+  return { stepTaskIds, bootstrapTaskIds, finalizeTaskIds };
+}
+```
+
+Call this after `/fractary-faber-session-load` if the task ID maps are no longer in scope.
+</TASK_MAP_RECOVERY>
 
 <PARALLEL_STEP_ANTI_PATTERN>
 ## 🚫 ANTI-PATTERN: Unsolicited Parallel Step Execution (BUG, NOT A FEATURE)
@@ -369,17 +400,24 @@ if (resumeBatch) {
 }
 ```
 
-**Step B.2: Initialize Batch TodoWrite**
+**Step B.2: Initialize Batch Task List**
 
 ```javascript
-// Create batch-level TodoWrite with one item per work-id
-const batchTodos = batchState.items.map((item, index) => ({
-  content: `[Batch ${index + 1}/${batchState.items.length}] Workflow #${item.work_id}`,
-  status: item.status === "completed" ? "completed" : "pending",
-  activeForm: `Executing workflow for #${item.work_id} (${index + 1}/${batchState.items.length})`
-}));
+// Create batch-level tasks with one task per work-id
+const batchItemTaskIds = {}; // map: work_id → taskId
 
-await TodoWrite({ todos: batchTodos });
+for (let index = 0; index < batchState.items.length; index++) {
+  const item = batchState.items[index];
+  const task = await TaskCreate({
+    subject: `[Batch ${index + 1}/${batchState.items.length}] Workflow #${item.work_id}`,
+    description: `Run full FABER workflow for #${item.work_id}`,
+    activeForm: `Executing workflow for #${item.work_id} (${index + 1}/${batchState.items.length})`
+  });
+  batchItemTaskIds[item.work_id] = task.taskId;
+  if (item.status === "completed") {
+    await TaskUpdate({ taskId: task.taskId, status: "completed" });
+  }
+}
 ```
 
 **Step B.3: Sequential Execution Loop**
@@ -393,8 +431,8 @@ FOR each item in batchState.items (skip items with status "completed"):
   batchState.updated_at = new Date().toISOString();
   Write batch state to disk.
 
-  // Update batch TodoWrite to show current item in_progress
-  Update TodoWrite: mark current item as in_progress.
+  // Update batch task to show current item in_progress
+  TaskUpdate({ taskId: batchItemTaskIds[item.work_id], status: "in_progress" });
 
   console.log("");
   console.log("═══════════════════════════════════════════════════════════════");
@@ -433,8 +471,8 @@ FOR each item in batchState.items (skip items with status "completed"):
     batchState.updated_at = new Date().toISOString();
     Write batch state to disk.
 
-    // Update batch TodoWrite
-    Update TodoWrite: mark current item as completed.
+    // Update batch task
+    TaskUpdate({ taskId: batchItemTaskIds[item.work_id], status: "completed" });
 
     console.log("");
     console.log(`✓ Workflow ${currentIndex + 1}/${totalItems} completed: #${item.work_id}`);
@@ -488,7 +526,7 @@ FOR each item in batchState.items (skip items with status "completed"):
     if (response === "Skip and continue") {
       item.status = "skipped";
       Write batch state to disk.
-      Update TodoWrite: mark current item as completed (with skip indicator).
+      TaskUpdate({ taskId: batchItemTaskIds[item.work_id], status: "completed" });
       CONTINUE;  // Move to next item
     }
 
@@ -505,9 +543,9 @@ FOR each item in batchState.items (skip items with status "completed"):
   //
   // CRITICAL: Between workflows, reset context for a fresh start.
   //
-  // 1. TodoWrite will be re-initialized by the next workflow's Step 1.7
-  //    (which overwrites with step-level todos). Before that, restore
-  //    batch-level TodoWrite so the user sees batch progress.
+  // 1. Step-level tasks from the previous workflow remain as completed in the
+  //    task list. New step-level tasks will be created by the next workflow's
+  //    Step 1.7 via TaskCreate (additive — no overwrite needed).
   //
   // 2. Active-run-id will be overwritten by the next workflow's Step 1.4.
   //
@@ -517,8 +555,8 @@ FOR each item in batchState.items (skip items with status "completed"):
   //    workflows. Each workflow operates on a different issue with different
   //    requirements, different branches, and different code changes.
   //
-  // Restore batch-level TodoWrite for the transition period:
-  Rebuild batch TodoWrite reflecting completed/pending status of all items.
+  // No task list restoration needed — TaskCreate is additive, so batch-level
+  // tasks coexist with step-level tasks. Both remain visible in the task list.
 
 END FOR
 ```
@@ -577,19 +615,27 @@ console.log("══════════════════════�
 
 ## Phase 1: Initialization
 
-**Initialize bootstrap task list** (before any work begins, so all steps are visible):
+**Initialize bootstrap task list** (before any work begins, so all steps are visible). Store task IDs for subsequent updates.
 
 ```javascript
-await TodoWrite({
-  todos: [
-    { content: "Resolve plan ID (check/fetch/auto-plan)", status: "pending", activeForm: "Resolving plan ID" },
-    { content: "Validate plan", status: "pending", activeForm: "Validating plan" },
-    { content: "Load orchestration protocol", status: "pending", activeForm: "Loading orchestration protocol" },
-    { content: "Load plan and initialize state", status: "pending", activeForm: "Loading plan and initializing state" },
-    { content: "Track active workflow", status: "pending", activeForm: "Tracking active workflow" },
-    { content: "Initialize workflow steps", status: "pending", activeForm: "Initializing workflow steps" }
-  ]
-});
+const bootstrapTaskIds = {};
+const bootstrapSteps = [
+  { key: "resolve-plan", subject: "Resolve plan ID (check/fetch/auto-plan)", activeForm: "Resolving plan ID" },
+  { key: "validate-plan", subject: "Validate plan", activeForm: "Validating plan" },
+  { key: "load-protocol", subject: "Load orchestration protocol", activeForm: "Loading orchestration protocol" },
+  { key: "load-plan", subject: "Load plan and initialize state", activeForm: "Loading plan and initializing state" },
+  { key: "track-workflow", subject: "Track active workflow", activeForm: "Tracking active workflow" },
+  { key: "init-steps", subject: "Initialize workflow steps", activeForm: "Initializing workflow steps" }
+];
+
+for (const step of bootstrapSteps) {
+  const task = await TaskCreate({
+    subject: step.subject,
+    description: step.subject,
+    activeForm: step.activeForm
+  });
+  bootstrapTaskIds[step.key] = task.taskId;
+}
 ```
 
 Update each bootstrap task to `in_progress` → `completed` as its corresponding step executes.
@@ -1263,47 +1309,43 @@ if (phaseFilter || stepFilter) {
 }
 ```
 
-### Step 1.7: Initialize TodoWrite
+### Step 1.7: Initialize Workflow Step Tasks
 
-Append workflow step todos after the bootstrap todos (which are now all completed). This preserves bootstrap task visibility while adding step-level tracking.
+Create a task for every workflow step across all enabled phases using TaskCreate. Store task IDs in `stepTaskIds` map for subsequent updates. Bootstrap tasks are already completed by this point.
 
 ```javascript
-// Bootstrap todos — all completed by this point
-const bootstrapTodos = [
-  { content: "Resolve plan ID (check/fetch/auto-plan)", status: "completed", activeForm: "Resolving plan ID" },
-  { content: "Validate plan", status: "completed", activeForm: "Validating plan" },
-  { content: "Load orchestration protocol", status: "completed", activeForm: "Loading orchestration protocol" },
-  { content: "Load plan and initialize state", status: "completed", activeForm: "Loading plan and initializing state" },
-  { content: "Track active workflow", status: "completed", activeForm: "Tracking active workflow" },
-  { content: "Initialize workflow steps", status: "in_progress", activeForm: "Initializing workflow steps" }
-];
+// Mark final bootstrap task as in_progress during step creation
+await TaskUpdate({ taskId: bootstrapTaskIds["init-steps"], status: "in_progress" });
 
-// Flatten all workflow steps from all enabled phases
-const stepTodos = [];
+// Create one task per workflow step, maintaining a task ID map
+const stepTaskIds = {}; // map: "phase:step_id" → taskId
+
+let stepCount = 0;
 for (const phaseName of Object.keys(workflow.phases)) {
   const phase = workflow.phases[phaseName];
   if (phase.enabled === false) continue;
 
-  // Plan structure already has all steps flattened into phase.steps array
   const phaseSteps = phase.steps || [];
 
   for (const step of phaseSteps) {
-    stepTodos.push({
-      content: `[${phaseName}] ${step.name} (${step.id})`,
-      status: "pending",
-      activeForm: `Executing [${phaseName}] ${step.name}`
+    const task = await TaskCreate({
+      subject: `[${phaseName}] ${step.name} (${step.id})`,
+      description: step.description || step.name,
+      activeForm: `Executing [${phaseName}] ${step.name}`,
+      metadata: { faberKey: `${phaseName}:${step.id}` }
     });
+    stepTaskIds[`${phaseName}:${step.id}`] = task.taskId;
+    stepCount++;
   }
 }
 
-// Write combined list: completed bootstrap todos + pending workflow steps
-await TodoWrite({ todos: [...bootstrapTodos, ...stepTodos] });
+await TaskUpdate({ taskId: bootstrapTaskIds["init-steps"], status: "completed" });
 
 console.log("✓ Progress tracking initialized");
-console.log(`Total steps: ${stepTodos.length}`);
+console.log(`Total steps: ${stepCount}`);
 ```
 
-**Note:** The step ID is included in the `content` field (e.g., `"(core-fetch-issue)"`) because the TodoWrite tool does not support custom fields beyond `content`, `status`, and `activeForm`. This provides traceability to cross-reference todos with state file entries and plan definitions.
+**Note:** The `metadata.faberKey` field (e.g., `"frame:core-fetch-issue"`) enables reliable task ID map reconstruction after context compaction. The step ID is also included in the `subject` field for human readability.
 
 ### Step 1.7b: Validate Step ID Prefix Convention
 
@@ -1391,7 +1433,7 @@ FOR EACH phase IN phases_to_execute (in order):
       step = item
 
       # ── 2.3: Mark in_progress ──
-      Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → in_progress
+      TaskUpdate({ taskId: stepTaskIds["{phase.name}:{step.id}"], status: "in_progress" })
       Update state: phases[phase.name].steps[step.id].status = "in_progress", updated_at = now
       Emit step_start event
 
@@ -1440,7 +1482,7 @@ FOR EACH phase IN phases_to_execute (in order):
       # Exit code != 0 → transition invalid → set status="paused", report, halt execution
       Update state: phases[phase.name].steps[step.id].status = "completed", updated_at = now
       Emit step_complete event
-      Update TodoWrite: "[{phase.name}] {step.name} ({step.id})" → completed
+      TaskUpdate({ taskId: stepTaskIds["{phase.name}:{step.id}"], status: "completed" })
 
       # ── 2.6: On failure — follow orchestration protocol retry/guard/autonomy-gate logic ──
       # (see workflow-orchestration-protocol.md: Result Handling, Retry Logic, Error Recovery)
@@ -1457,7 +1499,7 @@ FOR EACH phase IN phases_to_execute (in order):
 
       # Mark all pending steps as in_progress
       FOR EACH s IN pending:
-        Update TodoWrite: "[{phase.name}] {s.name} ({s.id})" → in_progress
+        TaskUpdate({ taskId: stepTaskIds["{phase.name}:{s.id}"], status: "in_progress" })
         Update state: phases[phase.name].steps[s.id].status = "in_progress", updated_at = now
         Emit step_start event for s
 
@@ -1477,7 +1519,7 @@ FOR EACH phase IN phases_to_execute (in order):
         # Exit code != 0 → halt — do not record this step as complete
         Update state: phases[phase.name].steps[s.id].status = "completed", updated_at = now
         Emit step_complete event for s
-        Update TodoWrite: "[{phase.name}] {s.name} ({s.id})" → completed
+        TaskUpdate({ taskId: stepTaskIds["{phase.name}:{s.id}"], status: "completed" })
 
       LOG "✓ Parallel group [{item.id}] complete — all {pending.length} steps finished"
 
@@ -1498,13 +1540,13 @@ END FOR (phases)
 
 ```javascript
 // TaskList guard: assert zero pending tasks remain before invoking completion gate.
-// An orchestrator that batch-fabricated steps would have pending TodoWrite tasks.
+// An orchestrator that batch-fabricated steps would have pending tasks in the task list.
 // This check catches task-queue divergence from state-file divergence independently.
 const allTasks = await TaskList();
 const pendingTasks = allTasks.filter(t => t.status === "pending" || t.status === "in_progress");
 if (pendingTasks.length > 0) {
   console.error(`\n❌ TaskList guard FAILED: ${pendingTasks.length} task(s) still pending:`);
-  pendingTasks.forEach(t => console.error(`  - [${t.status}] ${t.content}`));
+  pendingTasks.forEach(t => console.error(`  - [${t.status}] ${t.subject}`));
   const pausedState = {
     ...state,
     status: "paused",
@@ -1573,23 +1615,36 @@ console.log(`Phases completed: ${state.phases.filter(p => p.status === "complete
 console.log(`\nState file: ${statePath}`);
 ```
 
-## Phase 4: Post-Workflow Finalization (state-untracked, TodoWrite-tracked)
+## Phase 4: Post-Workflow Finalization (state-untracked, task-tracked)
 
-After Phase 3 marks the workflow as "completed", run post-workflow finalization. This phase is **not tracked in the state file** (avoiding the chicken-and-egg problem where state updates after the last commit create lingering uncommitted files). Instead, steps are tracked via **TodoWrite** for agent accountability and user visibility.
+After Phase 3 marks the workflow as "completed", run post-workflow finalization. This phase is **not tracked in the state file** (avoiding the chicken-and-egg problem where state updates after the last commit create lingering uncommitted files). Instead, steps are tracked via **TaskCreate/TaskUpdate** for agent accountability and user visibility.
 
 **Every action in Phase 4 is wrapped in try/catch. Failures are non-fatal — the workflow is already "completed".**
 
-### Register Phase 4 TodoWrite Items
+### Register Phase 4 Task Items
 
 ```javascript
-// Register finalization steps in TodoWrite for visibility
-TodoWrite([
-  { id: "finalize-adherence",    content: "Plan Adherence Report — verify planned vs executed steps",  status: "in_progress" },
-  { id: "finalize-hooks",        content: "Execute post_workflow hooks",                               status: "pending" },
-  { id: "finalize-commit-push",  content: "Final cleanup commit & push (state files, memory)",         status: "pending" },
-  { id: "finalize-pr-merge",     content: "Final PR merge & branch cleanup",                           status: "pending" },
-  { id: "finalize-close-issue",  content: "Close GitHub issue",                                        status: "pending" }
-]);
+// Register finalization steps as tasks for visibility
+const finalizeTaskIds = {};
+const finalizeSteps = [
+  { key: "adherence",    subject: "Plan Adherence Report — verify planned vs executed steps" },
+  { key: "hooks",        subject: "Execute post_workflow hooks" },
+  { key: "commit-push",  subject: "Final cleanup commit & push (state files, memory)" },
+  { key: "pr-merge",     subject: "Final PR merge & branch cleanup" },
+  { key: "close-issue",  subject: "Close GitHub issue" }
+];
+
+for (const step of finalizeSteps) {
+  const task = await TaskCreate({
+    subject: step.subject,
+    description: step.subject,
+    activeForm: step.subject
+  });
+  finalizeTaskIds[step.key] = task.taskId;
+}
+
+// Mark first step as in_progress
+await TaskUpdate({ taskId: finalizeTaskIds["adherence"], status: "in_progress" });
 ```
 
 ### Step 4.1: Plan Adherence Report [finalize-adherence]
@@ -1614,11 +1669,11 @@ try {
     });
   }
 
-  // Mark TodoWrite: completed
-  TodoWrite([{ id: "finalize-adherence", status: "completed" }]);
+  // Mark task completed
+  await TaskUpdate({ taskId: finalizeTaskIds["adherence"], status: "completed" });
 } catch (e) {
   console.warn("⚠️  Plan adherence report failed (non-fatal):", e.message);
-  TodoWrite([{ id: "finalize-adherence", status: "completed", content: "Plan Adherence Report — failed (non-fatal): " + e.message }]);
+  await TaskUpdate({ taskId: finalizeTaskIds["adherence"], status: "completed", subject: "Plan Adherence Report — failed (non-fatal): " + e.message });
 }
 ```
 
@@ -1638,10 +1693,10 @@ try {
     })
   });
 
-  TodoWrite([{ id: "finalize-hooks", status: "completed" }]);
+  await TaskUpdate({ taskId: finalizeTaskIds["hooks"], status: "completed" });
 } catch (e) {
   console.warn("⚠️  post_workflow hooks failed (non-fatal):", e.message);
-  TodoWrite([{ id: "finalize-hooks", status: "completed", content: "Execute post_workflow hooks — skipped/failed: " + e.message }]);
+  await TaskUpdate({ taskId: finalizeTaskIds["hooks"], status: "completed", subject: "Execute post_workflow hooks — skipped/failed: " + e.message });
 }
 ```
 
@@ -1680,14 +1735,14 @@ try {
     });
 
     console.log("✓ Lingering files committed and pushed");
-    TodoWrite([{ id: "finalize-commit-push", status: "completed" }]);
+    await TaskUpdate({ taskId: finalizeTaskIds["commit-push"], status: "completed" });
   } else {
     console.log("✓ No lingering files to commit");
-    TodoWrite([{ id: "finalize-commit-push", status: "completed", content: "Final cleanup commit & push — no changes to commit" }]);
+    await TaskUpdate({ taskId: finalizeTaskIds["commit-push"], status: "completed", subject: "Final cleanup commit & push — no changes to commit" });
   }
 } catch (e) {
   console.warn("⚠️  Final cleanup commit failed (non-fatal):", e.message);
-  TodoWrite([{ id: "finalize-commit-push", status: "completed", content: "Final cleanup commit & push — failed: " + e.message }]);
+  await TaskUpdate({ taskId: finalizeTaskIds["commit-push"], status: "completed", subject: "Final cleanup commit & push — failed: " + e.message });
 }
 ```
 
@@ -1757,14 +1812,14 @@ try {
       }
     }
 
-    TodoWrite([{ id: "finalize-pr-merge", status: "completed" }]);
+    await TaskUpdate({ taskId: finalizeTaskIds["pr-merge"], status: "completed" });
   } else {
     console.log("✓ No cleanup PR needed (no changes)");
-    TodoWrite([{ id: "finalize-pr-merge", status: "completed", content: "Final PR merge — skipped (no changes)" }]);
+    await TaskUpdate({ taskId: finalizeTaskIds["pr-merge"], status: "completed", subject: "Final PR merge — skipped (no changes)" });
   }
 } catch (e) {
   console.warn("⚠️  Final PR merge failed (non-fatal):", e.message);
-  TodoWrite([{ id: "finalize-pr-merge", status: "completed", content: "Final PR merge — failed: " + e.message }]);
+  await TaskUpdate({ taskId: finalizeTaskIds["pr-merge"], status: "completed", subject: "Final PR merge — failed: " + e.message });
 }
 ```
 
@@ -1792,14 +1847,14 @@ try {
       console.log(`✓ Issue #${source_id} already closed (state: ${issueState})`);
     }
 
-    TodoWrite([{ id: "finalize-close-issue", status: "completed" }]);
+    await TaskUpdate({ taskId: finalizeTaskIds["close-issue"], status: "completed" });
   } else {
     console.log("✓ No issue to close (no source_id)");
-    TodoWrite([{ id: "finalize-close-issue", status: "completed", content: "Close issue — skipped (no source_id)" }]);
+    await TaskUpdate({ taskId: finalizeTaskIds["close-issue"], status: "completed", subject: "Close issue — skipped (no source_id)" });
   }
 } catch (e) {
   console.warn("⚠️  Issue close failed (non-fatal):", e.message);
-  TodoWrite([{ id: "finalize-close-issue", status: "completed", content: "Close issue — failed: " + e.message }]);
+  await TaskUpdate({ taskId: finalizeTaskIds["close-issue"], status: "completed", subject: "Close issue — failed: " + e.message });
 }
 ```
 
@@ -1857,10 +1912,13 @@ console.error(`\nState file: ${statePath}`);
 Even on failure, commit lingering state and event files so they aren't lost. This is a minimal cleanup — no adherence report, no issue close, no branch deletion.
 
 ```javascript
-// Register minimal finalization in TodoWrite
-TodoWrite([
-  { id: "finalize-commit-push", content: "Cleanup commit of state/event files (failure path)", status: "in_progress" }
-]);
+// Register minimal finalization task
+const failureCleanupTask = await TaskCreate({
+  subject: "Cleanup commit of state/event files (failure path)",
+  description: "Cleanup commit of state/event files (failure path)",
+  activeForm: "Committing state files after failure"
+});
+await TaskUpdate({ taskId: failureCleanupTask.taskId, status: "in_progress" });
 
 try {
   await Bash({ command: `git add .fractary/ 2>/dev/null || true`, description: "Stage .fractary/ files" });
@@ -1881,10 +1939,10 @@ try {
     console.log("✓ State files committed after workflow failure");
   }
 
-  TodoWrite([{ id: "finalize-commit-push", status: "completed" }]);
+  await TaskUpdate({ taskId: failureCleanupTask.taskId, status: "completed" });
 } catch (e) {
   console.warn("⚠️  Failure cleanup commit failed (non-fatal):", e.message);
-  TodoWrite([{ id: "finalize-commit-push", status: "completed", content: "Cleanup commit — failed: " + e.message }]);
+  await TaskUpdate({ taskId: failureCleanupTask.taskId, status: "completed", subject: "Cleanup commit — failed: " + e.message });
 }
 ```
 
@@ -2081,7 +2139,7 @@ The orchestration protocol (`plugins/faber/docs/workflow-orchestration-protocol.
 7. **Retry Logic** - When/how to retry failed steps (Build-Evaluate loop)
 8. **Autonomy Gates** - Approval procedures before/after phases
 9. **Error Recovery** - What to do when things go wrong
-10. **TodoWrite Integration** - How to track progress
+10. **Task List Integration** - How to track progress with TaskCreate/TaskUpdate
 
 **This protocol is your operating manual.** When executing a workflow, you MUST follow it exactly.
 
@@ -2182,7 +2240,7 @@ The protocol is comprehensive and prescriptive. Trust it.
 
 5. **Emit events for audit trail** - Every significant action gets an event.
 
-6. **Use TodoWrite for progress** - User needs to see what's happening.
+6. **Use TaskCreate/TaskUpdate for progress** - User needs to see what's happening.
 
 7. **Handle errors gracefully** - Retry when configured, stop when appropriate, report clearly.
 

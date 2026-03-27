@@ -15,8 +15,7 @@ The unique Claude Code tools referenced across all plugins:
 | `Skill` | Workflow orchestrators that chain skills |
 | `AskUserQuestion` | Interactive agents needing user input |
 | `Task` (Agent spawning) | Commands that delegate to agents |
-| `TaskCreate`/`TaskUpdate` | `workflow-batch-run` only |
-| `TodoWrite` | `workflow-plan`, `workflow-run` |
+| `TaskCreate`/`TaskUpdate`/`TaskList` | `workflow-plan`, `workflow-run`, `workflow-batch-run` |
 | `SlashCommand` | `workflow-planner` agent only |
 
 ---
@@ -67,9 +66,9 @@ The unique Claude Code tools referenced across all plugins:
 | `workflow-create` | `Task(fractary-faber-workflow-engineer)` |
 | `workflow-debug` | `Task(fractary-faber-workflow-debugger)` |
 | `workflow-inspect` | `Task(fractary-faber-workflow-inspector)` |
-| `workflow-plan` | `TodoWrite, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment), Task(workflow-planner), Task(workflow-plan-validator), Task(workflow-plan-reporter)` |
+| `workflow-plan` | `TaskCreate, TaskUpdate, TaskList, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment), Task(workflow-planner), Task(workflow-plan-validator), Task(workflow-plan-reporter)` |
 | `workflow-plan-report` | `Task(fractary-faber-workflow-plan-reporter)` |
-| `workflow-run` | `Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TodoWrite, Task(workflow-planner), Task(workflow-plan-validator), Task(workflow-plan-reporter), Task(workflow-verifier)` |
+| `workflow-run` | `Read, Write, Bash, Skill, AskUserQuestion, MCPSearch, TaskCreate, TaskUpdate, TaskList, TaskGet, Task(workflow-planner), Task(workflow-plan-validator), Task(workflow-plan-reporter), Task(workflow-verifier)` |
 | `workflow-update` | `Task(fractary-faber-workflow-engineer)` |
 
 ---
@@ -173,13 +172,11 @@ The unique Claude Code tools referenced across all plugins:
 
 ## Key Observations
 
-1. **`TodoWrite` is used by**: `workflow-plan` and `workflow-run` commands — these are the only two components still referencing this tool (now renamed to `TaskCreate`/`TaskUpdate` in newer Claude Code versions).
+1. **`TaskCreate`/`TaskUpdate`/`TaskList` are used by**: `workflow-plan`, `workflow-run`, and `workflow-batch-run` commands — all workflow orchestration commands that track step-level progress in interactive mode.
 
 2. **Many agents have NO declared tools**: Especially in docs, logs, file, and status plugins. They rely on inherited/default permissions and call the `fractary-core` CLI via Bash as described in their body text.
 
 3. **`Edit` tool is only used by**: `fractary-core` plugin agents (`cloud-initializer`, `config-initializer`).
-
-4. **`TaskCreate`/`TaskUpdate`** only appear in `workflow-batch-run`.
 
 5. **`SlashCommand`** only appears in `workflow-planner` agent.
 

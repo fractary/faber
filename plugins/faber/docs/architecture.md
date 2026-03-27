@@ -238,7 +238,7 @@ User
 User: /fractary-faber-workflow-run 123
   ↓
 workflow-run (command, direct execution)
-  ↓ Loads plan, initializes state and TodoWrite
+  ↓ Loads plan, initializes state and task list
   ↓ Phase 1: Frame
 workflow-run invokes frame skill
   ↓ Reads workflow/basic.md
