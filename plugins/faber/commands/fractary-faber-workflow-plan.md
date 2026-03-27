@@ -2,7 +2,7 @@
 name: fractary-faber-workflow-plan
 description: Create a FABER execution plan (plan only — use workflow-run to execute)
 argument-hint: '<work-id> [--workflow <id>] [--autonomy <level>] [--force-new]'
-allowed-tools: Agent(fractary-faber-workflow-planner), Agent(fractary-faber-workflow-plan-validator), Agent(fractary-faber-workflow-plan-reporter), TodoWrite, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment)
+allowed-tools: Agent(fractary-faber-workflow-planner), Agent(fractary-faber-workflow-plan-validator), Agent(fractary-faber-workflow-plan-reporter), TaskCreate, TaskUpdate, TaskList, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment)
 model: claude-sonnet-4-6
 ---
 
@@ -12,22 +12,41 @@ model: claude-sonnet-4-6
 
 ### Step 0: Initialize Task List
 
-Before doing anything else, create the task list so all steps are visible from the start:
+Before doing anything else, create the task list so all steps are visible from the start. Store task IDs for subsequent updates.
 
 ```javascript
-await TodoWrite({
-  todos: [
-    { content: "Check for existing plan", status: "pending", activeForm: "Checking for existing plan" },
-    { content: "Create plan with workflow-planner", status: "pending", activeForm: "Creating plan with workflow-planner" },
-    { content: "Validate plan with workflow-plan-validator", status: "pending", activeForm: "Validating plan" },
-    { content: "Report planning summary", status: "pending", activeForm: "Reporting planning summary" }
-  ]
-});
+const planTaskIds = {};
+
+planTaskIds["check-existing"] = (await TaskCreate({
+  subject: "Check for existing plan",
+  description: "Check for existing plan",
+  activeForm: "Checking for existing plan"
+})).taskId;
+
+planTaskIds["create-plan"] = (await TaskCreate({
+  subject: "Create plan with workflow-planner",
+  description: "Create plan with workflow-planner",
+  activeForm: "Creating plan with workflow-planner"
+})).taskId;
+
+planTaskIds["validate-plan"] = (await TaskCreate({
+  subject: "Validate plan with workflow-plan-validator",
+  description: "Validate plan with workflow-plan-validator",
+  activeForm: "Validating plan"
+})).taskId;
+
+planTaskIds["report-summary"] = (await TaskCreate({
+  subject: "Report planning summary",
+  description: "Report planning summary",
+  activeForm: "Reporting planning summary"
+})).taskId;
 ```
 
 ### Step 1: Check for Existing Plan
 
-Update task "Check for existing plan" → in_progress.
+```javascript
+await TaskUpdate({ taskId: planTaskIds["check-existing"], status: "in_progress" });
+```
 
 Parse `$ARGUMENTS` to extract:
 - `work_id`: first positional argument (not starting with `--`), or value of `--work-id` flag (deprecated alias). Required.
@@ -70,13 +89,22 @@ if (work_id && !force_new) {
 
 Use the same `extractPlanIdFromIssue()` helper as workflow-run (parses `**Plan ID:** \`{plan_id}\`` format).
 
-Update task "Check for existing plan" → completed.
+```javascript
+await TaskUpdate({ taskId: planTaskIds["check-existing"], status: "completed" });
+```
 
 ### Step 2: Create Plan with workflow-planner
 
-If `skipPlanner` is true, mark task "Create plan with workflow-planner" → completed (skipped) and proceed to Step 3.
+If `skipPlanner` is true:
+```javascript
+await TaskUpdate({ taskId: planTaskIds["create-plan"], status: "completed" });
+```
+Then proceed to Step 3.
 
-Otherwise, update task "Create plan with workflow-planner" → in_progress.
+Otherwise:
+```javascript
+await TaskUpdate({ taskId: planTaskIds["create-plan"], status: "in_progress" });
+```
 
 ```javascript
 let plannerResult;
@@ -102,15 +130,10 @@ if (!planIdMatch) {
   console.error("Error: workflow-planner did not return a plan_id.");
   console.error("Planner output:");
   console.error(plannerResult);
-  // Mark remaining tasks failed
-  await TodoWrite({
-    todos: [
-      { content: "Check for existing plan", status: "completed", activeForm: "Checking for existing plan" },
-      { content: "Create plan with workflow-planner", status: "completed", activeForm: "Creating plan with workflow-planner" },
-      { content: "Validate plan with workflow-plan-validator", status: "completed", activeForm: "Validating plan" },
-      { content: "Report planning summary", status: "completed", activeForm: "Reporting planning summary" }
-    ]
-  });
+  // Mark remaining tasks completed (failed path)
+  await TaskUpdate({ taskId: planTaskIds["create-plan"], status: "completed" });
+  await TaskUpdate({ taskId: planTaskIds["validate-plan"], status: "completed" });
+  await TaskUpdate({ taskId: planTaskIds["report-summary"], status: "completed" });
   return;
 }
 
@@ -118,13 +141,17 @@ plan_id = planIdMatch[1];
 console.log(`✓ Plan created: ${plan_id}`);
 ```
 
-Update task "Create plan with workflow-planner" → completed.
+```javascript
+await TaskUpdate({ taskId: planTaskIds["create-plan"], status: "completed" });
+```
 
 ### Step 3: Validate Plan
 
-**CRITICAL: You have no `Read` or `Bash` tools. You MUST invoke `workflow-plan-validator` via `Task`. You cannot validate the plan yourself. Do not skip this step.**
+**CRITICAL: You have no `Read` or `Bash` tools. You MUST invoke `workflow-plan-validator` via `Agent`. You cannot validate the plan yourself. Do not skip this step.**
 
-Update task "Validate plan with workflow-plan-validator" → in_progress.
+```javascript
+await TaskUpdate({ taskId: planTaskIds["validate-plan"], status: "in_progress" });
+```
 
 ```javascript
 const validationResult = await Agent({
@@ -152,11 +179,15 @@ if (!validationMatch || validationMatch[1] === 'fail') {
 console.log(`✓ Plan validated`);
 ```
 
-Update task "Validate plan with workflow-plan-validator" → completed.
+```javascript
+await TaskUpdate({ taskId: planTaskIds["validate-plan"], status: "completed" });
+```
 
 ### Step 4: Report Planning Summary
 
-Update task "Report planning summary" → in_progress.
+```javascript
+await TaskUpdate({ taskId: planTaskIds["report-summary"], status: "in_progress" });
+```
 
 ```javascript
 await Agent({
@@ -166,7 +197,9 @@ await Agent({
 });
 ```
 
-Update task "Report planning summary" → completed.
+```javascript
+await TaskUpdate({ taskId: planTaskIds["report-summary"], status: "completed" });
+```
 
 ## On Task Failure
 

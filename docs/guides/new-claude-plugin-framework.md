@@ -1262,7 +1262,7 @@ Task(
 ---
 name: fractary-repo:pr-create
 description: Create pull request with conversation context
-allowed-tools: Skill(fractary-pr-context-preparer), Task(fractary-repo:pr-create), TodoWrite
+allowed-tools: Skill(fractary-pr-context-preparer), Task(fractary-repo:pr-create), TaskCreate, TaskUpdate
 model: claude-sonnet-4-6
 argument-hint: '["title"] [--body "<text>"] [--base <branch>]'
 ---
@@ -1285,26 +1285,30 @@ Task(
 **Note:** This example uses parameter-based restrictions:
 - `Skill(fractary-pr-context-preparer)` - Only this specific skill allowed
 - `Task(fractary-repo:pr-create)` - Only this specific agent allowed
-- `TodoWrite` - For tracking the two-step sequence
+- `TaskCreate, TaskUpdate` - For tracking the two-step sequence
 
 This prevents the command from invoking other skills or agents.
 
-**TodoWrite for Two-Step Enforcement:**
+**TaskCreate/TaskUpdate for Two-Step Enforcement:**
 
-For hybrid commands that require skill-then-agent execution, include `TodoWrite` in allowed-tools. Claude can use it to create a clear checklist:
+For hybrid commands that require skill-then-agent execution, include `TaskCreate, TaskUpdate` in allowed-tools. Claude can create tasks to track each step:
 
-```
-[ ] Step 1: Extract context using fractary-pr-context-preparer skill
-[ ] Step 2: Create PR using fractary-repo:pr-create agent
+```javascript
+const step1 = await TaskCreate({ subject: "Extract context using fractary-pr-context-preparer skill", description: "Step 1" });
+const step2 = await TaskCreate({ subject: "Create PR using fractary-repo:pr-create agent", description: "Step 2" });
+// Mark each as in_progress/completed as they execute
+await TaskUpdate({ taskId: step1.taskId, status: "in_progress" });
+// ... execute step 1 ...
+await TaskUpdate({ taskId: step1.taskId, status: "completed" });
 ```
 
 This ensures:
-- ✅ Steps execute in correct order
-- ✅ No step is skipped
-- ✅ User can see progress
-- ✅ Clear accountability for each phase
+- Steps execute in correct order
+- No step is skipped
+- User can see progress in the interactive task checklist
+- Clear accountability for each phase
 
-**When to use TodoWrite in commands:**
+**When to use TaskCreate/TaskUpdate in commands:**
 - Two-step processes (skill → agent)
 - Multi-agent workflows requiring specific order
 - When step sequence is critical to success

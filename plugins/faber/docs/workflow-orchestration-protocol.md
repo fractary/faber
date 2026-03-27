@@ -145,17 +145,9 @@ await Write({
   }, null, 2)
 });
 
-// 3. Update TodoWrite to show step in progress
-await TodoWrite({
-  todos: [
-    ...otherTodos,
-    {
-      content: step.name,
-      status: "in_progress",
-      activeForm: `Executing: ${step.name}`
-    }
-  ]
-});
+// 3. Update task to show step in progress
+const taskId = stepTaskIds[`${step.phase}:${step.step_id}`];
+await TaskUpdate({ taskId, status: "in_progress" });
 
 // 4. Execute applicable guards
 await executeGuards(step);
@@ -399,17 +391,9 @@ await Write({
   content: JSON.stringify(updatedState, null, 2)
 });
 
-// 5. Update TodoWrite to mark step complete
-await TodoWrite({
-  todos: [
-    ...otherTodos,
-    {
-      content: step.name,
-      status: "completed",
-      activeForm: `Executed: ${step.name}`
-    }
-  ]
-});
+// 5. Update task to mark step complete
+const taskId = stepTaskIds[`${step.phase}:${step.step_id}`];
+await TaskUpdate({ taskId, status: "completed" });
 
 // 6. Handle result based on configuration
 if (result.status === "failure") {
@@ -1439,7 +1423,7 @@ After the workflow is marked "completed" (or "failed"), a **post-workflow finali
 ### Key Design Rules
 
 - **State-untracked**: No state file updates, no event emissions. The workflow status is already determined.
-- **TodoWrite-tracked**: All steps are registered in TodoWrite for agent accountability and user visibility.
+- **Task-tracked**: All steps are registered via TaskCreate/TaskUpdate for agent accountability and user visibility.
 - **Non-fatal**: Every action is wrapped in try/catch. Failures are warned but do not change the workflow outcome.
 - **Feature branch**: The finalization commit goes to the existing feature branch. The `release-pr-merge-prod` step preserves the branch with `--no-delete-branch`.
 - **No `Closes #`**: The finalization PR body must NOT contain `Closes #` to prevent premature issue auto-close.
@@ -1477,50 +1461,53 @@ Output formats: `--format json` (structured data) or `--format markdown` (GitHub
 
 ---
 
-## TodoWrite Integration
+## Task List Integration
 
-Use TodoWrite to show workflow progress to the user in real-time.
+Use TaskCreate/TaskUpdate to show workflow progress to the user in real-time. These are the interactive-mode equivalents of TodoWrite and properly sync with the Claude Code task checklist UI.
 
-### Initial TodoWrite Setup
+### Initial Task Setup
 
 ```javascript
-// At workflow start, create todo items for ALL steps
-const allSteps = []; // Flattened array of all steps from all phases
+// At workflow start, create tasks for ALL steps and maintain an ID map
+const stepTaskIds = {}; // map: "phase:step_id" → taskId
+
 for (const phase of workflow.phases) {
   if (phase.enabled) {
     for (const step of [...phase.pre_steps, ...phase.steps, ...phase.post_steps]) {
-      allSteps.push({
-        content: `[${phase.name}] ${step.name}`,
-        status: "pending",
-        activeForm: `Executing [${phase.name}] ${step.name}`
+      const task = await TaskCreate({
+        subject: `[${phase.name}] ${step.name} (${step.id})`,
+        description: step.description || step.name,
+        activeForm: `Executing [${phase.name}] ${step.name}`,
+        metadata: { faberKey: `${phase.name}:${step.id}` }
       });
+      stepTaskIds[`${phase.name}:${step.id}`] = task.taskId;
     }
   }
 }
-
-await TodoWrite({ todos: allSteps });
 ```
 
-### Update TodoWrite as Steps Progress
+### Update Tasks as Steps Progress
 
 ```javascript
-// When starting a step
-await TodoWrite({
-  todos: allSteps.map(todo =>
-    todo.content === `[${step.phase}] ${step.name}`
-      ? { ...todo, status: "in_progress" }
-      : todo
-  )
-});
+// When starting a step — update by ID (surgical, no full-list rebuild)
+const taskId = stepTaskIds[`${step.phase}:${step.step_id}`];
+await TaskUpdate({ taskId, status: "in_progress" });
 
 // When completing a step
-await TodoWrite({
-  todos: allSteps.map(todo =>
-    todo.content === `[${step.phase}] ${step.name}`
-      ? { ...todo, status: "completed" }
-      : todo
-  )
-});
+await TaskUpdate({ taskId, status: "completed" });
+```
+
+### Recovery After Context Compaction
+
+If the `stepTaskIds` map is lost after compaction, reconstruct from TaskList:
+
+```javascript
+const allTasks = await TaskList();
+for (const task of allTasks) {
+  if (task.metadata?.faberKey) {
+    stepTaskIds[task.metadata.faberKey] = task.id;
+  }
+}
 ```
 
 ---
@@ -1538,7 +1525,7 @@ During long workflow executions, Claude Code will automatically compact context 
 | SessionStart hook | `/fractary-faber-session-load` fires after compaction | Restores all critical artifacts into context |
 | State file | `.fractary/faber/runs/{plan_id}/state-{run}.json` | Full workflow progress, current phase/step |
 | Plan file | `.fractary/faber/runs/{plan_id}/plan.json` | Complete execution plan with all steps |
-| TodoWrite | Persists across compaction | Step-level progress tracking |
+| Task list | TaskCreate/TaskUpdate persists across compaction | Step-level progress tracking |
 | GitHub issue | Each step re-fetches via work_id | All progress comments, latest context |
 
 ### Recovery Between Steps
@@ -1546,7 +1533,7 @@ During long workflow executions, Claude Code will automatically compact context 
 If you are unsure of your position after compaction (or at any point):
 
 1. Call `/fractary-faber-session-load` to restore critical artifacts
-2. Read the TodoWrite list to see which steps are completed/pending
+2. Call TaskList to see which steps are completed/pending
 3. Read the state file to confirm current phase and step
 4. Continue execution from the next pending step
 
@@ -1618,7 +1605,7 @@ In production workflows, downstream systems and humans rely on state claims bein
 
 7. **Respect autonomy gates** - Get user approval when required. Don't proceed without it.
 
-8. **Keep user informed** - Use TodoWrite to show progress, console.log for status updates.
+8. **Keep user informed** - Use TaskCreate/TaskUpdate to show progress, console.log for status updates.
 
 9. **Trust the protocol** - This document is your operating manual. When in doubt, re-read the relevant section.
 
