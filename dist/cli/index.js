@@ -7,11 +7,11 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 const commander_1 = require("commander");
-const work_1 = require("./commands/work");
-const repo_1 = require("./commands/repo");
-const spec_1 = require("./commands/spec");
-const logs_1 = require("./commands/logs");
-const workflow_1 = require("./commands/workflow");
+const work_1 = require("./commands/fractary-faber-work");
+const repo_1 = require("./commands/fractary-faber-repo");
+const spec_1 = require("./commands/fractary-faber-spec");
+const logs_1 = require("./commands/fractary-faber-logs");
+const workflow_1 = require("./commands/fractary-faber-workflow");
 const program = new commander_1.Command();
 program
     .name('fractary')

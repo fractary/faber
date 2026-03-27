@@ -68,7 +68,7 @@ This document covers:
 **File Location:** `.fractary/agents/{name}.yaml`
 
 ```yaml
-# .fractary/agents/corthion-loader-engineer.yaml
+# .fractary/agents/fractary-faber-corthion-loader-engineer.yaml
 name: corthion-loader-engineer
 type: agent
 description: |

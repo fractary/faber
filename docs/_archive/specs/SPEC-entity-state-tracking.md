@@ -434,7 +434,7 @@ Step skipped → execution_status = "skipped"
 
 ## Entity-State Skill
 
-**Location**: `plugins/faber/skills/entity-state/`
+**Location**: `plugins/faber/skills/fractary-faber-entity-state/`
 
 ### Operations
 

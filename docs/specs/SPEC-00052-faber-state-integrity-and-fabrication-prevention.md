@@ -79,7 +79,7 @@ Every step completion claimed in the state file MUST have a corresponding event 
 **When to run**:
 - Before writing `"completed"` status to state file (mandatory pre-completion check)
 - As a post-step guard after every step completion
-- On-demand via `/fractary-faber:run-inspect` command
+- On-demand via `/fractary-faber-run-inspect` command
 
 ### R2: Execution Evidence Registry
 
@@ -235,12 +235,12 @@ entire system.
 
 ### Phase 1: Event-State Cross-Validation (R1, R5)
 
-**Files to create/modify in fractary-faber:**
+**Files to create/modify in fractary-faber-**
 
 | File | Change |
 |------|--------|
-| `plugins/faber/skills/run-manager/scripts/validate-state-integrity.sh` | New script: cross-validates state claims against event log |
-| `plugins/faber/skills/run-manager/scripts/emit-event.sh` | Modify: return event_id to caller for state reference |
+| `plugins/faber/skills/fractary-faber-run-manager/scripts/validate-state-integrity.sh` | New script: cross-validates state claims against event log |
+| `plugins/faber/skills/fractary-faber-run-manager/scripts/emit-event.sh` | Modify: return event_id to caller for state reference |
 | `plugins/faber/docs/workflow-orchestration-protocol.md` | Modify: require event emission BEFORE state update, include event_id in step entries |
 | `plugins/faber/schemas/state.schema.json` | Modify: add `event_id` field to step entries, add `integrity` object |
 
@@ -250,7 +250,7 @@ entire system.
 
 | File | Change |
 |------|--------|
-| `plugins/faber/skills/run-manager/scripts/update-state.sh` | New script: validates transition rules before writing state |
+| `plugins/faber/skills/fractary-faber-run-manager/scripts/update-state.sh` | New script: validates transition rules before writing state |
 | `plugins/faber/schemas/state.schema.json` | Modify: add `integrity.steps_hash` and `integrity.last_event_id` |
 | `plugins/faber/docs/workflow-orchestration-protocol.md` | Modify: route all state updates through `update-state.sh` |
 
@@ -261,7 +261,7 @@ entire system.
 | File | Change |
 |------|--------|
 | `plugins/faber/schemas/workflow.schema.json` | Modify: add `evidence` field to step definitions |
-| `plugins/faber/skills/run-manager/scripts/verify-evidence.sh` | New script: checks evidence for completed steps |
+| `plugins/faber/skills/fractary-faber-run-manager/scripts/verify-evidence.sh` | New script: checks evidence for completed steps |
 | Workflow definition files (e.g., `dataset-create.yaml`) | Modify: add evidence declarations to steps |
 
 ### Phase 4: Completion Verification (R6)
@@ -270,9 +270,9 @@ entire system.
 
 | File | Change |
 |------|--------|
-| `plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh` | New script: independent completion verification |
+| `plugins/faber/skills/fractary-faber-run-manager/scripts/verify-workflow-completion.sh` | New script: independent completion verification |
 | `plugins/faber/docs/workflow-orchestration-protocol.md` | Modify: require verification before writing "completed" |
-| `plugins/faber/commands/workflow-run.md` | Modify: call verification in Phase 3 (Workflow Completion) |
+| `plugins/faber/commands/fractary-faber-workflow-run.md` | Modify: call verification in Phase 3 (Workflow Completion) |
 
 ### Phase 5: Protocol Hardening (R7)
 
@@ -280,9 +280,9 @@ entire system.
 
 | File | Change |
 |------|--------|
-| `plugins/faber/commands/workflow-run.md` | Add explicit "When You Cannot Continue" section with absolute prohibition on fabrication |
+| `plugins/faber/commands/fractary-faber-workflow-run.md` | Add explicit "When You Cannot Continue" section with absolute prohibition on fabrication |
 | `plugins/faber/docs/workflow-orchestration-protocol.md` | Add "Honest Pause Protocol" section, strengthen guard enforcement language |
-| `plugins/faber/agents/faber-manager.md` | Add fabrication prohibition rules |
+| `plugins/faber/agents/fractary-faber-faber-manager.md` | Add fabrication prohibition rules |
 
 ## Test Cases
 
@@ -343,6 +343,6 @@ entire system.
 - SPEC-00028: Intelligent Guardrails
 - Issue #150 (corthosai/etl.corthion.ai): Fabricated workflow completion
 - Issue #137 (corthosai/etl.corthion.ai): Handler invocation failure
-- `plugins/faber/skills/run-manager/scripts/emit-event.sh`: Current event emission
+- `plugins/faber/skills/fractary-faber-run-manager/scripts/emit-event.sh`: Current event emission
 - `plugins/faber/docs/workflow-orchestration-protocol.md`: Current orchestration protocol
-- `plugins/faber/commands/workflow-run.md`: Workflow run command definition
+- `plugins/faber/commands/fractary-faber-workflow-run.md`: Workflow run command definition

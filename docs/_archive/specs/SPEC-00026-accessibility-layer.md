@@ -229,7 +229,7 @@ hooks:
 ### 3.2 Agent Definition Schema
 
 ```yaml
-# .faber/agents/custom-architect.yaml
+# .faber/agents/fractary-faber-custom-architect.yaml
 
 name: custom-architect-agent
 extends: architect-agent  # Inherit from base agent
@@ -1049,7 +1049,7 @@ def compile_workflow(path: str) -> StateGraph:
 ### 5.2 CLI Integration
 
 ```python
-# faber/cli/commands/run.py
+# faber/cli/commands/fractary-faber-run.py
 
 import click
 from pathlib import Path
@@ -1729,7 +1729,7 @@ POST   /api/templates/instantiate        # Create from template
 # Agents & Tools
 GET    /api/agents                       # List available agents
 GET    /api/tools                        # List available tools
-POST   /api/agents/test                  # Test agent
+POST   /api/agents/fractary-faber-test                  # Test agent
 POST   /api/tools/test                   # Test tool
 
 # Models

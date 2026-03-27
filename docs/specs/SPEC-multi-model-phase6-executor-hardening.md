@@ -141,8 +141,8 @@ If a workflow references `provider: openai` but `OPENAI_API_KEY` isn't set, it f
 
 The `ExecutorRegistry.validateWorkflow()` method already exists. Wire it into:
 
-1. `cli/src/commands/plan/index.ts` — Validate executor configs when generating plans
-2. `plugins/faber/commands/workflow-run.md` — Validate before starting execution
+1. `cli/src/commands/fractary-faber-plan/index.ts` — Validate executor configs when generating plans
+2. `plugins/faber/commands/fractary-faber-workflow-run.md` — Validate before starting execution
 3. `faber workflow-execute` CLI command — Validate before starting
 
 ### Implementation

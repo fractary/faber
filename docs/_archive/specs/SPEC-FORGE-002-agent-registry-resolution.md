@@ -23,7 +23,7 @@ This document covers:
 - Forking and customization workflows
 - Update notifications and version tracking
 - Package metadata and manifests
-- Dependency resolution (agents that reference other agents/tools)
+- Dependency resolution (agents that reference other agents/fractary-faber-tools)
 
 ### 1.2 Design Goals
 
@@ -263,7 +263,7 @@ Each agent/tool in the global registry has a manifest with metadata:
       "version": "2.1.0",
       "released": "2025-12-10T18:30:00Z",
       "status": "stable",
-      "changelog_url": "https://stockyard.fractary.dev/agents/frame-agent/changelog#2.1.0"
+      "changelog_url": "https://stockyard.fractary.dev/agents/fractary-faber-frame-agent/changelog#2.1.0"
     },
     {
       "version": "2.0.0",
@@ -294,8 +294,8 @@ Each agent/tool in the global registry has a manifest with metadata:
   "stockyard": {
     "author": "Fractary Team",
     "license": "MIT",
-    "homepage": "https://stockyard.fractary.dev/agents/frame-agent",
-    "repository": "https://github.com/fractary/agents/tree/main/frame-agent",
+    "homepage": "https://stockyard.fractary.dev/agents/fractary-faber-frame-agent",
+    "repository": "https://github.com/fractary/agents/fractary-faber-tree/main/frame-agent",
     "downloads": 15420,
     "rating": 4.8,
     "tags": ["faber", "workflow", "classification"]
@@ -307,7 +307,7 @@ Each agent/tool in the global registry has a manifest with metadata:
     {
       "name": "acme-frame-agent",
       "author": "ACME Corp",
-      "url": "https://stockyard.fractary.dev/agents/acme-frame-agent"
+      "url": "https://stockyard.fractary.dev/agents/fractary-faber-acme-frame-agent"
     }
   ],
 
@@ -499,13 +499,13 @@ export class LockfileManager {
 forge fork frame-agent my-frame-agent
 
 # This creates:
-# 1. .fractary/agents/my-frame-agent.yaml (customized copy)
+# 1. .fractary/agents/fractary-faber-my-frame-agent.yaml (customized copy)
 # 2. Updates manifest to track fork relationship
 # 3. Allows customization while tracking upstream updates
 ```
 
 ```typescript
-// forge/src/definitions/commands/fork.ts
+// forge/src/definitions/commands/fractary-faber-fork.ts
 export class ForkCommand {
   async fork(sourceName: string, targetName: string): Promise<void> {
     // 1. Resolve source agent
@@ -687,7 +687,7 @@ export class RegistryCache {
 ### 8.1 Update Check
 
 ```typescript
-// forge/src/definitions/commands/update.ts
+// forge/src/definitions/commands/fractary-faber-update.ts
 export class UpdateCommand {
   async checkUpdates(): Promise<UpdateReport> {
     const lockfile = await this.lockfileManager.load();

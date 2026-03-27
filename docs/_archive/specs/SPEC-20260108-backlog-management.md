@@ -97,7 +97,7 @@ Add new `backlog_management` section to FABER config:
 
 ### 1. Update Plan Command Options
 
-**File**: `/cli/src/commands/plan/index.ts`
+**File**: `/cli/src/commands/fractary-faber-plan/index.ts`
 
 Add to `PlanOptions` interface (around line 23):
 
@@ -192,7 +192,7 @@ export function sortIssues(issues: Issue[], options: SortOptions): Issue[] {
 
 ### 3. Integrate Sorting into Plan Command
 
-**File**: `/cli/src/commands/plan/index.ts`
+**File**: `/cli/src/commands/fractary-faber-plan/index.ts`
 
 In `executePlanCommand()` function, after issues are fetched (around line 150):
 
@@ -358,7 +358,7 @@ faber plan --work-label "status:backlog" --order-by priority --limit 1
 
 ## Files to Modify
 
-1. **`/cli/src/commands/plan/index.ts`** - Add CLI options and sorting logic
+1. **`/cli/src/commands/fractary-faber-plan/index.ts`** - Add CLI options and sorting logic
 2. **`/cli/src/lib/sdk-type-adapter.ts`** - Add date fields to issue type
 3. **`/plugins/faber/config/config.schema.json`** - Add backlog_management config section
 

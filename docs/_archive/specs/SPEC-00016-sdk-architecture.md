@@ -42,7 +42,7 @@ This document covers:
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    Layer 3: Claude Code Plugins                     │
-│  /fractary-work:issue-fetch  /fractary-repo:commit  /fractary-faber:run  │
+│  /fractary-work:issue-fetch  /fractary-repo:commit  /fractary-faber-run  │
 │                                                                     │
 │  Purpose: Claude-specific UX, natural language routing              │
 │  Implementation: Thin wrappers that invoke CLI or SDK               │
@@ -86,11 +86,11 @@ This document covers:
 ```
 User types: /fractary-repo:commit "Add feature"
 
-1. Plugin Layer (commands/commit.md):
+1. Plugin Layer (commands/fractary-faber-commit.md):
    - Parses natural language arguments
    - Routes to CLI: `fractary repo commit "Add feature"`
 
-2. CLI Layer (cli/src/tools/repo/commands/commit.ts):
+2. CLI Layer (cli/src/tools/repo/commands/fractary-faber-commit.ts):
    - Parses --type, --work-id, --scope flags
    - Loads configuration
    - Calls SDK: repoProvider.commit({ message, type, workId })
@@ -1523,7 +1523,7 @@ fractary spec create --work-id 123
 | `/fractary-repo:commit "msg"` | `fractary repo commit --message "msg"` |
 | `/fractary-repo:branch-create "desc"` | `fractary repo branch create --description "desc"` |
 | `/fractary-repo:pr-create "title"` | `fractary repo pr create --title "title"` |
-| `/fractary-faber:run 123` | `fractary faber run --work-id 123` |
+| `/fractary-faber-run 123` | `fractary faber run --work-id 123` |
 | `/fractary-spec:create` | `fractary spec create` |
 | `/fractary-logs:capture 123` | `fractary logs capture 123` |
 
@@ -1544,9 +1544,9 @@ All commands support:
 
 | Current Location | SDK Location | Notes |
 |-----------------|--------------|-------|
-| `plugins/work/skills/handler-*` | `@fractary/faber/work/` | Work tracking providers |
-| `plugins/repo/skills/handler-*` | `@fractary/faber/repo/` | Repository providers |
-| `plugins/file/skills/handler-*` | `@fractary/faber/file/` | File storage providers |
+| `plugins/work/skills/fractary-faber-handler-*` | `@fractary/faber/work/` | Work tracking providers |
+| `plugins/repo/skills/fractary-faber-handler-*` | `@fractary/faber/repo/` | Repository providers |
+| `plugins/file/skills/fractary-faber-handler-*` | `@fractary/faber/file/` | File storage providers |
 | `plugins/spec/skills/*` | `@fractary/faber/spec/` | Spec operations |
 | `plugins/logs/skills/*` | `@fractary/faber/logs/` | Log operations |
 | `plugins/faber/skills/*` | `@fractary/faber/workflow/` | Workflow engine |

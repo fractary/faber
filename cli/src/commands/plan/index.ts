@@ -664,7 +664,7 @@ function generatePlanComment(plan: WorkflowPlan, workflow: string, worktreePath:
   comment += `cd ${worktreePath}\n`;
   comment += `claude\n`;
   comment += `# Then in Claude Code:\n`;
-  comment += `/fractary-faber:workflow-run ${issueNumber}\n`;
+  comment += `/fractary-faber-workflow-run ${issueNumber}\n`;
   comment += `\`\`\`\n`;
 
   return comment;
@@ -701,7 +701,7 @@ function outputTextSummary(results: PlanResult[]): void {
       console.log();
       console.log(chalk.cyan('      To execute:'));
       console.log(chalk.gray(`        cd ${result.worktree} && claude`));
-      console.log(chalk.gray(`        /fractary-faber:workflow-run ${result.issue.number}`));
+      console.log(chalk.gray(`        /fractary-faber-workflow-run ${result.issue.number}`));
       console.log();
     });
   }

@@ -49,7 +49,7 @@ This specification defines a new workflow execution model where the **main Claud
 ### 2.1 Current Architecture (workflow-execute)
 
 ```
-User runs: /fractary-faber:workflow-execute <plan-id>
+User runs: /fractary-faber-workflow-execute <plan-id>
   ↓
 workflow-execute.md command (haiku model)
   ├─ Parses arguments
@@ -88,7 +88,7 @@ State: Managed by agent
 ### 2.2 New Architecture (workflow-run)
 
 ```
-User runs: /fractary-faber:workflow-run --run-id <id>
+User runs: /fractary-faber-workflow-run --run-id <id>
   ↓
 workflow-run.md command (sonnet model)
   ├─ Loads execution plan: .fractary/runs/{run_id}/plan.json
@@ -407,7 +407,7 @@ if (plan.autonomy.require_approval_for.includes(phase.name)) {
   "id": "implement-solution",
   "name": "Implement Solution",
   "description": "Implement based on specification",
-  "command": "/fractary-faber:build",
+  "command": "/fractary-faber-build",
   "arguments": {
     "work_id": "{work_id}"
   }
@@ -421,7 +421,7 @@ if (plan.autonomy.require_approval_for.includes(phase.name)) {
   "id": "implement-solution",
   "name": "Implement Solution",
   "description": "Implement based on specification",
-  "prompt": "/fractary-faber:build",
+  "prompt": "/fractary-faber-build",
   "context": "Focus on following the architectural patterns established in the codebase. Ensure all new code has test coverage.",
   "arguments": {
     "work_id": "{work_id}"
@@ -481,7 +481,7 @@ if (plan.autonomy.require_approval_for.includes(phase.name)) {
 
 ```markdown
 ---
-name: fractary-faber:workflow-run
+name: fractary-faber-workflow-run
 description: Execute a FABER workflow with Claude as the orchestrator
 argument-hint: '--run-id <id>'
 tools: Read, Write, Bash, SlashCommand, AskUserQuestion
@@ -603,7 +603,7 @@ try {
         ? `Max retries (${phase.max_retries}) exceeded.`
         : `No retry configuration.`) +
       `\n\nRun ID: ${runId}` +
-      `\nResume with: /fractary-faber:workflow-run --run-id ${runId}`
+      `\nResume with: /fractary-faber-workflow-run --run-id ${runId}`
     );
   }
 }
@@ -669,7 +669,7 @@ for (let i = startIndex; i < plan.execution_order.length; i++) {
 ### 6.2 Phase 2: workflow-run Command (Week 1-2)
 
 **Deliverables**:
-- `plugins/faber/commands/workflow-run.md`
+- `plugins/faber/commands/fractary-faber-workflow-run.md`
 
 **Implementation steps**:
 1. Create command file with metadata
@@ -759,8 +759,8 @@ for (let i = startIndex; i < plan.execution_order.length; i++) {
 
 ### 7.1 Existing Commands Unchanged
 
-- `/fractary-faber:workflow-plan` - No changes
-- `/fractary-faber:workflow-execute` - No changes
+- `/fractary-faber-workflow-plan` - No changes
+- `/fractary-faber-workflow-execute` - No changes
 - Both commands continue to work as before
 
 ### 7.2 Workflow Definitions Compatible
@@ -923,7 +923,7 @@ Support invoking workflows from workflows:
 ```json
 {
   "id": "run-tests",
-  "prompt": "/fractary-faber:workflow-run",
+  "prompt": "/fractary-faber-workflow-run",
   "arguments": {
     "run_id": "{test_workflow_run_id}"
   }
@@ -983,9 +983,9 @@ If phase fails, execute rollback_steps.
 
 ### 12.1 Existing Implementation
 
-- `plugins/faber/commands/workflow-execute.md` - Current execution command
-- `plugins/faber/agents/faber-manager.md` - Current orchestration agent (60+ rules)
-- `plugins/faber/commands/workflow-plan.md` - Planning command (unchanged)
+- `plugins/faber/commands/fractary-faber-workflow-execute.md` - Current execution command
+- `plugins/faber/agents/fractary-faber-faber-manager.md` - Current orchestration agent (60+ rules)
+- `plugins/faber/commands/fractary-faber-workflow-plan.md` - Planning command (unchanged)
 
 ### 12.2 Workflow System
 

@@ -214,7 +214,7 @@ The command will:
 cd ~/.claude-worktrees/<org>-<project>-<issue-number>
 claude
 # In Claude Code:
-/fractary-faber:workflow-run <issue-number>
+/fractary-faber-workflow-run <issue-number>
 ```
 
 **Option B — As a batch overnight** (unattended, sequential):
@@ -229,8 +229,8 @@ fractary-faber workflow-batch-run --batch sprint-01 --autonomous
 
 Or in Claude Code (each item runs in a fresh context via Task spawning):
 ```
-/fractary-faber:workflow-batch-plan 258,259,260 --name sprint-01
-/fractary-faber:workflow-batch-run --batch sprint-01 --autonomous
+/fractary-faber-workflow-batch-plan 258,259,260 --name sprint-01
+/fractary-faber-workflow-batch-run --batch sprint-01 --autonomous
 ```
 
 Batch state is saved to `.fractary/faber/batches/sprint-01/state.json` after each item — safe to interrupt and resume with `--resume`.

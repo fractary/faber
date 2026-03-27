@@ -2,7 +2,7 @@
  * @fractary/faber - Workflow Resolver
  *
  * Handles workflow inheritance resolution with deterministic merge behavior.
- * This is the SDK equivalent of plugins/faber/skills/faber-config/scripts/merge-workflows.sh
+ * This is the SDK equivalent of plugins/faber/skills/fractary-faber-faber-config/scripts/merge-workflows.sh
  *
  * Centralized workflow resolution ensures consistent behavior across CLI, MCP, and agents.
  */

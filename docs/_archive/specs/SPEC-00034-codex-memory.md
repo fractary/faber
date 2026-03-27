@@ -384,7 +384,7 @@ function search(query: MemorySearchQuery): MemorySearchResult[] {
 
 ### Relevance Scoring
 
-Adapted from the knowledge-aggregator algorithm in `plugins/faber/skills/core/knowledge-aggregator.md`:
+Adapted from the knowledge-aggregator algorithm in `plugins/faber/skills/fractary-faber-core/knowledge-aggregator.md`:
 
 | Factor | Points | Logic |
 |--------|--------|-------|
@@ -509,7 +509,7 @@ After successful fix verification when `--auto-learn` is NOT enabled, print a pr
 
 ```
 This solution resolved the issue. To save it to the knowledge base:
-/fractary-faber:workflow-debug --work-id {work_id} --learn
+/fractary-faber-workflow-debug --work-id {work_id} --learn
 ```
 
 This is implemented in the workflow-debugger agent's step 9 logic. It checks:
@@ -677,10 +677,10 @@ After all projects have migrated:
 
 | File | Change |
 |------|--------|
-| `skills/memory-create.md` | **New.** Skill definition for memory creation |
-| `agents/memory-creator.md` | **New.** Agent for interactive memory creation with template loading |
-| `skills/memory-audit.md` | **New.** Skill definition for memory auditing |
-| `agents/memory-auditor.md` | **New.** Agent for validity-focused memory auditing |
+| `skills/fractary-faber-memory-create.md` | **New.** Skill definition for memory creation |
+| `agents/fractary-faber-memory-creator.md` | **New.** Agent for interactive memory creation with template loading |
+| `skills/fractary-faber-memory-audit.md` | **New.** Skill definition for memory auditing |
+| `agents/fractary-faber-memory-auditor.md` | **New.** Agent for validity-focused memory auditing |
 | `templates/memory/troubleshooting.md` | **New.** Built-in template |
 | `templates/memory/architectural-decision.md` | **New.** Built-in template |
 | `templates/memory/performance.md` | **New.** Built-in template |
@@ -699,8 +699,8 @@ After all projects have migrated:
 
 | File | Change |
 |------|--------|
-| `plugins/faber/skills/core/knowledge-aggregator.md` | Call `MemorySearcher` via codex-adapter with filesystem fallback |
-| `plugins/faber/agents/workflow-debugger.md` | Use `MemoryWriter` via codex-adapter for `--learn`; add save prompt after fix verification |
+| `plugins/faber/skills/fractary-faber-core/knowledge-aggregator.md` | Call `MemorySearcher` via codex-adapter with filesystem fallback |
+| `plugins/faber/agents/fractary-faber-workflow-debugger.md` | Use `MemoryWriter` via codex-adapter for `--learn`; add save prompt after fix verification |
 | `sdk/js/src/storage/codex-adapter.ts` | Add `searchMemories()` and `writeMemory()` methods exposing `MemorySearcher` and `MemoryWriter` |
 | `plugins/faber/knowledge-base/` | Kept as deprecated fallback during transition; eventually removed |
 
@@ -722,8 +722,8 @@ After all projects have migrated:
 | `sdk/js/src/types/registry.ts` | codex | `TypeRegistry` class with `detectType()` pattern matching via micromatch, `getTtl()`, `getArchiveConfig()` |
 | `sdk/js/src/schemas/metadata.ts` | codex | `MetadataSchema` with `.passthrough()` -- allows memory-specific frontmatter without schema changes |
 | `sdk/js/src/schemas/config.ts` | codex | `CodexConfigSchema` (`.strict()`), `DirectionalSyncSchema`, `FromCodexSyncConfigSchema` requiring `codex://` URIs |
-| `plugins/faber/skills/core/knowledge-aggregator.md` | faber | Current search logic, scoring algorithm (success_count, verified bonus, agent/phase match, source priority) |
-| `plugins/faber/agents/workflow-debugger.md` | faber | Current KB read/write integration, `create_kb_entry_markdown()` function, `--learn`/`--auto-learn` flags |
+| `plugins/faber/skills/fractary-faber-core/knowledge-aggregator.md` | faber | Current search logic, scoring algorithm (success_count, verified bonus, agent/phase match, source priority) |
+| `plugins/faber/agents/fractary-faber-workflow-debugger.md` | faber | Current KB read/write integration, `create_kb_entry_markdown()` function, `--learn`/`--auto-learn` flags |
 | `plugins/faber/knowledge-base/**/*.md` | faber | 8 existing entries to migrate; frontmatter fields: `id`, `title`, `category`, `severity`, `symptoms`, `agents`, `phases`, `tags`, `created`, `verified`, `success_count` |
 | `sdk/js/src/storage/codex-adapter.ts` | faber | FABER-Codex bridge with `CodexAdapter` class, runtime detection, `store()`/`retrieve()` methods, `createStorage()` factory |
 

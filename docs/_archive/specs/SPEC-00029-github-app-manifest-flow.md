@@ -254,7 +254,7 @@ interface AppCredentials {
 
 #### 3. Auth Command
 
-**File**: `cli/src/commands/auth/index.ts`
+**File**: `cli/src/commands/fractary-faber-auth/index.ts`
 
 **Purpose**: CLI command implementation
 
@@ -297,7 +297,7 @@ interface AppCredentials {
 
 ```typescript
 // Add import
-import { createAuthCommand } from './commands/auth/index.js';
+import { createAuthCommand } from './commands/fractary-faber-auth/index.js';
 
 // Add command (after other commands)
 program.addCommand(createAuthCommand());
@@ -478,7 +478,7 @@ POST https://api.github.com/app-manifests/{code}/conversions
 4. Add validation functions
 
 ### Phase 3: Auth Command (2-3 hours)
-1. Create `cli/src/commands/auth/index.ts`
+1. Create `cli/src/commands/fractary-faber-auth/index.ts`
 2. Implement interactive prompts with readline
 3. Implement step-by-step workflow
 4. Add comprehensive error messages
@@ -537,7 +537,7 @@ Test coverage:
 
 ### Integration Tests
 
-**File**: `cli/src/commands/auth/__tests__/setup.integration.test.ts`
+**File**: `cli/src/commands/fractary-faber-auth/__tests__/setup.integration.test.ts`
 
 Test coverage:
 - ✅ Complete setup flow with mocked GitHub API

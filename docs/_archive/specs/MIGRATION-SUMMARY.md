@@ -25,7 +25,7 @@ This document summarizes the specifications created for migrating agent and tool
 │  - Manage versions                          │
 │  - Deploy to projects                       │
 └─────────────────┬───────────────────────────┘
-                  │ Provide agents/tools
+                  │ Provide agents/fractary-faber-tools
                   ▼
 ┌─────────────────────────────────────────────┐
 │         FABER (Orchestration)               │
@@ -92,8 +92,8 @@ caching:
 **Resolution Algorithm:**
 ```typescript
 forge.resolveAgent('frame-agent@^2.0.0')
-  → Check .fractary/agents/frame-agent.yaml (local)
-  → Check ~/.fractary/registry/agents/frame-agent@*.yaml (global)
+  → Check .fractary/agents/fractary-faber-frame-agent.yaml (local)
+  → Check ~/.fractary/registry/agents/fractary-faber-frame-agent@*.yaml (global)
   → Fetch from Stockyard API (remote)
   → Cache to global registry
   → Return executable agent
@@ -167,11 +167,11 @@ python/faber/definitions/converters.py  → forge/src/definitions/converters/
 
 **To Be Converted to YAML:**
 ```
-python/faber/agents/frame.py       → forge/definitions/agents/frame-agent.yaml
-python/faber/agents/architect.py   → forge/definitions/agents/architect-agent.yaml
-python/faber/agents/build.py       → forge/definitions/agents/build-agent.yaml
-python/faber/agents/evaluate.py    → forge/definitions/agents/evaluate-agent.yaml
-python/faber/agents/release.py     → forge/definitions/agents/release-agent.yaml
+python/faber/agents/fractary-faber-frame.py       → forge/definitions/agents/fractary-faber-frame-agent.yaml
+python/faber/agents/fractary-faber-architect.py   → forge/definitions/agents/fractary-faber-architect-agent.yaml
+python/faber/agents/fractary-faber-build.py       → forge/definitions/agents/fractary-faber-build-agent.yaml
+python/faber/agents/fractary-faber-evaluate.py    → forge/definitions/agents/fractary-faber-evaluate-agent.yaml
+python/faber/agents/fractary-faber-release.py     → forge/definitions/agents/fractary-faber-release-agent.yaml
 ```
 
 **To Be Updated (Integration):**
@@ -241,7 +241,7 @@ src/commands/             # NEW: CLI commands
 
 ### 4. Semantic Versioning
 
-**Decision:** Use semver for all agents/tools
+**Decision:** Use semver for all agents/fractary-faber-tools
 **Rationale:**
 - Industry standard
 - Version constraints (^, ~, >=)

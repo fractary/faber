@@ -68,7 +68,7 @@ Those rules are scoped to the sub-agent executing that specific skill, not to yo
 
 ### Part 2: fractary-core plugin — issue-create skill
 
-**File:** `plugins/work/commands/issue-create.md`
+**File:** `plugins/work/commands/fractary-faber-issue-create.md`
 
 Two targeted additions to the `## Rules` section:
 
@@ -108,7 +108,7 @@ Strengthen to explicitly close the suffix/qualification loophole:
 | Project | File | Change |
 |---------|------|--------|
 | fractary-faber | `plugins/faber/docs/workflow-orchestration-protocol.md` | Add ANTI-PATTERN block to slash command section |
-| fractary-core | `plugins/work/commands/issue-create.md` | Add `--repo` hard-require rule + title contract rule |
+| fractary-core | `plugins/work/commands/fractary-faber-issue-create.md` | Add `--repo` hard-require rule + title contract rule |
 
 No changes to workflow definitions, standards, or code in `core.corthodex.ai`.
 
@@ -116,17 +116,17 @@ No changes to workflow definitions, standards, or code in `core.corthodex.ai`.
 
 ## Implementation Status
 
-### Part 1 — fractary-faber: DONE
+### Part 1 — fractary-faber- DONE
 
 Anti-pattern block added to `plugins/faber/docs/workflow-orchestration-protocol.md` under the "Important about slash commands in prompts" section. The block explicitly:
 - Prohibits Bash substitution for `/` prompts
 - Closes the sub-agent rule bleed path (scoped rules must not be generalized to the orchestrator)
 - Requires `Skill(skill=command, args=args_string)` invocation without argument rewriting
 
-Companion enforcement added in `plugins/faber/commands/workflow-run.md`:
+Companion enforcement added in `plugins/faber/commands/fractary-faber-workflow-run.md`:
 - **CRITICAL_RULE #12**: `NEVER BYPASS SKILLS` — surfaces the prohibition before any protocol text is loaded
 - **`SKILL_BYPASS_ANTI_PATTERN` block**: names specific prohibited substitutions and provides the correct pattern
 
 ### Part 2 — fractary-core: PENDING
 
-Changes to `plugins/work/commands/issue-create.md` (`--repo` hard-require rule + title contract rule) must be applied in the fractary-core repository. These changes are out of scope for fractary-faber and require a separate PR in that project.
+Changes to `plugins/work/commands/fractary-faber-issue-create.md` (`--repo` hard-require rule + title contract rule) must be applied in the fractary-core repository. These changes are out of scope for fractary-faber and require a separate PR in that project.

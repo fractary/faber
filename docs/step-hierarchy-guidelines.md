@@ -316,7 +316,7 @@ Update workflow JSON files:
 
 Check resolved workflow includes step hierarchy:
 ```bash
-plugins/faber/skills/faber-config/scripts/resolve-workflow.sh \
+plugins/faber/skills/fractary-faber-faber-config/scripts/resolve-workflow.sh \
   --workflow-id my-workflow | jq '.phases.build.steps[] | {id, step_action, step_type}'
 ```
 

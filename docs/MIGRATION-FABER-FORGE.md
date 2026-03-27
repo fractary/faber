@@ -178,7 +178,7 @@ This allows you to:
 
 ### Agent Definition Format (YAML)
 
-Create `.fractary/agents/my-agent.yaml`:
+Create `.fractary/agents/fractary-faber-my-agent.yaml`:
 
 ```yaml
 name: my-custom-agent
@@ -237,7 +237,7 @@ Run 'forge install frame-agent' or check your .fractary/agents/ directory.
 
 **Solution:**
 1. Install the agent: `forge install frame-agent`
-2. Or create a local definition in `.fractary/agents/frame-agent.yaml`
+2. Or create a local definition in `.fractary/agents/fractary-faber-frame-agent.yaml`
 3. Or disable Forge temporarily: `"forge.enabled": false`
 
 ### Error: Forge not configured

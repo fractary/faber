@@ -30,14 +30,14 @@ ls .fractary/faber/config.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect
+/fractary-faber-workflow-inspect
 
 # Expected output:
 # 🔍 FABER Workflow Audit
 # Target: Show usage and list available workflows
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# Usage: /fractary-faber:workflow-inspect [<workflow>] [OPTIONS]
+# Usage: /fractary-faber-workflow-inspect [<workflow>] [OPTIONS]
 #
 # Workflow identifier:
 #   workflow-id          Validate workflow from project config
@@ -73,7 +73,7 @@ grep -q '"id": "default"' .fractary/faber/config.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect default
+/fractary-faber-workflow-inspect default
 
 # Expected output includes:
 # 🔍 FABER Workflow Audit
@@ -120,7 +120,7 @@ ls plugins/faber/config/workflows/feature.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect plugins/faber/config/workflows/feature.json
+/fractary-faber-workflow-inspect plugins/faber/config/workflows/feature.json
 
 # Expected output:
 # 🔍 FABER Workflow Audit
@@ -152,11 +152,11 @@ ls plugins/faber/config/workflows/default.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect fractary-faber:default
+/fractary-faber-workflow-inspect fractary-faber-default
 
 # Expected output:
 # 🔍 FABER Workflow Audit
-# Target: Namespaced workflow: fractary-faber:default
+# Target: Namespaced workflow: fractary-faber-default
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
 # [... validation results ...]
@@ -183,7 +183,7 @@ ls .fractary/faber/config.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect nonexistent
+/fractary-faber-workflow-inspect nonexistent
 
 # Expected output:
 # ❌ ERROR: Workflow 'nonexistent' not found in config
@@ -208,7 +208,7 @@ ls .fractary/faber/config.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect ./nonexistent.json
+/fractary-faber-workflow-inspect ./nonexistent.json
 
 # Expected output:
 # ❌ ERROR: Workflow file not found: ./nonexistent.json
@@ -234,7 +234,7 @@ echo '{"invalid": json}' > /tmp/invalid-workflow.json
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect /tmp/invalid-workflow.json
+/fractary-faber-workflow-inspect /tmp/invalid-workflow.json
 
 # Expected output:
 # ❌ ERROR: File is not a valid workflow (missing required fields: id, phases)
@@ -264,14 +264,14 @@ ls plugins/faber/skills/*/SKILL.md | wc -l  # Should be > 0
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect default --verbose
+/fractary-faber-workflow-inspect default --verbose
 
 # Expected output includes:
 # 🔍 Discovering agents and skills...
-# Found N agents/skills in registry
+# Found N agents/fractary-faber-skills in registry
 # Registry entries:
-#   - fractary-faber:workflow-inspector (agent, faber)
-#   - fractary-faber:workflow-planner (agent, faber)
+#   - fractary-faber-workflow-inspector (agent, faber)
+#   - fractary-faber-workflow-planner (agent, faber)
 #   - fractary-spec:spec-create (skill, spec)
 #   ...
 ```
@@ -299,7 +299,7 @@ cat plugins/faber/config/workflows/default.json | grep -E "(Skill|Task|/)"
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect default --verbose
+/fractary-faber-workflow-inspect default --verbose
 
 # Expected output includes:
 # Extracting agent/skill references from workflow steps...
@@ -307,7 +307,7 @@ cat plugins/faber/config/workflows/default.json | grep -E "(Skill|Task|/)"
 # References:
 #   - fractary-work:issue-fetch
 #   - fractary-spec:spec-create
-#   - fractary-faber:workflow-planner
+#   - fractary-faber-workflow-planner
 #   ...
 ```
 
@@ -321,7 +321,7 @@ cat plugins/faber/config/workflows/default.json | grep -E "(Skill|Task|/)"
 ```bash
 # Create test agent with explicit FABER Response Format documentation
 mkdir -p .claude/agents
-cat > .claude/agents/test-compliant.md <<'EOF'
+cat > .claude/agents/fractary-faber-test-compliant.md <<'EOF'
 ---
 name: test:compliant
 ---
@@ -344,7 +344,7 @@ EOF
 ```bash
 # Create workflow referencing test agent
 # Run audit
-/fractary-faber:workflow-inspect test-workflow --verbose
+/fractary-faber-workflow-inspect test-workflow --verbose
 
 # Expected output includes:
 # ✅ COMPLIANT (1)
@@ -353,7 +353,7 @@ EOF
 
 **Cleanup**:
 ```bash
-rm -rf .claude/agents/test-compliant.md
+rm -rf .claude/agents/fractary-faber-test-compliant.md
 ```
 
 ---
@@ -365,7 +365,7 @@ rm -rf .claude/agents/test-compliant.md
 **Setup**:
 ```bash
 # Create test agent without clear format documentation
-cat > .claude/agents/test-unknown.md <<'EOF'
+cat > .claude/agents/fractary-faber-test-unknown.md <<'EOF'
 ---
 name: test:unknown
 ---
@@ -384,7 +384,7 @@ EOF
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect test-workflow --verbose
+/fractary-faber-workflow-inspect test-workflow --verbose
 
 # Expected output includes:
 # ⚠️  UNKNOWN (1)
@@ -397,7 +397,7 @@ EOF
 
 **Cleanup**:
 ```bash
-rm -rf .claude/agents/test-unknown.md
+rm -rf .claude/agents/fractary-faber-test-unknown.md
 ```
 
 ---
@@ -422,7 +422,7 @@ rm -rf .claude/agents/test-unknown.md
 **Verification**:
 ```bash
 # Audit workflow that references "fractary-typo:missing"
-/fractary-faber:workflow-inspect workflow-with-typo
+/fractary-faber-workflow-inspect workflow-with-typo
 
 # Expected output includes:
 # ❌ NOT FOUND (1)
@@ -445,7 +445,7 @@ rm -rf .claude/agents/test-unknown.md
 **Setup**:
 ```bash
 # Create agent with structured output matching FABER format
-cat > .claude/agents/test-implicit.md <<'EOF'
+cat > .claude/agents/fractary-faber-test-implicit.md <<'EOF'
 ---
 name: test:implicit
 ---
@@ -475,7 +475,7 @@ EOF
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect test-workflow --verbose
+/fractary-faber-workflow-inspect test-workflow --verbose
 
 # Expected output includes:
 # ✅ COMPLIANT (1)
@@ -484,7 +484,7 @@ EOF
 
 **Cleanup**:
 ```bash
-rm -rf .claude/agents/test-implicit.md
+rm -rf .claude/agents/fractary-faber-test-implicit.md
 ```
 
 ---
@@ -502,7 +502,7 @@ rm -rf .claude/agents/test-implicit.md
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect default --verbose
+/fractary-faber-workflow-inspect default --verbose
 
 # Expected output includes:
 # Mode: workflow_id
@@ -510,9 +510,9 @@ rm -rf .claude/agents/test-implicit.md
 # Auto-fix: false
 #
 # 🔍 Discovering agents and skills...
-# Found 50 agents/skills in registry
+# Found 50 agents/fractary-faber-skills in registry
 # Registry entries:
-#   - fractary-faber:workflow-inspector (agent, faber)
+#   - fractary-faber-workflow-inspector (agent, faber)
 #   [... full list ...]
 #
 # Extracting agent/skill references from workflow steps...
@@ -537,7 +537,7 @@ rm -rf .claude/agents/test-implicit.md
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect default --check steps
+/fractary-faber-workflow-inspect default --check steps
 
 # Expected output:
 # - Should include agent/skill validation
@@ -565,7 +565,7 @@ rm -rf .claude/agents/test-implicit.md
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect default --fix
+/fractary-faber-workflow-inspect default --fix
 
 # Expected output includes:
 # ✓ Auto-fixed N issues
@@ -583,7 +583,7 @@ rm -rf .claude/agents/test-implicit.md
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect default
+/fractary-faber-workflow-inspect default
 echo $?
 
 # Expected: 0
@@ -601,7 +601,7 @@ echo $?
 **Verification**:
 ```bash
 # Audit workflow with warnings (e.g., missing descriptions)
-/fractary-faber:workflow-inspect workflow-with-warnings
+/fractary-faber-workflow-inspect workflow-with-warnings
 echo $?
 
 # Expected: 1
@@ -619,7 +619,7 @@ echo $?
 **Verification**:
 ```bash
 # Audit workflow with errors (e.g., missing required phase)
-/fractary-faber:workflow-inspect workflow-with-errors
+/fractary-faber-workflow-inspect workflow-with-errors
 echo $?
 
 # Expected: 2
@@ -636,7 +636,7 @@ echo $?
 
 **Verification**:
 ```bash
-/fractary-faber:workflow-inspect nonexistent
+/fractary-faber-workflow-inspect nonexistent
 echo $?
 
 # Expected: 3

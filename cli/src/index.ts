@@ -13,17 +13,17 @@ dotenv.config();
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowDebugCommand, createBatchPlanCommand, createBatchRunCommand, createWorkflowExecuteCommand } from './commands/workflow/index.js';
-import { createSessionLoadCommand, createSessionSaveCommand } from './commands/session.js';
-import { createWorkCommand } from './commands/work/index.js';
-import { createRepoCommand } from './commands/repo/index.js';
-import { createLogsCommand } from './commands/logs/index.js';
-import { createChangelogCommand } from './commands/changelog/index.js';
-import { createMigrateCommand } from './commands/migrate.js';
-import { createPlanCommand } from './commands/plan/index.js';
-import { createAuthCommand } from './commands/auth/index.js';
-import { createConfigCommand } from './commands/config.js';
-import { createRunsCommand } from './commands/runs.js';
+import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowDebugCommand, createBatchPlanCommand, createBatchRunCommand, createWorkflowExecuteCommand } from './commands/fractary-faber-workflow/index.js';
+import { createSessionLoadCommand, createSessionSaveCommand } from './commands/fractary-faber-session.js';
+import { createWorkCommand } from './commands/fractary-faber-work/index.js';
+import { createRepoCommand } from './commands/fractary-faber-repo/index.js';
+import { createLogsCommand } from './commands/fractary-faber-logs/index.js';
+import { createChangelogCommand } from './commands/fractary-faber-changelog/index.js';
+import { createMigrateCommand } from './commands/fractary-faber-migrate.js';
+import { createPlanCommand } from './commands/fractary-faber-plan/index.js';
+import { createAuthCommand } from './commands/fractary-faber-auth/index.js';
+import { createConfigCommand } from './commands/fractary-faber-config.js';
+import { createRunsCommand } from './commands/fractary-faber-runs.js';
 
 // Force unbuffered output to prevent buffering issues in terminals
 if (process.stdout.isTTY) {

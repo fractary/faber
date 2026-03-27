@@ -31,7 +31,7 @@ export * from './logs/index.js';
 export * from './state/index.js';
 export * from './workflow/index.js';
 export * from './storage/index.js';
-export * from './agents/index.js';
+export * from './agents/fractary-faber-index.js';
 export * from './changelog/index.js';
 
 // Executors module

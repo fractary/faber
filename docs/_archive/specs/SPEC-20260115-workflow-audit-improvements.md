@@ -10,7 +10,7 @@
 Improve the workflow-audit command and workflow-audit agent to better validate FABER workflow configurations. Key improvements:
 1. Rename agent to follow noun convention (workflow-audit → workflow-auditor)
 2. Accept workflow name/path as primary argument for targeted audits
-3. Validate that agents/skills referenced in workflow steps return proper FABER Response Format
+3. Validate that agents/fractary-faber-skills referenced in workflow steps return proper FABER Response Format
 4. Show usage and list available workflows when called with no arguments
 
 ## Background
@@ -21,19 +21,19 @@ The existing workflow-audit system validates workflow configuration structure bu
 
 1. **Agent naming**: Uses verb form "workflow-audit" instead of noun form "workflow-auditor"
 2. **No primary argument**: Only accepts optional flags, defaults to validating entire config file
-3. **Limited validation**: Validates configuration structure but doesn't check if referenced agents/skills return proper FABER Response Format
+3. **Limited validation**: Validates configuration structure but doesn't check if referenced agents/fractary-faber-skills return proper FABER Response Format
 4. **Poor discoverability**: No easy way to see available workflows or audit a specific workflow
 
 ### Problems
 
 1. **Inconsistent naming**: Agent naming doesn't follow the noun convention established in faber-cloud refactors
 2. **Workflow targeting**: Users can't easily audit a specific workflow without editing the config file
-3. **Response format compliance**: No validation that agents/skills in workflow steps actually return standard FABER Response Format (status, message, details, errors, warnings)
+3. **Response format compliance**: No validation that agents/fractary-faber-skills in workflow steps actually return standard FABER Response Format (status, message, details, errors, warnings)
 4. **User experience**: When called with no arguments, immediately starts validating instead of showing usage
 
 ### User Story
 
-> "As a workflow author, I want to audit a specific workflow by name and verify that all agents/skills it references will return proper FABER Response Format, so I can catch integration issues before running the workflow."
+> "As a workflow author, I want to audit a specific workflow by name and verify that all agents/fractary-faber-skills it references will return proper FABER Response Format, so I can catch integration issues before running the workflow."
 
 ## Requirements
 
@@ -48,13 +48,13 @@ The existing workflow-audit system validates workflow configuration structure bu
 The command must accept a workflow identifier as the first positional argument:
 
 ```bash
-/fractary-faber:workflow-audit [<workflow-identifier>] [--verbose] [--fix] [--check <aspect>]
+/fractary-faber-workflow-audit [<workflow-identifier>] [--verbose] [--fix] [--check <aspect>]
 ```
 
 Where `<workflow-identifier>` can be:
 - **Workflow ID**: `default` - validates workflow from project config
 - **Workflow file**: `./workflows/custom.json` - validates standalone file
-- **Namespaced**: `fractary-faber:feature` - validates plugin workflow
+- **Namespaced**: `fractary-faber-feature` - validates plugin workflow
 - **Omitted**: Shows usage and lists available workflows
 
 #### FR-3: Audit Mode Resolution
@@ -68,7 +68,7 @@ Based on the workflow identifier, determine audit mode:
 | `id` | `workflow_id` | Validate workflow from project config |
 
 #### FR-4: Agent/Skill Reference Validation
-For each workflow step, validate that referenced agents/skills:
+For each workflow step, validate that referenced agents/fractary-faber-skills:
 1. **Exist**: Can be found in plugin or user directories
 2. **Document responses**: Have output documentation indicating response format
 3. **Follow FABER format**: Response structure aligns with FABER Response Format spec
@@ -108,14 +108,14 @@ Report must include:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ User invokes: /fractary-faber:workflow-audit <workflow-id>  │
+│ User invokes: /fractary-faber-workflow-audit <workflow-id>  │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ Command: workflow-audit.md                                   │
 │ - Thin delegator                                             │
-│ - Calls Task(fractary-faber:workflow-auditor)                │
+│ - Calls Task(fractary-faber-workflow-auditor)                │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ▼
@@ -141,7 +141,7 @@ Report must include:
 │ └─────────────────────────────────────────────────────────┘ │
 │ ┌─────────────────────────────────────────────────────────┐ │
 │ │ Step 6.5: Validate Agent/Skill References (NEW)         │ │
-│ │ A. Build registry (discover agents/skills)              │ │
+│ │ A. Build registry (discover agents/fractary-faber-skills)              │ │
 │ │ B. Extract references from workflow steps               │ │
 │ │ C. Validate each reference (exists + format)            │ │
 │ │ D. Classify: COMPLIANT, UNKNOWN, NOT_FOUND              │ │
@@ -276,7 +276,7 @@ function validateResponseFormat(agent_path):
 ### Namespace Resolution
 
 Using faber-config patterns:
-- `fractary-faber:` → `${PLUGIN_ROOT}/plugins/faber/config/workflows/`
+- `fractary-faber-` → `${PLUGIN_ROOT}/plugins/faber/config/workflows/`
 - `fractary-faber-cloud:` → `${PLUGIN_ROOT}/plugins/faber-cloud/config/workflows/`
 - `project:` or no prefix → `.fractary/faber/workflows/` or `.fractary/faber/config.json`
 
@@ -285,12 +285,12 @@ Using faber-config patterns:
 ### Phase 1: Agent Rename (Breaking Change)
 
 **Files to modify:**
-1. `/mnt/c/GitHub/fractary/faber/plugins/faber/agents/workflow-audit.md`
+1. `/mnt/c/GitHub/fractary/faber/plugins/faber/agents/fractary-faber-workflow-audit.md`
    - Rename to: `workflow-auditor.md`
-   - Update frontmatter: `name: fractary-faber:workflow-auditor`
+   - Update frontmatter: `name: fractary-faber-workflow-auditor`
 
-2. `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/workflow-audit.md`
-   - Update Task call to reference `fractary-faber:workflow-auditor`
+2. `/mnt/c/GitHub/fractary/faber/plugins/faber/commands/fractary-faber-workflow-audit.md`
+   - Update Task call to reference `fractary-faber-workflow-auditor`
    - Update `argument-hint: '[<workflow-name-or-path>] [--verbose] [--fix] [--check <aspect>]'`
 
 ### Phase 2: Primary Argument Support
@@ -341,15 +341,15 @@ Test end-to-end workflows:
 
 | Test Case | Command | Expected Behavior |
 |-----------|---------|-------------------|
-| No argument | `/fractary-faber:workflow-audit` | Shows usage, lists workflows |
-| Workflow ID | `/fractary-faber:workflow-audit default` | Validates default workflow |
-| Workflow file | `/fractary-faber:workflow-audit ./custom.json` | Validates standalone file |
-| Namespaced | `/fractary-faber:workflow-audit fractary-faber:feature` | Validates plugin workflow |
-| Not found | `/fractary-faber:workflow-audit nonexistent` | Error + list available |
+| No argument | `/fractary-faber-workflow-audit` | Shows usage, lists workflows |
+| Workflow ID | `/fractary-faber-workflow-audit default` | Validates default workflow |
+| Workflow file | `/fractary-faber-workflow-audit ./custom.json` | Validates standalone file |
+| Namespaced | `/fractary-faber-workflow-audit fractary-faber-feature` | Validates plugin workflow |
+| Not found | `/fractary-faber-workflow-audit nonexistent` | Error + list available |
 | Compliant agent | Workflow references `fractary-spec:spec-create` | Shows as COMPLIANT |
 | Unknown agent | Workflow references undocumented agent | Shows as UNKNOWN |
 | Missing agent | Workflow references typo'd agent | Shows as NOT_FOUND |
-| Combined flags | `/fractary-faber:workflow-audit default --verbose` | Detailed output |
+| Combined flags | `/fractary-faber-workflow-audit default --verbose` | Detailed output |
 
 ### Acceptance Criteria
 
@@ -359,7 +359,7 @@ Test end-to-end workflows:
 - [ ] Workflow ID mode loads and validates specific workflow from config
 - [ ] Workflow file mode validates standalone JSON files
 - [ ] Namespaced mode resolves plugin workflows correctly
-- [ ] Agent/skill registry discovers all agents/skills in plugins and user directories
+- [ ] Agent/skill registry discovers all agents/fractary-faber-skills in plugins and user directories
 - [ ] Reference extraction finds all Skill() and Task() calls in workflow steps
 - [ ] Format validation correctly classifies agents as COMPLIANT, UNKNOWN, or NOT_FOUND
 - [ ] Report includes agent/skill validation section with counts and suggestions
@@ -397,9 +397,9 @@ Test end-to-end workflows:
 
 ### Agent Rename
 - **What changed**: Agent renamed from `workflow-audit` to `workflow-auditor`
-- **Impact**: Code directly referencing `fractary-faber:workflow-audit` agent must update
-- **Migration**: Replace `Task(subagent_type="fractary-faber:workflow-audit")` with `Task(subagent_type="fractary-faber:workflow-auditor")`
-- **Note**: Command name unchanged - `/fractary-faber:workflow-audit` still works
+- **Impact**: Code directly referencing `fractary-faber-workflow-audit` agent must update
+- **Migration**: Replace `Task(subagent_type="fractary-faber-workflow-audit")` with `Task(subagent_type="fractary-faber-workflow-auditor")`
+- **Note**: Command name unchanged - `/fractary-faber-workflow-audit` still works
 
 ### Default Behavior Change
 - **What changed**: Calling with no arguments now shows usage instead of validating entire config
@@ -409,7 +409,7 @@ Test end-to-end workflows:
 ## Success Metrics
 
 - **Adoption**: 100% of faber workflows use workflow-audit for pre-commit validation
-- **Compliance**: 90%+ of agents/skills show as COMPLIANT for FABER Response Format
+- **Compliance**: 90%+ of agents/fractary-faber-skills show as COMPLIANT for FABER Response Format
 - **Quality**: Reduce workflow execution failures due to malformed agent responses by 50%
 - **Usability**: Reduce time to audit a specific workflow from ~30s to ~5s
 
@@ -427,14 +427,14 @@ Test end-to-end workflows:
 ### P3 (Nice to Have)
 - Visual workflow graph showing agent/skill relationships
 - Diff mode to compare workflow versions
-- Performance profiling to identify slow agents/skills
+- Performance profiling to identify slow agents/fractary-faber-skills
 
 ## References
 
 - [RESPONSE-FORMAT.md](../plugins/faber/docs/RESPONSE-FORMAT.md) - FABER Response Format specification
 - [RESULT-HANDLING.md](../plugins/faber/docs/RESULT-HANDLING.md) - Result handling behavior
-- [faber-config skill](../plugins/faber/skills/faber-config/SKILL.md) - Namespace resolution patterns
-- [response-validator skill](../plugins/faber/skills/response-validator/SKILL.md) - Runtime response validation
+- [faber-config skill](../plugins/faber/skills/fractary-faber-faber-config/SKILL.md) - Namespace resolution patterns
+- [response-validator skill](../plugins/faber/skills/fractary-faber-response-validator/SKILL.md) - Runtime response validation
 
 ## Appendix A: Sample Output
 
@@ -443,7 +443,7 @@ Test end-to-end workflows:
 🔍 FABER Workflow Audit
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Usage: /fractary-faber:workflow-audit [<workflow>] [OPTIONS]
+Usage: /fractary-faber-workflow-audit [<workflow>] [OPTIONS]
 
 Workflow identifier:
   workflow-id          Validate workflow from project config
@@ -479,8 +479,8 @@ Total references: 8
   ✓ fractary-spec:spec-create - Documents FABER Response Format
   ✓ fractary-work:issue-fetch - Documents FABER Response Format
   ✓ fractary-repo:branch-create - Documents FABER Response Format
-  ✓ fractary-faber:faber-planner - Documents FABER Response Format
-  ✓ fractary-faber:faber-executor - Documents FABER Response Format
+  ✓ fractary-faber-faber-planner - Documents FABER Response Format
+  ✓ fractary-faber-faber-executor - Documents FABER Response Format
   ✓ fractary-repo:pr-create - Documents FABER Response Format
 
 ⚠️  UNKNOWN (1)
@@ -574,7 +574,7 @@ Matches: `/fractary-spec:spec-create`
 ```regex
 Task\(subagent_type="([^"]+)"\)
 ```
-Matches: `Task(subagent_type="fractary-faber:workflow-auditor")`
+Matches: `Task(subagent_type="fractary-faber-workflow-auditor")`
 
 ---
 

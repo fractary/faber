@@ -29,7 +29,7 @@ FABER has a dual-language architecture:
 
 | Use Case | SDK | Reason |
 |----------|-----|--------|
-| Claude Code skills/commands | TypeScript | Runs in Node.js plugin context |
+| Claude Code skills/fractary-faber-commands | TypeScript | Runs in Node.js plugin context |
 | Programmatic workflow execution | Python | LangGraph orchestration |
 | Workflow checkpointing | Python | LangGraph built-in support |
 | Cost tracking & budgets | Python | Workflow-level tracking |
@@ -171,7 +171,7 @@ observability:
 ### Using in a Skill
 
 ```typescript
-// skills/workflow-runner.ts
+// skills/fractary-faber-workflow-runner.ts
 import { spawn } from 'child_process';
 
 interface WorkflowParams {
@@ -215,7 +215,7 @@ export async function execute(params: WorkflowParams): Promise<SkillResult> {
 ### Using in a Command
 
 ```typescript
-// commands/workflow.ts
+// commands/fractary-faber-workflow.ts
 import { Command } from 'commander';
 import { spawn } from 'child_process';
 
@@ -298,7 +298,7 @@ export FABER_REDIS_URL=redis://...
 ### 1. TypeScript Initiates Workflow
 
 ```typescript
-// User runs: /fractary-faber:workflow-run 123
+// User runs: /fractary-faber-workflow-run 123
 const result = await runFaberWorkflow('123', { autonomy: 'assisted' });
 ```
 

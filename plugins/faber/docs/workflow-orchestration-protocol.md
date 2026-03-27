@@ -2,7 +2,7 @@
 
 ## Document Purpose
 
-This protocol defines how Claude Code orchestrates FABER workflow execution as the primary orchestrator. When executing `/fractary-faber:workflow-run`, you MUST follow this protocol exactly. This is not a suggestion—it is the operational contract for workflow execution.
+This protocol defines how Claude Code orchestrates FABER workflow execution as the primary orchestrator. When executing `/fractary-faber-workflow-run`, you MUST follow this protocol exactly. This is not a suggestion—it is the operational contract for workflow execution.
 
 ## Core Principles
 
@@ -33,7 +33,7 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 - Commands handle their own argument parsing and execution strategy
 - Do not parse, manipulate, or reinterpret command strings
 - Trust commands to do what they're designed to do
-- Built-in CLI commands like `/clear` cannot be invoked via Skill. Phase boundary context clearing uses `/fractary-faber:session-clear` instead, which attempts `/clear` internally and falls back to an explicit context boundary marker
+- Built-in CLI commands like `/clear` cannot be invoked via Skill. Phase boundary context clearing uses `/fractary-faber-session-clear` instead, which attempts `/clear` internally and falls back to an explicit context boundary marker
 
 > **🚫 ANTI-PATTERN: Never bypass the Skill tool for `/` prompts.**
 >
@@ -1298,7 +1298,7 @@ if (phase.retry_count >= phase.max_retries) {
   console.log(`\nRecommendations:`);
   console.log(`1. Review the error logs above`);
   console.log(`2. Fix the underlying issue manually`);
-  console.log(`3. Resume the workflow: /fractary-faber:workflow-run --resume ${runId}`);
+  console.log(`3. Resume the workflow: /fractary-faber-workflow-run --resume ${runId}`);
 
   throw new Error("Max retries exceeded");
 }
@@ -1314,7 +1314,7 @@ if (phase.retry_count >= phase.max_retries) {
 
 ```bash
 # REQUIRED before setting status: "completed"
-bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh \
+bash plugins/faber/skills/fractary-faber-run-manager/scripts/verify-workflow-completion.sh \
   --run-id "$RUN_ID" \
   --base-path ".fractary/faber/runs"
 ```
@@ -1336,7 +1336,7 @@ async function handleWorkflowCompletion(runId) {
 
   // STEP 1: Run completion verification (MANDATORY)
   const verifyResult = await Bash({
-    command: `bash plugins/faber/skills/run-manager/scripts/verify-workflow-completion.sh --run-id "${runId}" --base-path ".fractary/faber/runs"`
+    command: `bash plugins/faber/skills/fractary-faber-run-manager/scripts/verify-workflow-completion.sh --run-id "${runId}" --base-path ".fractary/faber/runs"`
   });
   const verification = JSON.parse(verifyResult.stdout);
   if (verification.status !== "pass") {
@@ -1418,7 +1418,7 @@ async function handleWorkflowFailure(runId, step, result) {
   console.error(`Phase: ${step.phase}`);
   console.error(`Step: ${step.name}`);
   console.error(`Error: ${result.message}`);
-  console.error(`\nTo resume after fixing: /fractary-faber:workflow-run --resume ${runId}`);
+  console.error(`\nTo resume after fixing: /fractary-faber-workflow-run --resume ${runId}`);
 }
 ```
 
@@ -1467,7 +1467,7 @@ No adherence report, no issue close, no branch deletion.
 
 ### Plan Adherence Script
 
-The `verify-plan-adherence.sh` script (at `plugins/faber/skills/run-manager/scripts/`) compares `plan.json` and `state.json` to classify each step as:
+The `verify-plan-adherence.sh` script (at `plugins/faber/skills/fractary-faber-run-manager/scripts/`) compares `plan.json` and `state.json` to classify each step as:
 
 - **Executed**: Present in both plan and state (adherent)
 - **Skipped**: In plan but not executed (potential deviation)
@@ -1534,8 +1534,8 @@ During long workflow executions, Claude Code will automatically compact context 
 | Layer | Mechanism | What It Preserves |
 |-------|-----------|-------------------|
 | Claude Code | Automatic context compaction | Conversation summary, tool state |
-| PreCompact hook | `/fractary-faber:session-save` fires before compaction | Session metadata snapshot to disk |
-| SessionStart hook | `/fractary-faber:session-load` fires after compaction | Restores all critical artifacts into context |
+| PreCompact hook | `/fractary-faber-session-save` fires before compaction | Session metadata snapshot to disk |
+| SessionStart hook | `/fractary-faber-session-load` fires after compaction | Restores all critical artifacts into context |
 | State file | `.fractary/faber/runs/{plan_id}/state-{run}.json` | Full workflow progress, current phase/step |
 | Plan file | `.fractary/faber/runs/{plan_id}/plan.json` | Complete execution plan with all steps |
 | TodoWrite | Persists across compaction | Step-level progress tracking |
@@ -1545,7 +1545,7 @@ During long workflow executions, Claude Code will automatically compact context 
 
 If you are unsure of your position after compaction (or at any point):
 
-1. Call `/fractary-faber:session-load` to restore critical artifacts
+1. Call `/fractary-faber-session-load` to restore critical artifacts
 2. Read the TodoWrite list to see which steps are completed/pending
 3. Read the state file to confirm current phase and step
 4. Continue execution from the next pending step
@@ -1560,7 +1560,7 @@ If you are unsure of your position after compaction (or at any point):
 
 ### Proactive Recovery
 
-If at any point you feel uncertain about what has been completed or where you are in the workflow, **proactively call `/fractary-faber:session-load`** to reload all critical artifacts. This is cheap, safe, and always available.
+If at any point you feel uncertain about what has been completed or where you are in the workflow, **proactively call `/fractary-faber-session-load`** to reload all critical artifacts. This is cheap, safe, and always available.
 
 ---
 
@@ -1574,7 +1574,7 @@ If you reach a point where you cannot execute the next step for ANY reason (miss
 2. **Set pause_reason** with an honest explanation of why you cannot continue
 3. **Post an honest status comment** to the GitHub issue explaining exactly where things stand
 4. **Tell the user exactly where things stand** — what was completed, what remains
-5. **Provide the resume command**: `/fractary-faber:workflow-run <work-id> --resume <run-id>`
+5. **Provide the resume command**: `/fractary-faber-workflow-run <work-id> --resume <run-id>`
 
 ### ABSOLUTE PROHIBITION ON FABRICATION
 
@@ -1624,7 +1624,7 @@ In production workflows, downstream systems and humans rely on state claims bein
 
 10. **Run ID is sacred** - Never modify it, always pass it through, use it for resume capability.
 
-11. **Context compaction is not a failure** - FABER survives compaction automatically. Never stop or pause due to context pressure. Call `/fractary-faber:session-load` if needed and continue.
+11. **Context compaction is not a failure** - FABER survives compaction automatically. Never stop or pause due to context pressure. Call `/fractary-faber-session-load` if needed and continue.
 
 ---
 

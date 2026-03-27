@@ -325,4 +325,4 @@ Use this checklist to validate debugger agent definitions.
 
 See these debugger agents for reference:
 
-- `plugins/faber/skills/faber-debugger/SKILL.md` - Full-featured debugger
+- `plugins/faber/skills/fractary-faber-faber-debugger/SKILL.md` - Full-featured debugger

@@ -461,8 +461,8 @@ export * from './types';
 
 #### Task 5: Convert Frame Agent to YAML
 
-**Source:** `/sdk/py/faber/agents/frame.py`
-**Target:** `.fractary/agents/frame-agent.yaml` (in Forge first-party package)
+**Source:** `/sdk/py/faber/agents/fractary-faber-frame.py`
+**Target:** `.fractary/agents/fractary-faber-frame-agent.yaml` (in Forge first-party package)
 
 ```yaml
 # frame-agent.yaml - FABER Frame Phase Agent
@@ -537,7 +537,7 @@ tags:
 
 #### Task 6: Convert Architect Agent to YAML
 
-**Target:** `.fractary/agents/architect-agent.yaml`
+**Target:** `.fractary/agents/fractary-faber-architect-agent.yaml`
 
 ```yaml
 # architect-agent.yaml - FABER Architect Phase Agent
@@ -612,7 +612,7 @@ tags:
 
 #### Task 7: Convert Build Agent to YAML
 
-**Target:** `.fractary/agents/build-agent.yaml`
+**Target:** `.fractary/agents/fractary-faber-build-agent.yaml`
 
 ```yaml
 # build-agent.yaml - FABER Build Phase Agent
@@ -685,7 +685,7 @@ tags:
 
 #### Task 8: Convert Evaluate Agent to YAML
 
-**Target:** `.fractary/agents/evaluate-agent.yaml`
+**Target:** `.fractary/agents/fractary-faber-evaluate-agent.yaml`
 
 ```yaml
 # evaluate-agent.yaml - FABER Evaluate Phase Agent
@@ -761,7 +761,7 @@ tags:
 
 #### Task 9: Convert Release Agent to YAML
 
-**Target:** `.fractary/agents/release-agent.yaml`
+**Target:** `.fractary/agents/fractary-faber-release-agent.yaml`
 
 ```yaml
 # release-agent.yaml - FABER Release Phase Agent
@@ -1125,11 +1125,11 @@ For users who want to stay on legacy mode temporarily:
 | AgentExecutor | (new) | `/sdk/js/src/workflow/agent-executor.ts` |
 | Type updates | `/sdk/js/src/types.ts` | `/sdk/js/src/types.ts` |
 | FaberWorkflow | `/sdk/js/src/workflow/faber.ts` | `/sdk/js/src/workflow/faber.ts` |
-| Frame Agent | `/sdk/py/faber/agents/frame.py` | Forge: `frame-agent.yaml` |
-| Architect Agent | `/sdk/py/faber/agents/architect.py` | Forge: `architect-agent.yaml` |
-| Build Agent | `/sdk/py/faber/agents/build.py` | Forge: `build-agent.yaml` |
-| Evaluate Agent | `/sdk/py/faber/agents/evaluate.py` | Forge: `evaluate-agent.yaml` |
-| Release Agent | `/sdk/py/faber/agents/release.py` | Forge: `release-agent.yaml` |
+| Frame Agent | `/sdk/py/faber/agents/fractary-faber-frame.py` | Forge: `frame-agent.yaml` |
+| Architect Agent | `/sdk/py/faber/agents/fractary-faber-architect.py` | Forge: `architect-agent.yaml` |
+| Build Agent | `/sdk/py/faber/agents/fractary-faber-build.py` | Forge: `build-agent.yaml` |
+| Evaluate Agent | `/sdk/py/faber/agents/fractary-faber-evaluate.py` | Forge: `evaluate-agent.yaml` |
+| Release Agent | `/sdk/py/faber/agents/fractary-faber-release.py` | Forge: `release-agent.yaml` |
 | Python Definitions | `/sdk/py/faber/definitions/` | DEPRECATED → Removed |
 
 ### B. Dependencies

@@ -24,12 +24,12 @@ Issue #91 identified that workflow steps using `command` fields were incorrectly
 step:
   id: "test-step"
   name: "Test Command Execution"
-  command: "fractary-faber:workflow-inspect"
+  command: "fractary-faber-workflow-inspect"
 ```
 
 **Expected Behavior**:
 - Step execution uses Skill tool (not Task tool)
-- Command is invoked as `/fractary-faber:workflow-inspect`
+- Command is invoked as `/fractary-faber-workflow-inspect`
 - Command receives context via args parameter
 - Event log shows "command_invoked" with "via Skill tool" message
 
@@ -52,12 +52,12 @@ grep "via Skill tool" plugins/faber/runs/{run_id}/events/*.json
 step:
   id: "test-step"
   name: "Test Command Normalization"
-  command: "fractary-faber:workflow-inspect"  # No leading slash
+  command: "fractary-faber-workflow-inspect"  # No leading slash
 ```
 
 **Expected Behavior**:
 - Executor normalizes command by adding leading slash
-- Skill tool receives `/fractary-faber:workflow-inspect`
+- Skill tool receives `/fractary-faber-workflow-inspect`
 - Command executes successfully
 
 **Verification**:
@@ -79,12 +79,12 @@ grep "command_name" plugins/faber/runs/{run_id}/events/*.json
 step:
   id: "test-step"
   name: "Test Command With Slash"
-  command: "/fractary-faber:workflow-inspect"  # Has leading slash
+  command: "/fractary-faber-workflow-inspect"  # Has leading slash
 ```
 
 **Expected Behavior**:
 - Executor does not double the slash
-- Skill tool receives `/fractary-faber:workflow-inspect`
+- Skill tool receives `/fractary-faber-workflow-inspect`
 - Command executes successfully
 
 ---
@@ -98,7 +98,7 @@ step:
 step:
   id: "test-step"
   name: "Test Argument Passing"
-  command: "fractary-faber:workflow-inspect"
+  command: "fractary-faber-workflow-inspect"
   config:
     verbose: true
     format: "json"
@@ -133,7 +133,7 @@ jq '.args' plugins/faber/runs/{run_id}/events/*command_invoked*.json
 step:
   id: "ai-step"
   name: "AI-Driven Command"
-  command: "fractary-faber:workflow-create"
+  command: "fractary-faber-workflow-create"
   additional_instructions: "Focus on error handling patterns"
 ```
 
@@ -152,7 +152,7 @@ step:
 step:
   id: "success-step"
   name: "Test Success Response"
-  command: "fractary-faber:workflow-inspect"
+  command: "fractary-faber-workflow-inspect"
 ```
 
 **Expected Response from Command**:
@@ -180,7 +180,7 @@ step:
 step:
   id: "failure-step"
   name: "Test Failure Response"
-  command: "fractary-faber:workflow-inspect"
+  command: "fractary-faber-workflow-inspect"
   # Command will fail due to missing workflow
 ```
 
@@ -207,16 +207,16 @@ step:
 **Note**: This test validates documentation, not runtime behavior. External plugins (fractary-work, fractary-repo, fractary-spec) exist in separate repositories.
 
 **Documentation Check**:
-- workflow-run.md examples use local commands (fractary-faber:*)
+- workflow-run.md examples use local commands (fractary-faber-*)
 - External plugin examples are clearly marked as "External plugins"
 - Command naming convention is consistent
 
 **Verification**:
 ```bash
 # Check that primary examples use local commands
-grep "fractary-faber:" plugins/faber/commands/workflow-run.md | head -5
+grep "fractary-faber-" plugins/faber/commands/fractary-faber-workflow-run.md | head -5
 
-# Expected: fractary-faber:workflow-run, fractary-faber:workflow-create, fractary-faber:agent-create
+# Expected: fractary-faber-workflow-run, fractary-faber-workflow-create, fractary-faber-agent-create
 ```
 
 ---
@@ -230,7 +230,7 @@ grep "fractary-faber:" plugins/faber/commands/workflow-run.md | head -5
 step:
   id: "legacy-step"
   name: "Legacy Skill Execution"
-  skill: "fractary-faber:workflow-inspect"  # Legacy field
+  skill: "fractary-faber-workflow-inspect"  # Legacy field
 ```
 
 **Expected Behavior**:
@@ -277,7 +277,7 @@ step:
 step:
   id: "injection-test"
   name: "Test Command Injection Prevention"
-  command: "fractary-faber:workflow-inspect"
+  command: "fractary-faber-workflow-inspect"
   config:
     path: "'; rm -rf / #"  # Malicious payload in config
   additional_instructions: "Test with 'single quotes' and $(command substitution)"

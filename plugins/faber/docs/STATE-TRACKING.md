@@ -27,7 +27,7 @@ This provides both **operational efficiency** (fast state queries) and **complet
               └───────┬───────────┘
                       ▼
               ┌───────────────────────────┐
-              │  /fractary-faber:status   │
+              │  /fractary-faber-status   │
               │     (combines both)       │
               └───────────────────────────┘
 ```
@@ -227,7 +227,7 @@ Defined in `plugins/logs/types/workflow.json`, supports 15 event types:
 
 ## Dual-State Query Pattern
 
-The `/fractary-faber:status` command demonstrates the dual-state query pattern:
+The `/fractary-faber-status` command demonstrates the dual-state query pattern:
 
 ```bash
 #!/bin/bash
@@ -450,5 +450,5 @@ This enables multi-channel feedback collection:
 
 - [CONFIGURATION.md](./CONFIGURATION.md) - Complete configuration guide
 - [RUN-ID-SYSTEM.md](./RUN-ID-SYSTEM.md) - Run isolation and event logging
-- `/fractary-faber:status` - Status command using dual-state pattern
+- `/fractary-faber-status` - Status command using dual-state pattern
 - `plugins/logs/types/workflow.json` - Workflow log type definition

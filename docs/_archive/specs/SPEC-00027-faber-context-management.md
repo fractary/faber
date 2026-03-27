@@ -51,11 +51,11 @@ git worktree add ../myproject-issue-259 -b feature/259
 
 # Terminal 1: Work on issue 258
 cd ../myproject-issue-258
-/fractary-faber:workflow-run --work-id 258
+/fractary-faber-workflow-run --work-id 258
 
 # Terminal 2: Work on issue 259 in parallel (different worktree)
 cd ../myproject-issue-259
-/fractary-faber:workflow-run --work-id 259
+/fractary-faber-workflow-run --work-id 259
 ```
 
 **Benefits of This Design**:
@@ -88,7 +88,7 @@ if [ -z "$ACTIVE_RUN_ID" ]; then
   echo "No active workflow found, skipping session-end"
   exit 0
 fi
-/fractary-faber:session-end --run-id "$ACTIVE_RUN_ID" --reason compaction
+/fractary-faber-session-end --run-id "$ACTIVE_RUN_ID" --reason compaction
 
 # In SessionStart hook
 ACTIVE_RUN_ID=$(cat .fractary/faber/runs/.active-run-id 2>/dev/null)
@@ -96,7 +96,7 @@ if [ -z "$ACTIVE_RUN_ID" ]; then
   echo "No active workflow found, skipping prime-context"
   exit 0
 fi
-/fractary-faber:prime-context --run-id "$ACTIVE_RUN_ID" --trigger session_start
+/fractary-faber-prime-context --run-id "$ACTIVE_RUN_ID" --trigger session_start
 ```
 
 ## Architecture
@@ -138,17 +138,17 @@ SESSION 1                    COMPACTION EVENT              SESSION 2
 
 1. **PreCompact Hook**: Saves session state before context compacts
    - Triggers: Before auto-compact (full context window)
-   - Action: Call `/fractary-faber:session-end --reason compaction`
+   - Action: Call `/fractary-faber-session-end --reason compaction`
    - Updates: state.json with session end metadata
 
 2. **SessionStart Hook**: Restores context when new session begins
    - Triggers: After compaction (`compact` matcher) or workflow resume (`resume` matcher)
-   - Action: Call `/fractary-faber:prime-context --trigger session_start`
+   - Action: Call `/fractary-faber-prime-context --trigger session_start`
    - Updates: Loads critical artifacts, creates new session record
 
 3. **SessionEnd Hook**: Saves final session state on normal exit
    - Triggers: On session termination (logout, clear, exit)
-   - Action: Call `/fractary-faber:session-end --reason normal`
+   - Action: Call `/fractary-faber-session-end --reason normal`
    - Updates: state.json with final session metadata
 
 ### Building on Existing Context Reconstitution
@@ -165,7 +165,7 @@ SESSION 1                    COMPACTION EVENT              SESSION 2
                           │
 ┌──────────────────────────────────────────────────────────┐
 │  EXISTING: Manual Context Management                     │
-│  - /fractary-faber:prime-context command                 │
+│  - /fractary-faber-prime-context command                 │
 │  - critical_artifacts configuration                      │
 │  - Manual reload at Frame phase start (optional)         │
 └──────────────────────────────────────────────────────────┘
@@ -245,7 +245,7 @@ SESSION 1                    COMPACTION EVENT              SESSION 2
 ```json
 {
   "run_id": "fractary-faber-258-20260105-143022",
-  "workflow_id": "fractary-faber:default",
+  "workflow_id": "fractary-faber-default",
   "status": "in_progress",
 
   "sessions": {
@@ -286,26 +286,26 @@ SESSION 1                    COMPACTION EVENT              SESSION 2
 
 ### 3. Context Priming Command
 
-**Command**: `/fractary-faber:prime-context`
+**Command**: `/fractary-faber-prime-context`
 
 **Purpose**: Manually reload all critical artifacts for active or resuming workflow
 
 **Usage**:
 ```bash
 # Auto-detect active workflow and reload
-/fractary-faber:prime-context
+/fractary-faber-prime-context
 
 # Reload for specific run
-/fractary-faber:prime-context --run-id fractary-faber-258-20260105-143022
+/fractary-faber-prime-context --run-id fractary-faber-258-20260105-143022
 
 # Reload only specific artifacts (faster)
-/fractary-faber:prime-context --artifacts workflow-state,specification
+/fractary-faber-prime-context --artifacts workflow-state,specification
 
 # Force reload even if recently loaded
-/fractary-faber:prime-context --force
+/fractary-faber-prime-context --force
 
 # Dry-run to see what would be loaded
-/fractary-faber:prime-context --dry-run
+/fractary-faber-prime-context --dry-run
 ```
 
 **Algorithm**:
@@ -329,20 +329,20 @@ SESSION 1                    COMPACTION EVENT              SESSION 2
 
 ### 4. Session-End Command
 
-**Command**: `/fractary-faber:session-end`
+**Command**: `/fractary-faber-session-end`
 
 **Purpose**: Save session metadata to state.json before session ends or compaction occurs
 
 **Usage**:
 ```bash
 # Called by PreCompact hook
-/fractary-faber:session-end --reason compaction
+/fractary-faber-session-end --reason compaction
 
 # Called by SessionEnd hook
-/fractary-faber:session-end --reason normal
+/fractary-faber-session-end --reason normal
 
 # Manual (edge cases)
-/fractary-faber:session-end --run-id fractary-faber-258-20260105-143022
+/fractary-faber-session-end --run-id fractary-faber-258-20260105-143022
 ```
 
 **Algorithm**:
@@ -403,7 +403,7 @@ fi
           "id": "auto-reload-context",
           "name": "Reload Context",
           "description": "Automatically reload critical artifacts for session continuity",
-          "prompt": "/fractary-faber:prime-context"
+          "prompt": "/fractary-faber-prime-context"
         }
       ]
     }
@@ -431,7 +431,7 @@ fi
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-end --reason compaction",
+            "command": "/fractary-faber-session-end --reason compaction",
             "timeout": 60
           }
         ]
@@ -451,7 +451,7 @@ fi
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:prime-context --trigger session_start"
+            "command": "/fractary-faber-prime-context --trigger session_start"
           }
         ]
       },
@@ -460,7 +460,7 @@ fi
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:prime-context --trigger session_start"
+            "command": "/fractary-faber-prime-context --trigger session_start"
           }
         ]
       }
@@ -478,7 +478,7 @@ fi
         "hooks": [
           {
             "type": "command",
-            "command": "/fractary-faber:session-end --reason normal"
+            "command": "/fractary-faber-session-end --reason normal"
           }
         ]
       }
@@ -519,14 +519,14 @@ fi
 
 ### Phase 2: Create Session Management Command and Active Run Tracking
 
-**New command**: `/fractary-faber:session-end`
+**New command**: `/fractary-faber-session-end`
 
 **Files to create:**
-- `plugins/faber/commands/session-end.md`
-- `plugins/faber/skills/context-manager/workflow/session-end.md`
+- `plugins/faber/commands/fractary-faber-session-end.md`
+- `plugins/faber/skills/fractary-faber-context-manager/workflow/session-end.md`
 
 **Files to modify:**
-- `plugins/faber/skills/faber-manager/` (Add `.active-run-id` tracking to workflow-run)
+- `plugins/faber/skills/fractary-faber-faber-manager/` (Add `.active-run-id` tracking to workflow-run)
 
 **Files created automatically:**
 - `.fractary/faber/runs/.active-run-id` (created by workflow-run)
@@ -534,8 +534,8 @@ fi
 ### Phase 3: Enhance Prime-Context Command
 
 **Files to modify:**
-- `plugins/faber/commands/prime-context.md` (Add `--trigger` parameter, session detection)
-- `plugins/faber/skills/context-manager/workflow/prime-context.md` (Add session detection logic)
+- `plugins/faber/commands/fractary-faber-prime-context.md` (Add `--trigger` parameter, session detection)
+- `plugins/faber/skills/fractary-faber-context-manager/workflow/prime-context.md` (Add session detection logic)
 
 ### Phase 4: Configure Claude Code Hooks
 
@@ -550,9 +550,9 @@ fi
 - ✅ `plugins/faber/config/state.schema.json` - Has `sessions` and `context_metadata`
 - ✅ `plugins/faber/config/workflows/default.json` - Has `critical_artifacts` config
 - ✅ `plugins/faber/config/workflows/core.json` - Has `critical_artifacts` config
-- ✅ `plugins/faber/skills/context-manager/SKILL.md` - Context manager skill
-- ✅ `plugins/faber/skills/context-manager/workflow/prime-context.md` - Prime context algorithm
-- ✅ `plugins/faber/commands/prime-context.md` - Prime context command
+- ✅ `plugins/faber/skills/fractary-faber-context-manager/SKILL.md` - Context manager skill
+- ✅ `plugins/faber/skills/fractary-faber-context-manager/workflow/prime-context.md` - Prime context algorithm
+- ✅ `plugins/faber/commands/fractary-faber-prime-context.md` - Prime context command
 - ✅ `plugins/faber/docs/CONTEXT-MANAGEMENT.md` - User documentation
 - ✅ `plugins/faber/docs/standards/manager-protocols/context-reload.md` - Protocol documentation
 
@@ -569,8 +569,8 @@ fi
 ### Phase 7: Update Existing Documentation
 
 **Files to modify:**
-- `plugins/faber/skills/context-manager/SKILL.md` - Add session-end workflow reference
-- `plugins/faber/commands/prime-context.md` - Add `--trigger` parameter docs and `--run-id` details
+- `plugins/faber/skills/fractary-faber-context-manager/SKILL.md` - Add session-end workflow reference
+- `plugins/faber/commands/fractary-faber-prime-context.md` - Add `--trigger` parameter docs and `--run-id` details
 
 ### Phase 8: Git Configuration
 
@@ -587,13 +587,13 @@ fi
 | `plugins/faber/config/workflows/core.json` | Modify | Remove auto-reload from Architect/Build/Evaluate/Release | TODO |
 | `plugins/faber/config/workflows/default.json` | Modify | Remove auto-reload from Architect/Build/Evaluate/Release | TODO |
 | **Phase 2: New Session Management and Active Run Tracking** |
-| `plugins/faber/commands/session-end.md` | Create | Session-end command documentation | TODO |
-| `plugins/faber/skills/context-manager/workflow/session-end.md` | Create | Session-end workflow algorithm | TODO |
-| `plugins/faber/skills/faber-manager/` | Modify | Add .active-run-id tracking to workflow-run | TODO |
+| `plugins/faber/commands/fractary-faber-session-end.md` | Create | Session-end command documentation | TODO |
+| `plugins/faber/skills/fractary-faber-context-manager/workflow/session-end.md` | Create | Session-end workflow algorithm | TODO |
+| `plugins/faber/skills/fractary-faber-faber-manager/` | Modify | Add .active-run-id tracking to workflow-run | TODO |
 | `.fractary/faber/runs/.active-run-id` | Create | Track active workflow run ID (created by workflow-run) | AUTO |
 | **Phase 3: Enhance Prime-Context** |
-| `plugins/faber/commands/prime-context.md` | Modify | Add --trigger parameter, session detection | TODO |
-| `plugins/faber/skills/context-manager/workflow/prime-context.md` | Modify | Add session detection logic | TODO |
+| `plugins/faber/commands/fractary-faber-prime-context.md` | Modify | Add --trigger parameter, session detection | TODO |
+| `plugins/faber/skills/fractary-faber-context-manager/workflow/prime-context.md` | Modify | Add session detection logic | TODO |
 | **Phase 4: Hook Configuration** |
 | `.claude/settings.json` or project settings | Modify | Add PreCompact, SessionStart, SessionEnd hooks | TODO |
 | `plugins/faber/docs/HOOKS-SETUP.md` | Create | Step-by-step hook setup guide | TODO |
@@ -602,16 +602,16 @@ fi
 | `plugins/faber/config/state.schema.json` | ✅ Done | Has `sessions` and `context_metadata` | DONE |
 | `plugins/faber/config/workflows/default.json` | ✅ Done | Has `critical_artifacts` config | DONE |
 | `plugins/faber/config/workflows/core.json` | ✅ Done | Has `critical_artifacts` config | DONE |
-| `plugins/faber/skills/context-manager/SKILL.md` | ✅ Done | Context manager skill | DONE |
-| `plugins/faber/skills/context-manager/workflow/prime-context.md` | ✅ Done | Prime context algorithm | DONE |
-| `plugins/faber/commands/prime-context.md` | ✅ Done | Prime context command | DONE |
+| `plugins/faber/skills/fractary-faber-context-manager/SKILL.md` | ✅ Done | Context manager skill | DONE |
+| `plugins/faber/skills/fractary-faber-context-manager/workflow/prime-context.md` | ✅ Done | Prime context algorithm | DONE |
+| `plugins/faber/commands/fractary-faber-prime-context.md` | ✅ Done | Prime context command | DONE |
 | `plugins/faber/docs/CONTEXT-MANAGEMENT.md` | ✅ Done | User documentation | DONE |
 | `plugins/faber/docs/standards/manager-protocols/context-reload.md` | ✅ Done | Protocol documentation | DONE |
 | **Phase 6 & 7: Documentation Updates** |
 | `plugins/faber/docs/CONTEXT-MANAGEMENT.md` | Modify | Add hook setup section | TODO |
 | `plugins/faber/docs/standards/manager-protocols/context-reload.md` | Modify | Update for hook-based approach | TODO |
 | `specs/SPEC-00027-faber-context-management.md` | Modify | This file - updated with hook integration | DONE |
-| `plugins/faber/skills/context-manager/SKILL.md` | Modify | Add session-end reference | TODO |
+| `plugins/faber/skills/fractary-faber-context-manager/SKILL.md` | Modify | Add session-end reference | TODO |
 | **Phase 8: Git Configuration** |
 | `.gitignore` | Verify | Ensure .fractary/faber/runs/.active-run-id is NOT ignored | TODO |
 
@@ -621,7 +621,7 @@ fi
 
 ```bash
 # User starts workflow
-user$ /fractary-faber:workflow-run --work-id 258
+user$ /fractary-faber-workflow-run --work-id 258
 
 # Workflow creates: .fractary/faber/runs/.active-run-id with "fractary-faber-258-20260105-143022"
 # Frame phase: auto-reload-context runs (initial context load)
@@ -631,7 +631,7 @@ user$ /fractary-faber:workflow-run --work-id 258
 # [Context fills up, auto-compact triggered]
 # PreCompact Hook executes:
 #   ACTIVE_RUN_ID=$(cat .fractary/faber/runs/.active-run-id)
-#   → /fractary-faber:session-end --run-id $ACTIVE_RUN_ID --reason compaction
+#   → /fractary-faber-session-end --run-id $ACTIVE_RUN_ID --reason compaction
 #   ✓ Saves session metadata to state.json
 #   ✓ Marks session as ended
 #   ✓ Records phases completed: ["frame", "architect", "build"]
@@ -640,7 +640,7 @@ user$ /fractary-faber:workflow-run --work-id 258
 
 # SessionStart Hook (matcher: "compact") executes:
 #   ACTIVE_RUN_ID=$(cat .fractary/faber/runs/.active-run-id)
-#   → /fractary-faber:prime-context --run-id $ACTIVE_RUN_ID --trigger session_start
+#   → /fractary-faber-prime-context --run-id $ACTIVE_RUN_ID --trigger session_start
 #   ✓ Detects new session
 #   ✓ Creates new session record in state.json
 #   ✓ Loads critical artifacts:
@@ -657,24 +657,24 @@ user$ /fractary-faber:workflow-run --work-id 258
 
 ```bash
 # Day 1: Start workflow on laptop
-user@laptop$ /fractary-faber:workflow-run --work-id 258
+user@laptop$ /fractary-faber-workflow-run --work-id 258
 # Creates: .fractary/faber/runs/.active-run-id with "fractary-faber-258-20260105-143022"
 # ... Frame, Architect phases complete
 # ... User closes laptop
 
 # SessionEnd Hook executes on logout:
-#   → /fractary-faber:session-end --reason normal
+#   → /fractary-faber-session-end --reason normal
 #   ✓ Saves final session metadata
 
 # Day 2: Resume on desktop (different machine)
 user@desktop$ cd /path/to/project
 user@desktop$ git pull  # sync state files and .active-run-id
-user@desktop$ /fractary-faber:workflow-run --resume fractary-faber-258-20260105-143022
+user@desktop$ /fractary-faber-workflow-run --resume fractary-faber-258-20260105-143022
 
 # Updates .fractary/faber/runs/.active-run-id (already matches, no warning)
 # SessionStart Hook (matcher: "resume") executes:
 #   ACTIVE_RUN_ID=$(cat .fractary/faber/runs/.active-run-id)
-#   → /fractary-faber:prime-context --run-id $ACTIVE_RUN_ID --trigger session_start
+#   → /fractary-faber-prime-context --run-id $ACTIVE_RUN_ID --trigger session_start
 #   ✓ Detects new session (different machine)
 #   ✓ Creates session record with new environment:
 #     - hostname: "desktop"
@@ -693,7 +693,7 @@ user@desktop$ /fractary-faber:workflow-run --resume fractary-faber-258-20260105-
 # User manually edited state.json to fix an issue
 # Needs to reload context with fresh data
 
-user$ /fractary-faber:prime-context --force
+user$ /fractary-faber-prime-context --force
 
 # ✓ Context reloaded (bypassing 5-minute cache)
 # ✓ All critical artifacts refreshed
@@ -706,12 +706,12 @@ user$ /fractary-faber:prime-context --force
 
 ```bash
 # Terminal 1: Start workflow for issue 258
-user$ /fractary-faber:workflow-run --work-id 258
+user$ /fractary-faber-workflow-run --work-id 258
 # Creates: .fractary/faber/runs/.active-run-id with "fractary-faber-258-20260105-143022"
 # Workflow starts...
 
 # Terminal 2: Try to start workflow for issue 259 in SAME worktree
-user$ /fractary-faber:workflow-run --work-id 259
+user$ /fractary-faber-workflow-run --work-id 259
 
 ⚠️  WARNING: Another workflow is active in this worktree
    Active: fractary-faber-258-20260105-143022
@@ -720,7 +720,7 @@ user$ /fractary-faber:workflow-run --work-id 259
 Recommendation: Use separate worktrees for concurrent workflows:
   git worktree add ../myproject-issue-259 -b feature/259
   cd ../myproject-issue-259
-  /fractary-faber:workflow-run --work-id 259
+  /fractary-faber-workflow-run --work-id 259
 
 Do you want to proceed anyway? This will take over context management
 for this worktree, potentially interfering with the other workflow. [y/N]:
@@ -731,7 +731,7 @@ Workflow start cancelled. Use separate worktrees for concurrent workflows.
 # Correct approach:
 user$ git worktree add ../myproject-issue-259 -b feature/259
 user$ cd ../myproject-issue-259
-user$ /fractary-faber:workflow-run --work-id 259
+user$ /fractary-faber-workflow-run --work-id 259
 # Creates separate: ../myproject-issue-259/.fractary/faber/runs/.active-run-id
 # Now both workflows can run in parallel without conflicts
 ```
@@ -789,8 +789,8 @@ This enhancement makes worktrees transparent to users while maintaining the simp
 - [ ] Workflow schema supports `critical_artifacts` configuration
 - [ ] State schema tracks `sessions` and `context_metadata`
 - [ ] Default workflows declare critical artifacts
-- [ ] `/fractary-faber:prime-context` command works with `--run-id` and `--trigger` parameters
-- [ ] `/fractary-faber:session-end` command saves session metadata
+- [ ] `/fractary-faber-prime-context` command works with `--run-id` and `--trigger` parameters
+- [ ] `/fractary-faber-session-end` command saves session metadata
 - [ ] `workflow-run` command writes `.fractary/faber/runs/.active-run-id`
 - [ ] `workflow-run` command detects and warns about workflow conflicts
 - [ ] PreCompact hook saves session before compaction

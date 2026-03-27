@@ -182,11 +182,11 @@ Check that `@fractary/faber` exposes required managers:
 /mnt/c/GitHub/fractary/cli/src/tools/faber/
 ├── index.ts                    → /cli/src/index.ts (adapt)
 ├── commands/
-│   ├── workflow/index.ts       → /cli/src/commands/workflow/index.ts
-│   ├── work/index.ts           → /cli/src/commands/work/index.ts
-│   ├── repo/index.ts           → /cli/src/commands/repo/index.ts
-│   ├── spec/index.ts           → /cli/src/commands/spec/index.ts
-│   └── logs/index.ts           → /cli/src/commands/logs/index.ts
+│   ├── workflow/index.ts       → /cli/src/commands/fractary-faber-workflow/index.ts
+│   ├── work/index.ts           → /cli/src/commands/fractary-faber-work/index.ts
+│   ├── repo/index.ts           → /cli/src/commands/fractary-faber-repo/index.ts
+│   ├── spec/index.ts           → /cli/src/commands/fractary-faber-spec/index.ts
+│   └── logs/index.ts           → /cli/src/commands/fractary-faber-logs/index.ts
 ```
 
 **Key Adaptations Required:**

@@ -259,7 +259,7 @@ fractary-faber workflow-batch-plan [options]
 
 Creates `.fractary/faber/batches/{batch-id}/` with `queue.txt` and `state.json`. Prints the batch ID on completion — this ID is passed to `workflow-batch-run`.
 
-**Claude Code skill equivalent**: `/fractary-faber:workflow-batch-plan <work-ids> [--name <batch-id>]`
+**Claude Code skill equivalent**: `/fractary-faber-workflow-batch-plan <work-ids> [--name <batch-id>]`
 (The skill version spawns a fresh Claude context per item via Task for true context isolation.)
 
 ### workflow-batch-run
@@ -279,7 +279,7 @@ fractary-faber workflow-batch-run [options]
 
 State is written to `.fractary/faber/batches/{batch-id}/state.json` after every item. Multiple worktrees can run separate batches simultaneously without state collision (each batch has its own directory).
 
-**Claude Code skill equivalent**: `/fractary-faber:workflow-batch-run --batch <batch-id> [--autonomous] [--resume]`
+**Claude Code skill equivalent**: `/fractary-faber-workflow-batch-run --batch <batch-id> [--autonomous] [--resume]`
 (The skill version spawns a fresh Claude context per item via Task — the real context reset, not a protocol directive.)
 
 **Typical overnight workflow:**

@@ -270,16 +270,16 @@ jq '.phases.build.steps | to_entries | map(.value.status)' .fractary/faber/runs/
 ### Manual Testing
 ```bash
 # Test 1-3: Result validation
-/fractary-faber:run "test-target" --workflow test-null-result --work-id 999
+/fractary-faber-run "test-target" --workflow test-null-result --work-id 999
 
 # Test 5: Placeholder validation
-/fractary-faber:run "test-target" --workflow test-undefined-placeholder --work-id 999
+/fractary-faber-run "test-target" --workflow test-undefined-placeholder --work-id 999
 
 # Test 6: Stop on failure
-/fractary-faber:run "test-target" --workflow test-stop-on-failure --work-id 999
+/fractary-faber-run "test-target" --workflow test-stop-on-failure --work-id 999
 
 # Test 7: Resume
-/fractary-faber:run "test-target" --resume {run_id}
+/fractary-faber-run "test-target" --resume {run_id}
 ```
 
 ### Automated Testing (Future)

@@ -21,13 +21,13 @@ Make the one-workflow-per-worktree limitation transparent to users by **automati
 **Current User Experience**:
 ```bash
 # Want to work on two issues in parallel
-user$ /fractary-faber:workflow-run --work-id 258
+user$ /fractary-faber-workflow-run --work-id 258
 
 ⚠️  WARNING: Another workflow is active in this worktree
 Recommendation: Use separate worktrees for concurrent workflows:
   git worktree add ../myproject-issue-259 -b feature/259
   cd ../myproject-issue-259
-  /fractary-faber:workflow-run --work-id 259
+  /fractary-faber-workflow-run --work-id 259
 
 # User must manually:
 # 1. Create worktree
@@ -47,10 +47,10 @@ Recommendation: Use separate worktrees for concurrent workflows:
 **Automated User Experience**:
 ```bash
 # Want to work on two issues in parallel
-user$ /fractary-faber:workflow-run --work-id 258
+user$ /fractary-faber-workflow-run --work-id 258
 # Automatically creates worktree, starts workflow
 
-user$ /fractary-faber:workflow-run --work-id 259
+user$ /fractary-faber-workflow-run --work-id 259
 # Detects conflict, offers to auto-create worktree
 ⚠️  Another workflow (258) is active in this worktree.
 
@@ -118,7 +118,7 @@ Choice [1]: 1
 
 **Automatic** (Transparent):
 ```bash
-/fractary-faber:workflow-run --work-id 259
+/fractary-faber-workflow-run --work-id 259
 # Auto-detects conflict, auto-creates worktree, auto-starts workflow
 ```
 **Pros**: Zero friction, truly transparent
@@ -126,7 +126,7 @@ Choice [1]: 1
 
 **Prompted** (Semi-Automatic):
 ```bash
-/fractary-faber:workflow-run --work-id 259
+/fractary-faber-workflow-run --work-id 259
 # Detects conflict, asks if user wants worktree created
 Would you like to create a new worktree? [Y/n]: y
 ```
@@ -135,7 +135,7 @@ Would you like to create a new worktree? [Y/n]: y
 
 **Explicit Flag** (Manual Trigger):
 ```bash
-/fractary-faber:workflow-run --work-id 259 --worktree
+/fractary-faber-workflow-run --work-id 259 --worktree
 # Creates worktree because user said so
 ```
 **Pros**: Clear, predictable
@@ -222,7 +222,7 @@ Would you like to create a new worktree? [Y/n]: y
 #### Phase 1: Workflow Start (Conflict Detection)
 
 ```bash
-/fractary-faber:workflow-run --work-id 259
+/fractary-faber-workflow-run --work-id 259
 
 → Check .fractary/faber/runs/.active-run-id in current worktree
 → If exists and different: Conflict detected
@@ -292,11 +292,11 @@ Would you like to create a new worktree? [Y/n]: y
 - `/fractary-repo:worktree-prune [--dry-run]`
 
 **Files to create**:
-- `plugins/repo/commands/worktree-create.md`
-- `plugins/repo/commands/worktree-list.md`
-- `plugins/repo/commands/worktree-remove.md`
-- `plugins/repo/commands/worktree-prune.md`
-- `plugins/repo/skills/git-manager/workflow/worktree-*.md`
+- `plugins/repo/commands/fractary-faber-worktree-create.md`
+- `plugins/repo/commands/fractary-faber-worktree-list.md`
+- `plugins/repo/commands/fractary-faber-worktree-remove.md`
+- `plugins/repo/commands/fractary-faber-worktree-prune.md`
+- `plugins/repo/skills/fractary-faber-git-manager/workflow/worktree-*.md`
 
 ### Phase 2: FABER Worktree Integration
 
@@ -309,7 +309,7 @@ Would you like to create a new worktree? [Y/n]: y
 - Add worktree cleanup prompt
 
 **Files to modify**:
-- `plugins/faber/skills/faber-manager/` (workflow-run implementation)
+- `plugins/faber/skills/fractary-faber-faber-manager/` (workflow-run implementation)
 - `plugins/faber/config/workflows/core.json` (Release phase post_steps)
 - `plugins/faber/config/state.schema.json` (Add worktree object)
 
@@ -339,12 +339,12 @@ Would you like to create a new worktree? [Y/n]: y
 
 ```bash
 # Terminal 1: Start first workflow in main worktree
-user$ /fractary-faber:workflow-run --work-id 258
+user$ /fractary-faber-workflow-run --work-id 258
 ✓ Workflow started in current worktree
 ✓ Created: .fractary/.active-run-id (fractary-faber-258-...)
 
 # Terminal 2: Start second workflow (detects conflict)
-user$ /fractary-faber:workflow-run --work-id 259
+user$ /fractary-faber-workflow-run --work-id 259
 
 ⚠️  Another workflow (258) is active in this worktree.
 

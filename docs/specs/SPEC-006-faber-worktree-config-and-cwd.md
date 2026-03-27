@@ -30,7 +30,7 @@ This spec documents the root cause, evidence, and proposed fixes for the upstrea
 ### Location
 
 ```
-plugins/faber/skills/frame/workflow/basic.md
+plugins/faber/skills/fractary-faber-frame/workflow/basic.md
 line 148: "worktree": true
 ```
 
@@ -125,7 +125,7 @@ faber:
 
 **`faber config-init` change**: When generating initial configuration, always write `faber.worktree.enabled: false` with a comment explaining the recommended pattern.
 
-**`plugins/faber/skills/frame/workflow/basic.md` change** (line ~148):
+**`plugins/faber/skills/fractary-faber-frame/workflow/basic.md` change** (line ~148):
 
 ```markdown
 # Read worktree config (default: false)
@@ -150,10 +150,10 @@ only if you want FABER to manage the worktree lifecycle directly.
 **Audit locations**: Search all skill files for `git rev-parse --show-toplevel` and replace with `$PWD`-relative paths. Key files to check:
 
 ```
-plugins/faber/skills/build/*/
-plugins/faber/skills/frame/*/
-plugins/faber/skills/evaluate/*/
-plugins/faber/skills/release/*/
+plugins/faber/skills/fractary-faber-build/*/
+plugins/faber/skills/fractary-faber-frame/*/
+plugins/faber/skills/fractary-faber-evaluate/*/
+plugins/faber/skills/fractary-faber-release/*/
 ```
 
 **Task prompt injection**: When spawning subagent Tasks from inside a worktree (detected when `$PWD != git rev-parse --show-toplevel`), the orchestrator MUST pass the current `$PWD` as an explicit context variable in the Task prompt:
@@ -196,7 +196,7 @@ There are two valid patterns for worktree isolation with FABER:
 
 ```bash
 # Claude Code creates the worktree
-claude --worktree /fractary-faber:workflow-run 60
+claude --worktree /fractary-faber-workflow-run 60
 
 # FABER config: worktree.enabled: false (default)
 # All FABER operations run within $PWD (the Claude Code worktree)
@@ -216,7 +216,7 @@ faber:
 
 ```bash
 # Claude Code does NOT use --worktree
-/fractary-faber:workflow-run 60
+/fractary-faber-workflow-run 60
 ```
 
 **Advantages**: Simpler single command, no CLI flag needed.
@@ -251,4 +251,4 @@ This spec should be filed as a bug report + feature request in the `fractary/fab
 - Issue #60: entity-first admission handler — commit `1f210d1` (re-implemented after root cause analysis)
 - PR #69: squash-merged only research spec (wrong handler deployed — root cause of this spec)
 - `.fractary/config.yaml`: `faber.worktree.enabled: false` (local mitigation)
-- `~/.claude/plugins/marketplaces/fractary-faber/plugins/faber/skills/frame/workflow/basic.md` (upstream file — do not edit locally)
+- `~/.claude/plugins/marketplaces/fractary-faber/plugins/faber/skills/fractary-faber-frame/workflow/basic.md` (upstream file — do not edit locally)

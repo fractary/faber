@@ -12,7 +12,7 @@ This specification defines the **Agent & Tool Definition System** - a universal,
 
 ### 1.1 Goals
 
-1. **Simple**: Users define agents/tools in YAML, not code
+1. **Simple**: Users define agents/fractary-faber-tools in YAML, not code
 2. **Universal**: Same definitions work across SDK, CLI, workflows, and web
 3. **Portable**: Not locked to any specific LLM or platform
 4. **Source-controlled**: Definitions live in `.fractary/` directory alongside code
@@ -23,7 +23,7 @@ This specification defines the **Agent & Tool Definition System** - a universal,
 - **Declarative over imperative**: Describe WHAT, not HOW
 - **YAML-first**: All definitions are YAML files (JSON also supported)
 - **Schema-validated**: Pydantic validates structure (internal implementation)
-- **Project-specific**: Each project defines its own agents/tools
+- **Project-specific**: Each project defines its own agents/fractary-faber-tools
 - **Reusable**: Agents/tools can be referenced in workflows
 
 ---
@@ -62,7 +62,7 @@ my-project/
 Agents are defined in `.fractary/agents/{name}.yaml`:
 
 ```yaml
-# .fractary/agents/example-agent.yaml
+# .fractary/agents/fractary-faber-example-agent.yaml
 
 # ============================================================================
 # Metadata (Required)
@@ -197,7 +197,7 @@ tags:
 Simplest possible agent:
 
 ```yaml
-# .fractary/agents/simple-agent.yaml
+# .fractary/agents/fractary-faber-simple-agent.yaml
 
 name: simple-agent
 description: A simple agent that does one thing well
@@ -219,7 +219,7 @@ tools:
 ### 3.3 Real-World Example: Data Engineer
 
 ```yaml
-# .fractary/agents/corthion-loader-engineer.yaml
+# .fractary/agents/fractary-faber-corthion-loader-engineer.yaml
 
 name: corthion-loader-engineer
 description: Create or update AWS Glue ETL loaders following Data-First Workflow
@@ -842,7 +842,7 @@ fractary agent invoke corthion-loader-engineer "Create loader for claims.medical
 fractary agent test corthion-loader-engineer
 
 # Convert Claude Code agent to .fractary format
-fractary agent convert .claude/agents/old-agent.md new-agent
+fractary agent convert .claude/agents/fractary-faber-old-agent.md new-agent
 ```
 
 ### 7.2 Tool Commands
@@ -864,7 +864,7 @@ fractary tool invoke terraform-deploy --environment=test --target=glue_job
 fractary tool test terraform-deploy
 
 # Convert Claude Code skill to .fractary format
-fractary tool convert .claude/skills/old-skill.md new-tool
+fractary tool convert .claude/skills/fractary-faber-old-skill.md new-tool
 ```
 
 ---
@@ -927,7 +927,7 @@ print(result["status"])
 
 ### 9.1 Converting Agents
 
-**Before** (`.claude/agents/data-engineer.md`):
+**Before** (`.claude/agents/fractary-faber-data-engineer.md`):
 
 ```markdown
 # Data Engineer Agent
@@ -941,7 +941,7 @@ You are a data engineering agent that creates ETL pipelines.
 - Follow best practices
 ```
 
-**After** (`.fractary/agents/data-engineer.yaml`):
+**After** (`.fractary/agents/fractary-faber-data-engineer.yaml`):
 
 ```yaml
 name: data-engineer
@@ -969,12 +969,12 @@ tools:
 **Convert automatically**:
 
 ```bash
-fractary agent convert .claude/agents/data-engineer.md data-engineer
+fractary agent convert .claude/agents/fractary-faber-data-engineer.md data-engineer
 ```
 
 ### 9.2 Converting Skills
 
-**Before** (`.claude/skills/deploy.md`):
+**Before** (`.claude/skills/fractary-faber-deploy.md`):
 
 ```markdown
 # Deploy Infrastructure
@@ -1011,7 +1011,7 @@ implementation:
 **Convert automatically**:
 
 ```bash
-fractary tool convert .claude/skills/deploy.md deploy
+fractary tool convert .claude/skills/fractary-faber-deploy.md deploy
 ```
 
 ---
@@ -1022,10 +1022,10 @@ fractary tool convert .claude/skills/deploy.md deploy
 
 The web dashboard at **app.fractary.com** provides a visual interface for managing agents and tools:
 
-1. **Browse**: View all agents/tools with search and filtering
+1. **Browse**: View all agents/fractary-faber-tools with search and filtering
 2. **Create**: Visual form builder with schema validation
 3. **Edit**: YAML editor with syntax highlighting and autocomplete
-4. **Test**: Test agents/tools directly in the browser
+4. **Test**: Test agents/fractary-faber-tools directly in the browser
 5. **Sync**: Changes sync bidirectionally with your git repository
 
 ### 10.2 Sync Workflow
@@ -1151,7 +1151,7 @@ fractary tool test terraform-deploy --dry-run
 **Tools**: Schema Analyzer, Glue Executor, Data Validator
 
 ```yaml
-# .fractary/agents/etl-engineer.yaml
+# .fractary/agents/fractary-faber-etl-engineer.yaml
 name: etl-engineer
 llm:
   provider: anthropic
@@ -1177,7 +1177,7 @@ caching:
 **Tools**: Terraform Deploy, CloudFormation Deploy, kubectl Apply
 
 ```yaml
-# .fractary/agents/infra-architect.yaml
+# .fractary/agents/fractary-faber-infra-architect.yaml
 name: infra-architect
 llm:
   provider: anthropic
@@ -1198,7 +1198,7 @@ custom_tools:
 **Tools**: Run Tests, Lint Code, Security Scan
 
 ```yaml
-# .fractary/agents/code-reviewer.yaml
+# .fractary/agents/fractary-faber-code-reviewer.yaml
 name: code-reviewer
 llm:
   provider: anthropic
@@ -1228,7 +1228,7 @@ caching:
 **Error**: `Agent not found: my-agent`
 
 **Solutions**:
-- Check file exists: `.fractary/agents/my-agent.yaml`
+- Check file exists: `.fractary/agents/fractary-faber-my-agent.yaml`
 - Verify filename matches agent name
 - Run `fractary agent list` to see discovered agents
 - Check YAML syntax: `fractary agent validate my-agent`

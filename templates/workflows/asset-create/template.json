@@ -4,7 +4,7 @@
   "description": "Workflow for creating {{asset_type}} assets with research-first approach",
   "workflow_type": "asset-create",
   "asset_type": "{{asset_type}}",
-  "extends": "{{#if extends}}{{extends}}{{else}}fractary-faber:core{{/if}}",
+  "extends": "{{#if extends}}{{extends}}{{else}}fractary-faber-core{{/if}}",
   "phases": {
     "frame": {
       "enabled": true,

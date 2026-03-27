@@ -96,7 +96,7 @@ The format observed in the wild:
 Examples:
 - `faber-ingest@fractary-faber-ingest:ingest-operate`
 - `faber-ingest@fractary-faber-ingest:ingest-create`
-- `faber@fractary-faber:core`
+- `faber@fractary-faber-core`
 
 Based on the plugin cache structure at `~/.claude/plugins/cache/`:
 

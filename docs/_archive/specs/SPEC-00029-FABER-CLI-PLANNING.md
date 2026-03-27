@@ -57,7 +57,7 @@ User → faber plan --work-id 258,259,260
 # Execution Phase (Claude Code)
 User → cd ~/.claude-worktrees/fractary-myproject-258
      → claude
-     → /fractary-faber:workflow-run <plan-id>
+     → /fractary-faber-workflow-run <plan-id>
 
        Claude just:
          ├── Load plan
@@ -210,7 +210,7 @@ faber plan --work-id 258,259 OR --work-label "workflow:etl,status:approved"
 
       To execute:
         cd ~/.claude-worktrees/fractary-myproject-258 && claude
-        /fractary-faber:workflow-run myorg-myproject-258-20260106-143022
+        /fractary-faber-workflow-run myorg-myproject-258-20260106-143022
 
 [2/3] Issue #259: Load IPEDS IC dataset
       Workflow: etl
@@ -220,7 +220,7 @@ faber plan --work-id 258,259 OR --work-label "workflow:etl,status:approved"
 
       To execute:
         cd ~/.claude-worktrees/fractary-myproject-259 && claude
-        /fractary-faber:workflow-run myorg-myproject-259-20260106-143025
+        /fractary-faber-workflow-run myorg-myproject-259-20260106-143025
 
 [3/3] Issue #260: Fix authentication timeout
       Workflow: bugfix
@@ -231,7 +231,7 @@ faber plan --work-id 258,259 OR --work-label "workflow:etl,status:approved"
 
 ### Accept work-id OR plan-id
 
-The `/fractary-faber:workflow-run` command now accepts either:
+The `/fractary-faber-workflow-run` command now accepts either:
 - **Work ID** (e.g., `258`) - Fetches plan from GitHub issue
 - **Plan ID** (e.g., `myorg-myproject-258-20260106-143022`) - Direct plan reference
 
@@ -239,10 +239,10 @@ The `/fractary-faber:workflow-run` command now accepts either:
 
 ```bash
 # Simple: use work-id
-/fractary-faber:workflow-run 258
+/fractary-faber-workflow-run 258
 
 # Traditional: use plan-id
-/fractary-faber:workflow-run myorg-myproject-258-20260106-143022
+/fractary-faber-workflow-run myorg-myproject-258-20260106-143022
 ```
 
 Both are supported for backwards compatibility.

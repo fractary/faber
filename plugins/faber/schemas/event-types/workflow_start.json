@@ -77,7 +77,7 @@
         "source_type": "github",
         "issue_title": "FABER Run ID System and Workflow Event Logging",
         "issue_url": "https://github.com/fractary/claude-plugins/issues/220",
-        "triggered_by": "/fractary-faber:run --work-id 220"
+        "triggered_by": "/fractary-faber-run --work-id 220"
       }
     }
   ]

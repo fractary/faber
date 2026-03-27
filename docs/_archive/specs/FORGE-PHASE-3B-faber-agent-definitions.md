@@ -769,7 +769,7 @@ AgentExecutor.executePhaseAgent('frame', task, context)
 AgentAPI.resolveAgent('frame-agent')
     ↓
 Forge Registry Resolution:
-  1. Check .fractary/agents/frame-agent.yaml (local)
+  1. Check .fractary/agents/fractary-faber-frame-agent.yaml (local)
   2. Check ~/.fractary/registry/agents/ (global)
   3. Check Stockyard (remote)
     ↓

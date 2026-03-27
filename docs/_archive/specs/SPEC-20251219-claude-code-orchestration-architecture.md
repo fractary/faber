@@ -442,7 +442,7 @@ for (const phase of ["frame", "architect", "build", "evaluate", "release"]) {
 
   // Spawn phase agent via Task tool
   const result = await Task({
-    subagent_type: `fractary-faber:${phase}`,
+    subagent_type: `fractary-faber-${phase}`,
     description: `Execute ${phase} phase`,
     prompt: `Execute ${phase} for issue #123. Return structured PhaseResult.`
   });

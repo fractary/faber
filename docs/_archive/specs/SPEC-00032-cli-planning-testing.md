@@ -31,16 +31,16 @@ This specification outlines comprehensive testing procedures to validate the CLI
 ### Key Components
 
 **Commands:**
-- `/fractary-faber:plan` - Create workflow plans (uses faber-planner agent)
-- `/fractary-faber:workflow-run` - Execute existing plans (uses faber-manager agent)
+- `/fractary-faber-plan` - Create workflow plans (uses faber-planner agent)
+- `/fractary-faber-workflow-run` - Execute existing plans (uses faber-manager agent)
 
 **Agents:**
 - `faber-planner` - Planning engine (creates plan artifacts)
 - `faber-manager` - Execution orchestrator (follows orchestration protocol)
 
 **Key Files:**
-- `cli/src/commands/plan/index.ts` - CLI plan command implementation
-- `plugins/faber/agents/faber-planner.md` - Planner agent definition
+- `cli/src/commands/fractary-faber-plan/index.ts` - CLI plan command implementation
+- `plugins/faber/agents/fractary-faber-faber-planner.md` - Planner agent definition
 - `plugins/faber/config/schemas/plan.schema.json` - Plan artifact schema
 - `logs/fractary/plugins/faber/plans/*.json` - Generated plans
 
@@ -53,7 +53,7 @@ This specification outlines comprehensive testing procedures to validate the CLI
 **Commands:**
 ```bash
 # In Claude Code
-/fractary-faber:plan --work-id 258
+/fractary-faber-plan --work-id 258
 ```
 
 **Expected Results:**
@@ -88,7 +88,7 @@ jq '.id, .workflow.id, .items[0].work_id' logs/fractary/plugins/faber/plans/{pla
 
 **Commands:**
 ```bash
-/fractary-faber:plan --work-id 258,259,260
+/fractary-faber-plan --work-id 258,259,260
 ```
 
 **Expected Results:**
@@ -116,7 +116,7 @@ done
 
 **Commands:**
 ```bash
-/fractary-faber:plan ipeds/admissions
+/fractary-faber-plan ipeds/admissions
 ```
 
 **Expected Results:**
@@ -140,13 +140,13 @@ jq '.source.planning_mode, .source.target_match' logs/fractary/plugins/faber/pla
 **Setup:**
 First create a plan:
 ```bash
-/fractary-faber:plan --work-id 258
+/fractary-faber-plan --work-id 258
 ```
 
 **Commands:**
 ```bash
 # Execute the plan
-/fractary-faber:workflow-run 258
+/fractary-faber-workflow-run 258
 ```
 
 **Expected Results:**
@@ -174,7 +174,7 @@ ls -la .fractary/runs/*/events/
 
 **Commands:**
 ```bash
-/fractary-faber:plan --work-id 258 --workflow fractary-faber:default
+/fractary-faber-plan --work-id 258 --workflow fractary-faber-default
 ```
 
 **Expected Results:**
@@ -200,12 +200,12 @@ jq '.workflow.phases.architect.steps[] | {id, name, source}' logs/fractary/plugi
 **Steps:**
 1. Start workflow execution:
    ```bash
-   /fractary-faber:workflow-run 258
+   /fractary-faber-workflow-run 258
    ```
 2. Interrupt during Build phase (Ctrl+C)
 3. Resume same workflow:
    ```bash
-   /fractary-faber:workflow-run 258
+   /fractary-faber-workflow-run 258
    ```
 
 **Expected Results:**
@@ -228,7 +228,7 @@ jq '.steps[] | {step_id, status, completed_at}' .fractary/runs/*/state.json
 
 **Commands:**
 ```bash
-/fractary-faber:plan --work-id 258
+/fractary-faber-plan --work-id 258
 # User selects "Review plan details"
 ```
 
@@ -255,13 +255,13 @@ ls .fractary/runs/ | wc -l  # Should be 0 or unchanged
 
 #### Invalid Work ID
 ```bash
-/fractary-faber:plan --work-id 99999
+/fractary-faber-plan --work-id 99999
 ```
 Expected: Error message about issue not found
 
 #### Invalid Workflow
 ```bash
-/fractary-faber:plan --work-id 258 --workflow nonexistent-workflow
+/fractary-faber-plan --work-id 258 --workflow nonexistent-workflow
 ```
 Expected: Error message about unknown workflow
 
@@ -269,7 +269,7 @@ Expected: Error message about unknown workflow
 ```bash
 # Temporarily rename config
 mv .fractary/plugins/faber/config.json .fractary/plugins/faber/config.json.bak
-/fractary-faber:plan --work-id 258
+/fractary-faber-plan --work-id 258
 ```
 Expected: Error about missing configuration
 
@@ -282,7 +282,7 @@ Expected: Error about missing configuration
 **Commands:**
 ```bash
 # Create a plan
-/fractary-faber:plan --work-id 258
+/fractary-faber-plan --work-id 258
 
 # Validate against schema
 npm run validate-plan logs/fractary/plugins/faber/plans/{plan_id}.json
@@ -301,7 +301,7 @@ npm run validate-plan logs/fractary/plugins/faber/plans/{plan_id}.json
 
 **Commands:**
 ```bash
-/fractary-faber:workflow-run 258
+/fractary-faber-workflow-run 258
 ```
 
 **Check Points:**
@@ -328,7 +328,7 @@ jq '.steps[] | {step_id, status, message}' .fractary/runs/*/state.json
 
 1. **Create a plan:**
    ```bash
-   /fractary-faber:plan --work-id 258
+   /fractary-faber-plan --work-id 258
    ```
 
 2. **Review plan file:**
@@ -338,7 +338,7 @@ jq '.steps[] | {step_id, status, message}' .fractary/runs/*/state.json
 
 3. **Execute plan:**
    ```bash
-   /fractary-faber:workflow-run 258
+   /fractary-faber-workflow-run 258
    ```
 
 4. **Check state:**
@@ -437,9 +437,9 @@ Plans are JSON files with the following structure:
   },
 
   "workflow": {
-    "id": "fractary-faber:default",
+    "id": "fractary-faber-default",
     "resolved_at": "2025-12-08T16:00:00Z",
-    "inheritance_chain": ["fractary-faber:default", "fractary-faber:core"],
+    "inheritance_chain": ["fractary-faber-default", "fractary-faber-core"],
     "phases": { /* full resolved workflow */ }
   },
 

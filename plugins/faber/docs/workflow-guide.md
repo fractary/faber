@@ -25,7 +25,7 @@ FABER (Frame → Architect → Build → Evaluate → Release) automates the com
 FABER v2.2 introduces **workflow inheritance**, allowing you to extend existing workflows:
 
 ```
-                 fractary-faber:default
+                 fractary-faber-default
                          |
                     (extends)
                          |
@@ -37,7 +37,7 @@ FABER v2.2 introduces **workflow inheritance**, allowing you to extend existing 
 ```
 
 **Key concepts**:
-- **Default workflow**: `fractary-faber:default` contains all standard FABER steps
+- **Default workflow**: `fractary-faber-default` contains all standard FABER steps
 - **Extends**: Your workflow can extend any other workflow
 - **Pre/post steps**: Add steps before or after inherited steps
 - **Skip steps**: Exclude specific inherited steps
@@ -45,7 +45,7 @@ FABER v2.2 introduces **workflow inheritance**, allowing you to extend existing 
 **Example extending default**:
 ```json
 {
-  "extends": "fractary-faber:default",
+  "extends": "fractary-faber-default",
   "skip_steps": ["merge-pr"],
   "phases": {
     "build": {
@@ -63,7 +63,7 @@ FABER v2.3 introduces **context overlays**, allowing you to inject project-speci
 
 ```json
 {
-  "extends": "fractary-faber:default",
+  "extends": "fractary-faber-default",
   "context": {
     "global": "This is the Acme Widget project. Follow docs/STANDARDS.md.",
     "phases": {
@@ -101,7 +101,7 @@ FABER v2.3 introduces **context overlays**, allowing you to inject project-speci
 ```json
 {
   "id": "acme-feature",
-  "extends": "fractary-faber:default",
+  "extends": "fractary-faber-default",
   "context": {
     "global": "This is the Acme Widget project. Follow patterns in docs/ARCHITECTURE.md.",
     "phases": {
@@ -147,7 +147,7 @@ Each workflow operates on a specific type of **asset** - the thing being created
   "id": "data-pipeline",
   "asset_type": "dataset",
   "description": "Workflow for processing and publishing datasets",
-  "extends": "fractary-faber:core",
+  "extends": "fractary-faber-core",
   "phases": { ... }
 }
 ```
@@ -180,10 +180,10 @@ Pull Request / Production
 
 ```bash
 # Start workflow for an issue
-/fractary-faber:run --work-id 123
+/fractary-faber-run --work-id 123
 
 # Or with explicit target
-/fractary-faber:run customer-analytics --work-id 123
+/fractary-faber-run customer-analytics --work-id 123
 
 # FABER executes:
 1. Frame phase      (1-2 minutes)
@@ -659,7 +659,7 @@ See [STATE-TRACKING.md](STATE-TRACKING.md) for detailed implementation.
 
 1. **Create**: State created at workflow start (Frame phase)
 2. **Update**: Updated after each phase completes
-3. **Query**: Can be queried via `/fractary-faber:status`
+3. **Query**: Can be queried via `/fractary-faber-status`
 4. **Complete**: State preserved, workflow logged to fractary-logs
 5. **New Workflow**: State overwritten for next workflow
 
@@ -668,19 +668,19 @@ See [STATE-TRACKING.md](STATE-TRACKING.md) for detailed implementation.
 **Create State**:
 ```bash
 # Automatically created by workflow-manager
-# Via: skills/core scripts
+# Via: skills/fractary-faber-core scripts
 ```
 
 **Update State**:
 ```bash
 # Automatically updated after each phase
-# Via: skills/core scripts
+# Via: skills/fractary-faber-core scripts
 ```
 
 **Query State**:
 ```bash
 # View status
-/fractary-faber:status
+/fractary-faber-status
 
 # Raw state file
 cat .fractary/faber/state.json
@@ -759,7 +759,7 @@ Implementation complete and tested. Ready to create pull request.
 
 To approve:
 ```bash
-/fractary-faber:approve abc12345
+/fractary-faber-approve abc12345
 ```
 ```
 
@@ -811,7 +811,7 @@ To approve:
 **Manual Recovery**:
 ```bash
 # Check what failed
-/fractary-faber:status abc12345
+/fractary-faber-status abc12345
 
 # View state details
 cat .fractary/faber/state.json | jq .
@@ -819,7 +819,7 @@ cat .fractary/faber/state.json | jq .
 # Fix issues manually
 
 # Retry workflow (future)
-/fractary-faber:retry abc12345
+/fractary-faber-retry abc12345
 ```
 
 ### Error Messages
@@ -838,11 +838,11 @@ Failed Tests:
   - test/api.test.ts: API endpoint authentication
 
 To investigate:
-  /fractary-faber:status abc12345
+  /fractary-faber-status abc12345
 
 To retry manually:
   1. Fix failing tests
-  2. Run: /fractary-faber:retry abc12345
+  2. Run: /fractary-faber-retry abc12345
 ```
 
 ## Examples
@@ -851,7 +851,7 @@ To retry manually:
 
 ```bash
 # Start workflow for issue #123
-/fractary-faber:run --work-id 123
+/fractary-faber-run --work-id 123
 
 # Output:
 🚀 Starting FABER workflow...
@@ -910,17 +910,17 @@ Creating pull request...
 ✅ PR created: https://github.com/acme/app/pull/45
 ⏸️ Waiting for release approval (guarded mode)
 
-Post '/fractary-faber:approve abc12345' to proceed
+Post '/fractary-faber-approve abc12345' to proceed
 
 # Later, after review:
-/fractary-faber:approve abc12345  # (future command)
+/fractary-faber-approve abc12345  # (future command)
 # Or manually merge PR via GitHub UI
 ```
 
 ### Example 2: Workflow with Retries
 
 ```bash
-/fractary-faber:run --work-id 456
+/fractary-faber-run --work-id 456
 
 # ... Frame, Architect, Build complete ...
 
@@ -954,7 +954,7 @@ Decision: GO
 ### Example 3: Autonomous Workflow
 
 ```bash
-/fractary-faber:run --work-id 789 --autonomy autonomous --auto-merge
+/fractary-faber-run --work-id 789 --autonomy autonomous --auto-merge
 
 # Executes all phases without pausing
 # Automatically merges PR at the end

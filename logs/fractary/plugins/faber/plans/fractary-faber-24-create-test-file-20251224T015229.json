@@ -21,11 +21,11 @@
     "expanded_from": null
   },
   "workflow": {
-    "id": "fractary-faber:default",
+    "id": "fractary-faber-default",
     "resolved_at": "2025-12-24T01:52:29Z",
     "inheritance_chain": [
-      "fractary-faber:default",
-      "fractary-faber:core"
+      "fractary-faber-default",
+      "fractary-faber-core"
     ],
     "phases": {
       "frame": {
@@ -36,7 +36,7 @@
             "name": "Fetch or Create Issue",
             "description": "Fetch existing issue or create new one. Reads referenced docs and existing commits.",
             "prompt": "/fractary-work:issue-fetch --work-id {work_id}",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "pre_step"
           },
           {
@@ -44,7 +44,7 @@
             "name": "Switch or Create Branch",
             "description": "Checkout existing branch or create new one linked to issue",
             "prompt": "/fractary-repo:branch-create --work-id {work_id}",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "pre_step"
           }
         ]
@@ -57,7 +57,7 @@
             "name": "Generate Specification",
             "description": "Create technical specification from issue context",
             "prompt": "/fractary-spec:create --work-id {work_id}",
-            "source": "fractary-faber:default",
+            "source": "fractary-faber-default",
             "position": "step"
           },
           {
@@ -65,7 +65,7 @@
             "name": "Refine Specification",
             "description": "Critically review spec and gather clarifications from user",
             "prompt": "/fractary-spec:refine --work-id {work_id}",
-            "source": "fractary-faber:default",
+            "source": "fractary-faber-default",
             "position": "step"
           }
         ]
@@ -77,8 +77,8 @@
             "id": "implement",
             "name": "Implement Solution",
             "description": "Implement based on specification following project patterns",
-            "prompt": "/fractary-faber:build --work-id {work_id}",
-            "source": "fractary-faber:default",
+            "prompt": "/fractary-faber-build --work-id {work_id}",
+            "source": "fractary-faber-default",
             "position": "step"
           },
           {
@@ -86,7 +86,7 @@
             "name": "Commit and Push Changes",
             "description": "Ensure all build changes are committed and pushed",
             "prompt": "/fractary-repo:commit-and-push --work-id {work_id}",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ]
@@ -98,8 +98,8 @@
             "id": "core-issue-review",
             "name": "Review Issue Implementation",
             "description": "Verify implementation completeness against issue requirements",
-            "prompt": "/fractary-faber:review --work-id {work_id}",
-            "source": "fractary-faber:core",
+            "prompt": "/fractary-faber-review --work-id {work_id}",
+            "source": "fractary-faber-core",
             "position": "pre_step"
           },
           {
@@ -107,7 +107,7 @@
             "name": "Commit and Push Fixes",
             "description": "Ensure evaluation fixes are committed",
             "prompt": "/fractary-repo:commit-and-push --work-id {work_id}",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           },
           {
@@ -115,7 +115,7 @@
             "name": "Create Pull Request",
             "description": "Create PR for the implementation (skips if PR already exists). Links to issue for auto-close on merge.",
             "prompt": "/fractary-repo:pr-create --work-id {work_id}",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           },
           {
@@ -123,7 +123,7 @@
             "name": "Review PR CI Checks",
             "description": "Wait for and review CI/CD pipeline results",
             "prompt": "/fractary-repo:pr-review --wait-for-ci",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ],
@@ -137,7 +137,7 @@
             "name": "Merge Pull Request",
             "description": "Merge the PR and delete branch",
             "prompt": "/fractary-repo:pr-merge --delete-branch",
-            "source": "fractary-faber:core",
+            "source": "fractary-faber-core",
             "position": "post_step"
           }
         ]

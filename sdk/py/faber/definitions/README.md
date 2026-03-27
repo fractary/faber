@@ -74,13 +74,13 @@ result = await tool_api.invoke_tool(
 ```
 
 ### 6. **converters.py** - Migration Utilities
-Convert Claude Code agents/skills to YAML format.
+Convert Claude Code agents/fractary-faber-skills to YAML format.
 
 ```python
 from faber.definitions.converters import convert_claude_agent
 
 agent_def = convert_claude_agent(
-    Path(".claude/agents/my-agent.md"),
+    Path(".claude/agents/fractary-faber-my-agent.md"),
     "my-agent"
 )
 ```
@@ -89,7 +89,7 @@ agent_def = convert_claude_agent(
 
 ### Define an Agent
 
-Create `.fractary/agents/data-engineer.yaml`:
+Create `.fractary/agents/fractary-faber-data-engineer.yaml`:
 
 ```yaml
 name: data-engineer
@@ -240,7 +240,7 @@ Integration with fractary-codex plugin is needed (tracked in follow-up issue). O
 2. Import `fractary_codex` Python module if available
 3. Use codex MCP server if configured
 
-See `python/faber/agents/cached_context.py:109-150` for the placeholder implementation and TODO comments.
+See `python/faber/agents/fractary-faber-cached_context.py:109-150` for the placeholder implementation and TODO comments.
 ```
 
 ### Tool Sandboxing

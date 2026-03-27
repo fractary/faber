@@ -81,7 +81,7 @@ This spec describes a change to the **fractary/faber** project (workflow definit
 
 ## Implementation
 
-Implemented via orchestration-layer enforcement in `plugins/faber/commands/workflow-run.md` and `plugins/faber/docs/workflow-orchestration-protocol.md`:
+Implemented via orchestration-layer enforcement in `plugins/faber/commands/fractary-faber-workflow-run.md` and `plugins/faber/docs/workflow-orchestration-protocol.md`:
 
 - **`SKILL_BYPASS_ANTI_PATTERN` block** added to `workflow-run.md` — explicitly prohibits raw `gh pr merge` in place of `/fractary-repo:pr-review`, names the failure mode, and makes the Skill tool invocation requirement non-negotiable
 - **Anti-pattern blockquote** added to `workflow-orchestration-protocol.md` under the slash command section — closes the sub-agent rule bleed path and prohibits Bash substitution for `/` prompts

@@ -444,5 +444,5 @@ Use this checklist before completing implementation:
 
 See these engineer agents for reference:
 
-- `plugins/faber/agents/workflow-engineer.md` - Creates workflows
-- `plugins/faber/skills/build/SKILL.md` - FABER build phase
+- `plugins/faber/agents/fractary-faber-workflow-engineer.md` - Creates workflows
+- `plugins/faber/skills/fractary-faber-build/SKILL.md` - FABER build phase

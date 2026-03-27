@@ -222,7 +222,7 @@ async function selectWorkflow(
   }
 
   // Tier 4: Default fallback
-  const defaultWorkflow = config.default_workflow || 'fractary-faber:default';
+  const defaultWorkflow = config.default_workflow || 'fractary-faber-default';
   logger.debug(`Using default workflow: ${defaultWorkflow}`);
   return defaultWorkflow;
 }
@@ -233,7 +233,7 @@ async function selectWorkflow(
 ```json
 {
   "schema_version": "2.0",
-  "default_workflow": "fractary-faber:default",
+  "default_workflow": "fractary-faber-default",
 
   "workflows": [
     {
@@ -296,12 +296,12 @@ async function selectWorkflow(
 3. `specs/SPEC-20260108-label-based-specialized-workflows.md` - This specification
 
 **Modified Files:**
-1. `plugins/faber/agents/faber-planner.md` - Add workflow selection documentation
+1. `plugins/faber/agents/fractary-faber-faber-planner.md` - Add workflow selection documentation
 2. `sdk/js/src/workflow/config.ts` (or create if needed) - Implement selection function
 3. `plugins/faber/config/config.schema.json` - Add new config options
 4. `plugins/faber/config/faber.example.json` - Update example configuration
 5. `plugins/faber/config/workflows/README.md` - Document workflow selection
-6. `cli/src/commands/plan/index.ts` - Integrate workflow selection
+6. `cli/src/commands/fractary-faber-plan/index.ts` - Integrate workflow selection
 
 #### Code Integration Points
 
@@ -578,7 +578,7 @@ describe('Workflow Selection', () => {
       labels: []
     };
     const workflow = await selectWorkflow(issue, config);
-    expect(workflow).toBe('fractary-faber:default');
+    expect(workflow).toBe('fractary-faber-default');
   });
 });
 ```
@@ -599,7 +599,7 @@ npm test -- --testNamePattern="workflow selection"
 
 **Scenario 1: Bug with explicit label**
 - Create issue with `bug` label
-- Run `/fractary-faber:plan --work-id <id>`
+- Run `/fractary-faber-plan --work-id <id>`
 - Verify: Bug workflow selected, bug-specific steps present
 
 **Scenario 2: Feature from WorkType classification**

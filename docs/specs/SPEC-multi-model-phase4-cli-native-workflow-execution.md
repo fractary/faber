@@ -39,7 +39,7 @@ Deterministic workflow executor that iterates through phases and steps, dispatch
 
 Exported types: `WorkflowExecuteOptions`, `WorkflowExecuteResult`, `PhaseExecuteResult`, `StepExecuteResult`
 
-### 4b. CLI Command (`cli/src/commands/workflow/index.ts`)
+### 4b. CLI Command (`cli/src/commands/fractary-faber-workflow/index.ts`)
 
 New `faber workflow-execute <plan.json>` command:
 
@@ -79,5 +79,5 @@ Features:
 |------|--------|
 | `sdk/js/src/executors/workflow-executor.ts` | Created |
 | `sdk/js/src/executors/index.ts` | Modified (export WorkflowExecutor and types) |
-| `cli/src/commands/workflow/index.ts` | Modified (added createWorkflowExecuteCommand) |
+| `cli/src/commands/fractary-faber-workflow/index.ts` | Modified (added createWorkflowExecuteCommand) |
 | `cli/src/index.ts` | Modified (registered workflow-execute command) |

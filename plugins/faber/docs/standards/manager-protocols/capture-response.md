@@ -274,7 +274,7 @@ FUNCTION handleRetry(step, previous_result, context):
   context.current_attempt = (context.current_attempt ?? 1) + 1
 
   # Log retry event
-  Bash: plugins/faber/skills/run-manager/scripts/emit-event.sh \
+  Bash: plugins/faber/skills/fractary-faber-run-manager/scripts/emit-event.sh \
     --run-id "{context.run_id}" \
     --type "step_retry" \
     --phase "{context.current_phase}" \

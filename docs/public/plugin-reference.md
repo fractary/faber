@@ -12,14 +12,14 @@ Reference for the FABER Claude Code plugin (`fractary-faber`). This covers slash
 
 ## Plugin Commands
 
-Commands are invoked in Claude Code with `/fractary-faber:<command>`.
+Commands are invoked in Claude Code with `/fractary-faber-<command>`.
 
-### /fractary-faber:workflow-run
+### /fractary-faber-workflow-run
 
 Execute a FABER workflow. The primary command that runs through all 5 phases (Frame, Architect, Build, Evaluate, Release).
 
 ```
-/fractary-faber:workflow-run <work-id|plan-id> [options]
+/fractary-faber-workflow-run <work-id|plan-id> [options]
 ```
 
 | Argument / Option | Description |
@@ -35,17 +35,17 @@ Execute a FABER workflow. The primary command that runs through all 5 phases (Fr
 
 **Example:**
 ```
-/fractary-faber:workflow-run 123
-/fractary-faber:workflow-run 123 --resume run-abc123
-/fractary-faber:workflow-run 123 --phase build,evaluate
+/fractary-faber-workflow-run 123
+/fractary-faber-workflow-run 123 --resume run-abc123
+/fractary-faber-workflow-run 123 --phase build,evaluate
 ```
 
-### /fractary-faber:workflow-plan
+### /fractary-faber-workflow-plan
 
 Create a FABER execution plan without executing it.
 
 ```
-/fractary-faber:workflow-plan [<target>] [options]
+/fractary-faber-workflow-plan [<target>] [options]
 ```
 
 | Argument / Option | Description |
@@ -58,12 +58,12 @@ Create a FABER execution plan without executing it.
 
 **Delegates to:** `workflow-planner` agent
 
-### /fractary-faber:run-inspect
+### /fractary-faber-run-inspect
 
 Display workflow run status combining current state with historical logs.
 
 ```
-/fractary-faber:run-inspect [work-id|run-id] [options]
+/fractary-faber-run-inspect [work-id|run-id] [options]
 ```
 
 | Argument / Option | Description |
@@ -77,12 +77,12 @@ Display workflow run status combining current state with historical logs.
 
 **Delegates to:** `run-inspect` agent
 
-### /fractary-faber:config-init
+### /fractary-faber-config-init
 
 Initialize FABER configuration. Auto-detects project settings and creates the `faber:` section in `.fractary/config.yaml`.
 
 ```
-/fractary-faber:config-init [options]
+/fractary-faber-config-init [options]
 ```
 
 | Option | Description |
@@ -93,32 +93,32 @@ Initialize FABER configuration. Auto-detects project settings and creates the `f
 
 **Delegates to:** `config-initializer` agent
 
-### /fractary-faber:config-update
+### /fractary-faber-config-update
 
 Update existing FABER configuration based on natural language or explicit changes.
 
 ```
-/fractary-faber:config-update [description]
+/fractary-faber-config-update [description]
 ```
 
 **Delegates to:** `config-updater` agent
 
-### /fractary-faber:config-validate
+### /fractary-faber-config-validate
 
 Validate FABER configuration and report issues.
 
 ```
-/fractary-faber:config-validate
+/fractary-faber-config-validate
 ```
 
 **Delegates to:** `config-validator` agent
 
-### /fractary-faber:workflow-create
+### /fractary-faber-workflow-create
 
 Create a new FABER workflow definition by researching project structure.
 
 ```
-/fractary-faber:workflow-create [<workflow-name>] [options]
+/fractary-faber-workflow-create [<workflow-name>] [options]
 ```
 
 | Argument / Option | Description |
@@ -131,12 +131,12 @@ Create a new FABER workflow definition by researching project structure.
 
 **Delegates to:** `workflow-engineer` agent
 
-### /fractary-faber:workflow-update
+### /fractary-faber-workflow-update
 
 Update an existing FABER workflow definition.
 
 ```
-/fractary-faber:workflow-update <workflow-name> [options]
+/fractary-faber-workflow-update <workflow-name> [options]
 ```
 
 | Argument / Option | Description |
@@ -149,12 +149,12 @@ Update an existing FABER workflow definition.
 
 **Delegates to:** `workflow-engineer` agent
 
-### /fractary-faber:workflow-inspect
+### /fractary-faber-workflow-inspect
 
 Validate FABER workflow configuration with completeness scoring.
 
 ```
-/fractary-faber:workflow-inspect [<workflow-name-or-path>] [options]
+/fractary-faber-workflow-inspect [<workflow-name-or-path>] [options]
 ```
 
 | Argument / Option | Description |
@@ -167,12 +167,12 @@ Validate FABER workflow configuration with completeness scoring.
 
 **Delegates to:** `workflow-inspector` agent
 
-### /fractary-faber:workflow-debug
+### /fractary-faber-workflow-debug
 
 Diagnose workflow issues and propose solutions using a knowledge base.
 
 ```
-/fractary-faber:workflow-debug [options]
+/fractary-faber-workflow-debug [options]
 ```
 
 | Option | Description |
@@ -187,12 +187,12 @@ Diagnose workflow issues and propose solutions using a knowledge base.
 
 **Delegates to:** `workflow-debugger` agent
 
-### /fractary-faber:session-load
+### /fractary-faber-session-load
 
 Reload critical artifacts for the active workflow session.
 
 ```
-/fractary-faber:session-load [options]
+/fractary-faber-session-load [options]
 ```
 
 | Option | Description |
@@ -206,12 +206,12 @@ Reload critical artifacts for the active workflow session.
 
 **Delegates to:** `session-manager` agent
 
-### /fractary-faber:session-save
+### /fractary-faber-session-save
 
 Save session metadata before a session ends.
 
 ```
-/fractary-faber:session-save [options]
+/fractary-faber-session-save [options]
 ```
 
 | Option | Description |
@@ -321,7 +321,7 @@ FABER provides reusable agent templates for creating custom agents. Templates ar
 |----------|-------------|-------------|
 | **project-auditor** | Evaluate | Aggregates across multiple entities for project-wide dashboards |
 
-Templates can be used as starting points when creating custom workflows with `/fractary-faber:workflow-create --template <type>`.
+Templates can be used as starting points when creating custom workflows with `/fractary-faber-workflow-create --template <type>`.
 
 ---
 

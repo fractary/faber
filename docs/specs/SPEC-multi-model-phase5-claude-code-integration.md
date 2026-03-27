@@ -38,7 +38,7 @@ Behavior:
 - Writes JSON `ExecutorResult` to stdout for Claude to parse
 - On error, writes a failure `ExecutorResult` and exits with code 1
 
-### 5b. Workflow-run Protocol Update (`plugins/faber/commands/workflow-run.md`)
+### 5b. Workflow-run Protocol Update (`plugins/faber/commands/fractary-faber-workflow-run.md`)
 
 Added external executor routing to step 2.4 of the execution loop:
 
@@ -69,4 +69,4 @@ This ensures:
 |------|--------|
 | `sdk/js/src/executors/cli-entry.ts` | Created |
 | `sdk/js/src/executors/index.ts` | Modified (export executeStepCli) |
-| `plugins/faber/commands/workflow-run.md` | Modified (added external executor protocol in step 2.4) |
+| `plugins/faber/commands/fractary-faber-workflow-run.md` | Modified (added external executor protocol in step 2.4) |

@@ -35,7 +35,7 @@ Issue labeled 'faber:run'
         ↓
 GitHub Actions workflow triggers
         ↓
-/fractary-faber:run --work-id {issue_number}
+/fractary-faber-run --work-id {issue_number}
         ↓
 FABER executes workflow phases
         ↓
@@ -112,7 +112,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            /fractary-faber:run --work-id ${{ steps.issue.outputs.number }} ${{ github.event.inputs.target && format('"{0}"', github.event.inputs.target) || '' }} ${{ github.event.inputs.phases && format('--phase {0}', github.event.inputs.phases) || '' }}
+            /fractary-faber-run --work-id ${{ steps.issue.outputs.number }} ${{ github.event.inputs.target && format('"{0}"', github.event.inputs.target) || '' }} ${{ github.event.inputs.phases && format('--phase {0}', github.event.inputs.phases) || '' }}
 
       - name: Remove trigger label
         if: always()
@@ -160,7 +160,7 @@ faber:
 **Quick setup:**
 ```bash
 # Initialize FABER configuration
-/fractary-faber:configure
+/fractary-faber-configure
 
 # Commit configuration
 git add .fractary/config.yaml
@@ -394,7 +394,7 @@ permissions:
 
 **Solution:**
 ```bash
-/fractary-faber:configure
+/fractary-faber-configure
 git add .fractary/config.yaml
 git commit -m "Add FABER configuration"
 git push
@@ -454,7 +454,7 @@ Run specific phases:
 
 ```bash
 # Via manual dispatch
-/fractary-faber:run --work-id 123 --phase frame,architect
+/fractary-faber-run --work-id 123 --phase frame,architect
 
 # Via label
 faber:phase=build,evaluate
@@ -466,7 +466,7 @@ Run a single step:
 
 ```bash
 # Via command
-/fractary-faber:run --work-id 123 --step build:implement
+/fractary-faber-run --work-id 123 --step build:implement
 
 # Via label
 faber:step=evaluate:test
@@ -477,7 +477,7 @@ faber:step=evaluate:test
 Add instructions via `--prompt`:
 
 ```bash
-/fractary-faber:run --work-id 123 --prompt "Focus on performance. Use caching."
+/fractary-faber-run --work-id 123 --prompt "Focus on performance. Use caching."
 ```
 
 ---
@@ -486,8 +486,8 @@ Add instructions via `--prompt`:
 
 If upgrading from v1.x with `@faber` mention support:
 
-1. **Remove** `.github/workflows/faber.yml` that uses `/fractary-faber:mention`
-2. **Create** new workflow using `/fractary-faber:run` (see Quick Start)
+1. **Remove** `.github/workflows/faber.yml` that uses `/fractary-faber-mention`
+2. **Create** new workflow using `/fractary-faber-run` (see Quick Start)
 3. **Update** config from TOML to JSON
 4. **Use labels** instead of mentions to trigger workflows
 

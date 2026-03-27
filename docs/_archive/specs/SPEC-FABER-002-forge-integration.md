@@ -539,7 +539,7 @@ forge install release-agent@latest
 **Before (Python agent in FABER):**
 
 ```python
-# faber/python/faber/agents/frame.py
+# faber/python/faber/agents/fractary-faber-frame.py
 class FrameAgent(BaseAgent):
     def __init__(self):
         super().__init__(
@@ -559,7 +559,7 @@ class FrameAgent(BaseAgent):
 **After (YAML definition in Forge):**
 
 ```yaml
-# ~/.fractary/registry/agents/frame-agent@2.0.0.yaml
+# ~/.fractary/registry/agents/fractary-faber-frame-agent@2.0.0.yaml
 name: frame-agent
 type: agent
 description: FABER Frame phase - gathers requirements and classifies work

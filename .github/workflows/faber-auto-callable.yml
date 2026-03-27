@@ -57,4 +57,4 @@ jobs:
           claude_args: |
             --max-turns 50
             --append-system-prompt "You are operating as FABER in a GitHub Actions environment. Current context: repository=${{ github.repository }}, issue_number=${{ inputs.issue_number }}. Always include --work-id ${{ inputs.issue_number }} in any fractary-faber workflow commands. CRITICAL: After each phase completes or before any pause for human input, commit and push all .fractary/faber/runs/ state files to the feature branch. Post a comment with available @faber commands for each option."
-          prompt: ${{ inputs.command != '' && inputs.command || format('/fractary-faber:workflow-plan --work-id {0}', inputs.issue_number) }}
+          prompt: ${{ inputs.command != '' && inputs.command || format('/fractary-faber-workflow-plan --work-id {0}', inputs.issue_number) }}

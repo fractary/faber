@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Renamed**: `run-status` command and agent renamed to `run-inspect`
   - Aligns with `workflow-inspect` and `agent-inspect` naming pattern (noun-verb alignment)
-  - Plugin command: `/fractary-faber:run-status` → `/fractary-faber:run-inspect`
+  - Plugin command: `/fractary-faber-run-status` → `/fractary-faber-run-inspect`
   - CLI command: `fractary-faber run-status` → `fractary-faber run-inspect`
   - Agent: `run-status` → `run-inspect`
   - `workflow-status`, `status`, and `run-status` CLI commands now show deprecation warning pointing to `run-inspect`
@@ -296,7 +296,7 @@ This release includes version updates across the FABER ecosystem:
 
 ### Fixed
 
-- **Plan Command GitHub App Support**: Fixed async initialization error in `plan` command when using GitHub App authentication. Changed `new RepoClient(config)` to `await RepoClient.create(config)` in cli/src/commands/plan/index.ts:94
+- **Plan Command GitHub App Support**: Fixed async initialization error in `plan` command when using GitHub App authentication. Changed `new RepoClient(config)` to `await RepoClient.create(config)` in cli/src/commands/fractary-faber-plan/index.ts:94
 
 ## [1.3.4] - 2026-01-08
 

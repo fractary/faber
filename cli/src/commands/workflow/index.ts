@@ -790,7 +790,7 @@ async function executeBatchPlanCommand(options: {
     console.log(chalk.white(`  fractary-faber workflow-batch-run --batch ${batchId} --autonomous`));
     console.log('');
     console.log(chalk.cyan('Or in Claude Code:'));
-    console.log(chalk.white(`  /fractary-faber:workflow-batch-run --batch ${batchId} --autonomous`));
+    console.log(chalk.white(`  /fractary-faber-workflow-batch-run --batch ${batchId} --autonomous`));
   }
 }
 

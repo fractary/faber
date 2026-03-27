@@ -7,10 +7,10 @@
 
 ## Problem Statement
 
-When using `/fractary-faber:workflow-plan` to create execution plans with workflows that extend `fractary-faber:core`, the workflow inheritance chain is recognized but parent workflow steps are NOT included in the generated plan. Only the child workflow steps appear in the final plan.
+When using `/fractary-faber-workflow-plan` to create execution plans with workflows that extend `fractary-faber-core`, the workflow inheritance chain is recognized but parent workflow steps are NOT included in the generated plan. Only the child workflow steps appear in the final plan.
 
 ### Expected Behavior
-When a workflow extends `fractary-faber:core`, the generated plan should include:
+When a workflow extends `fractary-faber-core`, the generated plan should include:
 - Pre-steps from parent workflows (executed before child steps)
 - Main steps from child workflow
 - Post-steps from parent workflows (executed after child steps)
@@ -18,17 +18,17 @@ When a workflow extends `fractary-faber:core`, the generated plan should include
 ### Actual Behavior
 Plans show the correct `inheritance_chain` metadata:
 ```json
-"inheritance_chain": ["dataset-maintain", "fractary-faber:core"]
+"inheritance_chain": ["dataset-maintain", "fractary-faber-core"]
 ```
 
 But the merged workflow phases contain ONLY steps from the child workflow. All parent workflow steps are missing.
 
 ### Example
-For a workflow extending `fractary-faber:core`, the expected Frame phase should include:
+For a workflow extending `fractary-faber-core`, the expected Frame phase should include:
 ```json
 "frame": {
   "steps": [
-    // From parent (fractary-faber:core) - MISSING
+    // From parent (fractary-faber-core) - MISSING
     {"id": "core-fetch-or-create-issue", ...},
     {"id": "core-switch-or-create-branch", ...},
     // From child (dataset-maintain) - PRESENT
@@ -79,7 +79,7 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/fractary}"
 
 ### Impact Chain
 
-1. **Namespace Resolution**: When resolving `fractary-faber:core`, the namespace is `fractary-faber`
+1. **Namespace Resolution**: When resolving `fractary-faber-core`, the namespace is `fractary-faber`
 2. **Path Construction**: Script builds path as `${PLUGIN_ROOT}/plugins/faber/config/workflows/core.json`
 3. **Actual Path Used**: `~/.claude/plugins/marketplaces/fractary/plugins/faber/config/workflows/core.json`
 4. **Problem**: This loads the OLD workflow definition from the old marketplace
@@ -111,7 +111,7 @@ Update workflow resolution to be namespace-aware, mapping each namespace to its 
 
 #### File 1: merge-workflows.sh
 
-**Location:** `plugins/faber/skills/faber-config/scripts/merge-workflows.sh`
+**Location:** `plugins/faber/skills/fractary-faber-faber-config/scripts/merge-workflows.sh`
 
 **Change 1 - Update default path (line ~23):**
 ```bash
@@ -168,7 +168,7 @@ resolve_workflow_path() {
 
 #### File 2: faber-planner.md
 
-**Location:** `plugins/faber/agents/faber-planner.md`
+**Location:** `plugins/faber/agents/fractary-faber-faber-planner.md`
 
 **Change - Update Step 3 instructions:**
 ```markdown
@@ -182,7 +182,7 @@ resolve_workflow_path() {
 MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}"
 
 # Execute the merge-workflows.sh script
-"${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/skills/faber-config/scripts/merge-workflows.sh" \
+"${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/skills/fractary-faber-faber-config/scripts/merge-workflows.sh" \
   "{workflow_id}" \
   --marketplace-root "${MARKETPLACE_ROOT}" \
   --project-root "$(pwd)"
@@ -191,8 +191,8 @@ MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}
 **Example with default workflow:**
 ```bash
 MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}"
-"${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/skills/faber-config/scripts/merge-workflows.sh" \
-  "fractary-faber:default" \
+"${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/skills/fractary-faber-faber-config/scripts/merge-workflows.sh" \
+  "fractary-faber-default" \
   --marketplace-root "${MARKETPLACE_ROOT}" \
   --project-root "$(pwd)"
 ```
@@ -224,7 +224,7 @@ MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}
 ls ~/.claude/plugins/marketplaces/fractary-faber/
 
 # Execute: Create plan with extending workflow
-/fractary-faber:workflow-plan --work-id 96
+/fractary-faber-workflow-plan --work-id 96
 
 # Verify: Check plan contains inherited steps
 cat logs/fractary/plugins/faber/plans/{plan-id}.json | jq '.workflow.phases.frame.steps[] | .id'
@@ -237,7 +237,7 @@ cat logs/fractary/plugins/faber/plans/{plan-id}.json | jq '.workflow.phases.fram
 mv ~/.claude/plugins/marketplaces/fractary-faber ~/.claude/plugins/marketplaces/fractary-faber.bak
 
 # Execute: Create plan (should fall back to old marketplace)
-/fractary-faber:workflow-plan --work-id 96
+/fractary-faber-workflow-plan --work-id 96
 
 # Verify: Should still work (with old format steps)
 # Cleanup:
@@ -291,9 +291,9 @@ Users don't need to take action, but can optimize by:
 
 ## Success Criteria
 
-1. Workflows extending `fractary-faber:core` include all parent workflow steps in generated plans
+1. Workflows extending `fractary-faber-core` include all parent workflow steps in generated plans
 2. All inherited steps use the NEW prompt-based format (not old command+arguments format)
-3. Plans show correct source metadata for each step (`"source": "fractary-faber:core"`)
+3. Plans show correct source metadata for each step (`"source": "fractary-faber-core"`)
 4. Backward compatibility maintained for old marketplace structure
 5. All existing tests pass
 6. New tests added for namespace resolution
@@ -305,8 +305,8 @@ Users don't need to take action, but can optimize by:
 **Affects:** All projects using fractary-faber workflows with inheritance
 
 **Key Files:**
-- `~/.claude/plugins/marketplaces/fractary-faber/plugins/faber/skills/faber-config/scripts/merge-workflows.sh`
-- `~/.claude/plugins/marketplaces/fractary-faber/plugins/faber/agents/faber-planner.md`
+- `~/.claude/plugins/marketplaces/fractary-faber/plugins/faber/skills/fractary-faber-faber-config/scripts/merge-workflows.sh`
+- `~/.claude/plugins/marketplaces/fractary-faber/plugins/faber/agents/fractary-faber-faber-planner.md`
 - `~/.claude/plugins/marketplaces/fractary-faber/plugins/faber/config/workflows/core.json` (NEW format)
 - `~/.claude/plugins/marketplaces/fractary/plugins/faber/config/workflows/core.json` (OLD format)
 

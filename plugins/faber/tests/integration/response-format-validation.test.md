@@ -36,7 +36,7 @@ This document defines integration test scenarios for validating FABER skill resp
 **Verification**:
 ```bash
 # Validate response against schema
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"success","message":"Test successful","details":{}}'
 
 # Expected: "✓ Response is valid"
@@ -65,7 +65,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh \
 **Verification**:
 ```bash
 # Validate response against schema
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"failure","message":"Test failed"}'
 
 # Expected: "✗ Schema validation failed"
@@ -96,7 +96,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh \
 **Verification**:
 ```bash
 # Validate response against schema
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"warning","message":"Test warning","details":{}}'
 
 # Expected: "✗ Schema validation failed"
@@ -126,7 +126,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh \
 **Verification**:
 ```bash
 # Validate response against schema
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"unknown","message":"Invalid","errors":[]}'
 
 # Expected: "✗ Schema validation failed"
@@ -170,7 +170,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh \
 **Verification**:
 ```bash
 # Validate response
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"failure","message":"Auth failed","details":{},"errors":["Invalid token"],"error_analysis":"Token expired","suggested_fixes":["Refresh token"]}'
 
 # Expected: "✓ Response is valid"
@@ -213,7 +213,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh \
 **Verification**:
 ```bash
 # Validate response
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"warning","message":"Build completed","details":{},"warnings":["Deprecated API"],"warning_analysis":"Update needed","suggested_fixes":["Fix API calls"]}'
 
 # Expected: "✓ Response is valid"
@@ -317,12 +317,12 @@ EOF
 **Verification**:
 ```bash
 # Run format check script
-plugins/faber/skills/response-validator/scripts/check-format.sh /tmp/test-response.json
+plugins/faber/skills/fractary-faber-response-validator/scripts/check-format.sh /tmp/test-response.json
 
 # Expected: "✓ Response format is valid"
 
 # Run full validation
-plugins/faber/skills/response-validator/scripts/validate-response.sh /tmp/test-response.json
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh /tmp/test-response.json
 
 # Expected: "✓ Response validates against schema"
 ```
@@ -351,7 +351,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh /tmp/test-r
 **Verification**:
 ```bash
 # Validate response
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"success","message":"Success","details":{},"errors":[]}'
 
 # Expected: "✓ Response is valid"
@@ -383,7 +383,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh \
 **Verification**:
 ```bash
 # Validate response
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"failure","message":"Failed","details":{},"errors":["Error"],"warnings":[]}'
 
 # Expected: "✓ Response is valid"
@@ -414,7 +414,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh \
 LONG_MSG=$(printf 'x%.0s' {1..501})
 
 # Validate response
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   "{\"status\":\"success\",\"message\":\"$LONG_MSG\"}"
 
 # Expected: "✗ Schema validation failed"
@@ -445,7 +445,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh \
 **Verification**:
 ```bash
 # Validate response
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"failure","message":"Failed","details":{},"errors":[""]}'
 
 # Expected: "✗ Schema validation failed"
@@ -475,7 +475,7 @@ plugins/faber/skills/response-validator/scripts/validate-response.sh \
 **Verification**:
 ```bash
 # Validate response
-plugins/faber/skills/response-validator/scripts/validate-response.sh \
+plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh \
   '{"status":"success","message":"Success","extra_field":"not allowed"}'
 
 # Expected: "✗ Schema validation failed"
@@ -497,7 +497,7 @@ jq -f /dev/null plugins/faber/config/schemas/skill-response.schema.json
 
 # 3. Test individual response formats
 for test in /tmp/test-responses/*.json; do
-  plugins/faber/skills/response-validator/scripts/validate-response.sh "$test"
+  plugins/faber/skills/fractary-faber-response-validator/scripts/validate-response.sh "$test"
 done
 
 # 4. Check audit script outputs JSON correctly

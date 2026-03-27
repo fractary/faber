@@ -30,7 +30,7 @@ FABER is a **tool-agnostic SDLC workflow framework** built on a 3-layer architec
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    User Interface                        │
-│     /fractary-faber:config-init, /fractary-faber:config-update, /fractary-faber:config-validate, /fractary-faber:run, /fractary-faber:status     │
+│     /fractary-faber-config-init, /fractary-faber-config-update, /fractary-faber-config-validate, /fractary-faber-run, /fractary-faber-status     │
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────┐
@@ -193,14 +193,14 @@ Additional benefits:
 
 ```
 User
-  └─ /fractary-faber:* (Commands)
-      ├─ /fractary-faber:config-init (Command)
+  └─ /fractary-faber-* (Commands)
+      ├─ /fractary-faber-config-init (Command)
       │   └─ Auto-detects project settings (first-time setup)
-      ├─ /fractary-faber:config-update (Command)
+      ├─ /fractary-faber-config-update (Command)
       │   └─ Updates existing configuration
-      ├─ /fractary-faber:config-validate (Command)
+      ├─ /fractary-faber-config-validate (Command)
       │   └─ Validates configuration
-      ├─ /fractary-faber:run (Command)
+      ├─ /fractary-faber-run (Command)
       │   └─ workflow-run (Command - Orchestrates all 5 phases directly)
       │       ├─ frame (Skill)
       │           │   ├─ workflow/basic.md (batteries-included)
@@ -228,14 +228,14 @@ User
       │               ├─ workflow/basic.md
       │               ├─ work-manager (Agent)
       │               └─ repo-manager (Agent)
-      └─ /fractary-faber:status (Command)
+      └─ /fractary-faber-status (Command)
           └─ Reads workflow state and logs
 ```
 
 ### Invocation Chain Example
 
 ```
-User: /fractary-faber:workflow-run 123
+User: /fractary-faber-workflow-run 123
   ↓
 workflow-run (command, direct execution)
   ↓ Loads plan, initializes state and TodoWrite
@@ -320,7 +320,7 @@ workflow-run invokes architect skill...
       ├─ logging: Workflow logging configuration
       └─ safety: Protected paths and confirmation rules
 
-2. Config Loader (skills/core/scripts/config-loader.sh)
+2. Config Loader (skills/fractary-faber-core/scripts/config-loader.sh)
    ├─ Reads YAML file from .fractary/config.yaml
    ├─ Extracts faber: section
    ├─ Validates schema version and required fields
@@ -547,13 +547,13 @@ To add support for a new platform (e.g., GitLab):
 
 **Step 1: Create Scripts** (Layer 3)
 ```bash
-mkdir -p skills/repo-manager/scripts/gitlab/
+mkdir -p skills/fractary-faber-repo-manager/scripts/gitlab/
 # Create: generate-branch-name.sh, create-branch.sh, etc.
 ```
 
 **Step 2: Update Skill** (Layer 2)
 ```bash
-# skills/repo-manager/SKILL.md
+# skills/fractary-faber-repo-manager/SKILL.md
 # Add GitLab to supported platforms list
 # No code changes needed - routing is automatic!
 ```
@@ -578,7 +578,7 @@ Note: Platform-specific configuration lives in the primitive plugin (fractary-re
 # Edit .fractary/plugins/repo/config.json to set platform = "gitlab"
 
 # Run workflow - automatically uses GitLab scripts!
-/fractary-faber:run --work-id 123
+/fractary-faber-run --work-id 123
 ```
 
 **No agent changes required!** The skill layer automatically routes to the correct platform.
@@ -606,7 +606,7 @@ mkdir -p domains/design/
 
 **Step 3: Domain-Specific Workflows**
 ```bash
-/fractary-faber:run --work-id 123 --workflow design
+/fractary-faber-run --work-id 123 --workflow design
 # Uses design-specific Build and Evaluate logic
 ```
 

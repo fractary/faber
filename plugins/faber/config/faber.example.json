@@ -23,26 +23,26 @@
     "_comment": "Multi-tier workflow selection: 1) faber-workflow: label prefix, 2) label_mapping, 3) work type classification, 4) default",
     "enabled": true,
     "label_mapping": {
-      "bug": "fractary-faber:bug",
-      "defect": "fractary-faber:bug",
-      "regression": "fractary-faber:bug",
-      "hotfix": "fractary-faber:bug",
-      "urgent": "fractary-faber:bug",
-      "feature": "fractary-faber:feature",
-      "enhancement": "fractary-faber:feature",
-      "new-feature": "fractary-faber:feature",
-      "chore": "fractary-faber:default",
-      "maintenance": "fractary-faber:default",
-      "dependencies": "fractary-faber:default"
+      "bug": "fractary-faber-bug",
+      "defect": "fractary-faber-bug",
+      "regression": "fractary-faber-bug",
+      "hotfix": "fractary-faber-bug",
+      "urgent": "fractary-faber-bug",
+      "feature": "fractary-faber-feature",
+      "enhancement": "fractary-faber-feature",
+      "new-feature": "fractary-faber-feature",
+      "chore": "fractary-faber-default",
+      "maintenance": "fractary-faber-default",
+      "dependencies": "fractary-faber-default"
     },
     "fallback_to_classification": true,
     "work_type_mapping": {
-      "bug": "fractary-faber:bug",
-      "feature": "fractary-faber:feature",
-      "patch": "fractary-faber:bug",
-      "chore": "fractary-faber:default",
-      "infrastructure": "fractary-faber:default",
-      "api": "fractary-faber:feature"
+      "bug": "fractary-faber-bug",
+      "feature": "fractary-faber-feature",
+      "patch": "fractary-faber-bug",
+      "chore": "fractary-faber-default",
+      "infrastructure": "fractary-faber-default",
+      "api": "fractary-faber-feature"
     }
   },
   "integrations": {
