@@ -697,8 +697,8 @@ if (/^\d+$/.test(arg)) {
     if (!plan_id) {
       console.log(`→ No existing plan for #${work_id}. Auto-planning...`);
 
-      // Build planner prompt with optional passthrough flags
-      let plannerPrompt = `Create execution plan: ${work_id}`;
+      // Build planner prompt as raw CLI args (the planner parses positional args + flags)
+      let plannerPrompt = `${work_id} --auto-run --force-new`;
       if (workflow_override) plannerPrompt += ` --workflow ${workflow_override}`;
       if (autonomy_override) plannerPrompt += ` --autonomy ${autonomy_override}`;
 

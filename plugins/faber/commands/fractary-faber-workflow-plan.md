@@ -112,7 +112,7 @@ try {
   plannerResult = await Agent({
     subagent_type: "fractary-faber-workflow-planner",
     description: "Create FABER execution plan",
-    prompt: `Create execution plan: $ARGUMENTS`
+    prompt: `$ARGUMENTS`
   });
 } catch (error) {
   // Infrastructure failure (socket error, timeout, UND_ERR_SOCKET, etc.)

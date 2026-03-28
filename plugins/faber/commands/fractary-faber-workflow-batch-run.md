@@ -237,7 +237,7 @@ TaskUpdate(batchTaskIds[work_id], status=in_progress)
    - If null/empty:
      console.log(`→ No plan for #${item.work_id}. Auto-planning...`);
      // Build planner prompt — forward persisted autonomy if set
-     let plannerPrompt = `Create execution plan: ${item.work_id} --auto-run`;
+     let plannerPrompt = `${item.work_id} --auto-run --force-new`;
      if (state.autonomy) {
        plannerPrompt += ` --autonomy ${state.autonomy}`;
      }
