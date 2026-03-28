@@ -141,10 +141,10 @@ This is the main operation for getting an executable workflow. It handles:
 | `project:` | `.fractary/faber/workflows/` | Project-specific workflows |
 | (no namespace) | `.fractary/faber/workflows/` | Defaults to `project:` |
 
-**Plugin Root Resolution:**
-- Check environment variable `CLAUDE_PLUGIN_ROOT` first (set by plugin system)
-- Fall back to installed location: `~/.claude/plugins/marketplaces/fractary/`
-- In development: Use the repository root where plugins are being developed
+**Package Root Resolution (works in Claude Code and pi):**
+`FRACTARY_PACKAGE_ROOT` is self-located by `find-plugin-root.sh` using `BASH_SOURCE[0]`.
+No environment variable configuration is required in either runtime.
+Override with `FRACTARY_PACKAGE_ROOT=/custom/path` if needed.
 
 **Execution Algorithm:**
 
@@ -152,12 +152,11 @@ This is the main operation for getting an executable workflow. It handles:
 1. NAMESPACE RESOLUTION
    - Parse workflow_id for namespace (split on ":")
    - If no namespace, assume "project:"
-   - Resolve plugin root:
-     * If CLAUDE_PLUGIN_ROOT env var set → use that
-     * Else → use ~/.claude/plugins/marketplaces/fractary/
+   - Resolve package root by sourcing find-plugin-root.sh (self-locating):
+     $FRACTARY_PACKAGE_ROOT  → this repo's root (auto-detected)
    - Map namespace to file path:
-     * fractary-faber- → ${plugin_root}/plugins/faber/config/workflows/
-     * fractary-faber-cloud: → ${plugin_root}/plugins/faber-cloud/config/workflows/
+     * fractary-faber- → ${FRACTARY_PACKAGE_ROOT}/plugins/faber/.fractary/faber/workflows/
+     * fractary-faber-cloud: → fractary_sibling_root("faber-cloud")/plugins/faber-cloud/.fractary/faber/workflows/
      * project: → .fractary/faber/workflows/ (relative to cwd)
    - Load workflow JSON from resolved path
 
@@ -243,10 +242,10 @@ DO NOT attempt to perform the merge logic manually - this leads to incomplete me
 
 **Script Execution (MANDATORY for inheritance chains):**
 ```bash
-# Use this script for ALL resolve-workflow operations with inheritance
+# Use this script for ALL resolve-workflow operations with inheritance.
+# No --plugin-root needed: merge-workflows.sh self-locates via find-plugin-root.sh.
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 "${SCRIPT_DIR}/scripts/merge-workflows.sh" "$workflow_id" \
-  --plugin-root "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/fractary}" \
   --project-root "$(pwd)"
 ```
 
@@ -404,8 +403,15 @@ not termination of the overall workflow. workflow-run will continue execution.
 - **Unified Config**: `.fractary/config.yaml` (faber settings in `faber:` section)
 - **Config (legacy)**: `.faber.config.toml`
 - **Project Workflows**: `.fractary/faber/workflows/*.json`
-- **Plugin Workflows (fractary-faber)**: `~/.claude/plugins/marketplaces/fractary/plugins/faber/config/workflows/*.json`
-- **Plugin Workflows (fractary-faber-cloud)**: `~/.claude/plugins/marketplaces/fractary/plugins/faber-cloud/config/workflows/*.json`
+- **Plugin Workflows (fractary-faber)**:
+  - Pi:    `~/.pi/agent/git/github.com/fractary/faber/plugins/faber/.fractary/faber/workflows/*.json`
+  - Claude: `~/.claude/plugins/marketplaces/fractary-faber/plugins/faber/.fractary/faber/workflows/*.json`
+  - Self-located: `${FRACTARY_PACKAGE_ROOT}/plugins/faber/.fractary/faber/workflows/*.json`
+- **Plugin Workflows (fractary-faber-cloud)**:
+  - Pi:    `~/.pi/agent/git/github.com/fractary/faber-cloud/plugins/faber-cloud/.fractary/faber/workflows/*.json`
+  - Claude: `~/.claude/plugins/marketplaces/fractary-faber-cloud/plugins/faber-cloud/.fractary/faber/workflows/*.json`
+  - Self-located: `$(fractary_sibling_root faber-cloud)/plugins/faber-cloud/.fractary/faber/workflows/*.json`
 - **Config Schema**: `../../config/config.schema.json`
 - **Workflow Schema**: `../../config/workflow.schema.json`
+- **find-plugin-root.sh**: `../../scripts/find-plugin-root.sh` (relative to any skill's scripts/ dir)
 </FILE_LOCATIONS>

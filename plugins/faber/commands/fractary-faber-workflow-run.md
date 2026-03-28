@@ -830,15 +830,34 @@ if (phaseFilter && stepFilter) {
 The protocol defines how you execute workflows. It is your operating manual.
 
 ```bash
-# Determine marketplace root (where all plugin marketplaces live)
-MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}"
+# Resolve the orchestration protocol path (works in Claude Code and pi).
+# The find-plugin-root.sh utility self-locates the package regardless of
+# where it was installed (Claude marketplace or pi git clone).
+PROTOCOL_FILE=$(bash -c '
+  # Try to source find-plugin-root.sh from all known install locations.
+  # Order: pi global → pi project → Claude marketplace → Claude fallback
+  for candidate in \
+    "$HOME/.pi/agent/git/github.com/fractary/faber/plugins/faber/scripts/find-plugin-root.sh" \
+    "$(find "$PWD" -maxdepth 5 -path "*/.pi/git/github.com/fractary/faber/plugins/faber/scripts/find-plugin-root.sh" 2>/dev/null | head -1)" \
+    "${CLAUDE_MARKETPLACE_ROOT:+${CLAUDE_MARKETPLACE_ROOT}/fractary-faber/plugins/faber/scripts/find-plugin-root.sh}" \
+    "$HOME/.claude/plugins/marketplaces/fractary-faber/plugins/faber/scripts/find-plugin-root.sh"; do
+    if [[ -f "$candidate" ]]; then
+      # shellcheck source=/dev/null
+      source "$candidate"
+      echo "${FRACTARY_PACKAGE_ROOT}/plugins/faber/docs/workflow-orchestration-protocol.md"
+      exit 0
+    fi
+  done
+  echo "ERROR: Cannot locate fractary/faber package. Install via: pi install git:github.com/fractary/faber" >&2
+  exit 1
+')
 
-# Read the orchestration protocol from the marketplace
-Read(file_path: "${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/docs/workflow-orchestration-protocol.md")
+# Read the orchestration protocol
+Read(file_path: "${PROTOCOL_FILE}")
 
 # Output confirmation to user
 ✓ Loaded orchestration protocol
-Protocol: ${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/docs/workflow-orchestration-protocol.md
+Protocol: ${PROTOCOL_FILE}
 ```
 
 **The protocol contains:**

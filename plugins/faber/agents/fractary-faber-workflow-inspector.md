@@ -159,20 +159,31 @@ else if inspect_mode == "workflow_file":
 
 # MODE: namespaced_workflow - Load from plugin
 else if inspect_mode == "namespaced_workflow":
-  # Resolve namespace to plugin path
-  plugin_root = getenv("CLAUDE_PLUGIN_ROOT") or "~/.claude/plugins/marketplaces/fractary/"
+  # Resolve package root (works in Claude Code and pi).
+  # Run find-plugin-root.sh and capture FRACTARY_PACKAGE_ROOT, then use
+  # fractary_sibling_root for cross-repo namespaces.
+  package_root = bash("""
+    source "$(find \
+      "$HOME/.pi/agent/git/github.com/fractary/faber/plugins/faber/scripts" \
+      "$HOME/.claude/plugins/marketplaces/fractary-faber/plugins/faber/scripts" \
+      -name find-plugin-root.sh -maxdepth 1 2>/dev/null | head -1)"
+    echo "$FRACTARY_PACKAGE_ROOT"
+  """)
 
   # Map namespace to workflow directory
   if namespace == "fractary-faber":
-    workflow_dir = "{plugin_root}/plugins/faber/config/workflows/"
+    workflow_dir = "{package_root}/plugins/faber/.fractary/faber/workflows/"
   else if namespace == "fractary-faber-cloud":
-    workflow_dir = "{plugin_root}/plugins/faber-cloud/config/workflows/"
+    # Cross-repo: locate the faber-cloud sibling package
+    sibling = bash("source {package_root}/plugins/faber/scripts/find-plugin-root.sh && fractary_sibling_root faber-cloud")
+    workflow_dir = "{sibling}/plugins/faber-cloud/.fractary/faber/workflows/"
   else if namespace == "project":
     workflow_dir = ".fractary/faber/workflows/"
   else:
-    # Try generic pattern: namespace → plugins/{namespace}/config/workflows/
+    # Generic: strip "fractary-" prefix → repo name, locate sibling
     plugin_name = replace(namespace, "fractary-", "")
-    workflow_dir = "{plugin_root}/plugins/{plugin_name}/config/workflows/"
+    sibling = bash("source {package_root}/plugins/faber/scripts/find-plugin-root.sh && fractary_sibling_root {plugin_name}")
+    workflow_dir = "{sibling}/plugins/{plugin_name}/.fractary/faber/workflows/"
 
   workflow_file_path = "{workflow_dir}/{workflow_id}.json"
 
@@ -693,10 +704,17 @@ PRINT "🔍 Discovering agents and skills..."
 
 agent_registry = {}
 
-# Discover plugin agents
-plugin_root = getenv("CLAUDE_PLUGIN_ROOT") or "~/.claude/plugins/marketplaces/fractary/"
+# Resolve package root (works in Claude Code and pi)
+package_root = bash("""
+  source "$(find \
+    "$HOME/.pi/agent/git/github.com/fractary/faber/plugins/faber/scripts" \
+    "$HOME/.claude/plugins/marketplaces/fractary-faber/plugins/faber/scripts" \
+    -name find-plugin-root.sh -maxdepth 1 2>/dev/null | head -1)"
+  echo "$FRACTARY_PACKAGE_ROOT"
+""")
 
-agent_files = glob("{plugin_root}/plugins/*/agents/*.md")
+# Discover plugin agents
+agent_files = glob("{package_root}/plugins/*/agents/*.md")
 for agent_file in agent_files:
   content = read(agent_file)
   # Extract name from frontmatter (YAML between --- markers)
@@ -711,7 +729,7 @@ for agent_file in agent_files:
     }
 
 # Discover plugin skills
-skill_files = glob("{plugin_root}/plugins/*/skills/*/SKILL.md")
+skill_files = glob("{package_root}/plugins/*/skills/*/SKILL.md")
 for skill_file in skill_files:
   content = read(skill_file)
   skill_name = extract_yaml_field(content, "name")

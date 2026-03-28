@@ -4,11 +4,14 @@
 # This script performs the critical workflow merge operation deterministically,
 # removing LLM variability from this critical path.
 #
+# Works in both Claude Code and pi without any environment configuration.
+# Package root is self-located via find-plugin-root.sh.
+#
 # Usage: merge-workflows.sh <workflow_id> [--marketplace-root <path>] [--project-root <path>]
 #
 # Arguments:
 #   workflow_id         - ID of workflow to resolve (e.g., "fractary-faber-default", "project:my-workflow")
-#   --marketplace-root  - Marketplace root directory (default: ~/.claude/plugins/marketplaces)
+#   --marketplace-root  - Override marketplace root (legacy Claude option; auto-detected if omitted)
 #   --plugin-root       - Deprecated: use --marketplace-root (backward compatibility)
 #   --project-root      - Project root directory (default: current working directory)
 #
@@ -24,8 +27,17 @@
 
 set -e
 
-# Default paths
-MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-$HOME/.claude/plugins/marketplaces}"
+# ── Locate package root (works in Claude Code and pi) ──────────────────────────
+# find-plugin-root.sh lives 3 directories above this script's scripts/ folder:
+#   skills/fractary-faber-faber-config/scripts/  →  ../../..  →  plugins/faber/
+_MERGE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../../scripts/find-plugin-root.sh
+source "${_MERGE_SCRIPT_DIR}/../../../scripts/find-plugin-root.sh"
+unset _MERGE_SCRIPT_DIR
+
+# MARKETPLACE_ROOT kept for --marketplace-root arg and URL cache location.
+# Prefer the self-located package root for workflow file resolution.
+MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-}"
 PROJECT_ROOT="$(pwd)"
 
 # Parse arguments
@@ -161,9 +173,10 @@ validate_url_security() {
 
 # Function to resolve workflow reference to file path
 # Supports three formats:
-#   1. URL: url:https://example.com/workflow.json
-#   2. Explicit: plugin@marketplace:workflow
-#   3. Project-local: workflow-name
+#   1. URL:  url:https://example.com/workflow.json
+#   2. Explicit:  plugin@marketplace:workflow
+#      e.g. faber@fractary:core  or  faber-cloud@fractary:default
+#   3. Project-local:  workflow-name  (no @ or :)
 resolve_workflow_path() {
     local workflow_id="$1"
 
@@ -178,13 +191,35 @@ resolve_workflow_path() {
     if [[ "$workflow_id" == *@*:* ]]; then
         local plugin="${workflow_id%%@*}"
         local rest="${workflow_id#*@}"
-        local marketplace="${rest%%:*}"
         local workflow="${rest#*:}"
-        echo "${MARKETPLACE_ROOT}/${marketplace}/plugins/${plugin}/.fractary/faber/workflows/${workflow}.json"
+
+        # Prefer self-located path: works in both Claude and pi without env vars.
+        # If plugin == "faber" (this repo), path is within FRACTARY_PACKAGE_ROOT.
+        # Otherwise try fractary_sibling_root for cross-repo lookups.
+        local pkg_root
+        if [[ "$plugin" == "faber" ]]; then
+            pkg_root="$FRACTARY_PACKAGE_ROOT"
+        else
+            pkg_root=$(fractary_sibling_root "$plugin" 2>/dev/null) || pkg_root=""
+        fi
+
+        if [[ -n "$pkg_root" ]]; then
+            echo "${pkg_root}/plugins/${plugin}/.fractary/faber/workflows/${workflow}.json"
+            return
+        fi
+
+        # Legacy fallback: use --marketplace-root / CLAUDE_MARKETPLACE_ROOT if set
+        if [[ -n "${MARKETPLACE_ROOT:-}" ]]; then
+            echo "${MARKETPLACE_ROOT}/${plugin#fractary-}/plugins/${plugin}/.fractary/faber/workflows/${workflow}.json"
+            return
+        fi
+
+        # Nothing resolved - caller's load_workflow will handle the missing-file error
+        echo "${PROJECT_ROOT}/.fractary/faber/workflows/${workflow}.json"
         return
     fi
 
-    # Format 3: Project-local (no @ symbol)
+    # Format 3: Project-local (no @ or : in ID)
     echo "${PROJECT_ROOT}/.fractary/faber/workflows/${workflow_id}.json"
 }
 
@@ -203,7 +238,7 @@ load_workflow() {
         # SSRF Protection: Validate URL before fetching
         validate_url_security "$url"
 
-        local cache_dir="${MARKETPLACE_ROOT}/.cache/workflows"
+        local cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/fractary/workflows"
         local url_hash
         url_hash=$(echo -n "$url" | sha256sum | cut -d' ' -f1)
         local cache_file="${cache_dir}/${url_hash}.json"
@@ -279,15 +314,22 @@ load_workflow() {
     # Check if file exists at resolved path
     if [[ ! -f "$path" ]]; then
         # Fallback logic: if project-local (no @ or : in workflow_id),
-        # try the plugin's default workflow location before failing
+        # try the plugin's bundled default workflows before failing.
         if [[ "$workflow_id" != *"@"* ]] && [[ "$workflow_id" != *":"* ]]; then
-            local fallback_path="${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/.fractary/faber/workflows/${workflow_id}.json"
-            if [[ -f "$fallback_path" ]]; then
-                # Found in plugin defaults - use this path
-                path="$fallback_path"
+            # Primary fallback: self-located package root (works in Claude and pi)
+            local self_fallback="${FRACTARY_PACKAGE_ROOT}/plugins/faber/.fractary/faber/workflows/${workflow_id}.json"
+            # Legacy fallback: explicit MARKETPLACE_ROOT (Claude with --marketplace-root)
+            local marketplace_fallback=""
+            if [[ -n "${MARKETPLACE_ROOT:-}" ]]; then
+                marketplace_fallback="${MARKETPLACE_ROOT}/fractary-faber/plugins/faber/.fractary/faber/workflows/${workflow_id}.json"
+            fi
+
+            if [[ -f "$self_fallback" ]]; then
+                path="$self_fallback"
+            elif [[ -n "$marketplace_fallback" ]] && [[ -f "$marketplace_fallback" ]]; then
+                path="$marketplace_fallback"
             else
-                # Not found in either location
-                echo '{"status": "failure", "message": "Workflow not found: '"$workflow_id"'", "errors": ["File not found in project ('"$path"') or plugin defaults ('"$fallback_path"')"]}' >&2
+                echo '{"status": "failure", "message": "Workflow not found: '"$workflow_id"'", "errors": ["File not found in project ('"$path"') or package defaults ('"$self_fallback"')"]}' >&2
                 exit 1
             fi
         else
