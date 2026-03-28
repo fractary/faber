@@ -45,14 +45,14 @@
     "@fractary/forge": "*"
   },
   "pi": {
-    "extensions": [
-      "plugins/faber/extensions"
-    ],
     "skills": [
       "plugins/faber/skills"
     ],
     "prompts": [
       "plugins/faber/commands"
+    ],
+    "agents": [
+      "plugins/faber/agents"
     ]
   }
 }
