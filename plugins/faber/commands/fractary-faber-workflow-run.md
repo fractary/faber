@@ -701,6 +701,7 @@ if (/^\d+$/.test(arg)) {
       let plannerPrompt = `${work_id} --auto-run --force-new`;
       if (workflow_override) plannerPrompt += ` --workflow ${workflow_override}`;
       if (autonomy_override) plannerPrompt += ` --autonomy ${autonomy_override}`;
+      if (auto_worktree) plannerPrompt += ` --worktree`;
 
       // Spawn workflow-planner to create the plan
       const plannerResult = await Agent({

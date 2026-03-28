@@ -52,6 +52,7 @@ You receive raw CLI arguments as a string in your prompt. Parse them to extract 
 | `--prompt "<text>"` | string | Additional instructions to include in the plan. |
 | `--auto-run` | flag | If present, skip user prompt and return `execute: true`. |
 | `--force-new` | flag | Force creation of a new plan even if one already exists for this work item. |
+| `--worktree` | flag | If present, pass `--worktree` to CLI to create a git worktree for this workflow. |
 
 **Validation:**
 - `<work-id>` is required. If missing, show error:
@@ -78,6 +79,7 @@ Parse the raw CLI arguments string from the prompt. Extract:
 6. `prompt`: Value of `--prompt` flag, or null
 7. `auto_run`: true if `--auto-run` flag is present, false otherwise
 8. `force_new`: true if `--force-new` flag is present, false otherwise
+9. `worktree_flag`: true if `--worktree` flag is present, false otherwise
 
 **Deprecated alias:** If `work_id` came from `--work-id` flag instead of positional argument, print:
 ```
@@ -101,6 +103,7 @@ Add optional flags based on parsed input:
 - If `workflow_override`: append `--workflow {workflow_override}`
 - If `autonomy_override`: append `--autonomy {autonomy_override}`
 - If `force_new`: append `--force-new`
+- If `worktree_flag`: append `--worktree`
 
 ## Step 3: Execute CLI Command
 

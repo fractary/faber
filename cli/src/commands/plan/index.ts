@@ -27,7 +27,7 @@ interface PlanOptions {
   workLabel?: string;
   workflow?: string;
   autonomy?: string;
-  noWorktree?: boolean;
+  worktree?: boolean;
   noBranch?: boolean;
   skipConfirm?: boolean;
   forceNew?: boolean;
@@ -71,7 +71,7 @@ export function createPlanCommand(): Command {
     .option('--work-label <labels>', 'Comma-separated label filters (e.g., "workflow:etl,status:approved")')
     .option('--workflow <name>', 'Override workflow (default: read from issue "workflow:*" label)')
     .option('--autonomy <level>', 'Override autonomy level (guarded|autonomous)')
-    .option('--no-worktree', 'Skip worktree creation')
+    .option('--worktree', 'Create a git worktree for this workflow (overrides config)')
     .option('--no-branch', 'Skip branch creation')
     .option('--skip-confirm', 'Skip confirmation prompt (use with caution)')
     .option('--output <format>', 'Output format: text|json|yaml', 'text')
@@ -250,7 +250,7 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
 
   // Step 3: Show confirmation prompt
   if (!options.skipConfirm) {
-    const confirmed = await showConfirmationPrompt(issuesWithWorkflows, config, outputFormat);
+    const confirmed = await showConfirmationPrompt(issuesWithWorkflows, config, options, outputFormat);
     if (!confirmed) {
       if (outputFormat === 'text') {
         console.log(chalk.yellow('\n✖ Planning cancelled'));
@@ -392,28 +392,45 @@ async function assignWorkflows(
 async function showConfirmationPrompt(
   issues: Issue[],
   config: LoadedFaberConfig,
+  options: PlanOptions,
   outputFormat: string
 ): Promise<boolean> {
   if (outputFormat !== 'text') {
     return true; // Skip in JSON mode
   }
 
+  const createWorktree = shouldCreateWorktree(options, config);
+
   console.log(chalk.cyan('\n📋 Will plan workflows for the following issues:\n'));
 
   for (const issue of issues) {
     const { organization, project } = getRepoInfoFromConfig(config);
     const branch = `feature/${issue.number}`;
-    const worktree = `~/.claude-worktrees/${organization}-${project}-${issue.number}`;
 
     console.log(chalk.bold(`#${issue.number}: ${issue.title}`));
     console.log(chalk.gray(`  Workflow: ${issue.workflow}`));
     console.log(chalk.gray(`  Branch: ${branch}`));
-    console.log(chalk.gray(`  Worktree: ${worktree}`));
+    if (createWorktree) {
+      const worktree = `~/.claude-worktrees/${organization}-${project}-${issue.number}`;
+      console.log(chalk.gray(`  Worktree: ${worktree}`));
+    }
     console.log();
   }
 
   const response = await prompt('Proceed? [Y/n]: ');
   return !response || response.toLowerCase() === 'y' || response.toLowerCase() === 'yes';
+}
+
+/**
+ * Determine whether to create a worktree based on CLI flag and config
+ */
+function shouldCreateWorktree(options: PlanOptions, config: LoadedFaberConfig): boolean {
+  // Explicit CLI flag always wins
+  if (options.worktree === true) return true;
+  // Config setting is the default authority
+  if (config.worktree?.enabled === true) return true;
+  // Default: no worktree
+  return false;
 }
 
 /**
@@ -430,6 +447,7 @@ async function planSingleIssue(
   const { organization, project } = getRepoInfoFromConfig(config);
   const branch = `feature/${issue.number}`;
   const worktree = `~/.claude-worktrees/${organization}-${project}-${issue.number}`;
+  const createWorktree = shouldCreateWorktree(options, config);
 
   // Create branch without checking it out (so it won't conflict with worktree creation)
   if (!options.noBranch) {
@@ -448,9 +466,9 @@ async function planSingleIssue(
     }
   }
 
-  // Create worktree
-  let worktreePath = worktree;
-  if (!options.noWorktree) {
+  // Create worktree (only when explicitly opted in via flag or config)
+  let worktreePath = createWorktree ? worktree : process.cwd();
+  if (createWorktree) {
     if (outputFormat === 'text') {
       console.log(chalk.gray(`  → Creating worktree: ${worktree}...`));
       process.stdout.write(''); // Force flush
@@ -493,8 +511,8 @@ async function planSingleIssue(
     }
   }
 
-  // Check for existing plan in worktree (skip if found, unless --force-new)
-  if (!options.forceNew && !options.noWorktree) {
+  // Check for existing plan (skip if found, unless --force-new)
+  if (!options.forceNew) {
     const runsDir = path.join(worktreePath, '.fractary', 'faber', 'runs');
     try {
       const entries = await fs.readdir(runsDir);
@@ -537,8 +555,8 @@ async function planSingleIssue(
 
   const planId = plan.id;
 
-  // Write plan to worktree
-  if (!options.noWorktree) {
+  // Write plan to worktree (or project root when no worktree)
+  {
     // Validate plan ID format (prevent path traversal via malicious plan IDs)
     validatePlanId(planId);
 
