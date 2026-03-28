@@ -35,8 +35,7 @@ _MERGE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_MERGE_SCRIPT_DIR}/../../../scripts/find-plugin-root.sh"
 unset _MERGE_SCRIPT_DIR
 
-# MARKETPLACE_ROOT kept for --marketplace-root arg and URL cache location.
-# Prefer the self-located package root for workflow file resolution.
+# MARKETPLACE_ROOT kept for --marketplace-root arg only (legacy compat).
 MARKETPLACE_ROOT="${CLAUDE_MARKETPLACE_ROOT:-}"
 PROJECT_ROOT="$(pwd)"
 
@@ -629,5 +628,37 @@ main() {
     echo "{\"status\": \"success\", \"message\": \"Workflow merged successfully\", \"workflow\": $merged}"
 }
 
-# Run main
+# ── CLI delegation (preferred path) ────────────────────────────────────────────────────────
+# Prefer `fractary-faber workflow-resolve` when available: it uses WorkflowResolver from the
+# @fractary/faber SDK which resolves bundled workflows via __dirname — no path configuration
+# required in either Claude Code or pi.
+#
+# Fall back to the bash implementation when the CLI is absent (e.g. offline environments,
+# early bootstrap before the CLI is installed, or URL-referenced workflows not yet supported
+# by the CLI resolver).
+_can_delegate=false
+if command -v fractary-faber >/dev/null 2>&1; then
+    # Verify the CLI has the workflow-resolve subcommand (added in this release)
+    if fractary-faber --help 2>/dev/null | grep -q "workflow-resolve"; then
+        _can_delegate=true
+    fi
+fi
+
+if [[ "$_can_delegate" == "true" ]] && \
+   [[ "$WORKFLOW_ID" != url:* ]] && \
+   [[ -z "${MARKETPLACE_ROOT:-}" ]]; then
+    # Delegate to CLI: it handles bundled-workflow resolution and inheritance natively
+    _result=$(fractary-faber workflow-resolve "$WORKFLOW_ID" \
+        --project-root "$PROJECT_ROOT" \
+        --json 2>&1)
+    _exit=$?
+    if [[ $_exit -eq 0 ]] && echo "$_result" | jq -e '.status == "success"' >/dev/null 2>&1; then
+        echo "$_result"
+        exit 0
+    fi
+    # CLI failed (e.g. workflow not found in project, or outdated CLI without bundled support)
+    # fall through to the bash implementation for the full fallback chain
+fi
+
+# Run main (bash implementation — used when CLI unavailable or CLI delegation fails)
 main

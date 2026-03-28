@@ -13,7 +13,7 @@ dotenv.config();
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowDebugCommand, createBatchPlanCommand, createBatchRunCommand, createWorkflowExecuteCommand } from './commands/fractary-faber-workflow/index.js';
+import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowResolveCommand, createWorkflowDebugCommand, createBatchPlanCommand, createBatchRunCommand, createWorkflowExecuteCommand } from './commands/fractary-faber-workflow/index.js';
 import { createSessionLoadCommand, createSessionSaveCommand } from './commands/fractary-faber-session.js';
 import { createWorkCommand } from './commands/fractary-faber-work/index.js';
 import { createRepoCommand } from './commands/fractary-faber-repo/index.js';
@@ -61,7 +61,8 @@ export function createFaberCLI(): Command {
   program.addCommand(createCleanupCommand());      // workflow-cleanup
   program.addCommand(createWorkflowCreateCommand());  // workflow-create
   program.addCommand(createWorkflowUpdateCommand());  // workflow-update
-  program.addCommand(createWorkflowInspectCommand()); // workflow-inspect
+  program.addCommand(createWorkflowInspectCommand()); // workflow-inspect (project-local registry)
+  program.addCommand(createWorkflowResolveCommand()); // workflow-resolve (full inheritance + bundled defaults)
   program.addCommand(createWorkflowDebugCommand()); // workflow-debug
   program.addCommand(createBatchPlanCommand());     // workflow-batch-plan
   program.addCommand(createBatchRunCommand());      // workflow-batch-run

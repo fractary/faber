@@ -6,9 +6,11 @@
  */
 
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
+import { createRequire } from 'module';
+
+const _require = createRequire(import.meta.url);
 import { z } from 'zod';
 import type { WorkflowRegistry, WorkflowEntry, FaberPluginConfig } from '../types.js';
 import { FABER_DEFAULTS } from '../defaults.js';
@@ -84,32 +86,56 @@ function isPluginRef(file: string): boolean {
 function resolvePluginWorkflow(file: string): string | null {
   const match = file.match(PLUGIN_REF_PATTERN);
   if (!match) return null;
-  const [, , marketplaceId, workflowName] = match;
+  const [, pluginAlias, marketplaceId, workflowName] = match;
 
-  const pluginCacheRoot =
-    process.env.CLAUDE_MARKETPLACE_ROOT ??
-    path.join(os.homedir(), '.claude', 'plugins', 'cache');
+  // Priority 1: npm-installed @fractary/<pluginAlias> package
+  try {
+    const pkgMain = _require.resolve(`@fractary/${pluginAlias}`);
+    let dir = path.dirname(pkgMain);
+    for (let i = 0; i < 5; i++) {
+      const pkgJsonPath = path.join(dir, 'package.json');
+      if (fs.existsSync(pkgJsonPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')) as { name?: string };
+        if (pkg.name === `@fractary/${pluginAlias}`) {
+          // Try bundled workflows directory first (new layout)
+          for (const ext of ['json', 'yaml', 'yml']) {
+            const bundled = path.join(dir, 'workflows', `${workflowName}.${ext}`);
+            if (fs.existsSync(bundled)) return bundled;
+          }
+          // Try legacy plugin layout
+          for (const ext of ['json', 'yaml', 'yml']) {
+            const legacy = path.join(
+              dir, 'plugins', pluginAlias, '.fractary', 'faber', 'workflows',
+              `${workflowName}.${ext}`
+            );
+            if (fs.existsSync(legacy)) return legacy;
+          }
+          break;
+        }
+      }
+      dir = path.dirname(dir);
+    }
+  } catch {
+    // @fractary/<pluginAlias> not in node_modules — continue to other strategies
+  }
 
-  const packageDir = path.join(pluginCacheRoot, marketplaceId, marketplaceId);
-  if (!fs.existsSync(packageDir)) return null;
-
-  const versions = fs
-    .readdirSync(packageDir)
-    .filter((v) => /^\d+\.\d+\.\d+/.test(v))
-    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
-
-  if (versions.length === 0) return null;
-
-  for (const ext of ['json', 'yaml', 'yml']) {
-    const candidate = path.join(
-      packageDir,
-      versions[0],
-      '.fractary',
-      'faber',
-      'workflows',
-      `${workflowName}.${ext}`
-    );
-    if (fs.existsSync(candidate)) return candidate;
+  // Priority 2: Legacy Claude Code marketplace cache
+  const claudeMarketplaceRoot = process.env['CLAUDE_MARKETPLACE_ROOT'];
+  if (claudeMarketplaceRoot) {
+    const packageDir = path.join(claudeMarketplaceRoot, marketplaceId, marketplaceId);
+    if (fs.existsSync(packageDir)) {
+      const versions = fs
+        .readdirSync(packageDir)
+        .filter((v) => /^\d+\.\d+\.\d+/.test(v))
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+      for (const ext of ['json', 'yaml', 'yml']) {
+        const candidate = path.join(
+          packageDir, versions[0] ?? '', '.fractary', 'faber', 'workflows',
+          `${workflowName}.${ext}`
+        );
+        if (fs.existsSync(candidate)) return candidate;
+      }
+    }
   }
 
   return null;
