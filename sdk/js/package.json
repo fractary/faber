@@ -54,6 +54,7 @@
   ],
   "scripts": {
     "dev": "tsc --watch",
+    "prebuild": "node scripts/copy-workflows.js",
     "build": "tsc",
     "test": "jest",
     "test:watch": "jest --watch",

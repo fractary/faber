@@ -14,6 +14,7 @@ import {
   inspectWorkflow,
   debugWorkflow,
   listWorkflows,
+  WorkflowResolver,
   ExecutorRegistry,
   WorkflowExecutor,
 } from '@fractary/faber';
@@ -499,6 +500,70 @@ export function createWorkflowInspectCommand(): Command {
         }
       } catch (error) {
         handleWorkflowError(error, options);
+      }
+    });
+}
+
+/**
+ * Create the workflow-resolve command.
+ *
+ * Resolves a workflow with full inheritance chain merging via WorkflowResolver.
+ * Unlike workflow-inspect (which only looks in project-local registry),
+ * workflow-resolve also searches bundled plugin defaults — making it the
+ * CLI equivalent of merge-workflows.sh and the correct tool for agents and
+ * skills that need a fully-merged workflow definition.
+ *
+ * Works identically in Claude Code and pi installs: WorkflowResolver uses
+ * __dirname to locate bundled workflows without any environment configuration.
+ */
+export function createWorkflowResolveCommand(): Command {
+  return new Command('workflow-resolve')
+    .description('Resolve a workflow with full inheritance chain merging (includes bundled plugin defaults)')
+    .argument('<id>', 'Workflow ID to resolve (e.g. "core", "default", "project:my-workflow")')
+    .option('--project-root <path>', 'Project root directory (default: cwd)')
+    .option('--json', 'Output as JSON')
+    .action(async (id: string, options) => {
+      try {
+        const resolver = new WorkflowResolver({
+          projectRoot: options.projectRoot,
+        });
+        const workflow = await resolver.resolveWorkflow(id);
+
+        if (options.json) {
+          console.log(JSON.stringify({ status: 'success', workflow }, null, 2));
+        } else {
+          console.log(chalk.bold(`Workflow: ${workflow.id}`));
+          if (workflow.description) {
+            console.log(`  Description: ${workflow.description}`);
+          }
+          console.log(`  Inheritance chain: ${workflow.inheritance_chain.join(' → ')}`);
+          if (workflow.skipped_steps?.length) {
+            console.log(`  Skipped steps: ${workflow.skipped_steps.join(', ')}`);
+          }
+          console.log();
+          for (const [phase, def] of Object.entries(workflow.phases)) {
+            const steps = def.steps ?? [];
+            const enabled = def.enabled !== false;
+            console.log(
+              chalk.cyan(`  ${phase}`),
+              enabled ? '' : chalk.gray('(disabled)'),
+              chalk.gray(`${steps.length} steps`)
+            );
+          }
+        }
+      } catch (error) {
+        if (options.json) {
+          const msg = error instanceof Error ? error.message : String(error);
+          const paths = (error as { searchedPaths?: string[] }).searchedPaths;
+          console.error(JSON.stringify({
+            status: 'failure',
+            message: msg,
+            errors: paths ? [`Searched: ${paths.join(', ')}`] : [msg],
+          }));
+        } else {
+          console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
+        }
+        process.exit(1);
       }
     });
 }
