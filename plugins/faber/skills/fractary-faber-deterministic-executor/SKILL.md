@@ -1,3 +1,8 @@
+---
+name: fractary-faber-deterministic-executor
+description: Deterministic workflow executor that prevents hallucinated step completion by using bash to control workflow progression while Claude handles execution
+---
+
 # Deterministic FABER Executor (Prototype)
 
 <CONTEXT>
