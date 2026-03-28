@@ -22,6 +22,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${PWD}"
+
+# Locate package root (works in Claude Code and pi)
+# shellcheck source=../../../scripts/find-plugin-root.sh
+source "${SCRIPT_DIR}/../../../scripts/find-plugin-root.sh"
 AUDIT_LOG_DIR=".fractary/logs/hooks"
 AUDIT_LOG_FILE="${AUDIT_LOG_DIR}/hook-audit.log"
 
@@ -79,8 +83,21 @@ validate_path() {
         allowed=true
     fi
 
-    # Check if path is under home .claude/plugins (for installed plugins)
+    # Check if path is under a known plugin install root (Claude Code or pi)
+    # Claude Code: ~/.claude/plugins/
     if [[ "$resolved_path" == "${HOME}/.claude/plugins"/* ]]; then
+        allowed=true
+    fi
+    # Pi global install: ~/.pi/agent/git/
+    if [[ "$resolved_path" == "${HOME}/.pi/agent/git"/* ]]; then
+        allowed=true
+    fi
+    # Pi project install: .pi/git/ (relative to any ancestor)
+    if [[ "$resolved_path" == *"/.pi/git/"* ]]; then
+        allowed=true
+    fi
+    # Self-located package root (covers dev checkouts and any install path)
+    if [[ "$resolved_path" == "${FRACTARY_PACKAGE_ROOT}"/* ]]; then
         allowed=true
     fi
 
@@ -88,7 +105,7 @@ validate_path() {
         audit_log "BLOCKED" "Path outside allowed directories: $resolved_path"
         echo -e "${RED}✗ Security: Hook path must be within project or plugin directories${NC}" >&2
         echo -e "${RED}  Path: $resolved_path${NC}" >&2
-        echo -e "${RED}  Allowed: ${PROJECT_ROOT}/* or ~/.claude/plugins/*${NC}" >&2
+        echo -e "${RED}  Allowed: ${PROJECT_ROOT}/*, ~/.claude/plugins/*, ~/.pi/agent/git/*, or ${FRACTARY_PACKAGE_ROOT}/*${NC}" >&2
         return 1
     fi
 
