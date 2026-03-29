@@ -266,8 +266,9 @@ Batch mode activates when the first argument contains commas (e.g., "258,259,260
 ### Batch Detection
 
 ```javascript
-const rawArg = args[0] || null;
-const resumeBatch = flags.includes('--resume-batch');
+// args, flags, resume_batch are parsed in Step 1.1 from $ARGUMENTS
+const rawArg = arg; // already extracted as first positional arg in Step 1.1
+const resumeBatch = resume_batch; // already extracted from --resume-batch flag in Step 1.1
 
 // Detect batch mode
 const isBatchMode = (rawArg && rawArg.includes(',')) || (resumeBatch && !rawArg);
@@ -640,9 +641,48 @@ for (const step of bootstrapSteps) {
 
 Update each bootstrap task to `in_progress` → `completed` as its corresponding step executes.
 
-### Step 1.1: Parse Arguments and Resolve Plan ID
+### Step 1.1: Parse `$ARGUMENTS` and Resolve Plan ID
 
-Extract from user input:
+Parse `$ARGUMENTS` to extract positional arguments and flags:
+
+```javascript
+// Raw arguments from slash command invocation: $ARGUMENTS
+const raw = "$ARGUMENTS";
+const tokens = raw.trim().split(/\s+/).filter(Boolean);
+
+// Separate positional args from flags
+const args = [];
+const flags = {};
+for (let i = 0; i < tokens.length; i++) {
+  if (tokens[i].startsWith('--')) {
+    const flag = tokens[i];
+    // Boolean flags (no value)
+    if (['--force-new', '--worktree', '--resume-batch'].includes(flag)) {
+      flags[flag] = true;
+    } else if (i + 1 < tokens.length && !tokens[i + 1].startsWith('--')) {
+      // Flags with values: --resume <run-id>, --phase <phases>, etc.
+      flags[flag] = tokens[++i];
+    } else {
+      flags[flag] = true;
+    }
+  } else {
+    args.push(tokens[i]);
+  }
+}
+
+// Extract parsed values
+const arg = args[0] || null;
+const resume_run_id = flags['--resume'] || null;
+const force_new = !!flags['--force-new'];
+const phase_filter = flags['--phase'] || null;
+const step_filter = flags['--step'] || null;
+const auto_worktree = !!flags['--worktree'];
+const resume_batch = !!flags['--resume-batch'];
+const workflow_override = flags['--workflow'] || null;
+const autonomy_override = flags['--autonomy'] || null;
+```
+
+Extracted variables:
 1. `arg`: First positional argument (required) - can be work-id OR plan-id
 2. `resume_run_id`: Value of `--resume` flag (optional)
 3. `force_new`: Boolean flag for `--force-new` (optional, default false)
@@ -651,13 +691,13 @@ Extract from user input:
 6. `auto_worktree`: Boolean flag for `--worktree` (optional, default false)
 7. `workflow_override`: Value of `--workflow` flag (optional) — forwarded to auto-planner
 8. `autonomy_override`: Value of `--autonomy` flag (optional) — forwarded to auto-planner
+9. `resume_batch`: Boolean flag for `--resume-batch` (optional, default false)
 
 **Resolve Plan ID from Argument:**
 
 The first argument can be either a work-id (e.g., "258") or a full plan-id (e.g., "fractary-faber-258").
 
 ```javascript
-const arg = args[0];
 let plan_id;
 
 if (!arg) {
