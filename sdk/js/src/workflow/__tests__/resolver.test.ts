@@ -806,4 +806,117 @@ describe('WorkflowResolver', () => {
       });
     });
   });
+
+  describe('Phase enabled Inheritance', () => {
+    it('should inherit enabled:false from ancestor when child does not declare the phase', async () => {
+      // Ancestor (plugin) disables architect and build
+      createWorkflow('fractary-faber', 'ingest-base', {
+        id: 'ingest-base',
+        phases: {
+          architect: { enabled: false },
+          build: { enabled: false },
+          evaluate: { enabled: true },
+          release: { enabled: true },
+        },
+      });
+
+      // Child (project-local) only adds a release step, no architect/build declaration
+      createWorkflow('project', 'ingest-operate', {
+        id: 'ingest-operate',
+        extends: 'faber@fractary-faber-ingest-base',
+        phases: {
+          release: { steps: [{ id: 'deploy', name: 'Deploy', prompt: 'Deploy the artifact' }] },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('ingest-operate');
+
+      expect(resolved.phases.architect.enabled).toBe(false);
+      expect(resolved.phases.build.enabled).toBe(false);
+      expect(resolved.phases.evaluate.enabled).toBe(true);
+      expect(resolved.phases.release.enabled).toBe(true);
+    });
+
+    it('should allow child to re-enable a phase that ancestor disabled', async () => {
+      createWorkflow('fractary-faber', 'plugin-disabled', {
+        id: 'plugin-disabled',
+        phases: {
+          architect: { enabled: false },
+          build: { enabled: true },
+          evaluate: { enabled: true },
+          release: { enabled: true },
+        },
+      });
+
+      createWorkflow('project', 'project-reenabled', {
+        id: 'project-reenabled',
+        extends: 'faber@fractary-faber-plugin-disabled',
+        phases: {
+          architect: { enabled: true },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('project-reenabled');
+
+      expect(resolved.phases.architect.enabled).toBe(true);
+    });
+
+    it('should inherit enabled:false through a three-level chain', async () => {
+      // Core enables everything
+      createWorkflow('fractary-faber', 'core-all-on', {
+        id: 'core-all-on',
+        phases: {
+          architect: { enabled: true },
+          build: { enabled: true },
+          evaluate: { enabled: true },
+          release: { enabled: true },
+        },
+      });
+
+      // Plugin extends core, disables architect
+      createWorkflow('fractary-faber', 'plugin-no-architect', {
+        id: 'plugin-no-architect',
+        extends: 'faber@fractary-faber-core-all-on',
+        phases: {
+          architect: { enabled: false },
+        },
+      });
+
+      // Project-local extends plugin, silent on architect
+      createWorkflow('project', 'project-silent', {
+        id: 'project-silent',
+        extends: 'faber@fractary-faber-plugin-no-architect',
+        phases: {
+          release: { steps: [{ id: 'deploy', name: 'Deploy', prompt: 'Deploy the artifact' }] },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('project-silent');
+
+      expect(resolved.phases.architect.enabled).toBe(false);
+      expect(resolved.phases.build.enabled).toBe(true);
+    });
+
+    it('should default enabled to true when no workflow in chain declares it', async () => {
+      // Neither ancestor nor child declares enabled
+      createWorkflow('fractary-faber', 'no-enabled-flag', {
+        id: 'no-enabled-flag',
+        phases: {
+          architect: { steps: [{ id: 'spec', name: 'Generate spec', prompt: 'Generate the architecture spec' }] },
+        },
+      });
+
+      createWorkflow('project', 'child-no-enabled', {
+        id: 'child-no-enabled',
+        extends: 'faber@fractary-faber-no-enabled-flag',
+        phases: {
+          release: { steps: [{ id: 'deploy', name: 'Deploy', prompt: 'Deploy the artifact' }] },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('child-no-enabled');
+
+      expect(resolved.phases.architect.enabled).toBe(true);
+    });
+  });
 });

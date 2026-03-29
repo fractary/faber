@@ -931,7 +931,7 @@ export class WorkflowResolver {
       const childPhase = childWorkflow.phases?.[phaseName];
 
       phases[phaseName] = {
-        enabled: childPhase?.enabled ?? true,
+        enabled: this.resolvePhaseEnabled(chain, phaseName),
         description: childPhase?.description,
         steps: filteredSteps,
         require_approval: childPhase?.require_approval,
@@ -941,6 +941,25 @@ export class WorkflowResolver {
     }
 
     return phases as ResolvedWorkflow['phases'];
+  }
+
+  /**
+   * Resolve the `enabled` flag for a phase by walking the inheritance chain.
+   * The first explicit boolean declaration (child → root) wins.
+   * Defaults to true if no workflow in the chain declares it.
+   */
+  private resolvePhaseEnabled(
+    chain: string[],
+    phaseName: 'frame' | 'architect' | 'build' | 'evaluate' | 'release'
+  ): boolean {
+    for (const workflowId of chain) {
+      const workflow = this.workflowCache.get(workflowId);
+      const phase = workflow?.phases?.[phaseName];
+      if (phase !== undefined && typeof phase.enabled === 'boolean') {
+        return phase.enabled;
+      }
+    }
+    return true;
   }
 
   /**
