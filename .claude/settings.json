@@ -34,7 +34,6 @@
     "fractary-docs@fractary-core": true,
     "fractary-logs@fractary-core": true,
     "fractary-file@fractary-core": true,
-    "fractary-status@fractary-core": true,
     "fractary-codex@fractary-codex": true,
     "fractary-faber@fractary-faber": true
   },
