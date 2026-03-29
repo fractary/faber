@@ -193,7 +193,7 @@ COMMIT_MESSAGE="${WORK_TYPE}(${WORK_ID}): ${TASK_DESCRIPTION}"
 **Security Note**: Sanitize user inputs before using in commit messages.
 
 ```markdown
-Use the @agent-fractary-repo:repo-manager agent with the following request:
+Use the @agent-fractary-repo-repo-manager agent with the following request:
 {
   "operation": "create-commit",
   "parameters": {
@@ -216,7 +216,7 @@ CAPTURE_BUILD_LOGS=$(echo "$CONFIG_JSON" | jq -r '.workflow.build.capture_build_
 If build commands were run:
 
 ```markdown
-Use the @agent-fractary-logs:log-manager agent with the following request:
+Use the @agent-fractary-logs-log-manager agent with the following request:
 {
   "operation": "capture-build",
   "parameters": {

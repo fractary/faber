@@ -258,7 +258,7 @@
       {
         "id": "issue-context",
         "type": "work_plugin",
-        "command": "/fractary-work:issue-fetch --work-id {work_id}",
+        "command": "/fractary-work-issue-fetch --work-id {work_id}",
         "description": "Issue details and context",
         "required": false,
         "condition": "state.work_id != null",

@@ -994,7 +994,7 @@ Steps with skills can use prompts to customize behavior:
 {
   "name": "create-pr",
   "description": "Create pull request for review",
-  "skill": "fractary-repo:pr-manager",
+  "skill": "fractary-repo-pr-manager",
   "prompt": "Create PR with: summary of changes, testing checklist, screenshots if UI changed, FABER attribution"
 }
 ```

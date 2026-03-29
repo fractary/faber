@@ -228,7 +228,7 @@ FUNCTION buildHookResponseLog(hook, response, context):
 ```pseudocode
 FUNCTION persistLog(log_entry):
   # Use fractary-logs skill to write
-  result = Invoke Skill: fractary-logs:log-writer
+  result = Invoke Skill: fractary-logs-log-writer
     Operation: write
     Parameters:
       log_type: log_entry.log_type
@@ -476,7 +476,7 @@ FUNCTION writeFallbackLog(log_entry):
 
 ### Skills Used
 
-- `fractary-logs:log-writer` - Persist log entries
+- `fractary-logs-log-writer` - Persist log entries
 - `faber-state` - Read/write workflow state
 - `faber-config` - Get log type configuration
 

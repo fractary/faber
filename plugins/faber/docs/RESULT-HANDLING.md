@@ -285,7 +285,7 @@ When `on_warning: "stop"` or a failure occurs, FABER displays intelligent prompt
     {
       "name": "commit",
       "description": "Create commit",
-      "skill": "fractary-repo:commit-creator"
+      "skill": "fractary-repo-commit-creator"
     }
   ]
 }
@@ -301,7 +301,7 @@ Both steps use default result_handling: continue on success/warning, stop on fai
     {
       "name": "security-scan",
       "description": "Run security scan",
-      "skill": "fractary-security:scanner",
+      "skill": "fractary-security-scanner",
       "result_handling": {
         "on_warning": "stop"
       }

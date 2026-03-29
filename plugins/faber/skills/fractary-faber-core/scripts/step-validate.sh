@@ -6,7 +6,7 @@
 #   step-validate.sh <step-json>
 #
 # Examples:
-#   step-validate.sh '{"description":"Fetch work item","skill":"fractary-work:issue-fetch"}'
+#   step-validate.sh '{"description":"Fetch work item","skill":"fractary-work-issue-fetch"}'
 #   step-validate.sh '{"description":"Implement solution","prompt":"Implement based on specification"}'
 #   step-validate.sh '{"prompt":"Run tests and report results"}'
 

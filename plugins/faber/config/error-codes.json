@@ -111,13 +111,13 @@
     "message": "Work plugin not configured",
     "severity": "error",
     "category": "integration",
-    "recovery": "Run /fractary-work:init to configure work tracking integration"
+    "recovery": "Run /fractary-work-init to configure work tracking integration"
   },
   "FABER-401": {
     "message": "Repo plugin not configured",
     "severity": "error",
     "category": "integration",
-    "recovery": "Run /fractary-repo:init to configure repository integration"
+    "recovery": "Run /fractary-repo-init to configure repository integration"
   },
   "FABER-402": {
     "message": "Work item not found",

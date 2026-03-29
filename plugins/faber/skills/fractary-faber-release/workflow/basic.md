@@ -113,7 +113,7 @@ For each document that exists:
 **3. Generate Updates**:
 
 ```markdown
-Use the @agent-fractary-docs:docs-manager agent with the following request:
+Use the @agent-fractary-docs-docs-manager agent with the following request:
 {
   "operation": "update-batch",
   "parameters": {
@@ -162,7 +162,7 @@ echo "✅ Project documentation reviewed/updated"
 Use repo-manager to create PR:
 
 ```markdown
-Use the @agent-fractary-repo:repo-manager agent with the following request:
+Use the @agent-fractary-repo-repo-manager agent with the following request:
 {
   "operation": "create-pr",
   "parameters": {
@@ -216,7 +216,7 @@ if [ "$UPDATE_DOCUMENTATION" = "prompt" ]; then
 elif [ "$UPDATE_DOCUMENTATION" = "auto" ]; then
     echo "📚 Updating documentation..."
 
-    Use the @agent-fractary-docs:docs-manager agent with the following request:
+    Use the @agent-fractary-docs-docs-manager agent with the following request:
     {
       "operation": "update",
       "parameters": {
@@ -242,7 +242,7 @@ GENERATE_DEPLOYMENT_DOC=$(echo "$CONFIG_JSON" | jq -r '.workflow.release.generat
 if [ "$GENERATE_DEPLOYMENT_DOC" = "true" ]; then
     echo "📦 Generating deployment documentation..."
 
-    Use the @agent-fractary-docs:docs-manager agent with the following request:
+    Use the @agent-fractary-docs-docs-manager agent with the following request:
     {
       "operation": "generate-deployment",
       "parameters": {
@@ -273,7 +273,7 @@ CHECK_DOCS=$(echo "$CONFIG_JSON" | jq -r '.workflow.release.check_docs_updated /
 If `archive_specs` is enabled:
 
 ```markdown
-Use the @agent-fractary-spec:spec-manager agent with the following request:
+Use the @agent-fractary-spec-spec-manager agent with the following request:
 {
   "operation": "archive",
   "parameters": {
@@ -299,7 +299,7 @@ echo "✅ Specifications archived"
 If `archive_logs` is enabled:
 
 ```markdown
-Use the @agent-fractary-logs:log-manager agent with the following request:
+Use the @agent-fractary-logs-log-manager agent with the following request:
 {
   "operation": "archive",
   "parameters": {

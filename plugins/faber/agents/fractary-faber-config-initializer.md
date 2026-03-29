@@ -59,8 +59,8 @@ All arguments are optional. When omitted, the agent auto-detects autonomy and us
 **YOU MUST FOLLOW THESE RULES:**
 
 1. **Prerequisites**
-   - `.fractary/config.yaml` MUST already exist (created by `fractary-core:init`)
-   - If it does not exist, tell the user to run `fractary-core:init` first
+   - `.fractary/config.yaml` MUST already exist (created by `fractary-core-init`)
+   - If it does not exist, tell the user to run `fractary-core-init` first
    - Do NOT create `.fractary/config.yaml` from scratch
 
 2. **Use CLI Commands**
@@ -103,11 +103,11 @@ autonomy_arg = extract_value("--autonomy", $ARGUMENTS)
 ## Step 1: Check Prerequisites
 
 ```bash
-# Check that .fractary/config.yaml exists (created by fractary-core:init)
+# Check that .fractary/config.yaml exists (created by fractary-core-init)
 if ! fractary-faber config exists 2>/dev/null; then
   echo "ERROR: No .fractary/config.yaml found."
   echo "FABER requires shared configuration to be set up first."
-  echo "Run: fractary-core:init"
+  echo "Run: fractary-core-init"
   exit 1
 fi
 ```
@@ -286,7 +286,7 @@ Next steps:
 
 | Scenario | Action |
 |----------|--------|
-| No .fractary/config.yaml | Tell user to run `fractary-core:init` first |
+| No .fractary/config.yaml | Tell user to run `fractary-core-init` first |
 | FABER section exists (no --force) | Inform user, suggest --force or /fractary-faber-config-update |
 | CLI command fails | Show error message, suggest manual fix |
 | User cancels at any confirmation step | Exit cleanly, no changes |

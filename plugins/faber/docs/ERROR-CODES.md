@@ -447,7 +447,7 @@ The hook configuration is invalid or hook type is incorrect.
 Check hook type matches configuration:
 - `document` - Path to markdown file with instructions
 - `script` - Path to executable shell script
-- `skill` - Skill identifier (e.g., "fractary-work:comment-create")
+- `skill` - Skill identifier (e.g., "fractary-work-comment-create")
 
 ---
 
@@ -494,7 +494,7 @@ The work tracking plugin is not configured but is required for this operation.
 
 **Recovery:**
 ```bash
-/fractary-work:init
+/fractary-work-init
 ```
 
 Then update FABER configuration to specify work plugin in `.fractary/config.yaml`:
@@ -521,7 +521,7 @@ The repository plugin is not configured but is required for this operation.
 
 **Recovery:**
 ```bash
-/fractary-repo:init
+/fractary-repo-init
 ```
 
 Then update FABER configuration to specify repo plugin in `.fractary/config.yaml`:

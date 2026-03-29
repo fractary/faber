@@ -39,7 +39,7 @@ SPEC_TEMPLATE=$(echo "$CONFIG_JSON" | jq -r '.workflow.architect.spec_template /
 If `generate_spec` is enabled, use the spec-manager agent:
 
 ```markdown
-Use the @agent-fractary-spec:spec-manager agent with the following request:
+Use the @agent-fractary-spec-spec-manager agent with the following request:
 {
   "operation": "generate",
   "parameters": {
@@ -220,7 +220,7 @@ if GENERATE_ADR == true AND work_is_architectural:
 - Integration patterns
 
 ```markdown
-Use the @agent-fractary-docs:docs-manager agent with the following request:
+Use the @agent-fractary-docs-docs-manager agent with the following request:
 {
   "operation": "generate-adr",
   "parameters": {
@@ -284,7 +284,7 @@ fi
 **Security Note**: Always sanitize user-controlled inputs (work item titles, descriptions) before using in commit messages or shell commands to prevent injection attacks.
 
 ```markdown
-Use the @agent-fractary-repo:repo-manager agent with the following request:
+Use the @agent-fractary-repo-repo-manager agent with the following request:
 {
   "operation": "create-commit",
   "parameters": {

@@ -242,14 +242,14 @@ workflow-run (command, direct execution)
   ↓ Phase 1: Frame
 workflow-run invokes frame skill
   ↓ Reads workflow/basic.md
-frame skill → Uses @agent-fractary-work:work-manager
+frame skill → Uses @agent-fractary-work-work-manager
   ↓ fetch issue
 work-manager → scripts/github/fetch-issue.sh
   ↓ Returns JSON
 {title: "Add auth", labels: ["feature"]}
   ↓ Back to frame skill
 frame skill classifies work → feature
-  ↓ Uses @agent-fractary-repo:repo-manager
+  ↓ Uses @agent-fractary-repo-repo-manager
 repo-manager → scripts/github/create-branch.sh
   ↓ Returns
 "Branch created: feat/123-add-auth"
@@ -336,7 +336,7 @@ workflow-run invokes architect skill...
 4. Platform Routing
    Skill uses config to route:
    ├─ Determine platform from primitive plugin config
-   └─ "@agent-fractary-repo:repo-manager" handles routing internally
+   └─ "@agent-fractary-repo-repo-manager" handles routing internally
 ```
 
 ### Session State Flow

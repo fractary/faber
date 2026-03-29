@@ -28,7 +28,7 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 - Do not add your own interpretation or extra tasks unless the prompt explicitly asks for it
 
 **Important about slash commands in prompts:**
-- Slash commands are complete, self-contained invocations (e.g., `/fractary-docs:write spec --work-id 123`)
+- Slash commands are complete, self-contained invocations (e.g., `/fractary-docs-write spec --work-id 123`)
 - Invoke them via Skill tool with the full command string
 - Commands handle their own argument parsing and execution strategy
 - Do not parse, manipulate, or reinterpret command strings
@@ -47,9 +47,9 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 
 **Two command execution patterns:**
 1. **Agent-delegating commands** - Use Task tool internally to invoke specialized agents
-   - Example: `/fractary-docs:write` → invokes fractary-docs:docs-writer agent
+   - Example: `/fractary-docs-write` → invokes fractary-docs-docs-writer agent
 2. **Inline commands** - Execute directly using bash, Read, Write, and other tools
-   - Example: `/fractary-work:issue-create` → runs gh commands directly
+   - Example: `/fractary-work-issue-create` → runs gh commands directly
 
 The orchestrator doesn't need to distinguish between these patterns - just invoke the command.
 
@@ -208,7 +208,7 @@ Workflow commands follow two distinct patterns, but the orchestrator handles the
 
 Commands that delegate to specialized agents for complex workflows.
 
-**Examples:** `/fractary-docs:write`, `/fractary-spec:refine`
+**Examples:** `/fractary-docs-write`, `/fractary-spec-refine`
 
 **Flow:**
 ```
@@ -234,7 +234,7 @@ Command returns to orchestrator
 
 Commands that execute work directly without agent delegation.
 
-**Examples:** `/fractary-work:issue-create`, `/fractary-repo:commit`
+**Examples:** `/fractary-work-issue-create`, `/fractary-repo-commit`
 
 **Flow:**
 ```
@@ -656,7 +656,7 @@ if [[ "$CURRENT_BRANCH" =~ ^($PROTECTED_BRANCHES)$ ]]; then
   echo "Protected branches: main, master, production, staging"
   echo ""
   echo "Action Required: Create a feature branch using:"
-  echo "  /fractary-repo:branch-create --work-id {work_id}"
+  echo "  /fractary-repo-branch-create --work-id {work_id}"
   exit 1
 fi
 

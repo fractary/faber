@@ -717,7 +717,7 @@ if (/^\d+$/.test(arg)) {
   // Call fractary-repo to fetch issue
   try {
     const issueResult = await Skill({
-      skill: "fractary-repo:issue-fetch",
+      skill: "fractary-repo-issue-fetch",
       args: `--ids ${work_id} --format json`
     });
 
@@ -793,7 +793,7 @@ if (/^\d+$/.test(arg)) {
 
   } catch (error) {
     console.error(`Error fetching issue #${work_id}: ${error.message}`);
-    console.error(`Note: fractary-repo:issue-fetch command may not be available yet.`);
+    console.error(`Note: fractary-repo-issue-fetch command may not be available yet.`);
     console.error(`Use full plan-id instead: /fractary-faber-workflow-run fractary-faber-${work_id}-...`);
     return;
   }
@@ -1264,7 +1264,7 @@ if (work_id) {
     ].join("\n");
 
     await Skill({
-      skill: "fractary-work:issue-comment",
+      skill: "fractary-work-issue-comment",
       args: `${work_id} --body "${commentBody}"`
     });
 
@@ -1427,7 +1427,7 @@ try {
     console.warn(`These steps MUST still be executed — iterate through plan.json steps array directly, not by prefix scan.`);
     if (source_id) {
       await Skill({
-        skill: "fractary-work:issue-comment",
+        skill: "fractary-work-issue-comment",
         args: `${source_id} --body "⚠️ **FABER Step ID Prefix Warning**: Plan contains steps whose IDs do not match their phase prefix. These will be explicitly enumerated from plan.json to prevent silent skipping.\n\`\`\`\n${prefixResult.stdout}\n\`\`\`"`
       });
     }
@@ -1724,7 +1724,7 @@ try {
   // Post the adherence report as a comment on the GitHub issue
   if (source_id) {
     await Skill({
-      skill: "fractary-work:issue-comment",
+      skill: "fractary-work-issue-comment",
       args: `${source_id} --context "Post the following plan adherence report as a comment:\n${adherenceReport}"`
     });
   }

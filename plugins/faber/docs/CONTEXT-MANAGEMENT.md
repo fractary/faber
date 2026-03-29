@@ -307,7 +307,7 @@ Each artifact has these properties:
 | `json` | JSON file | `path` or `path_from_state` | State file, plan file |
 | `markdown` | Markdown doc | `path` or `path_from_state` | Specification, protocol, README |
 | `directory` | Directory of files | `path` | Session summaries, logs |
-| `work_plugin` | Work item data | `command` | `/fractary-work:issue-fetch {work_id}` |
+| `work_plugin` | Work item data | `command` | `/fractary-work-issue-fetch {work_id}` |
 | `skill` | Custom skill | `command` | `/my-plugin:custom-loader` |
 | `git_info` | Git command output | `command` | `git log --oneline -10` |
 
@@ -357,7 +357,7 @@ Artifacts in `conditional_load` are loaded only when a condition is true:
     {
       "id": "issue-context",
       "type": "work_plugin",
-      "command": "/fractary-work:issue-fetch {work_id}",
+      "command": "/fractary-work-issue-fetch {work_id}",
       "description": "Issue details and context",
       "required": false,
       "condition": "state.work_id != null",

@@ -9,7 +9,7 @@
   "properties": {
     "organization": {
       "type": "string",
-      "description": "Organization name from fractary-core:repo plugin",
+      "description": "Organization name from fractary-core-repo plugin",
       "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
       "minLength": 1,
       "maxLength": 100

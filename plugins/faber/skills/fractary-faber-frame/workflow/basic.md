@@ -39,7 +39,7 @@ not the active worktree. Use $PWD or construct absolute paths from {worktree_cwd
 Use the work-manager agent to retrieve work item details:
 
 ```markdown
-Use the @agent-fractary-work:work-manager agent with the following request:
+Use the @agent-fractary-work-work-manager agent with the following request:
 {
   "operation": "fetch-issue",
   "parameters": {
@@ -72,7 +72,7 @@ fi
 Use the work-manager agent to classify the work item:
 
 ```markdown
-Use the @agent-fractary-work:work-manager agent with the following request:
+Use the @agent-fractary-work-work-manager agent with the following request:
 {
   "operation": "classify-issue",
   "parameters": {
@@ -119,7 +119,7 @@ This notifies stakeholders that the workflow has begun.
 **If configured**, start session capture to log all subsequent conversation:
 
 ```markdown
-Use the @agent-fractary-logs:log-manager agent with the following request:
+Use the @agent-fractary-logs-log-manager agent with the following request:
 {
   "operation": "capture",
   "parameters": {
@@ -165,7 +165,7 @@ worktree_enabled=$(fractary-faber config get faber.worktree.enabled --raw 2>/dev
 
 **Create Branch**:
 ```markdown
-Use the @agent-fractary-repo:repo-manager agent with the following request:
+Use the @agent-fractary-repo-repo-manager agent with the following request:
 {
   "operation": "create-branch",
   "parameters": {

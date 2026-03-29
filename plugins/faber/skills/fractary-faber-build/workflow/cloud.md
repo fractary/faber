@@ -121,7 +121,7 @@ echo "✅ Infrastructure code generated and validated"
 Use repo-manager to commit the generated Terraform:
 
 ```markdown
-Use the @agent-fractary-repo:repo-manager agent with the following request:
+Use the @agent-fractary-repo-repo-manager agent with the following request:
 {
   "operation": "create-commit",
   "parameters": {

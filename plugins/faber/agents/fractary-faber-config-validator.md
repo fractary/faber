@@ -177,7 +177,7 @@ Warnings:
 
 | Scenario | Action |
 |----------|--------|
-| No config.yaml exists | Report error, suggest `fractary-core:init` |
+| No config.yaml exists | Report error, suggest `fractary-core-init` |
 | No faber section | Report error, suggest `/fractary-faber-config-init` |
 | YAML parse error | Report syntax error location |
 | CLI command fails | Show raw error output |

@@ -331,7 +331,7 @@ FABER v2.1 introduces a required `id` field for step identification. This enable
   "id": "implement",
   "name": "Implement Solution",
   "description": "Implement solution from specification",
-  "skill": "fractary-spec:spec-generator"
+  "skill": "fractary-spec-spec-generator"
 }
 ```
 
@@ -415,7 +415,7 @@ FABER v2.0 introduces a powerful distinction between documentation and execution
   "id": "fetch-work",
   "name": "Fetch Work Item",
   "description": "Fetch work item details from issue tracker",
-  "skill": "fractary-work:issue-fetcher"
+  "skill": "fractary-work-issue-fetcher"
 }
 ```
 **Behavior**: Skill executes with default behavior. Description used for documentation.
@@ -426,7 +426,7 @@ FABER v2.0 introduces a powerful distinction between documentation and execution
   "id": "create-pr",
   "name": "Create Pull Request",
   "description": "Create pull request for review",
-  "skill": "fractary-repo:pr-manager",
+  "skill": "fractary-repo-pr-manager",
   "prompt": "Create PR with comprehensive summary, test plan, and FABER attribution"
 }
 ```

@@ -84,7 +84,7 @@ CAPTURE_TEST_LOGS=$(echo "$CONFIG_JSON" | jq -r '.workflow.evaluate.capture_test
 if [ "$CAPTURE_TEST_LOGS" = "true" ] && [ -n "$TEST_OUTPUT" ]; then
     echo "📝 Capturing test logs..."
 
-    Use the @agent-fractary-logs:log-manager agent with the following request:
+    Use the @agent-fractary-logs-log-manager agent with the following request:
     {
       "operation": "capture-test",
       "parameters": {
@@ -111,7 +111,7 @@ VALIDATE_SPEC=$(echo "$CONFIG_JSON" | jq -r '.workflow.evaluate.validate_spec //
 If `validate_spec` is enabled:
 
 ```markdown
-Use the @agent-fractary-spec:spec-manager agent with the following request:
+Use the @agent-fractary-spec-spec-manager agent with the following request:
 {
   "operation": "validate",
   "parameters": {
@@ -176,7 +176,7 @@ GENERATE_TEST_REPORT=$(echo "$CONFIG_JSON" | jq -r '.workflow.evaluate.generate_
 if [ "$GENERATE_TEST_REPORT" = "true" ]; then
     echo "📊 Generating test report..."
 
-    Use the @agent-fractary-docs:docs-manager agent with the following request:
+    Use the @agent-fractary-docs-docs-manager agent with the following request:
     {
       "operation": "generate-test-report",
       "parameters": {
