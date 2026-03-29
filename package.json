@@ -40,7 +40,7 @@
   },
   "homepage": "https://github.com/fractary/faber#readme",
   "author": "Fractary Team",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@fractary/forge": "*"
   }, 

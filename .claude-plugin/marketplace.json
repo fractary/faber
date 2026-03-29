@@ -22,7 +22,7 @@
       },
       "homepage": "https://github.com/fractary/faber",
       "repository": "https://github.com/fractary/faber",
-      "license": "MIT",
+      "license": "Apache-2.0",
       "keywords": [
         "faber",
         "sdlc",
