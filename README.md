@@ -140,10 +140,10 @@ Trust is earned, not assumed:
 
 | Level | Description |
 |-------|-------------|
-| `dry-run` | Preview changes without executing |
-| `assisted` | Pause for user confirmation at each step |
-| `guarded` | Confirm destructive operations only |
-| `autonomous` | Execute within established boundaries |
+| `dry-run` | Preview what would happen without executing any changes |
+| `assisted` | Pause for user confirmation at each significant step |
+| `guarded` | Proceed automatically for safe operations; confirm destructive ones |
+| `autonomous` | Execute to completion within established boundaries |
 
 ## Installation
 
@@ -210,7 +210,7 @@ fractary-faber repo branch create feat/fix-123
 fractary-faber repo pr create "Fix issue" --body "Resolves #123"
 ```
 
-See [CLI README](cli/README.md) for comprehensive documentation.
+See [CLI Reference](docs/public/cli.md) for comprehensive documentation.
 
 ## SDK Modules
 
@@ -277,7 +277,7 @@ const result = await faber.run({ workId: '123' });
 
 ## CLI Commands
 
-For comprehensive CLI documentation, see [@fractary/faber-cli](cli/README.md).
+For comprehensive CLI documentation, see [CLI Reference](docs/public/cli.md).
 
 Quick reference:
 
@@ -378,7 +378,7 @@ faber:
   - And more...
 
 ### Component Documentation
-- [CLI Reference](cli/README.md) - Command-line interface
+- [CLI Reference](docs/public/cli.md) - Command-line interface
 - [MCP Server](mcp/server/README.md) - Model Context Protocol integration
 - [Python SDK](sdk/py/README.md) - Python SDK guide
 

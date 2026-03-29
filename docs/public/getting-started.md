@@ -223,6 +223,28 @@ fractary-faber run-inspect --work-id 123
 fractary-faber workflow-resume <workflow-id>
 ```
 
+## Batch Workflows
+
+To plan and run multiple issues at once, use the batch commands:
+
+```bash
+# Plan multiple workflows in one step
+fractary-faber workflow-batch-plan --work-id 258,259,260 --name sprint-01
+
+# Run the batch (can be left unattended overnight)
+fractary-faber workflow-batch-run --batch sprint-01 --autonomous
+
+# Resume if interrupted
+fractary-faber workflow-batch-run --batch sprint-01 --autonomous --resume
+```
+
+You can also filter issues by label instead of listing IDs:
+```bash
+fractary-faber workflow-plan --work-label "status:approved,workflow:default" --limit 5
+```
+
+Each item in the batch gets its own plan, branch, and worktree. See [Backlog Management Guide](../guides/backlog-management.md) and the [CLI Reference](./cli.md#workflow-batch-plan) for full options.
+
 ## Autonomy Levels
 
 Control how much human oversight you want:

@@ -30,7 +30,7 @@ if (process.stdout.isTTY) {
   (process.stdout as any)._handle?.setBlocking?.(true);
 }
 
-const version = '1.5.23';
+const version = '1.5.47';
 
 /**
  * Create and configure the main CLI program
