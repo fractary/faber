@@ -7,15 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.47] - 2026-03-28
+
+> **Note:** Patch releases 1.5.2 through 1.5.47 were not individually documented. This entry covers all changes since 1.5.1.
+
 ### Version Bumps
 
 | Component | Version | Change |
 |-----------|---------|--------|
-| CLI (@fractary/faber-cli) | 1.5.2 | Patch |
-| SDK (@fractary/faber) | 2.1.3 | Patch |
+| CLI (@fractary/faber-cli) | 1.5.47 | Patch series |
+| SDK (@fractary/faber) | 2.4.40 | Patch series |
 | MCP Server (@fractary/faber-mcp) | 1.1.2 | Patch |
-| faber plugin | 3.8.29 | Patch |
-| Marketplace | 3.0.13 | Patch |
+| faber plugin | 3.8.29 | Patch series |
+| Marketplace | 3.0.13 | Patch series |
 
 ### Changed
 
