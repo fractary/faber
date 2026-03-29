@@ -106,12 +106,12 @@ LOGS_PLUGIN=$(echo "$CONFIG_DATA" | jq -r '.integrations.logs_plugin // empty')
 
 if [ -z "$WORK_PLUGIN" ]; then
     PRIORITY_RECOMMENDATIONS+=("🔴 HIGH: Configure work plugin integration (fractary-work)")
-    RECOMMENDATIONS+=("   Run: /fractary-work:init")
+    RECOMMENDATIONS+=("   Run: /fractary-work-init")
 fi
 
 if [ -z "$REPO_PLUGIN" ]; then
     PRIORITY_RECOMMENDATIONS+=("🔴 HIGH: Configure repo plugin integration (fractary-repo)")
-    RECOMMENDATIONS+=("   Run: /fractary-repo:init")
+    RECOMMENDATIONS+=("   Run: /fractary-repo-init")
 fi
 
 if [ -z "$SPEC_PLUGIN" ]; then

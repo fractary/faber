@@ -467,7 +467,7 @@ Next: Workflow will resume from design-review
 To post feedback request to issue:
 
 ```markdown
-Invoke Skill: fractary-work:comment-creator
+Invoke Skill: fractary-work-comment-creator
 Operation: create-comment
 Parameters:
   issue_id: "{work_id}"

@@ -571,7 +571,7 @@ const validation = spec.validateSpec('SPEC-001');
 console.log(validation);
 
 // Or use the plugin command in Claude Code:
-// /fractary-spec:spec-validate SPEC-001
+// /fractary-spec-spec-validate SPEC-001
 ```
 
 ### Cannot Create Spec
@@ -585,7 +585,7 @@ console.log(validation);
 mkdir -p .fractary/faber/specs
 
 # Use the plugin command in Claude Code:
-# /fractary-spec:spec-create
+# /fractary-spec-spec-create
 ```
 
 ---

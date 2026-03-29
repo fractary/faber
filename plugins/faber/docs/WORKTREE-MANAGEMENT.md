@@ -131,7 +131,7 @@ Would you like to remove this worktree? [Y/n]: y
 The cleanup step:
 1. Checks `state.worktree.created_by === "fractary-faber"`
 2. Prompts user for confirmation
-3. Calls `/fractary-repo:worktree-remove` to remove worktree
+3. Calls `/fractary-repo-worktree-remove` to remove worktree
 4. Updates global worktree tracking
 5. Returns to main worktree
 
@@ -193,7 +193,7 @@ All FABER worktrees are tracked in `.fractary/faber/worktrees.json`:
 ### List Worktrees
 
 ```bash
-/fractary-repo:worktree-list
+/fractary-repo-worktree-list
 ```
 
 Shows all worktrees with FABER workflow associations:
@@ -216,7 +216,7 @@ Total: 2 worktrees (1 main + 1 workflow worktree)
 ### Remove Worktree
 
 ```bash
-/fractary-repo:worktree-remove <path>
+/fractary-repo-worktree-remove <path>
 ```
 
 Safely removes a worktree:
@@ -226,7 +226,7 @@ Safely removes a worktree:
 
 **Example:**
 ```bash
-$ /fractary-repo:worktree-remove ../myproject-258
+$ /fractary-repo-worktree-remove ../myproject-258
 
 ✓ Removed worktree: ../myproject-258
 ✓ Updated tracking
@@ -235,7 +235,7 @@ $ /fractary-repo:worktree-remove ../myproject-258
 ### Prune Orphaned Worktrees
 
 ```bash
-/fractary-repo:worktree-prune
+/fractary-repo-worktree-prune
 ```
 
 Detects and cleans up orphaned worktrees:
@@ -353,7 +353,7 @@ Would you like to remove this worktree? [Y/n]: y
 
 ```bash
 # Periodic cleanup
-$ /fractary-repo:worktree-prune
+$ /fractary-repo-worktree-prune
 
 Found 2 orphaned worktrees (branch deleted, no activity)
 Would you like to remove them? [Y/n]: y
@@ -441,7 +441,7 @@ In workflow config (e.g., `workflows/core.json`):
 1. Commit or stash changes in worktree
 2. Use `--force` flag (caution: loses uncommitted work):
    ```bash
-   /fractary-repo:worktree-remove ~/.claude-worktrees/fractary-myproject-259 --force
+   /fractary-repo-worktree-remove ~/.claude-worktrees/fractary-myproject-259 --force
    ```
 
 ### Orphaned Worktrees Accumulating
@@ -450,7 +450,7 @@ In workflow config (e.g., `workflows/core.json`):
 
 **Solution**: Run periodic cleanup:
 ```bash
-/fractary-repo:worktree-prune
+/fractary-repo-worktree-prune
 ```
 
 **Prevention**: Enable auto-cleanup in settings.
@@ -485,15 +485,15 @@ claude
    - Accept cleanup prompts after workflow completion
 
 4. **Run Periodic Prune**
-   - Monthly: `/fractary-repo:worktree-prune`
+   - Monthly: `/fractary-repo-worktree-prune`
    - Keeps disk space under control
 
 5. **Check Active Worktrees**
-   - Before starting new work: `/fractary-repo:worktree-list`
+   - Before starting new work: `/fractary-repo-worktree-list`
    - Identify abandoned workflows
 
 6. **Don't Manually Delete Worktree Directories**
-   - Use `/fractary-repo:worktree-remove`
+   - Use `/fractary-repo-worktree-remove`
    - Ensures git metadata is cleaned up
 
 ## Integration with Context Management

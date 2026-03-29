@@ -206,7 +206,7 @@
         },
         "prompt": {
           "type": "string",
-          "description": "PRIMARY execution instruction. Can be: (1) a slash command (e.g., '/fractary-repo:commit'), (2) freeform text instruction for Claude to execute directly, or (3) a description of what to do. Takes precedence over command and description fields."
+          "description": "PRIMARY execution instruction. Can be: (1) a slash command (e.g., '/fractary-repo-commit'), (2) freeform text instruction for Claude to execute directly, or (3) a description of what to do. Takes precedence over command and description fields."
         },
         "context": {
           "type": "string",
@@ -685,7 +685,7 @@
         },
         "command": {
           "type": "string",
-          "description": "Slash command or git command to fetch artifact (e.g., '/fractary-work:issue-fetch {work_id}' or 'git log --oneline -20'). Required for work_plugin, skill, git_info types."
+          "description": "Slash command or git command to fetch artifact (e.g., '/fractary-work-issue-fetch {work_id}' or 'git log --oneline -20'). Required for work_plugin, skill, git_info types."
         },
         "description": {
           "type": "string",

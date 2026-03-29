@@ -53,7 +53,7 @@ Hook types:
     "pre_release": [
       {
         "type": "skill",
-        "skill": "fractary-docs:readme-updater",
+        "skill": "fractary-docs-readme-updater",
         "parameters": {"section": "changelog"},
         "description": "Update changelog"
       }
@@ -178,7 +178,7 @@ For **skill** hooks:
   "operation": "execute-hook",
   "hook_type": "skill",
   "action_required": "invoke",
-  "skill": "fractary-docs:readme-updater",
+  "skill": "fractary-docs-readme-updater",
   "parameters": {"section": "changelog"}
 }
 ```

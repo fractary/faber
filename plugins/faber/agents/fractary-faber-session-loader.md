@@ -74,12 +74,12 @@ When `work_id` parameter is provided:
    ```bash
    # Use gh CLI to fetch issue with full details including comments
    Skill(
-     skill: "fractary-repo:issue-fetch",
+     skill: "fractary-repo-issue-fetch",
      args: "--ids ${work_id} --format json --include-comments"
    )
    ```
 
-   If `fractary-repo:issue-fetch` is not available, fall back to gh CLI:
+   If `fractary-repo-issue-fetch` is not available, fall back to gh CLI:
    ```bash
    # Fetch issue details
    gh issue view ${work_id} --json number,title,body,state,labels,assignees,author,createdAt,updatedAt,comments

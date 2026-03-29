@@ -48,10 +48,10 @@ This creates the `faber:` section in `.fractary/config.yaml` with default settin
 **Solution:**
 ```bash
 # Initialize work tracking plugin
-/fractary-work:init
+/fractary-work-init
 
 # Initialize repository plugin
-/fractary-repo:init
+/fractary-repo-init
 
 # Update FABER configuration
 # Edit .fractary/config.yaml:
@@ -238,7 +238,7 @@ gh issue view <id>
 git remote -v
 
 # Verify work plugin authentication
-/fractary-work:init
+/fractary-work-init
 ```
 
 **Related Error Codes:** FABER-402
@@ -421,13 +421,13 @@ git status
 git log
 
 # If changes not committed, commit them
-/fractary-repo:commit "Your message" --work-id <id>
+/fractary-repo-commit "Your message" --work-id <id>
 ```
 
 **If branch not pushed:**
 ```bash
 # Push branch to remote
-/fractary-repo:push
+/fractary-repo-push
 ```
 
 **If PR already exists:**
@@ -686,7 +686,7 @@ When reporting issues, include:
 **Monthly:**
 - Update FABER to latest version
 - Review and update configuration
-- Clean stale worktrees: `/fractary-repo:worktree-cleanup --stale`
+- Clean stale worktrees: `/fractary-repo-worktree-cleanup --stale`
 
 ### Best practices
 

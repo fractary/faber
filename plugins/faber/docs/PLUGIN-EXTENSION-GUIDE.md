@@ -174,12 +174,12 @@ This file will be copied to `.fractary/faber/workflows/cloud.json` during projec
         {
           "name": "fetch-issue",
           "description": "Fetch infrastructure issue",
-          "skill": "fractary-work:issue-fetcher"
+          "skill": "fractary-work-issue-fetcher"
         },
         {
           "name": "create-branch",
           "description": "Create infrastructure branch",
-          "skill": "fractary-repo:branch-manager"
+          "skill": "fractary-repo-branch-manager"
         }
       ]
     },
@@ -216,7 +216,7 @@ This file will be copied to `.fractary/faber/workflows/cloud.json` during projec
         {
           "name": "commit",
           "description": "Commit Terraform code",
-          "skill": "fractary-repo:commit-creator"
+          "skill": "fractary-repo-commit-creator"
         }
       ]
     },
@@ -260,7 +260,7 @@ This file will be copied to `.fractary/faber/workflows/cloud.json` during projec
         {
           "name": "create-pr",
           "description": "Create PR documenting infrastructure changes",
-          "skill": "fractary-repo:pr-manager"
+          "skill": "fractary-repo-pr-manager"
         }
       ]
     }

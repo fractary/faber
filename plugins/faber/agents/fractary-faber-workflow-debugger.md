@@ -162,7 +162,7 @@ for phase in state.phases:
 # Use fractary-logs plugin to query recent events
 TRY:
   log_query_result = Skill(
-    skill="fractary-logs:search",
+    skill="fractary-logs-search",
     args="--type workflow --filter work_id={work_id} --limit 50 --format json"
   )
 
@@ -1405,7 +1405,7 @@ Confidence: {root_cause.confidence}
   # Post comment to GitHub issue
   TRY:
     Skill(
-      skill="fractary-work:issue-comment",
+      skill="fractary-work-issue-comment",
       args="{work_id} --body \"{comment_body}\""
     )
     PRINT "✅ Debug results posted to issue #{work_id}"

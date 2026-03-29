@@ -2,7 +2,7 @@
 name: fractary-faber-workflow-plan
 description: Create a FABER execution plan (plan only — use workflow-run to execute)
 argument-hint: '<work-id> [--workflow <id>] [--autonomy <level>] [--force-new]'
-allowed-tools: Agent(fractary-faber-workflow-planner), Agent(fractary-faber-workflow-plan-validator), Agent(fractary-faber-workflow-plan-reporter), TaskCreate, TaskUpdate, TaskList, Skill(fractary-work:issue-fetch), Skill(fractary-work:issue-comment)
+allowed-tools: Agent(fractary-faber-workflow-planner), Agent(fractary-faber-workflow-plan-validator), Agent(fractary-faber-workflow-plan-reporter), TaskCreate, TaskUpdate, TaskList, Skill(fractary-work-issue-fetch), Skill(fractary-work-issue-comment)
 model: claude-sonnet-4-6
 ---
 
@@ -66,7 +66,7 @@ if (work_id && !force_new) {
   // Fetch issue and check for existing plan comment
   try {
     const issueResult = await Skill({
-      skill: "fractary-work:issue-fetch",
+      skill: "fractary-work-issue-fetch",
       args: `--ids ${work_id} --format json`
     });
 

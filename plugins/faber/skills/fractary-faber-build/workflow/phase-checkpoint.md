@@ -18,7 +18,7 @@ This workflow is triggered when a spec phase is completed during Build. It ensur
 Use the spec-updater skill to mark the phase as complete.
 
 ```markdown
-Invoke Skill: fractary-spec:spec-updater
+Invoke Skill: fractary-spec-spec-updater
 Operation: batch-update
 Parameters:
 {
@@ -62,7 +62,7 @@ fi
 Use repo-manager to create the commit:
 
 ```markdown
-Use the @agent-fractary-repo:repo-manager agent with the following request:
+Use the @agent-fractary-repo-repo-manager agent with the following request:
 {
   "operation": "create-commit",
   "parameters": {
@@ -81,7 +81,7 @@ Use the @agent-fractary-repo:repo-manager agent with the following request:
 Post a progress update to the issue using the comment template.
 
 ```markdown
-Invoke Skill: fractary-work:comment-creator
+Invoke Skill: fractary-work-comment-creator
 Operation: create-comment
 Parameters:
 {
@@ -350,9 +350,9 @@ When errors occur, include them in the checkpoint results:
 - Build skill workflow (`workflow/basic.md` Step 6)
 
 **Invokes:**
-- `fractary-spec:spec-updater` - Update spec file
-- `fractary-repo:repo-manager` - Create commit
-- `fractary-work:comment-creator` - Post issue comment
+- `fractary-spec-spec-updater` - Update spec file
+- `fractary-repo-repo-manager` - Create commit
+- `fractary-work-comment-creator` - Post issue comment
 
 **Returns To:**
 - Build skill, which includes checkpoint results in its phase response

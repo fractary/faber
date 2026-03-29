@@ -132,7 +132,7 @@ else:
   TRY:
     # Invoke logs plugin skill
     log_query_result = Skill(
-      skill="fractary-logs:search",
+      skill="fractary-logs-search",
       args="--type workflow --filter work_id={work_id} --limit {log_limit} --format json"
     )
 

@@ -62,7 +62,7 @@ FABER supports three execution modes:
 {
   "name": "fetch-work",
   "description": "Fetch work item details from issue tracker",
-  "skill": "fractary-work:issue-fetcher"
+  "skill": "fractary-work-issue-fetcher"
 }
 ```
 
@@ -83,7 +83,7 @@ FABER supports three execution modes:
 {
   "name": "create-pr",
   "description": "Create pull request for review",
-  "skill": "fractary-repo:pr-manager",
+  "skill": "fractary-repo-pr-manager",
   "prompt": "Create PR with: 1) Summary of changes, 2) Testing checklist, 3) Screenshots if UI changes, 4) FABER attribution",
   "config": {
     "draft_if_assist": true,
@@ -207,7 +207,7 @@ FABER supports three execution modes:
 {
   "name": "commit",
   "description": "Create semantic commit",
-  "skill": "fractary-repo:commit-creator"
+  "skill": "fractary-repo-commit-creator"
 }
 ```
 
@@ -216,7 +216,7 @@ FABER supports three execution modes:
 {
   "name": "commit",
   "description": "Create commit following team conventions",
-  "skill": "fractary-repo:commit-creator",
+  "skill": "fractary-repo-commit-creator",
   "prompt": "Create commit with: 1) Conventional commit format (type(scope): message), 2) Link to work item in footer, 3) Co-author: Claude, 4) Include 'Closes #123' if work complete, 5) Add [skip ci] if docs-only change"
 }
 ```

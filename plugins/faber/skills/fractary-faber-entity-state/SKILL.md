@@ -146,7 +146,7 @@ Initialize a new entity state file.
 **Parameters:**
 - `type` (required): Entity type (e.g., "blog-post")
 - `id` (required): Entity ID (e.g., "blog-post-123")
-- `org` (required): Organization name (from fractary-core:repo)
+- `org` (required): Organization name (from fractary-core-repo)
 - `project` (required): Project name (from git or config)
 - `properties` (optional): JSON object with custom properties
 - `tags` (optional): Comma-separated tags

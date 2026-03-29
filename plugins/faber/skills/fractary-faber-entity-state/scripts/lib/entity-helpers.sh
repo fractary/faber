@@ -4,10 +4,10 @@
 
 set -euo pipefail
 
-# Get organization from fractary-core:repo plugin
+# Get organization from fractary-core-repo plugin
 # Returns organization name or empty string if not available
 get_organization_from_repo_plugin() {
-  # Check if fractary-core:repo plugin is installed and has organization configured
+  # Check if fractary-core-repo plugin is installed and has organization configured
   local repo_config=".fractary/repo/config.json"
 
   if [ -f "$repo_config" ]; then

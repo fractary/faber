@@ -245,7 +245,7 @@ For each environment (test, prod), prefix secrets with TEST_ or PROD_:
   TEST_<YOUR_VAR>, PROD_<YOUR_VAR>      ← any other env-specific variables
 
 Note: GITHUB_TOKEN is automatically provided by GitHub Actions (no secret needed).
-Note: Once fractary-core:env-switch supports GitHub Actions mode, it will alias
+Note: Once fractary-core-env-switch supports GitHub Actions mode, it will alias
       TEST_* vars to their unprefixed equivalents when env-switch is called.
 
 ### Step 3: Create Issue Labels (optional but recommended)
