@@ -1,24 +1,24 @@
 {
-  "name": "fractary-faber",
-  "version": "3.8.70",
-  "description": "Universal SDLC workflow framework with unified orchestrator pattern (plan + run)",
-  "commands": "./commands/",
-  "agents": [
-    "./agents/fractary-faber-config-initializer.md",
-    "./agents/fractary-faber-config-updater.md",
-    "./agents/fractary-faber-config-validator.md",
-    "./agents/fractary-faber-workflow-planner.md",
-    "./agents/fractary-faber-workflow-plan-validator.md",
-    "./agents/fractary-faber-workflow-plan-reporter.md",
-    "./agents/fractary-faber-github-installer.md",
-    "./agents/fractary-faber-workflow-verifier.md",
-    "./agents/fractary-faber-workflow-engineer.md",
-    "./agents/fractary-faber-workflow-debugger.md",
-    "./agents/fractary-faber-workflow-inspector.md",
-    "./agents/fractary-faber-session-loader.md",
-    "./agents/fractary-faber-session-saver.md",
-    "./agents/fractary-faber-run-inspect.md"
-  ],
-  "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+    "name": "fractary-faber",
+    "version": "3.9.1",
+    "description": "Universal SDLC workflow framework with unified orchestrator pattern (plan + run)",
+    "commands": "./commands/",
+    "agents": [
+        "./agents/fractary-faber-config-initializer.md",
+        "./agents/fractary-faber-config-updater.md",
+        "./agents/fractary-faber-config-validator.md",
+        "./agents/fractary-faber-workflow-planner.md",
+        "./agents/fractary-faber-workflow-plan-validator.md",
+        "./agents/fractary-faber-workflow-plan-reporter.md",
+        "./agents/fractary-faber-github-installer.md",
+        "./agents/fractary-faber-workflow-verifier.md",
+        "./agents/fractary-faber-workflow-engineer.md",
+        "./agents/fractary-faber-workflow-debugger.md",
+        "./agents/fractary-faber-workflow-inspector.md",
+        "./agents/fractary-faber-session-loader.md",
+        "./agents/fractary-faber-session-saver.md",
+        "./agents/fractary-faber-run-inspect.md"
+    ],
+    "skills": "./skills/",
+    "hooks": "./hooks/hooks.json"
 }
