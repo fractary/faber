@@ -1611,7 +1611,28 @@ In production workflows, downstream systems and humans rely on state claims bein
 
 10. **Run ID is sacred** - Never modify it, always pass it through, use it for resume capability.
 
-11. **Context compaction is not a failure** - FABER survives compaction automatically. Never stop or pause due to context pressure. Call `/fractary-faber-session-load` if needed and continue.
+11. **Context compaction is not a failure** - FABER survives compaction automatically. Never stop or pause due to context pressure. The SessionStart hook injects recovery context; use TaskList to find your position and continue.
+
+---
+
+## Phase Boundary Best Practices
+
+**Do NOT add `session-clear` + `session-load` pre_steps at phase boundaries.**
+
+A phase transition is not a compaction event. The orchestrator still has full context when moving between phases. Adding session-load at every phase boundary:
+- Spawns a separate agent that re-fetches the full GitHub issue (grows with every progress comment)
+- Reloads this protocol document (1,600+ lines)
+- Reloads spec files and plan artifacts
+- Does this 4–5 times per workflow, multiplying cost with no benefit
+
+**When to legitimately use session-load:**
+- When a specific step genuinely needs an artifact not yet in context (e.g., a build step needs the spec file after a genuine compaction). Use `--minimal` flag for recovery — it loads only state.json + run summary.
+- Never as a "safeguard" at every phase boundary.
+
+**Genuine compaction recovery** is handled automatically by the SessionStart hook, which reads `state.json` directly and injects a minimal recovery message. The orchestrator reads TaskList to find the next pending step and continues — no session-loader agent needed for normal recovery.
+
+**For `critical_artifacts` in workflow configs:**
+Move `orchestration-protocol` from `always_load` to `conditional_load` with `condition: "state.status == 'paused'"`. Only reload this protocol when resuming a genuinely paused workflow — not on every session-start.
 
 ---
 

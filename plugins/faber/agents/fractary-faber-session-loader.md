@@ -1,7 +1,7 @@
 ---
 name: fractary-faber-session-loader
 description: Reloads critical context artifacts for active or resuming FABER workflows
-model: claude-sonnet-4-6
+model: claude-haiku-4-5-20251001
 tools: Read, Write, Glob, Bash, Skill
 color: orange
 memory: project
@@ -29,10 +29,22 @@ The session-loader agent reloads critical artifacts for an active or resuming FA
 | `work_id` | string | No | GitHub issue number. If provided, finds matching workflow run by work_id and fetches the GitHub issue with all comments into context. Takes precedence over `run_id`. |
 | `run_id` | string | No | Specific run ID to reload. If omitted, auto-detects from `.fractary/faber/runs/.active-run-id` or searches for active workflows |
 | `trigger` | string | No | What triggered this reload: `session_start`, `manual`, `phase_start`. Default: `manual` |
+| `minimal` | boolean | No | When true, load ONLY state.json + run summary. Skip GitHub issue fetch, spec files, and orchestration protocol. Use for post-compaction recovery when the next step doesn't need heavy artifacts. Default: false |
 | `artifacts` | string | No | Comma-separated list of specific artifact IDs to load. If omitted, loads all configured artifacts |
 | `force` | boolean | No | Force reload even if recently loaded. Default: false |
 | `context` | string | No | Phase-specific hint describing what artifacts and information are most critical for the current phase. Used to prioritize artifact loading and provide focused context summary. |
 | `dry_run` | boolean | No | Show what would be loaded without actually loading. Default: false |
+
+## Minimal Mode
+
+When `--minimal` is passed (or `trigger == 'session_start'` and `minimal` is not explicitly set to `false`):
+
+1. Read `state.json` — report current phase, step ID, status, and artifact paths
+2. Output a short recovery summary: run ID, phase, next pending step
+3. **Skip**: GitHub issue fetch, orchestration protocol, spec files, plan re-read, session history update
+4. Return immediately after the summary
+
+This is the correct behavior for post-compaction recovery where the orchestrator just needs to know "where am I" and can read TaskList for "what's left". Full artifact loading is wasteful here because the orchestrator doesn't need the spec or issue body to advance to the next step — the step's own prompt will fetch what it needs.
 
 ## Algorithm
 
@@ -170,6 +182,11 @@ Session detection logic:
    - This handles cross-environment workflow resumption
 
 **Step 4: Determine Artifacts to Load**
+
+> **Minimal mode early exit**: If `minimal == true` OR (`trigger == 'session_start'` AND `minimal` was not explicitly set to `false`):
+> 1. Read state.json and output: run ID, phase, current_step_id, status, and artifact_paths
+> 2. Output: "Recovery: run TaskList to see pending steps, then continue from next pending step."
+> 3. **Stop here** — skip Steps 5–8 entirely. Do not load GitHub issue, orchestration protocol, or spec files.
 
 ```
 artifacts_to_load = []
