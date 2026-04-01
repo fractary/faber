@@ -1,37 +1,42 @@
-[
-  {
-    "event": "SessionStart",
-    "hooks": [
+{
+  "hooks": {
+    "SessionStart": [
       {
-        "type": "command",
-        "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start-hook.sh",
-        "timeout": 10,
-        "statusMessage": "Checking for active FABER workflow..."
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start-hook.sh",
+            "timeout": 10,
+            "statusMessage": "Checking for active FABER workflow..."
+          }
+        ]
       }
-    ]
-  },
-  {
-    "event": "PreCompact",
-    "hooks": [
+    ],
+    "PreCompact": [
       {
-        "type": "command",
-        "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-compact-hook.sh",
-        "timeout": 10,
-        "async": true,
-        "statusMessage": "Saving FABER session metadata..."
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-compact-hook.sh",
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "Saving FABER session metadata..."
+          }
+        ]
       }
-    ]
-  },
-  {
-    "event": "SessionEnd",
-    "hooks": [
+    ],
+    "SessionEnd": [
       {
-        "type": "command",
-        "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-end-hook.sh",
-        "timeout": 10,
-        "async": true,
-        "statusMessage": "Recording FABER session end..."
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-end-hook.sh",
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "Recording FABER session end..."
+          }
+        ]
       }
     ]
   }
-]
+}
