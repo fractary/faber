@@ -37,8 +37,7 @@
             ],
             "category": "development",
             "strict": true,
-            "skills": "./skills/",
-            "hooks": "./hooks/hooks.json"
+            "skills": "./skills/"
         }
     ]
 }
