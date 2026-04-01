@@ -7,7 +7,7 @@
     },
     "metadata": {
         "description": "Core FABER workflow orchestration framework.",
-        "version": "4.0.3",
+        "version": "4.0.4",
         "pluginRoot": "./plugins"
     },
     "plugins": [
@@ -15,7 +15,7 @@
             "name": "fractary-faber",
             "source": "./plugins/faber",
             "description": "Universal SDLC workflow framework - Frame → Architect → Build → Evaluate → Release",
-            "version": "4.0.3",
+            "version": "4.0.4",
             "author": {
                 "name": "The Fractary",
                 "url": "https://github.com/fractary"
@@ -37,41 +37,8 @@
             ],
             "category": "development",
             "strict": true,
-            "commands": "./commands/",
-            "agents": [
-                "./agents/fractary-faber-config-initializer.md",
-                "./agents/fractary-faber-config-updater.md",
-                "./agents/fractary-faber-config-validator.md",
-                "./agents/fractary-faber-workflow-planner.md",
-                "./agents/fractary-faber-workflow-plan-validator.md",
-                "./agents/fractary-faber-workflow-plan-reporter.md",
-                "./agents/fractary-faber-github-installer.md",
-                "./agents/fractary-faber-workflow-verifier.md",
-                "./agents/fractary-faber-workflow-engineer.md",
-                "./agents/fractary-faber-workflow-debugger.md",
-                "./agents/fractary-faber-workflow-inspector.md",
-                "./agents/fractary-faber-session-loader.md",
-                "./agents/fractary-faber-session-saver.md",
-                "./agents/fractary-faber-run-inspect.md"
-            ],
-            "skills": "./skills/"
-        }
-    ],
-    "relatedPlugins": [
-        {
-            "name": "fractary-faber-software",
-            "repository": "https://github.com/fractary/faber-software",
-            "description": "Software development agents for FABER workflows"
-        },
-        {
-            "name": "fractary-faber-cloud",
-            "repository": "https://github.com/fractary/faber-cloud",
-            "description": "Cloud infrastructure agents for FABER workflows"
-        },
-        {
-            "name": "fractary-faber-content",
-            "repository": "https://github.com/fractary/faber-content",
-            "description": "Content creation agents for FABER workflows"
+            "skills": "./skills/",
+            "hooks": "./hooks/hooks.json"
         }
     ]
 }
