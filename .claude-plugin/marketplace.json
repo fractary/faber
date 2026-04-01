@@ -54,8 +54,7 @@
                 "./agents/fractary-faber-session-saver.md",
                 "./agents/fractary-faber-run-inspect.md"
             ],
-            "skills": "./skills/",
-            "hooks": "./hooks/hooks.json"
+            "skills": "./skills/"
         }
     ],
     "relatedPlugins": [
