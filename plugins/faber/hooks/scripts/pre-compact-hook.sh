@@ -35,3 +35,16 @@ UPDATED=$(jq \
   "$STATE_FILE" 2>/dev/null) || exit 0
 
 echo "$UPDATED" > "$STATE_FILE"
+
+WORK_ID=$(jq -r '.work_id // ""' < "$STATE_FILE" 2>/dev/null)
+
+# Inject CONTEXT_YIELD instruction so the orchestrator stops cleanly between steps
+jq -n \
+  --arg run_id "$RUN_ID" \
+  --arg work_id "$WORK_ID" \
+  '{
+    hookSpecificOutput: {
+      hookEventName: "PreCompact",
+      additionalContext: ("Context compaction imminent. Finish your current step if mid-step, update state.json to mark it completed, then output exactly: CONTEXT_YIELD: run_id=" + $run_id + " resume_cmd=use fractary-faber-workflow-runner skill with " + $work_id + " --resume " + $run_id + " — then stop. Do NOT mark subsequent steps complete.")
+    }
+  }'

@@ -359,8 +359,8 @@ When invoked with an operation:
 <ERROR_HANDLING>
 | Error | Code | Action |
 |-------|------|--------|
-| Config file not found | CONFIG_NOT_FOUND | Return error with path (.fractary/config.yaml) and suggestion to run `/fractary-faber-config-init` |
-| Missing faber section | FABER_SECTION_MISSING | Return error suggesting to run `/fractary-faber-config-init` |
+| Config file not found | CONFIG_NOT_FOUND | Return error with path (.fractary/config.yaml) and suggestion to run the `fractary-faber-config-manager` skill (init operation) |
+| Missing faber section | FABER_SECTION_MISSING | Return error suggesting to run the `fractary-faber-config-manager` skill (init operation) |
 | Invalid YAML | CONFIG_INVALID_YAML | Return error with parse error details |
 | Schema validation failed | CONFIG_SCHEMA_ERROR | Return error with specific validation failures |
 | Workflow not found | WORKFLOW_NOT_FOUND | Return error with available workflow IDs |
