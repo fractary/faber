@@ -33,7 +33,7 @@ Set status="paused" ONLY for genuine blockers (missing credentials, tool failure
 <CONTEXT_YIELD>
 If context fills despite compaction (i.e., compaction has occurred but context is still full):
 1. Complete the current step fully and update state.json
-2. Output exactly: `CONTEXT_YIELD: run_id={run_id} resume_cmd=/fractary-faber-workflow-run {work_id} --resume {run_id}`
+2. Output exactly: `CONTEXT_YIELD: run_id={run_id}` and note to resume with the fractary-faber-workflow-runner skill using `{work_id} --resume {run_id}`
 3. Stop cleanly — do NOT mark subsequent steps complete
 
 This signals the next session to resume cleanly. The TaskList and state.json have full position information.
@@ -212,15 +212,14 @@ if (pendingTasks.length > 0) {
     pause_reason: `TaskList guard: ${pendingTasks.length} pending tasks`,
     updated_at: new Date().toISOString() };
   await Write({ file_path: statePath, content: JSON.stringify(pausedState, null, 2) });
-  console.error(`To resume: /fractary-faber-workflow-run ${work_id} --resume ${runId}`);
+  console.error(`To resume: use the fractary-faber-workflow-runner skill with ${work_id} --resume ${runId}`);
   return;
 }
 
 // Completion verification gate (MANDATORY)
-const verificationResult = await Agent({
-  subagent_type: "fractary-faber-workflow-verifier",
-  description: `Verify workflow completion for ${runId}`,
-  prompt: `--run-id ${runId}`
+const verificationResult = await Skill({
+  skill: "fractary-faber-workflow-run-verifier",
+  args: `--run-id ${runId}`
 });
 const verificationMatch = verificationResult.match(/verification:\s*(pass|fail)/);
 if (!verificationMatch || verificationMatch[1] === 'fail') {
@@ -229,7 +228,7 @@ if (!verificationMatch || verificationMatch[1] === 'fail') {
     updated_at: new Date().toISOString() };
   await Write({ file_path: statePath, content: JSON.stringify(pausedState, null, 2) });
   console.error(`Verification failed: ${reason}`);
-  console.error(`To resume: /fractary-faber-workflow-run ${work_id} --resume ${runId}`);
+  console.error(`To resume: use the fractary-faber-workflow-runner skill with ${work_id} --resume ${runId}`);
   return;
 }
 
@@ -256,7 +255,7 @@ const failedState = { ...state, status: "failed", error: errorMessage,
 await Write({ file_path: statePath, content: JSON.stringify(failedState, null, 2) });
 await fractary_faber_event_emit({ run_id: eventRunId, type: "workflow_failed",
   metadata: { run_id: runId, error: errorMessage } });
-console.error(`✗ Workflow failed. To resume: /fractary-faber-workflow-run ${work_id} --resume ${runId}`);
+console.error(`✗ Workflow failed. To resume: use the fractary-faber-workflow-runner skill with ${work_id} --resume ${runId}`);
 // Then run failure-path minimal finalization from workflow-runner-finalize.md
 ```
 

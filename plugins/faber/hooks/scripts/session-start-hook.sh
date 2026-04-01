@@ -48,7 +48,7 @@ fi
 CONTEXT_PARTS="${CONTEXT_PARTS} Recovery: (1) Read ${STATE_FILE} to confirm position. (2) TaskList to see pending steps. (3) Continue from next pending step."
 
 if [ "$NEEDS_ARTIFACTS" = "true" ]; then
-  CONTEXT_PARTS="${CONTEXT_PARTS} This phase may need spec files — run /fractary-faber-session-load --minimal --trigger session_start if the next step requires them."
+  CONTEXT_PARTS="${CONTEXT_PARTS} This phase may need spec files — use the fractary-faber-session-manager skill with load --minimal --trigger session_start if the next step requires them."
 else
   CONTEXT_PARTS="${CONTEXT_PARTS} No heavy artifact reload needed — proceed directly from TaskList."
 fi
