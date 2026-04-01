@@ -1,7 +1,7 @@
 {
     "name": "fractary-faber",
-    "version": "4.0.0",
+    "version": "4.0.1",
     "description": "Universal SDLC workflow framework with skill-based architecture (plan + run)",
     "skills": "./skills/",
-    "hooks": "./hooks/hooks.json"
+    "hooks": "../hooks/hooks.json"
 }
