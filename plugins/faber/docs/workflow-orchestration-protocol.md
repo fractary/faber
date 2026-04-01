@@ -45,9 +45,9 @@ This protocol defines how Claude Code orchestrates FABER workflow execution as t
 > This constraint applies even when a previously-loaded sub-agent's rules say "use Bash directly."
 > Those rules are scoped to the sub-agent executing that specific skill, not to you as the orchestrator.
 
-**Two command execution patterns:**
-1. **Agent-delegating commands** - Use Task tool internally to invoke specialized agents
-   - Example: `/fractary-docs-write` → invokes fractary-docs-docs-writer agent
+**Two slash command execution patterns:**
+1. **Agent-delegating commands** - Use Agent tool internally to invoke specialized agents
+   - Example: `/fractary-docs-write` → invokes fractary-docs-writer agent
 2. **Inline commands** - Execute directly using bash, Read, Write, and other tools
    - Example: `/fractary-work-issue-create` → runs gh commands directly
 
@@ -206,33 +206,33 @@ Workflow commands follow two distinct patterns, but the orchestrator handles the
 
 #### Pattern 1: Agent-Delegating Commands
 
-Commands that delegate to specialized agents for complex workflows.
+Slash commands that delegate to specialized agents for complex workflows.
 
-**Examples:** `/fractary-docs-write`, `/fractary-spec-refine`
+**Examples:** `/fractary-docs-write`, `/fractary-repo-pr-review`
 
 **Flow:**
 ```
-Orchestrator invokes command via Skill tool
+Orchestrator invokes slash command via Skill tool
     ↓
-Command implementation parses arguments
+Skill implementation parses arguments
     ↓
-Command invokes agent via Task tool
+Skill invokes agent via Agent tool
     ↓
 Agent executes workflow (may use multiple sub-tools)
     ↓
-Agent returns results to command
+Agent returns results to skill
     ↓
-Command returns to orchestrator
+Skill returns to orchestrator
 ```
 
 **Characteristics:**
-- Command file contains `Task(subagent_type="...", prompt="...")` invocation
+- Skill file contains `Agent(subagent_type="...", prompt="...")` invocation
 - Agent handles complex multi-step logic
-- Results propagated back through command to orchestrator
+- Results propagated back through skill to orchestrator
 
 #### Pattern 2: Inline Commands
 
-Commands that execute work directly without agent delegation.
+Slash commands that execute work directly without agent delegation.
 
 **Examples:** `/fractary-work-issue-create`, `/fractary-repo-commit`
 

@@ -515,9 +515,9 @@ When integrating FABER into your project, use the plugin commands directly in yo
 ## Common Integration Mistakes
 
 **❌ Don't Do This:**
-- Creating project-specific wrapper commands around FABER commands
-- Creating project-specific agents that wrap FABER commands
-- Copying FABER logic into custom agents/fractary-faber-skills
+- Creating project-specific wrapper commands around FABER slash commands
+- Creating project-specific skills that wrap FABER skills
+- Copying FABER logic into custom skills
 - Modifying FABER plugin files directly
 
 **✅ Do This Instead:**

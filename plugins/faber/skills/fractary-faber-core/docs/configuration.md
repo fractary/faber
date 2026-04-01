@@ -63,12 +63,12 @@ branch_naming = "feat/{issue_id}-{slug}"       # Branch naming pattern
 
 ### [director]
 
-Director agent configuration.
+Director configuration.
 
 ```toml
 [director]
 type = "default"                               # default | custom
-agent_ref = "agents/fractary-faber-faber-director.md"         # Agent file path
+skill_ref = "skills/fractary-faber-workflow-runner/SKILL.md"  # Skill file path
 model = "claude-3.7"                           # AI model
 max_tokens = 4096                              # Max response tokens
 ```

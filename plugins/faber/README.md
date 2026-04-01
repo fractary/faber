@@ -2,7 +2,7 @@
 
 **Tool-agnostic SDLC workflow automation**: From work item to production in 5 phases.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude-Code%20Plugin-blue)](https://claude.com/claude-code)
 
 ## What is FABER?
@@ -306,17 +306,15 @@ Override per workflow:
 
 ## Architecture
 
-FABER uses a **3-layer architecture** for context efficiency:
+FABER uses a **2-layer architecture** for context efficiency:
 
 ```
-Layer 1: Agents (Decision Logic)
+Layer 1: Skills (Decision Logic + Orchestration)
    ↓
-Layer 2: Skills (Adapter Selection)
-   ↓
-Layer 3: Scripts (Deterministic Operations)
+Layer 2: Scripts (Deterministic Operations)
 ```
 
-### Why 3 Layers?
+### Why This Architecture?
 
 **Problem**: Traditional approaches load all code into LLM context (700+ lines)
 
@@ -326,22 +324,31 @@ Layer 3: Scripts (Deterministic Operations)
 
 ### Components
 
-#### Agents (Decision Makers)
-- `workflow-planner` - Workflow planning
-- `workflow-engineer` - Build phase implementation
-- `workflow-inspector` - Audit and inspection
-- `workflow-debugger` - Debugging and error handling
-- `run-inspect` - Run status inspection
-- `session-manager` - Session artifact management
-- `configurator` - Project configuration
+#### Skills (Orchestration + Adapters)
 
-#### Skills (Adapters)
+**Phase Skills** (workflow execution):
+- `workflow-runner` - Orchestrates complete FABER workflow across all 5 phases
+- `frame` - Work fetching, classification, branch creation
+- `architect` - Specification generation
+- `build` - Solution implementation
+- `evaluate` - Testing, review, GO/NO-GO decisions
+- `release` - PR creation, deployment
+
+**Management Skills** (configuration + operations):
+- `config-manager` - Project configuration (init, update, validate)
+- `session-manager` - Session artifact management (load, save, clear)
+- `workflow-author` - Workflow definition creation and updates
+- `run-inspector` - Run status inspection
+- `faber-debugger` - Debugging and error handling
+- `github-installer` - GitHub Actions workflow installation
+
+**Core Skills** (utilities):
 - `core` - Configuration, sessions, status cards
-- `work-manager` - GitHub/Jira/Linear adapters
-- `repo-manager` - GitHub/GitLab/Bitbucket adapters
-- `file-manager` - R2/S3/local storage adapters
+- `faber-config` - Config loading and resolution
+- `faber-state` - Workflow state management
+- `response-validator` - Skill response format validation
 
-#### Commands (User Interface)
+#### Slash Commands (User Interface)
 - `/fractary-faber-config-init` - Initialize FABER in a project (first-time setup)
 - `/fractary-faber-config-update` - Update existing FABER configuration
 - `/fractary-faber-config-validate` - Validate FABER configuration
@@ -350,7 +357,7 @@ Layer 3: Scripts (Deterministic Operations)
 - `/fractary-faber-workflow-create` - Create workflow definition
 - `/fractary-faber-workflow-update` - Update workflow definition
 - `/fractary-faber-workflow-inspect` - Inspect workflow state
-- `/fractary-faber-workflow-debugger` - Debug workflow issues
+- `/fractary-faber-workflow-debug` - Debug workflow issues
 - `/fractary-faber-run-inspect` - Show workflow run status
 - `/fractary-faber-session-load` - Load session state
 - `/fractary-faber-session-save` - Save session state
@@ -580,32 +587,23 @@ faber:
 
 ```
 fractary-faber/
-├── agents/           # Workflow orchestration
-│   ├── workflow-planner.md      # Workflow planning
-│   ├── workflow-engineer.md  # Build phase implementation
-│   ├── workflow-inspector.md # Audit and inspection
-│   ├── workflow-debugger.md  # Debugging and error handling
-│   ├── run-inspect.md        # Run status inspection
-│   ├── session-manager.md    # Session management
-│   └── configurator.md       # Project configuration
-├── skills/           # Phase execution & core utilities
-│   ├── frame/        # Frame phase skill
-│   ├── architect/    # Architect phase skill
-│   ├── build/        # Build phase skill
-│   ├── evaluate/     # Evaluate phase skill
-│   ├── release/      # Release phase skill
-│   └── core/         # Core scripts (validation, audit, state)
-├── commands/         # User commands
-│   ├── configure.md        # Initialize configuration
-│   ├── workflow-run.md     # Execute workflow
-│   ├── workflow-plan.md    # Plan workflow
-│   ├── workflow-create.md  # Create workflow definition
-│   ├── workflow-update.md  # Update workflow definition
-│   ├── workflow-inspect.md # Inspect workflow state
-│   ├── workflow-debugger.md# Debug workflow issues
-│   ├── run-inspect.md      # Show run status
-│   ├── session-load.md     # Load session state
-│   └── session-save.md     # Save session state
+├── skills/                    # All orchestration, phase execution & utilities
+│   ├── fractary-faber-workflow-runner/   # Workflow orchestration
+│   ├── fractary-faber-frame/            # Frame phase
+│   ├── fractary-faber-architect/        # Architect phase
+│   ├── fractary-faber-build/            # Build phase
+│   ├── fractary-faber-evaluate/         # Evaluate phase
+│   ├── fractary-faber-release/          # Release phase
+│   ├── fractary-faber-config-manager/   # Configuration (init/update/validate)
+│   ├── fractary-faber-session-manager/  # Session management (load/save/clear)
+│   ├── fractary-faber-workflow-author/  # Workflow creation and updates
+│   ├── fractary-faber-run-inspector/    # Run status inspection
+│   ├── fractary-faber-faber-debugger/   # Debugging and error handling
+│   ├── fractary-faber-github-installer/ # GitHub Actions setup
+│   ├── fractary-faber-core/             # Core utilities (config, state, status)
+│   ├── fractary-faber-faber-config/     # Config loading and resolution
+│   ├── fractary-faber-faber-state/      # Workflow state management
+│   └── fractary-faber-response-validator/ # Response format validation
 ├── config/           # Configuration & schemas
 │   ├── config.schema.json    # JSON Schema v7
 │   ├── templates/            # Configuration templates
@@ -643,7 +641,7 @@ Contributions are welcome! Please:
 
 ## License
 
-MIT License - see LICENSE file for details
+Apache License 2.0 - see LICENSE file for details
 
 ## Support
 

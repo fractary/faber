@@ -20,7 +20,7 @@ FABER is a **tool-agnostic SDLC workflow framework** built on a 3-layer architec
 ### Core Principles
 
 1. **Context Efficiency**: Minimize token usage through architectural separation
-2. **Tool Agnostic**: Support multiple platforms without agent changes
+2. **Tool Agnostic**: Support multiple platforms without skill changes
 3. **Domain Agnostic**: Support multiple work domains (engineering, design, writing, data)
 4. **Composability**: Small, focused components that compose into complete workflows
 5. **Resilience**: Automatic retry mechanisms and error recovery
@@ -65,33 +65,44 @@ FABER is a **tool-agnostic SDLC workflow framework** built on a 3-layer architec
 └─────────────────────────────────────────────────────────┘
 ```
 
-## 3-Layer Architecture
+## 2-Layer Architecture
 
-FABER uses a 3-layer architecture to achieve context efficiency:
+FABER uses a 2-layer architecture to achieve context efficiency:
 
-### Layer 1: Agents (Decision Logic)
+### Layer 1: Skills (Decision Logic + Orchestration)
 
-**Purpose**: High-level decision making and workflow orchestration
+**Purpose**: High-level decision making, workflow orchestration, and platform adapter selection
 
 **Characteristics**:
 - Written in markdown (prompt engineering)
 - Loaded into LLM context
 - Make decisions based on inputs
-- Delegate deterministic operations to skills
-- ~200-400 lines per agent
+- Delegate deterministic operations to scripts
+- Each skill has `SKILL.md` + optional `workflow/*.md` protocols
 
 **Components**:
-- `workflow-run` command - Orchestrates complete FABER workflow across all 5 phases (direct execution)
-- Phase skills (invoked by workflow-run):
-  - `frame` - Work fetching, classification, branch creation
-  - `architect` - Specification generation
-  - `build` - Solution implementation
-  - `evaluate` - Testing, review, GO/NO-GO decisions
-  - `release` - PR creation, deployment
-- Primitive managers (invoked by phase skills):
-  - `work-manager` - Work tracking decisions
-  - `repo-manager` - Source control decisions
-  - `file-manager` - File storage decisions
+
+**Orchestration Skills**:
+- `workflow-runner` - Orchestrates complete FABER workflow across all 5 phases (direct execution)
+
+**Phase Skills** (invoked by workflow-runner):
+- `frame` - Work fetching, classification, branch creation
+- `architect` - Specification generation
+- `build` - Solution implementation
+- `evaluate` - Testing, review, GO/NO-GO decisions
+- `release` - PR creation, deployment
+
+**Management Skills**:
+- `config-manager` - Project configuration (init, update, validate)
+- `session-manager` - Session artifact management (load, save, clear)
+- `workflow-author` - Workflow definition creation and updates
+- `run-inspector` - Run status inspection
+- `faber-debugger` - Debugging and error handling
+
+**Core Skills**:
+- `core` - Configuration, sessions, status cards
+- `faber-config` - Config loading and resolution
+- `faber-state` - Workflow state management
 
 **Example Decision Logic**:
 ```
@@ -102,26 +113,6 @@ Should I retry Build phase?
 - If no: Fail workflow
 ```
 
-### Layer 2: Skills (Adapter Selection)
-
-**Purpose**: Platform-specific adapter selection and routing
-
-**Characteristics**:
-- Thin wrapper around scripts
-- Selects correct platform adapter
-- ~100-200 lines per skill
-- Loaded into context only when needed
-
-**Components**:
-- `core` - Configuration, sessions, status cards
-- Phase skills - Frame, Architect, Build, Evaluate, Release
-  - Each has `SKILL.md` + `workflow/basic.md` (batteries-included)
-  - Domain plugins can provide `workflow/{domain}.md` overrides
-- Primitive manager skills:
-  - `work-manager` - GitHub/Jira/Linear adapters
-  - `repo-manager` - GitHub/GitLab/Bitbucket adapters
-  - `file-manager` - R2/S3/local adapters
-
 **Example Adapter Selection**:
 ```bash
 # Load config to determine platform
@@ -131,7 +122,7 @@ FILE_SYSTEM=$(echo "$CONFIG_JSON" | jq -r '.project.file_system')
 "$SKILL_DIR/scripts/$FILE_SYSTEM/upload.sh" "$LOCAL_PATH" "$REMOTE_PATH"
 ```
 
-### Layer 3: Scripts (Deterministic Operations)
+### Layer 2: Scripts (Deterministic Operations)
 
 **Purpose**: Platform-specific deterministic operations
 
@@ -174,16 +165,17 @@ director loads: ~26K tokens
 Total orchestration: ~98K tokens
 ```
 
-**After (Single Workflow-Manager Architecture)**:
+**After (Skill-Based Architecture)**:
 ```
-director loads: ~15K tokens (lightweight router)
-+ workflow-manager: ~25K tokens (all 5 phases)
+workflow-runner skill: ~15K tokens (lightweight orchestrator)
++ phase skills: ~25K tokens (loaded per-phase)
 Total orchestration: ~40K tokens
 Savings: ~60% context reduction!
 
 Additional benefits:
 - Continuous context across all phases
 - Single point of orchestration logic
+- No agent delegation overhead
 - Easier to maintain and debug
 ```
 
@@ -193,43 +185,34 @@ Additional benefits:
 
 ```
 User
-  └─ /fractary-faber-* (Commands)
-      ├─ /fractary-faber-config-init (Command)
-      │   └─ Auto-detects project settings (first-time setup)
-      ├─ /fractary-faber-config-update (Command)
-      │   └─ Updates existing configuration
-      ├─ /fractary-faber-config-validate (Command)
-      │   └─ Validates configuration
-      ├─ /fractary-faber-run (Command)
-      │   └─ workflow-run (Command - Orchestrates all 5 phases directly)
-      │       ├─ frame (Skill)
-      │           │   ├─ workflow/basic.md (batteries-included)
-      │           │   ├─ work-manager (Agent via @agent mention)
-      │           │   │   └─ work-manager (Skill)
-      │           │   │       ├─ scripts/github/fetch-issue.sh
-      │           │   │       ├─ scripts/github/classify-issue.sh
-      │           │   │       └─ ...
-      │           │   └─ repo-manager (Agent via @agent mention)
-      │           │       └─ repo-manager (Skill)
-      │           │           ├─ scripts/github/generate-branch-name.sh
-      │           │           ├─ scripts/github/create-branch.sh
-      │           │           └─ ...
-      │           ├─ architect (Skill)
-      │           │   ├─ workflow/basic.md
-      │           │   ├─ repo-manager (Agent)
-      │           │   └─ file-manager (Agent)
-      │           ├─ build (Skill)
-      │           │   ├─ workflow/basic.md
-      │           │   └─ repo-manager (Agent)
-      │           ├─ evaluate (Skill)
-      │           │   ├─ workflow/basic.md
-      │           │   └─ repo-manager (Agent)
-      │           └─ release (Skill)
-      │               ├─ workflow/basic.md
-      │               ├─ work-manager (Agent)
-      │               └─ repo-manager (Agent)
-      └─ /fractary-faber-status (Command)
-          └─ Reads workflow state and logs
+  └─ /fractary-faber-* (Slash Commands)
+      ├─ /fractary-faber-config-init
+      │   └─ config-manager skill (init protocol)
+      ├─ /fractary-faber-config-update
+      │   └─ config-manager skill (update protocol)
+      ├─ /fractary-faber-config-validate
+      │   └─ config-manager skill (validate protocol)
+      ├─ /fractary-faber-workflow-run
+      │   └─ workflow-runner skill (orchestrates all 5 phases directly)
+      │       ├─ frame skill
+      │       │   ├─ workflow/basic.md (batteries-included)
+      │       │   └─ scripts/github/fetch-issue.sh, create-branch.sh, ...
+      │       ├─ architect skill
+      │       │   ├─ workflow/basic.md
+      │       │   └─ scripts/...
+      │       ├─ build skill
+      │       │   ├─ workflow/basic.md
+      │       │   └─ scripts/...
+      │       ├─ evaluate skill
+      │       │   ├─ workflow/basic.md
+      │       │   └─ scripts/...
+      │       └─ release skill
+      │           ├─ workflow/basic.md
+      │           └─ scripts/...
+      ├─ /fractary-faber-run-inspect
+      │   └─ run-inspector skill
+      └─ /fractary-faber-session-load
+          └─ session-manager skill (load protocol)
 ```
 
 ### Invocation Chain Example
@@ -237,26 +220,22 @@ User
 ```
 User: /fractary-faber-workflow-run 123
   ↓
-workflow-run (command, direct execution)
+workflow-runner skill (direct execution in main context)
   ↓ Loads plan, initializes state and task list
   ↓ Phase 1: Frame
-workflow-run invokes frame skill
+workflow-runner invokes frame skill
   ↓ Reads workflow/basic.md
-frame skill → Uses @agent-fractary-work-work-manager
-  ↓ fetch issue
-work-manager → scripts/github/fetch-issue.sh
+frame skill → scripts/github/fetch-issue.sh
   ↓ Returns JSON
 {title: "Add auth", labels: ["feature"]}
-  ↓ Back to frame skill
+  ↓
 frame skill classifies work → feature
-  ↓ Uses @agent-fractary-repo-repo-manager
-repo-manager → scripts/github/create-branch.sh
-  ↓ Returns
+  ↓ scripts/github/create-branch.sh
 "Branch created: feat/123-add-auth"
-  ↓ Back to workflow-run
-workflow-run → Frame complete, proceed to Architect
+  ↓ Back to workflow-runner
+workflow-runner → Frame complete, proceed to Architect
   ↓ Phase 2: Architect (with full Frame context)
-workflow-run invokes architect skill...
+workflow-runner invokes architect skill...
   ↓ Phase 3: Build (with Frame + Architect context)
   ↓ Phase 4: Evaluate (with all previous context)
   ↓ Phase 5: Release (with complete workflow context)
@@ -328,7 +307,7 @@ workflow-run invokes architect skill...
    └─ Returns validated JSON (for tool compatibility)
 
 3. Config Consumption
-   Agents/Skills read config:
+   Skills read config:
    ├─ WORKFLOW=$(echo $CONFIG | jq -r '.workflows[0]')
    ├─ WORK_PLUGIN=$(echo $CONFIG | jq -r '.integrations.work_plugin')
    └─ Use config values to make decisions
@@ -336,7 +315,7 @@ workflow-run invokes architect skill...
 4. Platform Routing
    Skill uses config to route:
    ├─ Determine platform from primitive plugin config
-   └─ "@agent-fractary-repo-repo-manager" handles routing internally
+   └─ Platform-specific scripts handle routing internally
 ```
 
 ### Session State Flow
@@ -426,20 +405,19 @@ Phase Transitions:
 
 See [STATE-TRACKING.md](STATE-TRACKING.md) for detailed implementation.
 
-### Why 3 Layers?
+### Why Separate Skills and Scripts?
 
-**Decision**: Separate Agents → Skills → Scripts
+**Decision**: Separate Skills → Scripts
 
 **Rationale**:
 - **Context Efficiency**: 55-69% reduction
-- **Platform Extensibility**: Add platforms without agent changes
+- **Platform Extensibility**: Add platforms without skill changes
 - **Testability**: Test scripts independently
 - **Maintainability**: Clear separation of concerns
 
 **Alternatives Considered**:
-- 2 layers (Agents → Scripts): No platform routing layer
-- 1 layer (Monolithic agents): Context explosion
-- 4+ layers: Over-engineered, too complex
+- 1 layer (Monolithic skills with inline scripts): Context explosion
+- 3+ layers (Skills → Adapters → Scripts): Over-engineered, too complex
 
 ### Why Retry Loop?
 
@@ -486,7 +464,7 @@ See [PROMPT-CUSTOMIZATION.md](PROMPT-CUSTOMIZATION.md) for detailed implementati
 
 **Traditional Monolithic Approach**:
 ```
-work-manager agent (monolithic):
+work-manager skill (monolithic):
 - Decision logic: 200 lines
 - GitHub fetch code: 100 lines
 - GitHub classify code: 80 lines
@@ -500,7 +478,7 @@ Total: 800 lines in context per invocation
 
 **3-Layer Approach**:
 ```
-work-manager agent:
+work-manager skill:
 - Decision logic: 200 lines
 
 work-manager skill:
@@ -581,7 +559,7 @@ Note: Platform-specific configuration lives in the primitive plugin (fractary-re
 /fractary-faber-run --work-id 123
 ```
 
-**No agent changes required!** The skill layer automatically routes to the correct platform.
+**No skill changes required!** The skill layer automatically routes to the correct platform.
 
 ### Adding a New Domain
 

@@ -639,7 +639,7 @@ This reduces repeated file I/O when the debugger runs multiple times in successi
 
 ## Related Documentation
 
-- `agents/fractary-faber-workflow-debugger.md` - Uses this skill for KB searches
+- `skills/fractary-faber-faber-debugger/SKILL.md` - Uses this skill for KB searches
 - `.fractary/codex/memory/` - Codex memory location (preferred, via MemorySearcher)
 - `.fractary/faber/knowledge-base/` - Legacy core KB location (fallback)
 - `.fractary/plugins/*/knowledge-base/` - Legacy plugin KB locations (fallback)

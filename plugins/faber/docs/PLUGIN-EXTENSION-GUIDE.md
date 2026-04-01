@@ -129,7 +129,7 @@ plugins/faber-{type}/
 
 Each skill should:
 - Perform a specific domain task
-- Follow the 3-layer architecture (command → agent → skill → script)
+- Follow the 2-layer architecture (slash command → skill → script)
 - Document clearly what it does
 
 **Example**: `skills/fractary-faber-terraform-manager/SKILL.md`
@@ -307,11 +307,11 @@ This file will be copied to `.fractary/faber/workflows/cloud.json` during projec
 }
 ```
 
-### Step 4: Create Init Command
+### Step 4: Create Init Skill
 
-The init command **copies workflow templates** and **adds references** to the core FABER config using the **template-copy pattern**:
+The init skill **copies workflow templates** and **adds references** to the core FABER config using the **template-copy pattern**:
 
-**Example**: `commands/fractary-faber-init.md`
+**Example**: `skills/fractary-faber-cloud-config/SKILL.md`
 
 ```markdown
 # /fractary-faber-cloud:configure

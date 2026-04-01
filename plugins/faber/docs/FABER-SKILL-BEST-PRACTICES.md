@@ -1,14 +1,14 @@
-# FABER Agent Best Practices
+# FABER Skill Best Practices
 
-Guidelines for building and using FABER workflow agents effectively.
+Guidelines for building and using FABER workflow skills effectively.
 
 ## Overview
 
-FABER agents orchestrate workflow execution across phases (Frame → Architect → Build → Evaluate → Release). This guide covers best practices for response handling, error recovery, and integration.
+FABER skills orchestrate workflow execution across phases (Frame → Architect → Build → Evaluate → Release). This guide covers best practices for response handling, error recovery, and integration.
 
 ## Skill Response Format
 
-All skills invoked by FABER agents MUST return responses using the **standard FABER response format**.
+All FABER skills MUST return responses using the **standard FABER response format**.
 
 ### Required Fields
 
@@ -164,7 +164,7 @@ Run the validation script to check skill compliance:
   '{"status":"success","message":"Done"}'
 ```
 
-## Agent Implementation Guidelines
+## Skill Implementation Guidelines
 
 ### 1. Always Validate Responses
 

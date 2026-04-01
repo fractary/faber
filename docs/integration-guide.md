@@ -212,10 +212,10 @@ export async function execute(params: { issueId: string }) {
 }
 ```
 
-### Command Integration
+### CLI Integration
 
 ```typescript
-// commands/fractary-faber-work.ts
+// cli/work.ts
 import { Command } from 'commander';
 import { WorkManager } from '@fractary/faber/work';
 
