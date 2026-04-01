@@ -55,7 +55,7 @@
                 "./agents/fractary-faber-run-inspect.md"
             ],
             "skills": "./skills/",
-            "hooks": "./hooks/hooks.json"
+            "hooks": "../hooks/hooks.json"
         }
     ],
     "relatedPlugins": [
