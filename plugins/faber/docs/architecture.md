@@ -30,32 +30,21 @@ FABER is a **tool-agnostic SDLC workflow framework** built on a 3-layer architec
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    User Interface                        │
-│     /fractary-faber-config-init, /fractary-faber-config-update, /fractary-faber-config-validate, /fractary-faber-run, /fractary-faber-status     │
+│  /fractary-faber-workflow-run, /fractary-faber-config-*  │
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────┐
 │                   Orchestration                          │
-│          workflow-run (Command - Direct Execution)       │
-│    Executes all phases directly with full context        │
+│       workflow-runner skill (Direct Step Execution)      │
+│  Iterates phases from workflow JSON (pre/steps/post)     │
+│  Each step invokes a skill or executes a prompt directly │
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────┐
-│                    Phase Skills                          │
-│  frame, architect, build, evaluate, release (Skills)     │
-│  Each with workflow/basic.md (batteries-included)        │
-│  Domain plugins can override with workflow/{domain}.md   │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│                 Primitive Managers                       │
-│        work-manager, repo-manager, file-manager          │
-│          Decision logic + platform routing               │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│                      Skills                              │
-│     Platform adapter selection (GitHub, Jira, R2...)     │
-│         Delegates to platform-specific scripts           │
+│                  Utility Skills                          │
+│   config-manager, session-manager, workflow-author,      │
+│   run-inspector, faber-debugger, response-validator      │
+│   Invoked by workflow steps as needed                    │
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────┐
@@ -82,15 +71,8 @@ FABER uses a 2-layer architecture to achieve context efficiency:
 
 **Components**:
 
-**Orchestration Skills**:
-- `workflow-runner` - Orchestrates complete FABER workflow across all 5 phases (direct execution)
-
-**Phase Skills** (invoked by workflow-runner):
-- `frame` - Work fetching, classification, branch creation
-- `architect` - Specification generation
-- `build` - Solution implementation
-- `evaluate` - Testing, review, GO/NO-GO decisions
-- `release` - PR creation, deployment
+**Workflow Orchestration**:
+- `workflow-runner` - Orchestrates complete FABER workflow across all 5 phases by executing steps directly from workflow JSON definitions (no delegation to sub-skills per phase)
 
 **Management Skills**:
 - `config-manager` - Project configuration (init, update, validate)
@@ -167,15 +149,15 @@ Total orchestration: ~98K tokens
 
 **After (Skill-Based Architecture)**:
 ```
-workflow-runner skill: ~15K tokens (lightweight orchestrator)
-+ phase skills: ~25K tokens (loaded per-phase)
-Total orchestration: ~40K tokens
-Savings: ~60% context reduction!
+workflow-runner skill: ~15K tokens (orchestrator + direct step execution)
++ utility skills loaded on demand: ~5-10K tokens
+Total orchestration: ~20-25K tokens
+Savings: ~75% context reduction!
 
 Additional benefits:
 - Continuous context across all phases
 - Single point of orchestration logic
-- No agent delegation overhead
+- No delegation overhead (steps execute directly)
 - Easier to maintain and debug
 ```
 
@@ -193,22 +175,13 @@ User
       ├─ /fractary-faber-config-validate
       │   └─ config-manager skill (validate protocol)
       ├─ /fractary-faber-workflow-run
-      │   └─ workflow-runner skill (orchestrates all 5 phases directly)
-      │       ├─ frame skill
-      │       │   ├─ workflow/basic.md (batteries-included)
-      │       │   └─ scripts/github/fetch-issue.sh, create-branch.sh, ...
-      │       ├─ architect skill
-      │       │   ├─ workflow/basic.md
-      │       │   └─ scripts/...
-      │       ├─ build skill
-      │       │   ├─ workflow/basic.md
-      │       │   └─ scripts/...
-      │       ├─ evaluate skill
-      │       │   ├─ workflow/basic.md
-      │       │   └─ scripts/...
-      │       └─ release skill
-      │           ├─ workflow/basic.md
-      │           └─ scripts/...
+      │   └─ workflow-runner skill (executes steps from workflow JSON)
+      │       ├─ Frame phase: executes pre_steps → steps → post_steps
+      │       ├─ Architect phase: executes pre_steps → steps → post_steps
+      │       ├─ Build phase: executes pre_steps → steps → post_steps
+      │       ├─ Evaluate phase: executes pre_steps → steps → post_steps
+      │       └─ Release phase: executes pre_steps → steps → post_steps
+      │           Each step invokes skills or prompts directly
       ├─ /fractary-faber-run-inspect
       │   └─ run-inspector skill
       └─ /fractary-faber-session-load
@@ -221,24 +194,24 @@ User
 User: /fractary-faber-workflow-run 123
   ↓
 workflow-runner skill (direct execution in main context)
-  ↓ Loads plan, initializes state and task list
-  ↓ Phase 1: Frame
-workflow-runner invokes frame skill
-  ↓ Reads workflow/basic.md
-frame skill → scripts/github/fetch-issue.sh
-  ↓ Returns JSON
-{title: "Add auth", labels: ["feature"]}
+  ↓ Loads plan from workflow JSON, initializes state and task list
   ↓
-frame skill classifies work → feature
-  ↓ scripts/github/create-branch.sh
-"Branch created: feat/123-add-auth"
-  ↓ Back to workflow-runner
-workflow-runner → Frame complete, proceed to Architect
-  ↓ Phase 2: Architect (with full Frame context)
-workflow-runner invokes architect skill...
-  ↓ Phase 3: Build (with Frame + Architect context)
-  ↓ Phase 4: Evaluate (with all previous context)
-  ↓ Phase 5: Release (with complete workflow context)
+Phase 1: Frame
+  ↓ Executes pre_steps (session-load, env-switch, codex-sync)
+  ↓ Executes steps (defined in workflow JSON)
+  ↓ Executes post_steps (commit-push, issue-comment)
+  ↓ Updates state → Frame complete
+  ↓
+Phase 2: Architect (with full Frame context)
+  ↓ Same pattern: pre_steps → steps → post_steps
+  ↓
+Phase 3: Build (with Frame + Architect context)
+  ↓
+Phase 4: Evaluate (with all previous context)
+  ↓ If NO-GO → retry Build (up to max_retries)
+  ↓
+Phase 5: Release (with complete workflow context)
+  ↓ Creates PR, posts completion status
 ```
 
 ## Data Flow

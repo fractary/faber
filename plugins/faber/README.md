@@ -326,13 +326,8 @@ Layer 2: Scripts (Deterministic Operations)
 
 #### Skills (Orchestration + Adapters)
 
-**Phase Skills** (workflow execution):
-- `workflow-runner` - Orchestrates complete FABER workflow across all 5 phases
-- `frame` - Work fetching, classification, branch creation
-- `architect` - Specification generation
-- `build` - Solution implementation
-- `evaluate` - Testing, review, GO/NO-GO decisions
-- `release` - PR creation, deployment
+**Workflow Orchestration**:
+- `workflow-runner` - Orchestrates complete FABER workflow across all 5 phases, executing steps directly from workflow JSON definitions
 
 **Management Skills** (configuration + operations):
 - `config-manager` - Project configuration (init, update, validate)
@@ -587,13 +582,8 @@ faber:
 
 ```
 fractary-faber/
-├── skills/                    # All orchestration, phase execution & utilities
-│   ├── fractary-faber-workflow-runner/   # Workflow orchestration
-│   ├── fractary-faber-frame/            # Frame phase
-│   ├── fractary-faber-architect/        # Architect phase
-│   ├── fractary-faber-build/            # Build phase
-│   ├── fractary-faber-evaluate/         # Evaluate phase
-│   ├── fractary-faber-release/          # Release phase
+├── skills/                    # All orchestration & utilities
+│   ├── fractary-faber-workflow-runner/   # Workflow orchestration (executes steps directly)
 │   ├── fractary-faber-config-manager/   # Configuration (init/update/validate)
 │   ├── fractary-faber-session-manager/  # Session management (load/save/clear)
 │   ├── fractary-faber-workflow-author/  # Workflow creation and updates
