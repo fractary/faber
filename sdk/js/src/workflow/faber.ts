@@ -371,7 +371,7 @@ export class FaberWorkflow {
       };
 
       // Classify work type
-      const workType = await this.workManager.classifyWorkType(context.issue);
+      const workType = this.workManager.classifyWorkType(context.issue).work_type;
       outputs.workType = workType;
     }
 

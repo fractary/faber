@@ -46,6 +46,7 @@ export interface WorkConfig {
   repo?: string;
   project?: string;
   token?: string;
+  host?: string;
 }
 
 export interface Issue {
@@ -135,6 +136,7 @@ export interface RepoConfig {
   repo?: string;
   defaultBranch?: string;
   token?: string;
+  host?: string;
   branchPrefix?: BranchPrefixConfig;
   branchPrefixes?: BranchPrefixConfig;
 }

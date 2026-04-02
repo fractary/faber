@@ -34,6 +34,7 @@ export interface GitHubConfig {
   organization?: string;
   project?: string;
   repo?: string;                 // Full repo name (owner/repo)
+  host?: string;                 // GitHub hostname (e.g., 'github.com', 'github-enterprise.example.com')
   app?: GitHubAppConfig;         // GitHub App configuration (new)
 }
 
