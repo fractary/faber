@@ -51,34 +51,27 @@ function exec(command: string, options?: ExecSyncOptions): string {
 }
 
 /**
- * Execute a command with stdin input (for safely passing large text like comment bodies)
+ * Execute a command with env overrides for gh CLI authentication
  */
-function execWithStdin(command: string, stdin: string): string {
-  try {
-    const result = execSync(command, {
-      encoding: 'utf-8',
-      maxBuffer: 10 * 1024 * 1024, // 10MB
-      input: stdin,
-    });
-    return result.trim();
-  } catch (error: unknown) {
-    const err = error as { status?: number; stderr?: Buffer | string };
-    const exitCode = err.status || 1;
-    const stderr = err.stderr?.toString() || '';
-
-    if (stderr.includes('authentication') || stderr.includes('auth')) {
-      throw new AuthenticationError('github', 'GitHub authentication failed. Run "gh auth login"');
-    }
-
-    throw new CommandExecutionError(command, exitCode, stderr);
+function execWithEnv(command: string, env?: Record<string, string>, options?: ExecSyncOptions): string {
+  const opts: ExecSyncOptions = { ...options };
+  if (env) {
+    opts.env = { ...process.env, ...env };
   }
+  return exec(command, opts);
 }
 
+
 /**
- * Check if gh CLI is available and authenticated
- * @param host - Optional GitHub hostname to check (e.g., 'github.com'). Without this, gh checks ALL hosts.
+ * Check if gh CLI is available and authenticated.
+ * When a GH_TOKEN is provided via env overrides, skip the auth status check
+ * entirely — the token is the auth, and `gh auth status` may fail if other
+ * hosts (e.g. SSH aliases like github-fractary) have expired tokens.
  */
-function checkGhCli(host?: string): void {
+function checkGhCli(host?: string, env?: Record<string, string>): void {
+  if (env?.GH_TOKEN) {
+    return; // Token provided — no need for a preflight auth check
+  }
   try {
     const hostnameArg = host ? ` --hostname ${host}` : '';
     exec(`gh auth status${hostnameArg}`);
@@ -97,6 +90,7 @@ export class GitHubWorkProvider implements WorkProvider {
   readonly platform = 'github' as const;
   private owner: string;
   private repo: string;
+  private ghEnv: Record<string, string> | undefined;
 
   constructor(config: WorkConfig) {
     if (!config.owner || !config.repo) {
@@ -108,11 +102,46 @@ export class GitHubWorkProvider implements WorkProvider {
     }
     this.owner = config.owner;
     this.repo = config.repo;
-    checkGhCli(config.host);
+
+    // Inject GH_TOKEN so gh CLI uses the configured token instead of its
+    // own auth store (which may have expired or fail with SSH host aliases).
+    const token = config.token || process.env.GITHUB_TOKEN;
+    if (token) {
+      this.ghEnv = { GH_TOKEN: token };
+    }
+
+    checkGhCli(config.host, this.ghEnv);
   }
 
   private getRepoArg(): string {
     return `${this.owner}/${this.repo}`;
+  }
+
+  /** Execute a gh command with configured token injected into the environment. */
+  private gh(command: string, options?: ExecSyncOptions): string {
+    return execWithEnv(command, this.ghEnv, options);
+  }
+
+  /** Execute a gh command with stdin input and configured token injected. */
+  private ghWithStdin(command: string, stdin: string): string {
+    const opts: ExecSyncOptions = {
+      encoding: 'utf-8',
+      maxBuffer: 10 * 1024 * 1024,
+      input: stdin,
+      ...(this.ghEnv ? { env: { ...process.env, ...this.ghEnv } } : {}),
+    };
+    try {
+      const result = execSync(command, opts);
+      return (typeof result === 'string' ? result : result.toString()).trim();
+    } catch (error: unknown) {
+      const err = error as { status?: number; stderr?: Buffer | string };
+      const exitCode = err.status || 1;
+      const stderr = err.stderr?.toString() || '';
+      if (stderr.includes('authentication') || stderr.includes('auth')) {
+        throw new AuthenticationError('github', 'GitHub authentication failed. Run "gh auth login"');
+      }
+      throw new CommandExecutionError(command, exitCode, stderr);
+    }
   }
 
   // =========================================================================
@@ -141,8 +170,8 @@ export class GitHubWorkProvider implements WorkProvider {
     try {
       const cmd = `gh issue create ${args.join(' ')} --json number,title,body,state,labels,assignees,milestone,createdAt,updatedAt,url`;
       const result = useBodyStdin
-        ? execWithStdin(cmd, options.body!)
-        : exec(cmd);
+        ? this.ghWithStdin(cmd, options.body!)
+        : this.gh(cmd);
       return this.parseIssue(JSON.parse(result));
     } catch (error) {
       if (error instanceof CommandExecutionError) {
@@ -154,7 +183,7 @@ export class GitHubWorkProvider implements WorkProvider {
 
   async fetchIssue(issueId: string | number): Promise<Issue> {
     try {
-      const result = exec(
+      const result = this.gh(
         `gh issue view ${issueId} --repo ${this.getRepoArg()} --json number,title,body,state,labels,assignees,milestone,createdAt,updatedAt,closedAt,url`
       );
       return this.parseIssue(JSON.parse(result));
@@ -187,9 +216,9 @@ export class GitHubWorkProvider implements WorkProvider {
     if (args.length > 1) {
       const cmd = `gh issue edit ${issueId} ${args.join(' ')}`;
       if (useBodyStdin) {
-        execWithStdin(cmd, options.body!);
+        this.ghWithStdin(cmd, options.body!);
       } else {
-        exec(cmd);
+        this.gh(cmd);
       }
     }
 
@@ -197,12 +226,12 @@ export class GitHubWorkProvider implements WorkProvider {
   }
 
   async closeIssue(issueId: string | number): Promise<Issue> {
-    exec(`gh issue close ${issueId} --repo ${this.getRepoArg()}`);
+    this.gh(`gh issue close ${issueId} --repo ${this.getRepoArg()}`);
     return this.fetchIssue(issueId);
   }
 
   async reopenIssue(issueId: string | number): Promise<Issue> {
-    exec(`gh issue reopen ${issueId} --repo ${this.getRepoArg()}`);
+    this.gh(`gh issue reopen ${issueId} --repo ${this.getRepoArg()}`);
     return this.fetchIssue(issueId);
   }
 
@@ -228,7 +257,7 @@ export class GitHubWorkProvider implements WorkProvider {
     args.push(`--search "${query}"`);
     args.push('--json number,title,body,state,labels,assignees,milestone,createdAt,updatedAt,closedAt,url');
 
-    const result = exec(`gh issue list ${args.join(' ')}`);
+    const result = this.gh(`gh issue list ${args.join(' ')}`);
     const issues = JSON.parse(result || '[]') as unknown[];
     return issues.map(i => this.parseIssue(i));
   }
@@ -237,7 +266,7 @@ export class GitHubWorkProvider implements WorkProvider {
     issueId: string | number,
     assignee: string
   ): Promise<Issue> {
-    exec(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --add-assignee ${assignee}`);
+    this.gh(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --add-assignee ${assignee}`);
     return this.fetchIssue(issueId);
   }
 
@@ -245,7 +274,7 @@ export class GitHubWorkProvider implements WorkProvider {
     // Get current assignees and remove them
     const issue = await this.fetchIssue(issueId);
     if (issue.assignees.length > 0) {
-      exec(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --remove-assignee ${issue.assignees.join(',')}`);
+      this.gh(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --remove-assignee ${issue.assignees.join(',')}`);
     }
     return this.fetchIssue(issueId);
   }
@@ -266,7 +295,7 @@ export class GitHubWorkProvider implements WorkProvider {
     }
 
     // Use stdin to pass body safely (avoids shell injection with backticks, newlines, etc.)
-    execWithStdin(
+    this.ghWithStdin(
       `gh issue comment ${issueId} --repo ${this.getRepoArg()} --body-file -`,
       finalBody
     );
@@ -280,7 +309,7 @@ export class GitHubWorkProvider implements WorkProvider {
     issueId: string | number,
     options?: { limit?: number; since?: string }
   ): Promise<Comment[]> {
-    const result = exec(
+    const result = this.gh(
       `gh api repos/${this.getRepoArg()}/issues/${issueId}/comments --jq '.[] | {id: .id, body: .body, author: .user.login, createdAt: .created_at, updatedAt: .updated_at}'`
     );
 
@@ -318,7 +347,7 @@ export class GitHubWorkProvider implements WorkProvider {
     issueId: string | number,
     labels: string[]
   ): Promise<Label[]> {
-    exec(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --add-label "${labels.join(',')}"`);
+    this.gh(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --add-label "${labels.join(',')}"`);
     const issue = await this.fetchIssue(issueId);
     return issue.labels;
   }
@@ -327,7 +356,7 @@ export class GitHubWorkProvider implements WorkProvider {
     issueId: string | number,
     labels: string[]
   ): Promise<void> {
-    exec(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --remove-label "${labels.join(',')}"`);
+    this.gh(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --remove-label "${labels.join(',')}"`);
   }
 
   async setLabels(
@@ -351,7 +380,7 @@ export class GitHubWorkProvider implements WorkProvider {
       return issue.labels;
     }
 
-    const result = exec(
+    const result = this.gh(
       `gh label list --repo ${this.getRepoArg()} --json name,color,description`
     );
     return JSON.parse(result || '[]') as Label[];
@@ -370,7 +399,7 @@ export class GitHubWorkProvider implements WorkProvider {
       args.push(`--due-date "${options.due_on}"`);
     }
 
-    const result = exec(
+    const result = this.gh(
       `gh api repos/${this.getRepoArg()}/milestones -f title="${options.title}" ${options.description ? `-f description="${options.description}"` : ''} ${options.due_on ? `-f due_on="${options.due_on}"` : ''}`
     );
 
@@ -388,18 +417,18 @@ export class GitHubWorkProvider implements WorkProvider {
     issueId: string | number,
     milestone: string
   ): Promise<Issue> {
-    exec(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --milestone "${milestone}"`);
+    this.gh(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --milestone "${milestone}"`);
     return this.fetchIssue(issueId);
   }
 
   async removeMilestone(issueId: string | number): Promise<Issue> {
-    exec(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --milestone ""`);
+    this.gh(`gh issue edit ${issueId} --repo ${this.getRepoArg()} --milestone ""`);
     return this.fetchIssue(issueId);
   }
 
   async listMilestones(state?: 'open' | 'closed' | 'all'): Promise<Milestone[]> {
     const stateArg = state && state !== 'all' ? `?state=${state}` : '';
-    const result = exec(
+    const result = this.gh(
       `gh api repos/${this.getRepoArg()}/milestones${stateArg}`
     );
 
