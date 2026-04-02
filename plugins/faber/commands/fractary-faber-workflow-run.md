@@ -8,12 +8,9 @@ argument-hint: '<work-ids|plan-id> [--resume <run-id>] [--phase <phase>] [--step
 
 ## Your task
 
-Invoke the FABER workflow runner skill with the provided arguments.
+**IMMEDIATELY** call the Skill tool with the following parameters — do not output any text first:
 
-Use the **Skill** tool exactly once:
+- skill: `fractary-faber-workflow-runner`
+- args: `$ARGUMENTS`
 
-```
-Skill(skill="fractary-faber-workflow-runner", args="$ARGUMENTS")
-```
-
-Do NOT execute workflow steps yourself. The skill handles everything.
+This is your only action. Do NOT describe the workflow, explain what will happen, or do anything else. Just call the Skill tool now.
