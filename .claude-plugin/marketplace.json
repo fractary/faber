@@ -1,78 +1,44 @@
 {
-  "name": "fractary-faber",
-  "owner": {
-    "name": "The Fractary",
-    "email": "admin@fractary.com",
-    "url": "https://github.com/fractary"
-  },
-  "metadata": {
-    "description": "Core FABER workflow orchestration framework.",
-    "version": "3.0.53",
-    "pluginRoot": "./plugins"
-  },
-  "plugins": [
-    {
-      "name": "fractary-faber",
-      "source": "./plugins/faber",
-      "description": "Universal SDLC workflow framework - Frame → Architect → Build → Evaluate → Release",
-      "version": "3.8.670",
-      "author": {
+    "name": "fractary-faber",
+    "owner": {
         "name": "The Fractary",
+        "email": "admin@fractary.com",
         "url": "https://github.com/fractary"
-      },
-      "homepage": "https://github.com/fractary/faber",
-      "repository": "https://github.com/fractary/faber",
-      "license": "Apache-2.0",
-      "keywords": [
-        "faber",
-        "sdlc",
-        "workflow",
-        "automation",
-        "frame",
-        "architect",
-        "build",
-        "evaluate",
-        "release",
-        "software-development"
-      ],
-      "category": "development",
-      "strict": true,
-      "commands": "./commands/",
-      "agents": [
-        "./agents/fractary-faber-config-initializer.md",
-        "./agents/fractary-faber-config-updater.md",
-        "./agents/fractary-faber-config-validator.md",
-        "./agents/fractary-faber-workflow-planner.md",
-        "./agents/fractary-faber-workflow-plan-validator.md",
-        "./agents/fractary-faber-workflow-plan-reporter.md",
-        "./agents/fractary-faber-github-installer.md",
-        "./agents/fractary-faber-workflow-verifier.md",
-        "./agents/fractary-faber-workflow-engineer.md",
-        "./agents/fractary-faber-workflow-debugger.md",
-        "./agents/fractary-faber-workflow-inspector.md",
-        "./agents/fractary-faber-session-loader.md",
-        "./agents/fractary-faber-session-saver.md",
-        "./agents/fractary-faber-run-inspect.md"
-      ],
-      "skills": "./skills/",
-      "hooks": "./hooks/hooks.json"
-    }
-  ],
-  "relatedPlugins": [
-    {
-      "name": "fractary-faber-software",
-      "repository": "https://github.com/fractary/faber-software",
-      "description": "Software development agents for FABER workflows"
     },
-    {
-      "name": "fractary-faber-cloud",
-      "repository": "https://github.com/fractary/faber-cloud",
-      "description": "Cloud infrastructure agents for FABER workflows"
+    "metadata": {
+        "description": "Core FABER workflow orchestration framework.",
+        "version": "4.0.7",
+        "pluginRoot": "./plugins"
     },
-    {
-      "name": "fractary-faber-content",
-      "repository": "https://github.com/fractary/faber-content",
-      "description": "Content creation agents for FABER workflows"
-    }
-  ]
+    "plugins": [
+        {
+            "name": "fractary-faber",
+            "source": "./plugins/faber",
+            "description": "Universal SDLC workflow framework - Frame → Architect → Build → Evaluate → Release",
+            "version": "4.0.7",
+            "author": {
+                "name": "The Fractary",
+                "url": "https://github.com/fractary"
+            },
+            "homepage": "https://github.com/fractary/faber",
+            "repository": "https://github.com/fractary/faber",
+            "license": "Apache-2.0",
+            "keywords": [
+                "faber",
+                "sdlc",
+                "workflow",
+                "automation",
+                "frame",
+                "architect",
+                "build",
+                "evaluate",
+                "release",
+                "software-development"
+            ],
+            "category": "development",
+            "strict": true,
+            "commands": "./commands/",
+            "skills": "./skills/"
+        }
+    ]
 }

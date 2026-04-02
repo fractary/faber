@@ -617,5 +617,5 @@ With `--auto-fix` flag, high-confidence fixes bypass the approval prompt.
 
 - [configuration.md](./configuration.md) - Complete configuration guide
 - [STATE-TRACKING.md](./STATE-TRACKING.md) - Workflow state tracking
-- [workflow-debugger.md](../agents/fractary-faber-workflow-debugger.md) - Recovery handler agent
+- `plugins/faber/skills/fractary-faber-faber-debugger/SKILL.md` - Recovery handler skill
 - Schema: `plugins/faber/config/workflow.schema.json`

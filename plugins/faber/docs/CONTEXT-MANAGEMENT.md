@@ -1027,12 +1027,10 @@ When extending workflows, artifacts are inherited and can be overridden:
 
 ## See Also
 
-- **Command References**:
-  - `plugins/faber/commands/fractary-faber-session-load.md` - Manual context reload command
-  - `plugins/faber/commands/fractary-faber-session-save.md` - Session save command
-- **Skill Documentation**: `plugins/faber/skills/fractary-faber-context-manager/SKILL.md`
-- **Algorithm Details**:
-  - `plugins/faber/agents/fractary-faber-session-manager.md` - Session management agent
+- **Skill Documentation**:
+  - `plugins/faber/skills/fractary-faber-session-manager/SKILL.md` - Session management skill (load, save, clear)
+  - `plugins/faber/skills/fractary-faber-session-manager/docs/load-protocol.md` - Context reload protocol
+  - `plugins/faber/skills/fractary-faber-session-manager/docs/save-protocol.md` - Session save protocol
 - **Schemas**:
   - `plugins/faber/config/workflow.schema.json` - Workflow configuration schema
   - `plugins/faber/config/state.schema.json` - State file schema

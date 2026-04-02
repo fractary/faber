@@ -213,10 +213,10 @@ step:
 
 **Verification**:
 ```bash
-# Check that primary examples use local commands
-grep "fractary-faber-" plugins/faber/commands/fractary-faber-workflow-run.md | head -5
+# Check that primary examples use local skills
+grep "fractary-faber-" plugins/faber/skills/fractary-faber-workflow-runner/SKILL.md | head -5
 
-# Expected: fractary-faber-workflow-run, fractary-faber-workflow-create, fractary-faber-agent-create
+# Expected: fractary-faber-workflow-run, fractary-faber-workflow-create, etc.
 ```
 
 ---

@@ -10,7 +10,7 @@ This is a **prototype** for a deterministic workflow executor that addresses the
 "hallucinated completion" problem identified in Issue #346 investigation.
 
 **Problem**: An LLM-based orchestrator can skip steps by emitting events without
-actually executing the underlying commands/fractary-faber-skills.
+actually executing the underlying skills.
 
 **Solution**: Move orchestration control to a bash script that:
 1. Owns the step iteration loop (deterministic)

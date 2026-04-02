@@ -212,10 +212,10 @@ export async function execute(params: WorkflowParams): Promise<SkillResult> {
 }
 ```
 
-### Using in a Command
+### Using in a CLI Command
 
 ```typescript
-// commands/fractary-faber-workflow.ts
+// cli/workflow.ts
 import { Command } from 'commander';
 import { spawn } from 'child_process';
 

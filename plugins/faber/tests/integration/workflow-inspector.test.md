@@ -267,12 +267,12 @@ ls plugins/faber/skills/*/SKILL.md | wc -l  # Should be > 0
 /fractary-faber-workflow-inspect default --verbose
 
 # Expected output includes:
-# 🔍 Discovering agents and skills...
-# Found N agents/fractary-faber-skills in registry
+# 🔍 Discovering skills...
+# Found N skills in registry
 # Registry entries:
-#   - fractary-faber-workflow-inspector (agent, faber)
-#   - fractary-faber-workflow-planner (agent, faber)
-#   - fractary-spec:spec-create (skill, spec)
+#   - fractary-faber-workflow-runner (skill, faber)
+#   - fractary-faber-workflow-author (skill, faber)
+#   - fractary-faber-config-manager (skill, faber)
 #   ...
 ```
 
@@ -509,8 +509,8 @@ rm -rf .claude/agents/fractary-faber-test-implicit.md
 # Check aspect: all
 # Auto-fix: false
 #
-# 🔍 Discovering agents and skills...
-# Found 50 agents/fractary-faber-skills in registry
+# 🔍 Discovering skills...
+# Found 50 skills in registry
 # Registry entries:
 #   - fractary-faber-workflow-inspector (agent, faber)
 #   [... full list ...]

@@ -1,5 +1,4 @@
 {
-  "description": "FABER workflow session continuity hooks - automatically restore and save workflow context across sessions and compaction events",
   "hooks": {
     "SessionStart": [
       {

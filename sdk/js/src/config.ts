@@ -44,6 +44,7 @@ const WorkConfigSchema = z.object({
   repo: z.string().optional(),
   project: z.string().optional(),
   token: z.string().optional(),
+  host: z.string().optional(),
 });
 
 const BranchPrefixSchema = z.object({
@@ -59,6 +60,7 @@ const RepoConfigSchema = z.object({
   repo: z.string(),
   defaultBranch: z.string().optional().default('main'),
   token: z.string().optional(),
+  host: z.string().optional(),
   branchPrefix: BranchPrefixSchema.optional(),
 });
 

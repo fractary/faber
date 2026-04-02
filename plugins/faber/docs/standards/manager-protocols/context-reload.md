@@ -773,12 +773,10 @@ To ensure correct implementation, validate:
 ## See Also
 
 - **Context Reconstitution**: `context-reconstitution.md` - Initial context loading at workflow start
-- **Commands**:
-  - `plugins/faber/commands/fractary-faber-session-load.md` - Context reload command
-  - `plugins/faber/commands/fractary-faber-session-save.md` - Session save command
-- **Skill**: `plugins/faber/skills/fractary-faber-context-manager/SKILL.md` - Context manager skill definition
-- **Algorithms**:
-  - `plugins/faber/agents/fractary-faber-session-manager.md` - Session management agent
+- **Skill Documentation**:
+  - `plugins/faber/skills/fractary-faber-session-manager/SKILL.md` - Session management skill (load, save, clear)
+  - `plugins/faber/skills/fractary-faber-session-manager/docs/load-protocol.md` - Context reload protocol
+  - `plugins/faber/skills/fractary-faber-session-manager/docs/save-protocol.md` - Session save protocol
 - **Schemas**:
   - `plugins/faber/config/workflow.schema.json` - Artifact configuration schema
   - `plugins/faber/config/state.schema.json` - Session and metadata schema

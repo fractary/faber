@@ -116,6 +116,7 @@ export class RepoClient {
         owner: organization.trim(),
         repo: project.trim(),
         token,
+        host: config.github?.host,
       });
 
       const repoManager = new RepoManager({
@@ -123,6 +124,7 @@ export class RepoClient {
         owner: organization.trim(),
         repo: project.trim(),
         token,
+        host: config.github?.host,
       });
 
       return new RepoClient(workManager, repoManager, organization.trim(), project.trim());
