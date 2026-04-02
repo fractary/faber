@@ -76,10 +76,12 @@ function execWithStdin(command: string, stdin: string): string {
 
 /**
  * Check if gh CLI is available and authenticated
+ * @param host - Optional GitHub hostname to check (e.g., 'github.com'). Without this, gh checks ALL hosts.
  */
-function checkGhCli(): void {
+function checkGhCli(host?: string): void {
   try {
-    exec('gh auth status');
+    const hostnameArg = host ? ` --hostname ${host}` : '';
+    exec(`gh auth status${hostnameArg}`);
   } catch {
     throw new AuthenticationError(
       'github',
@@ -106,7 +108,7 @@ export class GitHubWorkProvider implements WorkProvider {
     }
     this.owner = config.owner;
     this.repo = config.repo;
-    checkGhCli();
+    checkGhCli(config.host);
   }
 
   private getRepoArg(): string {
