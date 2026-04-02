@@ -9,7 +9,18 @@
 
 // Load .env file from current working directory before anything else
 import dotenv from 'dotenv';
+import path from 'path';
 dotenv.config();
+// Load project environment file (.fractary/env/.env.{FRACTARY_ENV}) when an env is active
+{
+  const fractaryEnv = process.env['FRACTARY_ENV'];
+  if (fractaryEnv) {
+    dotenv.config({
+      path: path.join(process.cwd(), '.fractary', 'env', `.env.${fractaryEnv}`),
+      override: false,
+    });
+  }
+}
 
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -22,7 +33,7 @@ import { createChangelogCommand } from './commands/changelog/index.js';
 import { createMigrateCommand } from './commands/migrate.js';
 import { createPlanCommand } from './commands/plan/index.js';
 import { createAuthCommand } from './commands/auth/index.js';
-import { createConfigCommand } from './commands/config.js';
+import { createConfigCommand, createConfigInitCommand } from './commands/config.js';
 import { createRunsCommand } from './commands/runs.js';
 
 // Force unbuffered output to prevent buffering issues in terminals
@@ -48,6 +59,7 @@ export function createFaberCLI(): Command {
 
   // Configuration commands
   program.addCommand(createConfigCommand());       // config init/update/validate/get/set/migrate/path/exists
+  program.addCommand(createConfigInitCommand());   // config-init (top-level alias)
   program.addCommand(createMigrateCommand());     // migrate (legacy top-level alias)
 
   // Workflow commands (top-level)

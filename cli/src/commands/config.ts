@@ -18,6 +18,7 @@
 
 import { Command } from 'commander';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import {
@@ -52,6 +53,161 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   }
 
   return current;
+}
+
+interface ConfigInitOptions {
+  workflowsPath: string;
+  defaultWorkflow: string;
+  autonomy: string;
+  runsPath: string;
+  changelogPath: string;
+  force?: boolean;
+}
+
+async function runConfigInit(options: ConfigInitOptions): Promise<void> {
+  try {
+    const projectRoot = findProjectRoot();
+    const configPath = getConfigPath(projectRoot);
+
+    // Check if config already exists
+    if (configExists(projectRoot) && !options.force) {
+      console.error('Configuration already exists at:', configPath);
+      console.error('Use --force to overwrite');
+      process.exit(1);
+    }
+
+    // Validate autonomy level
+    const validAutonomy = ['dry-run', 'assisted', 'guarded', 'autonomous'];
+    if (!validAutonomy.includes(options.autonomy)) {
+      console.error(`Invalid autonomy level: ${options.autonomy}`);
+      console.error(`Valid values: ${validAutonomy.join(', ')}`);
+      process.exit(1);
+    }
+
+    // Build faber config section
+    const faberConfig = {
+      workflows: {
+        path: options.workflowsPath,
+        default: options.defaultWorkflow,
+        autonomy: options.autonomy as AutonomyLevel,
+      },
+      runs: {
+        path: options.runsPath,
+      },
+      changelog: {
+        path: options.changelogPath,
+      },
+      worktree: {
+        enabled: false,  // FABER does not manage worktrees by default (see SPEC-006)
+      },
+    };
+
+    // Load existing config or create empty
+    let config = loadYamlConfig({ warnMissingEnvVars: false }) || { version: '2.0' };
+
+    // Update faber section (preserves other sections)
+    config = { ...config, faber: faberConfig };
+
+    // Write config
+    writeYamlConfig(config as import('../types/config.js').UnifiedConfig, projectRoot);
+
+    // Create directories
+    const workflowsDir = path.isAbsolute(options.workflowsPath)
+      ? options.workflowsPath
+      : path.join(projectRoot, options.workflowsPath);
+    const runsDir = path.isAbsolute(options.runsPath)
+      ? options.runsPath
+      : path.join(projectRoot, options.runsPath);
+
+    fs.mkdirSync(workflowsDir, { recursive: true });
+    fs.mkdirSync(runsDir, { recursive: true });
+
+    // Create workflow manifest if it doesn't exist
+    const manifestPath = path.join(workflowsDir, 'workflows.yaml');
+    if (!fs.existsSync(manifestPath)) {
+      const manifest = {
+        workflows: [
+          {
+            id: 'default',
+            file: 'default.yaml',
+            description: 'Default FABER workflow for software development',
+          },
+        ],
+      };
+
+      const manifestContent = `# Workflow Registry - Lists available FABER workflows
+# Each workflow is defined in a separate file in this directory
+
+${yaml.dump(manifest, { indent: 2, lineWidth: 100 })}`;
+
+      fs.writeFileSync(manifestPath, manifestContent, 'utf-8');
+      console.log('Created workflow manifest:', manifestPath);
+    }
+
+    // Write CLAUDE_MARKETPLACE_ROOT to .fractary/env/.env.* files
+    const envDir = path.join(projectRoot, '.fractary', 'env');
+    fs.mkdirSync(envDir, { recursive: true });
+
+    const marketplaceRoot = path.join(os.homedir(), '.claude', 'plugins', 'marketplaces');
+    const marketplaceEntry = `CLAUDE_MARKETPLACE_ROOT=${marketplaceRoot}`;
+
+    // Find existing .env.* files or default to test + prod
+    let envFiles: string[];
+    try {
+      envFiles = fs.readdirSync(envDir)
+        .filter(f => f.startsWith('.env.'))
+        .map(f => path.join(envDir, f));
+    } catch { envFiles = []; }
+
+    if (envFiles.length === 0) {
+      envFiles = [
+        path.join(envDir, '.env.test'),
+        path.join(envDir, '.env.prod'),
+      ];
+    }
+
+    for (const envFile of envFiles) {
+      let content = '';
+      if (fs.existsSync(envFile)) {
+        content = fs.readFileSync(envFile, 'utf-8');
+      }
+      if (content.match(/^CLAUDE_MARKETPLACE_ROOT=/m)) {
+        content = content.replace(/^CLAUDE_MARKETPLACE_ROOT=.*$/m, marketplaceEntry);
+      } else {
+        content = content ? content.trimEnd() + '\n' + marketplaceEntry + '\n' : marketplaceEntry + '\n';
+      }
+      fs.writeFileSync(envFile, content, 'utf-8');
+      console.log('Updated env file:', envFile);
+    }
+
+    console.log('Configuration initialized:', configPath);
+    console.log('');
+    console.log('Settings:');
+    console.log(`  Workflows path: ${options.workflowsPath}`);
+    console.log(`  Default workflow: ${options.defaultWorkflow}`);
+    console.log(`  Autonomy: ${options.autonomy}`);
+    console.log(`  Runs path: ${options.runsPath}`);
+    console.log(`  Changelog path: ${options.changelogPath}`);
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
+}
+
+const CONFIG_INIT_OPTIONS = (cmd: Command): Command =>
+  cmd
+    .option('--workflows-path <path>', 'Directory for workflow files', '.fractary/faber/workflows')
+    .option('--default-workflow <id>', 'Default workflow ID', 'default')
+    .option('--autonomy <level>', 'Autonomy level (dry-run|assisted|guarded|autonomous)', 'guarded')
+    .option('--runs-path <path>', 'Directory for run artifacts', '.fractary/faber/runs')
+    .option('--changelog-path <path>', 'Path for project-level changelog file', '.fractary/changelog.ndjson')
+    .option('--force', 'Overwrite existing configuration');
+
+export function createConfigInitCommand(): Command {
+  return CONFIG_INIT_OPTIONS(
+    new Command('config-init')
+      .description('Initialize FABER configuration')
+  ).action(runConfigInit);
 }
 
 export function createConfigCommand(): Command {
@@ -139,108 +295,11 @@ export function createConfigCommand(): Command {
   // Config Init Command
   // =========================================================================
 
-  configCmd
-    .command('init')
-    .description('Initialize FABER configuration with minimal defaults')
-    .option('--workflows-path <path>', 'Directory for workflow files', '.fractary/faber/workflows')
-    .option('--default-workflow <id>', 'Default workflow ID', 'default')
-    .option('--autonomy <level>', 'Autonomy level (dry-run|assisted|guarded|autonomous)', 'guarded')
-    .option('--runs-path <path>', 'Directory for run artifacts', '.fractary/faber/runs')
-    .option('--changelog-path <path>', 'Path for project-level changelog file', '.fractary/changelog.ndjson')
-    .option('--force', 'Overwrite existing configuration')
-    .action(async (options) => {
-      try {
-        const projectRoot = findProjectRoot();
-        const configPath = getConfigPath(projectRoot);
-
-        // Check if config already exists
-        if (configExists(projectRoot) && !options.force) {
-          console.error('Configuration already exists at:', configPath);
-          console.error('Use --force to overwrite');
-          process.exit(1);
-        }
-
-        // Validate autonomy level
-        const validAutonomy = ['dry-run', 'assisted', 'guarded', 'autonomous'];
-        if (!validAutonomy.includes(options.autonomy)) {
-          console.error(`Invalid autonomy level: ${options.autonomy}`);
-          console.error(`Valid values: ${validAutonomy.join(', ')}`);
-          process.exit(1);
-        }
-
-        // Build faber config section
-        const faberConfig = {
-          workflows: {
-            path: options.workflowsPath,
-            default: options.defaultWorkflow,
-            autonomy: options.autonomy as AutonomyLevel,
-          },
-          runs: {
-            path: options.runsPath,
-          },
-          changelog: {
-            path: options.changelogPath,
-          },
-          worktree: {
-            enabled: false,  // FABER does not manage worktrees by default (see SPEC-006)
-          },
-        };
-
-        // Load existing config or create empty
-        let config = loadYamlConfig({ warnMissingEnvVars: false }) || { version: '2.0' };
-
-        // Update faber section (preserves other sections)
-        config = { ...config, faber: faberConfig };
-
-        // Write config
-        writeYamlConfig(config as import('../types/config.js').UnifiedConfig, projectRoot);
-
-        // Create directories
-        const workflowsDir = path.isAbsolute(options.workflowsPath)
-          ? options.workflowsPath
-          : path.join(projectRoot, options.workflowsPath);
-        const runsDir = path.isAbsolute(options.runsPath)
-          ? options.runsPath
-          : path.join(projectRoot, options.runsPath);
-
-        fs.mkdirSync(workflowsDir, { recursive: true });
-        fs.mkdirSync(runsDir, { recursive: true });
-
-        // Create workflow manifest if it doesn't exist
-        const manifestPath = path.join(workflowsDir, 'workflows.yaml');
-        if (!fs.existsSync(manifestPath)) {
-          const manifest = {
-            workflows: [
-              {
-                id: 'default',
-                file: 'default.yaml',
-                description: 'Default FABER workflow for software development',
-              },
-            ],
-          };
-
-          const manifestContent = `# Workflow Registry - Lists available FABER workflows
-# Each workflow is defined in a separate file in this directory
-
-${yaml.dump(manifest, { indent: 2, lineWidth: 100 })}`;
-
-          fs.writeFileSync(manifestPath, manifestContent, 'utf-8');
-          console.log('Created workflow manifest:', manifestPath);
-        }
-
-        console.log('Configuration initialized:', configPath);
-        console.log('');
-        console.log('Settings:');
-        console.log(`  Workflows path: ${options.workflowsPath}`);
-        console.log(`  Default workflow: ${options.defaultWorkflow}`);
-        console.log(`  Autonomy: ${options.autonomy}`);
-        console.log(`  Runs path: ${options.runsPath}`);
-        console.log(`  Changelog path: ${options.changelogPath}`);
-      } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
-        process.exit(1);
-      }
-    });
+  CONFIG_INIT_OPTIONS(
+    configCmd
+      .command('init')
+      .description('Initialize FABER configuration with minimal defaults')
+  ).action(runConfigInit);
 
   // =========================================================================
   // Config Set Command

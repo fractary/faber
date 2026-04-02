@@ -461,8 +461,10 @@ export class WorkflowResolver {
   constructor(options: WorkflowResolverOptions = {}) {
     this.bundledWorkflowsPath = options.bundledWorkflowsPath || this.findBundledWorkflowsPath();
     // marketplaceRoot kept for legacy Claude marketplace plugin@marketplace:workflow refs.
-    // Left as empty string when not configured so callers can check truthiness.
-    this.marketplaceRoot = options.marketplaceRoot || process.env['CLAUDE_MARKETPLACE_ROOT'] || '';
+    // Defaults to ~/.claude/plugins/marketplaces so plugin extends work without env var config.
+    this.marketplaceRoot = options.marketplaceRoot
+      || process.env['CLAUDE_MARKETPLACE_ROOT']
+      || path.join(os.homedir(), '.claude', 'plugins', 'marketplaces');
     this.projectRoot = options.projectRoot || process.cwd();
   }
 

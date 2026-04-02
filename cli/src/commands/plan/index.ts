@@ -29,7 +29,6 @@ interface PlanOptions {
   autonomy?: string;
   worktree?: boolean;
   noBranch?: boolean;
-  skipConfirm?: boolean;
   forceNew?: boolean;
   output?: string;
   json?: boolean;
@@ -73,7 +72,6 @@ export function createPlanCommand(): Command {
     .option('--autonomy <level>', 'Override autonomy level (guarded|autonomous)')
     .option('--worktree', 'Create a git worktree for this workflow (overrides config)')
     .option('--no-branch', 'Skip branch creation')
-    .option('--skip-confirm', 'Skip confirmation prompt (use with caution)')
     .option('--output <format>', 'Output format: text|json|yaml', 'text')
     .option('--json', 'Output as JSON (shorthand for --output json)')
     .option('--limit <n>', 'Maximum number of issues to plan', parseInt)
@@ -248,20 +246,7 @@ async function executePlanCommand(options: PlanOptions): Promise<void> {
   const availableWorkflows = await loadAvailableWorkflows(config);
   const issuesWithWorkflows = await assignWorkflows(issues, availableWorkflows, options, outputFormat);
 
-  // Step 3: Show confirmation prompt
-  if (!options.skipConfirm) {
-    const confirmed = await showConfirmationPrompt(issuesWithWorkflows, config, options, outputFormat);
-    if (!confirmed) {
-      if (outputFormat === 'text') {
-        console.log(chalk.yellow('\n✖ Planning cancelled'));
-      } else {
-        console.log(JSON.stringify({ status: 'cancelled', message: 'User cancelled planning' }, null, 2));
-      }
-      return;
-    }
-  }
-
-  // Step 4: Plan each issue
+  // Step 3: Plan each issue
   if (outputFormat === 'text') {
     console.log(chalk.cyan('\n→ Planning workflows...'));
     process.stdout.write(''); // Force flush
@@ -384,41 +369,6 @@ async function assignWorkflows(
   }
 
   return issuesWithWorkflows;
-}
-
-/**
- * Show confirmation prompt before planning
- */
-async function showConfirmationPrompt(
-  issues: Issue[],
-  config: LoadedFaberConfig,
-  options: PlanOptions,
-  outputFormat: string
-): Promise<boolean> {
-  if (outputFormat !== 'text') {
-    return true; // Skip in JSON mode
-  }
-
-  const createWorktree = shouldCreateWorktree(options, config);
-
-  console.log(chalk.cyan('\n📋 Will plan workflows for the following issues:\n'));
-
-  for (const issue of issues) {
-    const { organization, project } = getRepoInfoFromConfig(config);
-    const branch = `feature/${issue.number}`;
-
-    console.log(chalk.bold(`#${issue.number}: ${issue.title}`));
-    console.log(chalk.gray(`  Workflow: ${issue.workflow}`));
-    console.log(chalk.gray(`  Branch: ${branch}`));
-    if (createWorktree) {
-      const worktree = `~/.claude-worktrees/${organization}-${project}-${issue.number}`;
-      console.log(chalk.gray(`  Worktree: ${worktree}`));
-    }
-    console.log();
-  }
-
-  const response = await prompt('Proceed? [Y/n]: ');
-  return !response || response.toLowerCase() === 'y' || response.toLowerCase() === 'yes';
 }
 
 /**

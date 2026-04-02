@@ -3,7 +3,7 @@ name: fractary-faber-workflow-plan
 allowed-tools: Bash(fractary-faber workflow-plan:*)
 description: Plan FABER workflow(s) for work items
 model: claude-haiku-4-5
-argument-hint: '--work-id <ids> [--work-label <labels>] [--workflow <name>] [--autonomy <level>] [--worktree] [--skip-confirm] [--force-new]'
+argument-hint: '--work-id <ids> [--work-label <labels>] [--workflow <name>] [--autonomy <level>] [--worktree] [--force-new]'
 ---
 
 ## Your task
