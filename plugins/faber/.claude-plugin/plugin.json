@@ -1,6 +1,6 @@
 {
     "name": "fractary-faber",
-    "version": "4.0.9",
+    "version": "4.0.10",
     "description": "Universal SDLC workflow framework with skill-based architecture (plan + run)",
     "commands": "./commands/",
     "skills": "./skills/"
