@@ -497,25 +497,28 @@ export class WorkflowResolver {
   }
 
   /**
-   * Resolve the root directory for a cross-package workflow reference.
-   * Given a plugin name (e.g. "faber-cloud"), tries in priority order:
+   * Collect all candidate root directories for a cross-package workflow reference.
+   * Returns them in priority order so the caller can check workflow existence at each.
+   * Priorities:
    *   1. npm require resolution  (@fractary/faber-cloud in node_modules)
    *   2. Sibling in same node_modules/@fractary/ directory
    *   3. Legacy Claude marketplace path (if marketplaceRoot is set)
+   *   4. Auto-detected Claude plugin marketplaces directory (~/.claude/plugins/marketplaces/)
    */
-  private resolveExternalPackageRoot(plugin: string, marketplace: string): string | null {
+  private resolveExternalPackageRoots(plugin: string, marketplace: string): string[] {
+    const roots: string[] = [];
+
     // 1. npm: resolve @fractary/<plugin> package main, then walk up to package root
     try {
-      // require.resolve finds the package's main entry in node_modules
       const pkgMain = _require.resolve(`@fractary/${plugin}`);
-      // pkgMain = .../node_modules/@fractary/faber-cloud/dist/index.js
-      // package root = dirname(pkgMain) up past dist/ to package root
-      // Walk up until we find a package.json to confirm we're at the root
       let dir = path.dirname(pkgMain);
       for (let i = 0; i < 5; i++) {
         if (fs.existsSync(path.join(dir, 'package.json'))) {
           const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
-          if (pkg.name === `@fractary/${plugin}`) return dir;
+          if (pkg.name === `@fractary/${plugin}`) {
+            roots.push(dir);
+            break;
+          }
         }
         dir = path.dirname(dir);
       }
@@ -527,15 +530,21 @@ export class WorkflowResolver {
     // __dirname = dist/workflow/ inside @fractary/faber
     // @fractary/faber-cloud would be at ../../../faber-cloud/ (sibling)
     const siblingNpm = path.resolve(__dirname, `../../../${plugin}`);
-    if (fs.existsSync(siblingNpm)) return siblingNpm;
+    if (fs.existsSync(siblingNpm)) roots.push(siblingNpm);
 
-    // 3. Legacy Claude marketplace
+    // 3. Legacy Claude marketplace (explicit CLAUDE_MARKETPLACE_ROOT)
     if (this.marketplaceRoot) {
       const claudePath = path.join(this.marketplaceRoot, marketplace, 'plugins', plugin);
-      if (fs.existsSync(claudePath)) return claudePath;
+      if (fs.existsSync(claudePath)) roots.push(claudePath);
     }
 
-    return null;
+    // 4. Auto-detected Claude plugin marketplaces directory
+    // Claude installs marketplace plugins at ~/.claude/plugins/marketplaces/<marketplace>/plugins/<plugin>/
+    const autoMarketplace = path.join(os.homedir(), '.claude', 'plugins', 'marketplaces');
+    const autoPath = path.join(autoMarketplace, marketplace, 'plugins', plugin);
+    if (fs.existsSync(autoPath)) roots.push(autoPath);
+
+    return roots;
   }
 
   /**
@@ -889,14 +898,20 @@ export class WorkflowResolver {
       this.sanitizePathComponent(marketplace, 'marketplace');
       this.sanitizePathComponent(workflow, 'workflow');
 
-      // Resolve the external package root (npm, sibling, or legacy marketplace)
-      const pkgRoot = this.resolveExternalPackageRoot(plugin, marketplace);
-      if (pkgRoot) {
-        // Package root found: workflows are at <root>/workflows/ (bundled)
-        // or at the legacy location <root>/plugins/<plugin>/.fractary/faber/workflows/
+      // Try each possible package root in priority order, checking whether the
+      // workflow file actually exists at each candidate before committing to it.
+      // This handles the case where option 1 (npm) finds the SDK package itself
+      // (e.g. @fractary/faber) but the workflow lives in the Claude plugin install.
+      for (const pkgRoot of this.resolveExternalPackageRoots(plugin, marketplace)) {
+        // Bundled format: <root>/workflows/<workflow>.json
         const bundled = path.join(pkgRoot, 'workflows', `${workflow}.json`);
         if (fs.existsSync(bundled)) return bundled;
-        return path.join(pkgRoot, 'plugins', plugin, '.fractary/faber/workflows', `${workflow}.json`);
+        // Claude plugin format: <root>/.fractary/faber/workflows/<workflow>.json
+        const pluginLocal = path.join(pkgRoot, '.fractary', 'faber', 'workflows', `${workflow}.json`);
+        if (fs.existsSync(pluginLocal)) return pluginLocal;
+        // Legacy format: <root>/plugins/<plugin>/.fractary/faber/workflows/<workflow>.json
+        const legacy = path.join(pkgRoot, 'plugins', plugin, '.fractary/faber/workflows', `${workflow}.json`);
+        if (fs.existsSync(legacy)) return legacy;
       }
 
       // Nothing found — return a descriptive path for the error message
