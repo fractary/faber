@@ -87,12 +87,11 @@ if (/^\d+$/.test(arg)) {
     let plannerPrompt = `${work_id} --auto-run --force-new`;
     if (workflow_override) plannerPrompt += ` --workflow ${workflow_override}`;
     if (autonomy_override) plannerPrompt += ` --autonomy ${autonomy_override}`;
-    const planResult = await Agent({
-      subagent_type: "fractary-faber-workflow-planner",
-      description: `Auto-plan for #${work_id}`,
-      prompt: plannerPrompt
-    });
-    // Extract plan_id from planner output (format: "plan_id: <id>")
+    let planCmd = `fractary-faber workflow-plan --work-id ${work_id} --auto-run --force-new`;
+    if (workflow_override) planCmd += ` --workflow ${workflow_override}`;
+    if (autonomy_override) planCmd += ` --autonomy ${autonomy_override}`;
+    const planResult = await Bash(planCmd);
+    // Extract plan_id from CLI output (format: "plan_id: <id>")
     const match = planResult.match(/plan_id:\s*(\S+)/);
     if (!match) { console.error("Error: Auto-planning failed"); return; }
     plan_id = match[1];
