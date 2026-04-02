@@ -2,12 +2,6 @@
     "$schema": "https://json.schemastore.org/claude-code-settings.json",
     "description": "Claude Code project settings for fractary plugin marketplace",
     "extraKnownMarketplaces": {
-        "claude-plugins-official": {
-            "source": {
-                "source": "github",
-                "repo": "anthropics/claude-plugins-official"
-            }
-        },
         "fractary-core": {
             "source": {
                 "source": "github",
@@ -34,7 +28,6 @@
         }
     },
     "enabledPlugins": {
-        "discord@claude-plugins-official": true,
         "fractary-core@fractary-core": true,
         "fractary-repo@fractary-core": true,
         "fractary-work@fractary-core": true,
