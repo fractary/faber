@@ -1,10 +1,7 @@
 /**
  * @fractary/faber - Repo Module
  *
- * Repository operations across GitHub, GitLab, and Bitbucket.
+ * Delegates to @fractary/core for all repository operations.
  */
 
-export { RepoManager } from './manager.js';
-export { Git } from './git.js';
-export * from './types.js';
-export * from './providers/index.js';
+export { RepoManager } from '@fractary/core/repo';
