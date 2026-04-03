@@ -1,9 +1,25 @@
 # Portability Migration Plan for Fractary Core
 
 **Status:** Planning Phase
-**Last Updated:** 2026-04-02
+**Last Updated:** 2026-04-03
 **Author:** AI Assistant
 **Priority:** High
+
+---
+
+## Changelog
+
+### 2026-04-03
+- Updated OpenCode plugin to use `fractary-core.js` (JavaScript instead of TypeScript)
+- Fixed skills discovery to use `config.skills.paths` array
+- Updated npm package name to `@fractary/opencode-core`
+- Documented dual-path resolution: local monorepo + Claude marketplace
+- Added `@opencode-ai/plugin` dependency requirement
+
+### 2026-04-02
+- Initial draft of portability migration plan
+- Defined generic tool reference guidelines
+- Outlined multi-platform architecture
 
 ---
 
@@ -171,95 +187,101 @@ mkdir -p .opencode/skills/
 
 ### 1.2 Create OpenCode Plugin
 
-**File:** `.opencode/plugins/fractary-core.ts`
+**File:** `.opencode/plugins/fractary-core.js`
 
-```typescript
-import { type Plugin } from "@opencode-ai/plugin"
+```javascript
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 
-export const FractaryCorePlugin: Plugin = async ({
-  client,
-  directory,
-  project
-}) => {
-  const skillsPaths = getPluginSkillsPaths(directory)
+/**
+ * Fractary Core plugin for OpenCode.
+ *
+ * Registers skill directories so OpenCode discovers all Fractary skills,
+ * and injects a system-level note about CLI availability.
+ *
+ * Skills are found in order of preference:
+ *   1. Local monorepo (plugins/core/.claude-plugin exists in ancestor dir)
+ *   2. Claude marketplace install (~/.claude/plugins/marketplaces/fractary-core)
+ */
+
+const PLUGIN_NAMES = ['core', 'repo', 'work', 'file', 'logs', 'docs']
+const MARKETPLACE_PATH = path.join(
+  os.homedir(),
+  '.claude',
+  'plugins',
+  'marketplaces',
+  'fractary-core',
+)
+
+export const FractaryCorePlugin = async ({ directory }) => {
+  const pluginRoot = findPluginRoot(directory)
 
   return {
-    // Register all skills paths from plugins
     config: async (config) => {
-      config.skills.paths.push(...skillsPaths)
+      config.skills = config.skills || {}
+      config.skills.paths = config.skills.paths || []
+
+      for (const name of PLUGIN_NAMES) {
+        const skillsDir = path.join(pluginRoot, 'plugins', name, 'skills')
+        if (fs.existsSync(skillsDir)) {
+          config.skills.paths.push(skillsDir)
+        }
+      }
     },
 
-    // Bootstrap injection on first message
-    'experimental.chat.messages.transform': async (_input, output) => {
-      const bootstrap = getBootstrapContent()
-      const firstUserMessage = output.messages.find(
-        m => m.role === 'user'
+    'experimental.chat.system.transform': async (_input, output) => {
+      output.system.push(
+        [
+          'You have access to the `fractary-core` CLI for repository operations,',
+          'work/issue tracking, documentation, logging, and file storage.',
+          'Fractary skills are loaded and available for reference.',
+          'Configuration is at `.fractary/config.yaml`.',
+          '',
+          'Key CLI commands:',
+          '- `fractary-core repo commit|push|branch-create|pr-create|pr-merge|pull`',
+          '- `fractary-core work issue-create|issue-fetch|issue-list|issue-update|issue-search`',
+          '- `fractary-core docs doc-create|doc-list|doc-get|doc-update|doc-search`',
+          '- `fractary-core logs write|list|read|search|archive|analyze`',
+          '- `fractary-core file upload|download|list|copy|move|delete`',
+          '- `fractary-core config show|validate`',
+          '',
+          'Run `fractary-core --help` or `fractary-core <plugin> --help` for full usage.',
+        ].join('\n'),
       )
-      if (firstUserMessage && !hasBootstrap(firstUserMessage)) {
-        firstUserMessage.parts.unshift({
-          type: 'text',
-          text: bootstrap
-        })
-      }
-    }
+    },
   }
 }
 
-function getPluginSkillsPaths(projectDir: string): string[] {
-  const skillsPaths: string[] = []
-  const plugins = ['core', 'work', 'repo', 'logs', 'file', 'docs', 'status']
-
-  for (const plugin of plugins) {
-    const pluginSkills = path.join(projectDir, 'plugins', plugin, 'skills')
-    if (fs.existsSync(pluginSkills)) {
-      skillsPaths.push(pluginSkills)
+/** Walk up from the working directory looking for the monorepo marker. */
+function findMonorepoRoot(dir) {
+  let current = dir
+  while (current !== path.dirname(current)) {
+    if (
+      fs.existsSync(path.join(current, 'plugins', 'core', '.claude-plugin'))
+    ) {
+      return current
     }
+    current = path.dirname(current)
+  }
+  return null
+}
+
+/**
+ * Resolve the root directory containing the plugins/ tree.
+ *
+ * Prefers the local monorepo (developer working in fractary-core itself),
+ * falls back to the Claude marketplace install path.
+ */
+function findPluginRoot(directory) {
+  const monorepo = findMonorepoRoot(directory)
+  if (monorepo) return monorepo
+
+  if (fs.existsSync(path.join(MARKETPLACE_PATH, 'plugins', 'core'))) {
+    return MARKETPLACE_PATH
   }
 
-  return skillsPaths
-}
-
-function getBootstrapContent(): string {
-  // Generic bootstrap that doesn't specify tool names
-  // Models will select appropriate tools from context
-  return `
-# Fractary Core Skills
-
-You have access to Fractary Core skills for work tracking, repository operations, logging, documentation, file management, and configuration management.
-
-## How Skills Work
-- Skills are automatically discovered and loaded based on your request
-- Skills reference CLI commands for deterministic operations
-- Use your available tools to execute the skill instructions
-
-## Key Skills
-- fractary-core-config-init → Initialize Fractary configuration
-- fractary-work-issue-create → Create GitHub issues
-- fractary-repo-commit-push-pr → Full commit/push/PR workflow
-- fractary-logs-write → Capture operational logs
-- fractary-docs-doc-create → Create living documentation
-
-## CLI Commands Used by Skills
-Skills invoke these CLI commands:
-- fractary-core work issue-fetch #123
-- fractary-core repo commit --message "..." --type feat --all
-- fractary-core logs write --type session --title "..." --content "..." --issue 123
-- fractary-core docs doc-create user-guide --title "..." --content "..."
-
-All CLI commands require Fractary configuration at .fractary/config.yaml.
-Run a command to initialize Fractary configuration.
-
-## Getting Started
-Ask me to help set up your project, create documentation, manage issues, or handle any development workflow.
-`
-}
-
-function hasBootstrap(message): boolean {
-  return message.parts.some(
-    p => p.text?.includes('Fractary Core Skills')
-  )
+  return directory
 }
 ```
 
@@ -381,14 +403,16 @@ Add Fractary Core to the \`plugin\` array in your \`opencode.json\`:
 **Git-based (Recommended for development):**
 \`\`\`json
 {
-  "plugin": ["fractary-core@git+https://github.com/fractary/core.git"]
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["git+https://github.com/fractary/core.git#.opencode"]
 }
 \`\`\`
 
-**npm-based:**
+**npm-based (Recommended for production):**
 \`\`\`json
 {
-  "plugin": ["@fractary/core"]
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@fractary/opencode-core"]
 }
 \`\`\`
 
@@ -403,6 +427,13 @@ Ask naturally:
 - "Write a log entry for this debugging session"
 
 Skills will automatically be discovered and the model will use appropriate tools.
+
+## Package Structure
+
+The npm package \`@fractary/opencode-core\` provides:
+- Plugin: \`./plugins/fractary-core.js\`
+- Skills: Auto-discovered from \`plugins/*/skills/\`
+- Dependencies: \`@opencode-ai/plugin\`
 ```
 
 ---
@@ -716,12 +747,42 @@ Model capabilities:
 
 ### npm Package
 
-Name: `@fractary/core`
+**Package Name:** `@fractary/opencode-core`
 
+**Structure:**
+```
+.opencode/
+├── package.json           # npm package manifest
+├── plugins/
+│   └── fractary-core.js   # OpenCode plugin entry point
+└── bun.lock              # Bun lockfile for dependencies
+```
+
+**package.json:**
 ```json
-// opencode.json
 {
-  "plugin": ["@fractary/core"]
+  "name": "@fractary/opencode-core",
+  "version": "1.0.2",
+  "type": "module",
+  "main": "./plugins/fractary-core.js",
+  "keywords": ["opencode-plugin", "fractary"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fractary/core",
+    "directory": ".opencode"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@opencode-ai/plugin": "1.3.13"
+  }
+}
+```
+
+**opencode.json installation:**
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@fractary/opencode-core"]
 }
 ```
 
@@ -741,11 +802,27 @@ Name: `@fractary/core`
 | Platform | Status | Installation |
 |----------|--------|--------------|
 | Claude Code | ✅ Built-in | `/plugin marketplace add fractary/core-marketplace` |
-| OpenCode | ✅ Available | `npm install @fractary/core` |
+| OpenCode | ✅ Available | `npm install -g @fractary/opencode-core` |
 | Cursor | ✅ Available | `/add-plugin fractary-core` |
 | Codex | ✅ Available | See [INSTALL.md](.codex/INSTALL.md) |
 | Copilot CLI | 🚧 Planned | Coming Soon |
 | Gemini CLI | 🚧 Planned | Coming Soon |
+
+## OpenCode Installation
+
+Add to \`opencode.json\`:
+\`\`\`json
+{
+  "plugin": ["@fractary/opencode-core"]
+}
+\`\`\`
+
+Or install from git:
+\`\`\`json
+{
+  "plugin": ["git+https://github.com/fractary/core.git#.opencode"]
+}
+\`\`\`
 ```
 
 ---

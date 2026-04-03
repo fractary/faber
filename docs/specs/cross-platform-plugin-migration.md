@@ -2,6 +2,19 @@
 
 How to convert a Claude Code plugin project into a portable plugin that works across multiple AI agent platforms (Claude Code, OpenCode, Cursor, Codex, Gemini CLI, etc.).
 
+---
+
+## Changelog
+
+### 2026-04-03
+- Updated OpenCode plugin examples to use JavaScript (.js) instead of TypeScript
+- Fixed skills discovery to use `config.skills.paths` array
+- Updated npm package naming to `@fractary/opencode-core`
+- Added `@opencode-ai/plugin` dependency information
+- Documented dual-path resolution for local monorepo + marketplace installs
+
+---
+
 ## Overview
 
 The migration eliminates platform-specific constructs from plugin artifacts and consolidates everything into **skills** as the single portable unit. Commands are merged into skills. Platform adapters are thin discovery layers — they tell each platform where to find skills, but the skills themselves are identical everywhere.
@@ -326,13 +339,13 @@ export const MyPlugin = async ({ directory }) => {
 
   return {
     config: async (config) => {
+      config.skills = config.skills || {}
+      config.skills.paths = config.skills.paths || []
+
       for (const name of PLUGIN_NAMES) {
         const skillsDir = path.join(pluginRoot, 'plugins', name, 'skills')
         if (fs.existsSync(skillsDir)) {
-          config.instructions = config.instructions || []
-          if (Array.isArray(config.instructions)) {
-            config.instructions.push(skillsDir)
-          }
+          config.skills.paths.push(skillsDir)
         }
       }
     },
@@ -384,9 +397,18 @@ Also create `.opencode/package.json` for npm publishing:
   "type": "module",
   "main": "./plugins/your-project-name.js",
   "keywords": ["opencode-plugin"],
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@opencode-ai/plugin": "1.3.x"
+  }
 }
 ```
+
+**Important:**
+- **Use JavaScript (.js), not TypeScript (.ts)** — OpenCode plugins work best as JavaScript modules
+- **Initialize `config.skills.paths` array** before pushing to it
+- **The plugin name should match your plugin entry point filename** (e.g., `fractary-core.js` exports `FractaryCorePlugin`)
+- **Dual-path resolution** discovers skills whether you're developing locally or installed via marketplace
 
 ### 5.2 Cursor (`.cursor/rules/<name>.mdc`)
 
@@ -491,7 +513,8 @@ Verify each adapter points to your actual plugin directories and CLI binary name
 | `plugin.json` | Has `commands` field | Only `skills` field |
 | `marketplace.json` | Has `commands` arrays | No `commands` arrays |
 | `package.json` | May have `pi.prompts` | Removed; added `main` for OpenCode |
-| OpenCode adapter | _(doesn't exist)_ | `.opencode/plugins/<name>.js` |
+| OpenCode adapter | _(doesn't exist)_ | `.opencode/plugins/<name>.js` (JavaScript) |
+| OpenCode package.json | _(doesn't exist)_ | `.opencode/package.json` with `@opencode-ai/plugin` dep |
 | Cursor adapter | _(doesn't exist)_ | `.cursor/rules/<name>.mdc` |
 | Codex adapter | _(doesn't exist)_ | `codex.md` |
 | Gemini adapter | _(doesn't exist)_ | `GEMINI.md` |
