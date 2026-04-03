@@ -56,7 +56,7 @@ const batchStatePath = `.fractary/faber/runs/.batch-state.json`;
 let batchState;
 
 if (resumeBatch) {
-  const content = await Read({ file_path: batchStatePath });
+  const content = read the file at batchStatePath;
   batchState = JSON.parse(content);
 
   if (batchState.status === "completed") {
@@ -100,28 +100,20 @@ if (resumeBatch) {
     updated_at: new Date().toISOString()
   };
 
-  await Write({ file_path: batchStatePath, content: JSON.stringify(batchState, null, 2) });
+  Write the batch state JSON to {batchStatePath}
   console.log(`Batch ID: ${batchState.batch_id}`);
   console.log(`Work IDs: ${workIds.join(', ')}`);
 }
 ```
 
-## Step B.2: Initialize Batch Task List
+## Step B.2: Initialize Batch Progress Tracking
 
-```javascript
-const batchItemTaskIds = {};
-for (let index = 0; index < batchState.items.length; index++) {
-  const item = batchState.items[index];
-  const task = await TaskCreate({
-    subject: `[Batch ${index + 1}/${batchState.items.length}] Workflow #${item.work_id}`,
-    description: `Run full FABER workflow for #${item.work_id}`,
-    activeForm: `Executing workflow for #${item.work_id} (${index + 1}/${batchState.items.length})`
-  });
-  batchItemTaskIds[item.work_id] = task.taskId;
-  if (item.status === "completed") {
-    await TaskUpdate({ taskId: task.taskId, status: "completed" });
-  }
-}
+```
+Create progress tracking entries for each batch item:
+  FOR index, item IN batchState.items:
+    Create entry: "[Batch {index+1}/{total}] Workflow #{item.work_id}"
+    Store entry ID in batchItemTaskIds[item.work_id]
+    IF item already completed: mark entry as completed
 ```
 
 ## Step B.3: Sequential Execution Loop
@@ -133,7 +125,7 @@ FOR each item in batchState.items (skip items with status "completed"):
   item.started_at = new Date().toISOString();
   batchState.updated_at = new Date().toISOString();
   Write batch state to disk.
-  TaskUpdate({ taskId: batchItemTaskIds[item.work_id], status: "in_progress" });
+  Mark progress for #{item.work_id} as in_progress
 
   TRY:
     // Execute the full single-workflow logic for this work-id:
@@ -146,7 +138,7 @@ FOR each item in batchState.items (skip items with status "completed"):
     item.plan_id = plan_id;
     batchState.updated_at = new Date().toISOString();
     Write batch state to disk.
-    TaskUpdate({ taskId: batchItemTaskIds[item.work_id], status: "completed" });
+    Mark progress for #{item.work_id} as completed
 
   CATCH error:
     item.status = "failed";
@@ -155,17 +147,11 @@ FOR each item in batchState.items (skip items with status "completed"):
     Write batch state to disk.
 
     // Prompt user for decision (even in autonomous mode — batch safety net)
-    const response = await AskUserQuestion({
-      questions: [{
-        question: `Workflow for #${item.work_id} failed. How would you like to proceed?`,
-        multiSelect: false,
-        options: [
-          { label: "Stop batch", description: "Resume later with --resume-batch" },
-          { label: "Skip and continue", description: "Skip this workflow and continue" },
-          { label: "Retry", description: "Retry this workflow" }
-        ]
-      }]
-    });
+    Ask the user: "Workflow for #{item.work_id} failed. How would you like to proceed?"
+    Options:
+      - "Stop batch" — Resume later with --resume-batch
+      - "Skip and continue" — Skip this workflow and continue
+      - "Retry" — Retry this workflow
     // Handle response: stop → halt; skip → continue; retry → re-execute item
 
 END FOR

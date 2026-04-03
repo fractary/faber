@@ -1,7 +1,6 @@
 ---
 name: fractary-faber-workflow-run-verifier
 description: Verify that a FABER workflow run has fully completed all required completion signals
-model: claude-haiku-4-5-20251001
 ---
 
 # FABER Workflow Run Verifier Skill

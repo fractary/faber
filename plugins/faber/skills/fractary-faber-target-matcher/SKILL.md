@@ -1,7 +1,6 @@
 ---
 name: fractary-faber-target-matcher
 description: Matches targets against configured patterns for work-ID-free planning
-tools: Bash, Read
 ---
 
 # Target Matcher Skill

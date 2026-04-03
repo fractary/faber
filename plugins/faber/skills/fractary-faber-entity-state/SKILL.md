@@ -1,7 +1,6 @@
 ---
 name: fractary-faber-entity-state
 description: Manage entity-level state tracking across FABER workflows
-model: claude-opus-4-6
 ---
 
 # FABER Entity State Skill

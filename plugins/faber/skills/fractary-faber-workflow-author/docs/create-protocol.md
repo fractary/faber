@@ -40,7 +40,7 @@ Discover the project context:
 
 ### 5. Gather Requirements (no template)
 
-If no `--template` was specified, use AskUserQuestion to collect:
+If no `--template` was specified, prompt the user to provide:
 - Workflow name confirmation
 - Purpose / description
 - Which phases to customize (frame, architect, build, evaluate, release)
@@ -48,7 +48,7 @@ If no `--template` was specified, use AskUserQuestion to collect:
 
 ### 6. Ask About Project-Specific Integration
 
-Present the discovered skills from Step 4 and ask via AskUserQuestion:
+Present the discovered skills from Step 4 and ask the user:
 - Which skills should be integrated into workflow steps
 - Any project-specific tooling to invoke during phases
 
@@ -85,7 +85,7 @@ Run full validation on the constructed workflow:
 
 ### 10. Preview and Confirm
 
-1. Display a formatted preview of the workflow JSON via AskUserQuestion
+1. Display a formatted preview of the workflow JSON and ask the user to confirm
 2. Show summary: phase count, step count, autonomy level, parent workflow
 3. Wait for user confirmation
 4. On confirm: write to `.fractary/faber/workflows/{id}.json`

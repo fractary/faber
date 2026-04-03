@@ -27,7 +27,7 @@ Show the user a summary of the loaded workflow:
 
 ### 4. Ask Update Type
 
-Use AskUserQuestion to present update options (multi-select):
+Present update options to the user (multi-select):
 - **Add steps** - append new steps to existing phases
 - **Modify steps** - edit, remove, or reorder existing steps
 - **Change autonomy** - update autonomy level or approval requirements
@@ -72,7 +72,7 @@ Run the same validation as create-protocol Step 9:
 
 ### 8. Preview and Write
 
-1. Display a diff-style preview of changes via AskUserQuestion
+1. Display a diff-style preview of changes and ask the user to confirm
 2. Show what was added, removed, or modified
 3. Wait for user confirmation
 4. On confirm: write back to the original path (`.fractary/faber/workflows/{workflow_name}.json`)

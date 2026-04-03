@@ -1,7 +1,6 @@
 ---
 name: fractary-faber-response-validator
 description: Validates skill responses against the standard FABER response format schema
-model: claude-opus-4-6
 ---
 
 # Response Validator Skill

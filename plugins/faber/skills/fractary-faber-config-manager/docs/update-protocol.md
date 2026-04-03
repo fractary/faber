@@ -45,7 +45,7 @@ Parse the `--context` value to determine which config field to update and what v
 | `workflows path` | `workflows.path` |
 | `runs path` | `runs.path` |
 
-If the context text is ambiguous or matches multiple fields, use `AskUserQuestion` to present the possible interpretations and let the user clarify which field and value they intend.
+If the context text is ambiguous or matches multiple fields, present the possible interpretations to the user and let the user clarify which field and value they intend.
 
 ### 3. Preview Changes
 
@@ -59,7 +59,7 @@ Display the diff between current and proposed values.
 
 ### 4. Confirm
 
-Unless `--force` was provided, use `AskUserQuestion` to ask:
+Unless `--force` was provided, ask the user:
 
 > Apply these changes?
 

@@ -2,12 +2,6 @@
 name: fractary-faber-run-inspector
 description: Display comprehensive FABER workflow run status with state, logs, timing, and artifacts
 user-invocable: true
-argument-hint: "[<work-id|run-id>] [--logs <n>] [--timing] [--verbose] [--json]"
-allowed-tools:
-  - Bash
-  - Read
-  - Glob
-  - Skill
 ---
 
 # FABER Run Inspector

@@ -1,7 +1,6 @@
 ---
 name: fractary-faber-feedback-handler
 description: Handles FABER workflow feedback requests - posting to issues and tracking responses
-model: claude-opus-4-6
 ---
 
 # Feedback Handler Skill
@@ -151,7 +150,7 @@ Process a feedback response and update state.
    - Store comment_url in notification_sent
 
 6. **Show CLI prompt** (if cli_prompt=true)
-   - Use AskUserQuestion tool
+   - Prompt the user interactively
    - Present options from feedback_request
 
 7. **Return request details**

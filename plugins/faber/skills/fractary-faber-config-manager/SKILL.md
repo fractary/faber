@@ -2,11 +2,6 @@
 name: fractary-faber-config-manager
 description: Initialize, update, or validate FABER configuration in .fractary/config.yaml
 user-invocable: true
-argument-hint: "<init|update|validate> [--autonomy <level>] [--context <desc>] [--force] [--json]"
-allowed-tools:
-  - Bash
-  - Read
-  - AskUserQuestion
 ---
 
 # FABER Config Manager
@@ -31,7 +26,7 @@ Parse the first positional argument to determine operation:
 1. ALL operations delegate to CLI: `fractary-faber config {operation} [flags]`
 2. NEVER write YAML directly — the CLI handles file I/O, backups, and validation
 3. `.fractary/config.yaml` must exist (created by `fractary-core-init`). If missing, tell user to run that first.
-4. Use `AskUserQuestion` for ALL user prompts — never use plain text questions
+4. Always prompt the user interactively for confirmations and choices — never use plain text questions
 
 ## Quick Reference
 

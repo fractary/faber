@@ -13,6 +13,7 @@
  */
 
 import { Command } from 'commander';
+import * as fs from 'fs';
 import {
   FABER_RUNS_DIR,
   ACTIVE_RUN_ID_FILE,
@@ -158,6 +159,64 @@ export function createRunsCommand(): Command {
         console.log(`  Plan File:          ${RELATIVE_PATHS.PLAN_PATH_TEMPLATE}`);
         console.log(`  State File:         ${RELATIVE_PATHS.STATE_PATH_TEMPLATE}`);
         console.log(`  Active Run ID File: ${RELATIVE_PATHS.ACTIVE_RUN_ID_FILE}`);
+      }
+    });
+
+  runsCmd
+    .command('verify-complete')
+    .description('Verify that all phases and steps in a run are completed or skipped')
+    .argument('<run_id>', 'Run ID to verify')
+    .option('--json', 'Output as JSON')
+    .action((runId: string, options) => {
+      try {
+        const statePath = getStatePath(runId);
+        if (!fs.existsSync(statePath)) {
+          console.error(`Error: State file not found: ${statePath}`);
+          process.exit(2);
+        }
+
+        const state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+        const pending: string[] = [];
+
+        // Check each phase and its steps
+        if (state.phases && typeof state.phases === 'object') {
+          for (const [phaseName, phase] of Object.entries(state.phases) as [string, any][]) {
+            if (phase.enabled === false) continue;
+
+            if (phase.steps && typeof phase.steps === 'object') {
+              for (const [stepId, step] of Object.entries(phase.steps) as [string, any][]) {
+                const status = step.status || 'pending';
+                if (status !== 'completed' && status !== 'success' && status !== 'skipped') {
+                  pending.push(`${phaseName}:${stepId} (${status})`);
+                }
+              }
+            } else {
+              // Phase without steps — check phase-level status
+              const phaseStatus = phase.status || 'pending';
+              if (phaseStatus !== 'completed' && phaseStatus !== 'success' && phaseStatus !== 'skipped') {
+                pending.push(`${phaseName} (${phaseStatus})`);
+              }
+            }
+          }
+        }
+
+        const pass = pending.length === 0;
+
+        if (options.json) {
+          console.log(JSON.stringify({ pass, pending }, null, 2));
+        } else if (pass) {
+          console.log('✓ All phases and steps are completed');
+        } else {
+          console.log(`✗ ${pending.length} item(s) still pending:`);
+          for (const item of pending) {
+            console.log(`  - ${item}`);
+          }
+        }
+
+        process.exit(pass ? 0 : 1);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(2);
       }
     });
 
