@@ -49,7 +49,7 @@ In minimal mode:
 
 1. Read `state.json`.
 2. Output a summary containing: run ID, current phase, current step, status, artifact paths.
-3. Output the message: "run TaskList to see pending steps".
+3. Output the message: "check progress tracking to see pending steps".
 4. **STOP** -- do not proceed to further steps.
 
 Minimal mode skips GitHub issue fetching, spec loading, and protocol loading. This keeps session-start fast and context-light.

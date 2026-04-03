@@ -5,27 +5,19 @@ After reading, execute the steps below in order.
 
 ---
 
-## Bootstrap Task List
+## Bootstrap Progress Tracking
 
-Initialize before any work begins so all steps are visible:
+Initialize progress tracking before any work begins so all steps are visible:
 
-```javascript
-const bootstrapTaskIds = {};
-const bootstrapSteps = [
-  { key: "resolve-plan",  subject: "Resolve plan ID", activeForm: "Resolving plan ID" },
-  { key: "validate-plan", subject: "Validate plan", activeForm: "Validating plan" },
-  { key: "load-protocol", subject: "Load orchestration protocol", activeForm: "Loading orchestration protocol" },
-  { key: "load-plan",     subject: "Load plan and initialize state", activeForm: "Loading plan and initializing state" },
-  { key: "track-workflow",subject: "Track active workflow", activeForm: "Tracking active workflow" },
-  { key: "init-steps",    subject: "Initialize workflow steps", activeForm: "Initializing workflow steps" }
-];
-for (const step of bootstrapSteps) {
-  const task = await TaskCreate({ subject: step.subject, description: step.subject, activeForm: step.activeForm });
-  bootstrapTaskIds[step.key] = task.taskId;
-}
-```
+Create progress tracking entries for each initialization step:
+1. Resolve plan ID
+2. Validate plan
+3. Load orchestration protocol
+4. Load plan and initialize state
+5. Track active workflow
+6. Initialize workflow steps
 
-Update each bootstrap task to `in_progress` → `completed` as its step executes.
+Mark each entry as `in_progress` → `completed` as its step executes.
 
 ---
 
@@ -73,7 +65,8 @@ if (!arg) {
 
 if (/^\d+$/.test(arg)) {
   const work_id = arg;
-  const issueResult = await Skill({ skill: "fractary-repo-issue-fetch", args: `--ids ${work_id} --format json` });
+  // Invoke the fractary-repo-issue-fetch skill to get issue details
+  const issueResult = invoke fractary-repo-issue-fetch with: --ids ${work_id} --format json
   const issueData = JSON.parse(issueResult);
   if (!issueData.success || !issueData.issues?.length) {
     console.error(`Error: Issue #${work_id} not found`);
@@ -84,13 +77,11 @@ if (/^\d+$/.test(arg)) {
 
   if (!plan_id) {
     console.log(`→ No existing plan for #${work_id}. Auto-planning...`);
-    let plannerPrompt = `${work_id} --auto-run --force-new`;
-    if (workflow_override) plannerPrompt += ` --workflow ${workflow_override}`;
-    if (autonomy_override) plannerPrompt += ` --autonomy ${autonomy_override}`;
     let planCmd = `fractary-faber workflow-plan --work-id ${work_id} --auto-run --force-new`;
     if (workflow_override) planCmd += ` --workflow ${workflow_override}`;
     if (autonomy_override) planCmd += ` --autonomy ${autonomy_override}`;
-    const planResult = await Bash(planCmd);
+    // Run the planning CLI command
+    const planResult = run: planCmd
     // Extract plan_id from CLI output (format: "plan_id: <id>")
     const match = planResult.match(/plan_id:\s*(\S+)/);
     if (!match) { console.error("Error: Auto-planning failed"); return; }
@@ -156,7 +147,7 @@ PROTOCOL_FILE=$(bash -c '
   done
   echo "ERROR: Cannot locate fractary/faber package" >&2; exit 1
 ')
-Read(file_path: "${PROTOCOL_FILE}")
+Read the protocol file at ${PROTOCOL_FILE}
 ```
 
 The protocol contains: core principles, execution loop, state management, event emission, all 4 guards, result handling, retry logic, autonomy gates.
@@ -167,7 +158,7 @@ The protocol contains: core principles, execution loop, state management, event 
 
 ```javascript
 const planPath = `.fractary/faber/runs/${plan_id}/plan.json`;
-const planContent = await Read({ file_path: planPath });
+const planContent = read the file at planPath;
 const fullPlan = JSON.parse(planContent);
 const workflow = fullPlan.workflow;
 const workItems = fullPlan.items;
@@ -188,11 +179,12 @@ function getStatePath(runId) {
 // Auto-resume detection (if --resume not explicit and --force-new not set)
 if (!resume_run_id && !force_new) {
   const planDir = `.fractary/faber/runs/${plan_id}`;
-  const stateFiles = await Glob({ pattern: `${planDir}/state-*.json` });
+  // Search for existing state files in the plan directory
+  const stateFiles = find files matching `${planDir}/state-*.json`
   const incompleteRuns = [];
   for (const statePath of stateFiles) {
     try {
-      const state = JSON.parse(await Read({ file_path: statePath }));
+      const state = JSON.parse(read the file at statePath);
       if (state.status === "in_progress" || state.status === "failed") incompleteRuns.push(state);
     } catch { continue; }
   }
@@ -208,9 +200,9 @@ let runId, statePath, state;
 if (resume_run_id) {
   runId = resume_run_id;
   statePath = getStatePath(runId);
-  state = JSON.parse(await Read({ file_path: statePath }));
+  state = JSON.parse(read the file at statePath);
   // Restore workflow from state if saved
-  // Set eventRunId for MCP event routing
+  // Set eventRunId for event routing
   const eventRunId = `${plan_id}/${runId.split('-run-')[1]}`;
   console.log(`✓ Resuming run: ${runId}`);
 } else {
@@ -245,8 +237,8 @@ if (resume_run_id) {
   }
 
   // Create run directory sentinel
-  await Write({ file_path: `.fractary/faber/runs/${plan_id}/.run-${timestamp}`, content: "1" });
-  await Write({ file_path: statePath, content: JSON.stringify(initialState, null, 2) });
+  Write "1" to `.fractary/faber/runs/${plan_id}/.run-${timestamp}`
+  Write the initial state JSON to {statePath}
   state = initialState;
   console.log(`✓ State initialized: ${statePath}`);
 }
@@ -259,7 +251,7 @@ if (resume_run_id) {
 ```javascript
 const activeRunIdPath = `.fractary/faber/runs/.active-run-id`;
 let existingRunId = null;
-try { existingRunId = (await Read({ file_path: activeRunIdPath })).trim(); } catch {}
+try { existingRunId = (read the file at activeRunIdPath).trim(); } catch {}
 
 if (existingRunId && existingRunId !== runId) {
   if (batch_mode) {
@@ -272,12 +264,12 @@ if (existingRunId && existingRunId !== runId) {
       console.log("→ --worktree: Use CLI to create worktree: faber plan --work-id <id>");
       throw new Error("Use CLI for worktree creation");
     }
-    const answer = await AskUserQuestion({ questions: [{ question: "Active workflow conflict. Take over this worktree?", options: [{ label: "Take over" }, { label: "Cancel" }] }] });
-    if (answer.answers["0"] === "Cancel") throw new Error("User cancelled due to active workflow conflict");
+    // Ask the user: "Active workflow conflict. Take over this worktree?" with options: Take over / Cancel
+    if (user chose "Cancel") throw new Error("User cancelled due to active workflow conflict");
   }
 }
 
-await Write({ file_path: activeRunIdPath, content: runId });
+Write the runId to {activeRunIdPath}
 console.log(`✓ Active workflow tracked: ${runId}`);
 ```
 
@@ -285,30 +277,28 @@ console.log(`✓ Active workflow tracked: ${runId}`);
 
 ## Step 1.4b: Post Workflow Start Comment
 
-```javascript
+```
 if (work_id) {
   try {
     const enabledPhases = Object.keys(workflow.phases).filter(p => workflow.phases[p].enabled !== false).join(" → ");
-    await Skill({
-      skill: "fractary-work-issue-comment",
-      args: `${work_id} --body "🚀 **FABER Workflow Started**\n\n**Run ID:** \`${runId}\`\n**Workflow:** \`${workflow.id}\`\n**Autonomy:** ${autonomy}\n**Phases:** ${enabledPhases}"`
-    });
+    // Invoke the fractary-work-issue-comment skill to post a start comment
+    Post comment to issue #{work_id}:
+      "🚀 **FABER Workflow Started**\n\n**Run ID:** `{runId}`\n**Workflow:** `{workflow.id}`\n**Autonomy:** {autonomy}\n**Phases:** {enabledPhases}"
   } catch (error) { console.warn(`⚠️  Could not post start comment: ${error.message}`); }
 }
 ```
 
 ---
 
-## Step 1.5: Load MCP Event Tool
+## Step 1.5: Connect Event System
 
-```javascript
-await MCPSearch({ query: "select:fractary_faber_event_emit" });
-await fractary_faber_event_emit({
-  run_id: eventRunId,
-  type: "workflow_start",
+```
+Locate the FABER event emission tool (fractary_faber_event_emit).
+Emit a workflow_start event with:
+  run_id: {eventRunId}
+  type: "workflow_start"
   metadata: { plan_id, run_id: runId, workflow_id: workflow.id, work_id }
-});
-console.log("✓ Event system ready");
+LOG "✓ Event system ready"
 ```
 
 ---
@@ -334,47 +324,38 @@ if (stepFilter) {
 
 ---
 
-## Step 1.7: Initialize Workflow Step Tasks
+## Step 1.7: Initialize Workflow Step Progress Tracking
 
-```javascript
-const stepTaskIds = {}; // map: "phase:step_id" → taskId
-let stepCount = 0;
-for (const phaseName of Object.keys(workflow.phases)) {
-  const phase = workflow.phases[phaseName];
-  if (phase.enabled === false) continue;
-  for (const step of (phase.steps || [])) {
-    const task = await TaskCreate({
-      subject: `[${phaseName}] ${step.name} (${step.id})`,
-      description: step.description || step.name,
-      activeForm: `Executing [${phaseName}] ${step.name}`,
-      metadata: { faberKey: `${phaseName}:${step.id}` }
-    });
-    stepTaskIds[`${phaseName}:${step.id}`] = task.taskId;
-    stepCount++;
-  }
-}
-await TaskUpdate({ taskId: bootstrapTaskIds["init-steps"], status: "completed" });
-console.log(`✓ Progress tracking initialized. Total steps: ${stepCount}`);
+```
+Create progress tracking entries for each workflow step:
+
+stepTaskIds = {} // map: "phase:step_id" → tracking entry ID
+stepCount = 0
+FOR EACH phase IN workflow.phases (where enabled):
+  FOR EACH step IN phase.steps:
+    Create a progress entry: "[{phaseName}] {step.name} ({step.id})"
+    Store the entry ID in stepTaskIds["{phaseName}:{step.id}"]
+    stepCount++
+
+Mark the "Initialize workflow steps" bootstrap entry as completed
+LOG "✓ Progress tracking initialized. Total steps: {stepCount}"
 ```
 
-The `metadata.faberKey` field enables reliable task ID map reconstruction after context compaction.
+Tag each progress entry with a key like `{phaseName}:{step.id}` to enable reliable reconstruction after context compaction.
 
 ---
 
 ## Step 1.7b: Validate Step ID Prefix Convention
 
-```javascript
+```
 try {
-  const prefixResult = await Bash({
-    command: `bash plugins/faber/skills/fractary-faber-run-manager/scripts/validate-plan-step-ids.sh --plan-file "${planPath}"`
-  });
-  if (prefixResult.exitCode !== 0) {
-    console.warn(`⚠️  STEP ID PREFIX VIOLATIONS: ${prefixResult.stdout}`);
-    console.warn(`Steps with wrong prefix will be silently skipped by prefix-based orchestrators. Iterate plan.json directly.`);
-  } else {
-    console.log("✓ Step ID prefix convention validated");
-  }
-} catch (e) { console.warn(`⚠️  Step ID validation skipped: ${e.message}`); }
+  Run: bash plugins/faber/skills/fractary-faber-run-manager/scripts/validate-plan-step-ids.sh --plan-file "{planPath}"
+  IF exit code != 0:
+    WARN "⚠️  STEP ID PREFIX VIOLATIONS: {output}"
+    WARN "Steps with wrong prefix will be silently skipped by prefix-based orchestrators. Iterate plan.json directly."
+  ELSE:
+    LOG "✓ Step ID prefix convention validated"
+} catch { WARN "⚠️  Step ID validation skipped" }
 ```
 
 > **GIT-REVERSION WARNING:** Active state files live in the git-tracked tree. A `git pull` during an active workflow can silently revert state. If you run `git pull` mid-workflow: run `validate-state-integrity.sh --run-id <run-id>` to verify state vs event log before continuing.

@@ -1,7 +1,6 @@
 ---
 name: fractary-faber-core
 description: Core utilities for FABER workflow management - config loading, state management, status cards
-model: claude-opus-4-6
 ---
 
 # FABER Core Skill

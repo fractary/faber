@@ -2,13 +2,6 @@
 name: fractary-faber-session-manager
 description: Load, save, or clear FABER workflow session context across context boundaries
 user-invocable: true
-argument-hint: "<load|save|clear> [--work-id <id>] [--run-id <id>] [--minimal] [--reason <reason>]"
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Glob
-  - Skill
 ---
 
 # FABER Session Manager

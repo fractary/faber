@@ -28,7 +28,7 @@ The workflow MUST either continue or yield cleanly. A bad stop is worse than no 
 
 ## 🚫 Unsolicited Parallel Step Execution (Bug, Not a Feature)
 
-If you find yourself about to call Skill() or Agent() for two different workflow steps in the same response message — STOP.
+If you find yourself about to invoke skills or dispatch agents for two different workflow steps in the same response message — STOP.
 
 Steps depend on each other. Execute one step, complete it, then execute the next.
 The ONLY exception: steps inside a declared `parallel_group` (steps_parallel) in the config.
@@ -49,7 +49,7 @@ If you find yourself about to skip remaining steps, set status to "blocked", or 
 **Your job is to execute every step in plan.json, in order.** You do NOT have authority to decide that a workflow should not proceed based on step output content. Only these conditions can stop execution:
 
 1. A step fails AND result_handling.on_failure is blocking
-2. The user explicitly tells you to stop (interactive mode only, via AskUserQuestion)
+2. The user explicitly tells you to stop (interactive mode only)
 3. A tool/skill is unavailable or errors out (actual failure, not informational output)
 
 "The work was already done" is NEVER a valid reason to stop. When `--force-new` was used, prior work findings are explicitly expected — they are INFORMATIONAL ONLY.
@@ -58,34 +58,18 @@ If you find yourself about to skip remaining steps, set status to "blocked", or 
 
 ---
 
-## 🔧 Task ID Map Recovery After Context Compaction
+## 🔧 Progress Tracking Recovery After Context Compaction
 
 After context compaction, the in-memory `stepTaskIds`, `bootstrapTaskIds`, and `finalizeTaskIds` maps may be lost. To recover:
 
-```javascript
-async function reconstructTaskMaps() {
-  const allTasks = await TaskList();
-  const stepTaskIds = {};
-  const bootstrapTaskIds = {};
-  const finalizeTaskIds = {};
-
-  for (const task of allTasks) {
-    // Check metadata first (most reliable — set during TaskCreate)
-    if (task.metadata?.faberKey) {
-      stepTaskIds[task.metadata.faberKey] = task.id;
-      continue;
-    }
-    // Fallback: parse subject patterns for step tasks
-    const stepMatch = task.subject.match(/^\[(\w+)\] .+ \((.+)\)$/);
-    if (stepMatch) {
-      stepTaskIds[`${stepMatch[1]}:${stepMatch[2]}`] = task.id;
-    }
-  }
-  return { stepTaskIds, bootstrapTaskIds, finalizeTaskIds };
-}
+```
+List all progress tracking entries.
+Reconstruct the maps by matching entries:
+  - Step entries match pattern: "[{phase}] {name} ({step_id})" → stepTaskIds["{phase}:{step_id}"]
+  - Entries with a faberKey tag are most reliable for reconstruction
 ```
 
-Call this after recovering from compaction if the task ID maps are no longer in scope.
+Call this after recovering from compaction if the progress tracking maps are no longer in scope.
 
 ---
 

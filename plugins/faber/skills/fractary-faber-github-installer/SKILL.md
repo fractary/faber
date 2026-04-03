@@ -2,14 +2,6 @@
 name: fractary-faber-github-installer
 description: Install FABER GitHub Actions workflows in a project with interactive setup and checklist
 user-invocable: true
-argument-hint: "[--setup-script <cmd>] [--trigger-phrase <phrase>]"
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Glob
-  - Grep
-  - AskUserQuestion
 ---
 
 # FABER GitHub Installer

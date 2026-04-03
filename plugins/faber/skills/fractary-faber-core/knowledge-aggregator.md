@@ -1,8 +1,6 @@
 ---
 name: knowledge-aggregator
 description: Aggregates knowledge base entries from core and all installed plugins
-model: claude-haiku-3-5
-tools: Read, Glob
 ---
 
 # Knowledge Aggregator Skill

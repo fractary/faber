@@ -2,14 +2,6 @@
 name: fractary-faber-workflow-author
 description: Create, update, or inspect FABER workflow configurations with project-aware generation
 user-invocable: true
-argument-hint: "<create|update|inspect> [--workflow <name>] [--context <desc>] [--template <type>]"
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Glob
-  - Grep
-  - AskUserQuestion
 ---
 
 # FABER Workflow Author

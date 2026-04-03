@@ -1,7 +1,6 @@
 ---
 name: fractary-faber-faber-state
 description: Manage FABER workflow state (CRUD operations)
-model: claude-opus-4-6
 ---
 
 # FABER State Skill

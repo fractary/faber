@@ -21,7 +21,7 @@ If `.fractary/config.yaml` exists:
 ### 3. Determine Setup Script
 
 If `--setup-script` was NOT provided as an argument:
-- Ask via AskUserQuestion with options:
+- Ask the user with options:
   - **No setup** - no pre-run setup needed
   - **npm install** - Node.js project
   - **pip install** - Python project
@@ -30,7 +30,7 @@ If `--setup-script` was NOT provided as an argument:
 ### 4. Confirm Overwrite (if applicable)
 
 If `faber.yml` already exists:
-- Ask via AskUserQuestion whether to overwrite the existing file
+- Ask the user whether to overwrite the existing file
 - If declined, abort installation
 
 ### 5. Generate faber.yml

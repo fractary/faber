@@ -1,7 +1,6 @@
 ---
 name: fractary-faber-run-manager
 description: Manage FABER workflow run lifecycle - create, query, resume, rerun runs
-model: claude-opus-4-6
 ---
 
 # FABER Run Manager Skill

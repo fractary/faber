@@ -1,0 +1,33 @@
+---
+description: FABER workflow framework skills and CLI reference
+globs:
+alwaysApply: true
+---
+
+# FABER Workflow Framework
+
+This project uses the `fractary-faber` CLI and skills for SDLC workflow management.
+
+## Skills
+
+Skills are in `plugins/faber/skills/*/SKILL.md`. Read the relevant skill for detailed guidance.
+
+Key skills:
+- `fractary-faber-workflow-plan` — Plan workflows for work items
+- `fractary-faber-workflow-runner` — Execute FABER workflows
+- `fractary-faber-config-manager` — Initialize/update/validate configuration
+- `fractary-faber-run-inspector` — Inspect workflow run status
+- `fractary-faber-workflow-author` — Create/update workflow definitions
+
+## CLI
+
+Run `fractary-faber --help` for full usage. Key commands:
+- `fractary-faber workflow-plan --work-id <ids>` — plan workflows
+- `fractary-faber workflow-run --work-id <ids>` — execute workflows
+- `fractary-faber config init|update|validate` — manage configuration
+- `fractary-faber runs verify-complete <run-id>` — verify run completion
+- `fractary-faber run-inspect <id>` — inspect workflow status
+
+## Configuration
+
+Configuration is at `.fractary/config.yaml`. Run `fractary-faber config init` to set up.

@@ -50,7 +50,7 @@ Use the first matching signal.
 
 ### 4. Prompt for Autonomy Level
 
-If `--autonomy` was not provided, use `AskUserQuestion` to let the user choose. Present the four options with the detected recommendation highlighted:
+If `--autonomy` was not provided, prompt the user to choose. Present the four options with the detected recommendation highlighted:
 
 - **Guarded** -- requires confirmation before destructive actions
 - **Assisted** -- asks clarifying questions during execution
@@ -59,7 +59,7 @@ If `--autonomy` was not provided, use `AskUserQuestion` to let the user choose. 
 
 ### 5. Show Summary and Confirm
 
-Display the full configuration that will be written. Unless `--force` was provided, use `AskUserQuestion` to ask the user to confirm before applying.
+Display the full configuration that will be written. Unless `--force` was provided, ask the user to confirm before applying.
 
 ### 6. Apply Configuration
 

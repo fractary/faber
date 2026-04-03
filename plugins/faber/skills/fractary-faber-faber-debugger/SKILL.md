@@ -1,7 +1,6 @@
 ---
 name: fractary-faber-faber-debugger
 description: Universal debugger skill that diagnoses workflow issues and proposes solutions using a persistent knowledge base
-model: claude-sonnet-4-6
 ---
 
 # FABER Debugger Skill
