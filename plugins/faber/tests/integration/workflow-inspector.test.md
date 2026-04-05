@@ -270,7 +270,7 @@ ls plugins/faber/skills/*/SKILL.md | wc -l  # Should be > 0
 # 🔍 Discovering skills...
 # Found N skills in registry
 # Registry entries:
-#   - fractary-faber-workflow-runner (skill, faber)
+#   - fractary-faber-workflow-run (skill, faber)
 #   - fractary-faber-workflow-author (skill, faber)
 #   - fractary-faber-config-manager (skill, faber)
 #   ...

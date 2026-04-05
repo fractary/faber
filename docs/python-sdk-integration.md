@@ -171,7 +171,7 @@ observability:
 ### Using in a Skill
 
 ```typescript
-// skills/fractary-faber-workflow-runner.ts
+// skills/fractary-faber-workflow-run.ts
 import { spawn } from 'child_process';
 
 interface WorkflowParams {

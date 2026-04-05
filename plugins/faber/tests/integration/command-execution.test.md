@@ -214,7 +214,7 @@ step:
 **Verification**:
 ```bash
 # Check that primary examples use local skills
-grep "fractary-faber-" plugins/faber/skills/fractary-faber-workflow-runner/SKILL.md | head -5
+grep "fractary-faber-" plugins/faber/skills/fractary-faber-workflow-run/SKILL.md | head -5
 
 # Expected: fractary-faber-workflow-run, fractary-faber-workflow-create, etc.
 ```

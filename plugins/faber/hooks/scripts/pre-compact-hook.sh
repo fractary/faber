@@ -45,6 +45,6 @@ jq -n \
   '{
     hookSpecificOutput: {
       hookEventName: "PreCompact",
-      additionalContext: ("Context compaction imminent. Finish your current step if mid-step, update state.json to mark it completed, then output exactly: CONTEXT_YIELD: run_id=" + $run_id + " resume_cmd=use fractary-faber-workflow-runner skill with " + $work_id + " --resume " + $run_id + " — then stop. Do NOT mark subsequent steps complete.")
+      additionalContext: ("Context compaction imminent. Finish your current step if mid-step, update state.json to mark it completed, then output exactly: CONTEXT_YIELD: run_id=" + $run_id + " resume_cmd=use fractary-faber-workflow-run skill with " + $work_id + " --resume " + $run_id + " — then stop. Do NOT mark subsequent steps complete.")
     }
   }'

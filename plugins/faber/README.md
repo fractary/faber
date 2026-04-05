@@ -583,7 +583,9 @@ faber:
 ```
 fractary-faber/
 ├── skills/                    # All orchestration & utilities
-│   ├── fractary-faber-workflow-runner/   # Workflow orchestration (executes steps directly)
+│   ├── fractary-faber-workflow-run/      # Single-workflow orchestration (executes steps directly)
+│   ├── fractary-faber-workflow-batch-run/  # Batch orchestration (serial or parallel)
+│   ├── fractary-faber-workflow-batch-plan/ # Batch planning for multiple work items
 │   ├── fractary-faber-config-manager/   # Configuration (init/update/validate)
 │   ├── fractary-faber-session-manager/  # Session management (load/save/clear)
 │   ├── fractary-faber-workflow-author/  # Workflow creation and updates

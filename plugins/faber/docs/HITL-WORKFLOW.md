@@ -416,4 +416,4 @@ The `@faber` trigger in issue comments is planned for future implementation:
 - [RUN-ID-SYSTEM.md](./RUN-ID-SYSTEM.md) - Run isolation and event logging
 - [AUTONOMY.md](./AUTONOMY.md) - Autonomy levels and approval gates
 - `skills/fractary-faber-feedback-handler/SKILL.md` - Feedback handler skill documentation
-- `plugins/faber/skills/fractary-faber-workflow-runner/SKILL.md` - Orchestration protocol and resume handling
+- `plugins/faber/skills/fractary-faber-workflow-run/SKILL.md` - Orchestration protocol and resume handling

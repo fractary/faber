@@ -14,7 +14,9 @@ Skills are in `plugins/faber/skills/*/SKILL.md`. Read the relevant skill for det
 
 Key skills:
 - `fractary-faber-workflow-plan` — Plan workflows for work items
-- `fractary-faber-workflow-runner` — Execute FABER workflows
+- `fractary-faber-workflow-run` — Execute a single FABER workflow
+- `fractary-faber-workflow-batch-run` — Execute FABER workflows for multiple work items (serial or parallel)
+- `fractary-faber-workflow-batch-plan` — Plan FABER workflows for multiple work items
 - `fractary-faber-config-manager` — Initialize/update/validate configuration
 - `fractary-faber-run-inspector` — Inspect workflow run status
 - `fractary-faber-workflow-author` — Create/update workflow definitions
