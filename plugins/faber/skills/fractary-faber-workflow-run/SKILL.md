@@ -1,10 +1,10 @@
 ---
-name: fractary-faber-workflow-runner
-description: Primary orchestrator for FABER workflow execution — executes each phase step directly in the main agent context. Use when running or resuming FABER workflows for work items.
+name: fractary-faber-workflow-run
+description: Single-workflow orchestrator for FABER — executes each phase step directly in the main agent context. Use when running or resuming a FABER workflow for a single work item. For multiple items, use fractary-faber-workflow-batch-run.
 user-invocable: true
 ---
 
-# FABER Workflow Runner
+# FABER Workflow Run
 
 <CONTEXT>
 You are the orchestrator for a FABER workflow. You execute each step directly in this session — you do NOT delegate to sub-agents for step execution. Maintain full context throughout. For initialization details see `workflow-runner-init.md` in this directory. For anti-pattern guidance see `anti-patterns.md`.
@@ -33,7 +33,7 @@ Set status="paused" ONLY for genuine blockers (missing credentials, tool failure
 <CONTEXT_YIELD>
 If context fills despite compaction (i.e., compaction has occurred but context is still full):
 1. Complete the current step fully and update state.json
-2. Output exactly: `CONTEXT_YIELD: run_id={run_id}` and note to resume with the fractary-faber-workflow-runner skill using `{work_id} --resume {run_id}`
+2. Output exactly: `CONTEXT_YIELD: run_id={run_id}` and note to resume with the fractary-faber-workflow-run skill using `{work_id} --resume {run_id}`
 3. Stop cleanly — do NOT mark subsequent steps complete
 
 This signals the next session to resume cleanly. The progress tracking and state.json have full position information.
@@ -49,7 +49,7 @@ This signals the next session to resume cleanly. The progress tracking and state
 **Arguments:**
 | Argument | Type | Required | Description |
 |----------|------|----------|-------------|
-| `<work-ids\|plan-id>` | string | Yes (unless `--resume-batch`) | Single work item ID (e.g., "258"), comma-separated IDs for batch (e.g., "258,259"), OR full plan ID (e.g., "fractary-faber-258") |
+| `<work-id\|plan-id>` | string | Yes | Single work item ID (e.g., "258") OR full plan ID (e.g., "fractary-faber-258"). For multiple items, use fractary-faber-workflow-batch-run. |
 
 **Options:**
 | Option | Default | Description |
@@ -59,26 +59,12 @@ This signals the next session to resume cleanly. The progress tracking and state
 | `--phase <phase>` | none | Execute only specified phase(s), comma-separated |
 | `--step <step-id>` | none | Execute only specified step(s), comma-separated |
 | `--worktree` | false | Auto-create worktree on conflict |
-| `--resume-batch` | false | Resume interrupted batch |
 | `--workflow <id>` | none | Workflow override for auto-planner |
 | `--autonomy <level>` | none | Autonomy level override for auto-planner |
 
 </INPUTS>
 
 <WORKFLOW>
-
-## Batch vs Single Mode Detection
-
-```
-isBatchMode = (rawArg contains ',') OR (resumeBatch flag set and no rawArg)
-IF isBatchMode:
-  Read `workflow-runner-batch.md` (in this directory) and follow batch execution protocol
-  RETURN — batch protocol handles everything from here
-ELSE:
-  Continue with single-workflow execution below
-```
-
----
 
 ## Phase 1: Initialization
 
@@ -203,7 +189,7 @@ IF result shows pass=false:
   LOG "❌ Completion guard FAILED: items still pending"
   Update state: status = "paused", pause_reason = "Completion guard: pending items"
   Write the updated state to {statePath}
-  LOG "To resume: invoke fractary-faber-workflow-runner with {work_id} --resume {runId}"
+  LOG "To resume: invoke fractary-faber-workflow-run with {work_id} --resume {runId}"
   STOP
 
 # Completion verification gate (MANDATORY)
@@ -212,7 +198,7 @@ IF verification result shows fail:
   Update state: status = "paused", pause_reason = "Verification failed: {reason}"
   Write the updated state to {statePath}
   LOG "Verification failed: {reason}"
-  LOG "To resume: invoke fractary-faber-workflow-runner with {work_id} --resume {runId}"
+  LOG "To resume: invoke fractary-faber-workflow-run with {work_id} --resume {runId}"
   STOP
 
 # Mark completed
@@ -232,7 +218,7 @@ Update state: status = "failed", error = {errorMessage},
   completed_at = now
 Write the updated state to {statePath}
 Emit workflow_failed event with run_id and error
-LOG "✗ Workflow failed. To resume: invoke fractary-faber-workflow-runner with {work_id} --resume {runId}"
+LOG "✗ Workflow failed. To resume: invoke fractary-faber-workflow-run with {work_id} --resume {runId}"
 # Then run failure-path minimal finalization from workflow-runner-finalize.md
 ```
 

@@ -91,7 +91,7 @@ Issues: Context split across 3 layers; no way for agent to access full orchestra
 
 ```
 User → /fractary-faber-workflow-run <work-id>
-     → workflow-runner skill (YOU are the orchestrator)
+     → workflow-run skill (YOU are the orchestrator)
      → Execute all steps directly in this context
      → Full protocol loaded; all tools available
 ```

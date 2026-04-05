@@ -1,6 +1,6 @@
-# FABER Workflow Runner — Batch Mode
+# FABER Workflow Batch Run — Serial Execution Protocol
 
-Batch mode activates when the first argument contains commas (e.g., "258,259,260") or when `--resume-batch` is provided without a positional argument.
+This document defines the serial (sequential) batch execution protocol for the `fractary-faber-workflow-batch-run` skill. Read this file when executing a serial batch (default mode, no `--parallel` flag).
 
 ## Batch Detection
 
@@ -128,9 +128,9 @@ FOR each item in batchState.items (skip items with status "completed"):
   Mark progress for #{item.work_id} as in_progress
 
   TRY:
-    // Execute the full single-workflow logic for this work-id:
-    // Phase 1 (init) + Phase 2 (execution) + Phase 3 (completion)
-    // Set: arg = item.work_id, batch_mode = true (suppresses active-run-id conflict prompts)
+    // Invoke the fractary-faber-workflow-run skill for this work-id:
+    // Invoke: fractary-faber-workflow-run skill with args: "{item.work_id} [passthrough-flags]"
+    // batch_mode = true suppresses active-run-id conflict prompts
 
     item.status = "completed";
     item.completed_at = new Date().toISOString();
