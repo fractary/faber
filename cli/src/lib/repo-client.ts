@@ -116,16 +116,16 @@ export class RepoClient {
         owner: organization.trim(),
         repo: project.trim(),
         token,
-        host: config.github?.host,
-      });
+        ...(config.github?.host ? { host: config.github.host } : {}),
+      } as ConstructorParameters<typeof WorkManager>[0]);
 
       const repoManager = new RepoManager({
         platform: 'github',
         owner: organization.trim(),
         repo: project.trim(),
         token,
-        host: config.github?.host,
-      });
+        ...(config.github?.host ? { host: config.github.host } : {}),
+      } as ConstructorParameters<typeof RepoManager>[0]);
 
       return new RepoClient(workManager, repoManager, organization.trim(), project.trim());
     } catch (error) {
