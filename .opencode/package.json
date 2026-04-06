@@ -1,9 +1,13 @@
 {
   "name": "@fractary/opencode-faber",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "./plugins/fractary-faber.js",
-  "keywords": ["opencode-plugin", "fractary", "faber"],
+  "keywords": [
+    "opencode-plugin",
+    "fractary",
+    "faber"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/fractary/faber",
