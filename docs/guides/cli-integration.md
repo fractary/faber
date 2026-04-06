@@ -45,7 +45,8 @@ Add to `package.json` scripts:
   "scripts": {
     "faber": "fractary-faber",
     "faber:plan": "fractary-faber workflow-plan",
-    "faber:run": "fractary-faber workflow-run",
+    "faber:run": "# NOTE: workflow-run CLI removed; use fractary-faber-workflow-run skill
+# fractary-faber workflow-run",
     "faber:status": "fractary-faber run-inspect"
   }
 }
@@ -422,10 +423,12 @@ fractary-faber workflow-batch-plan \
   --name sprint-01
 
 # 2. Run overnight — autonomous mode auto-skips failures and continues
-fractary-faber workflow-batch-run --batch sprint-01 --autonomous
+# NOTE: workflow-batch-run CLI removed; use fractary-faber-workflow-batch-run skill
+# fractary-faber workflow-batch-run --batch sprint-01 --autonomous
 
 # 3. Resume after interruption (skips already-completed items)
-fractary-faber workflow-batch-run --batch sprint-01 --autonomous --resume
+# NOTE: workflow-batch-run CLI removed; use fractary-faber-workflow-batch-run skill
+# fractary-faber workflow-batch-run --batch sprint-01 --autonomous --resume
 
 # Check state at any point
 cat .fractary/faber/batches/sprint-01/state.json | jq '.items[] | {work_id, status}'
@@ -444,7 +447,8 @@ async function runOvernightBatch(workIds: string[], batchName: string) {
 
   // Execute overnight
   const { stdout: runOutput } = await execAsync(
-    `fractary-faber workflow-batch-run --batch ${batchName} --autonomous --json`
+    `# NOTE: workflow-batch-run CLI removed; use fractary-faber-workflow-batch-run skill
+# fractary-faber workflow-batch-run --batch ${batchName} --autonomous --json`
   );
   const runResult = JSON.parse(runOutput);
   console.log(`Completed: ${runResult.data.completed}/${runResult.data.total}`);
@@ -505,7 +509,8 @@ WORK_ID=$1
 AUTONOMY="${2:-supervised}"
 
 # Run workflow
-fractary-faber workflow-run --work-id "$WORK_ID" --autonomy "$AUTONOMY"
+# NOTE: workflow-run CLI removed; use fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id "$WORK_ID" --autonomy "$AUTONOMY"
 
 # Check status
 fractary-faber run-inspect --work-id "$WORK_ID"
@@ -519,7 +524,8 @@ async function runWorkflow(
 ) {
   try {
     const { stdout } = await execAsync(
-      `fractary-faber workflow-run --work-id ${workId} --autonomy ${autonomy} --json`
+      `# NOTE: workflow-run CLI removed; use fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id ${workId} --autonomy ${autonomy} --json`
     );
     return JSON.parse(stdout);
   } catch (error) {
@@ -604,7 +610,8 @@ jobs:
 
       - name: Run FABER Workflow
         run: |
-          fractary-faber workflow-run \
+          # NOTE: workflow-run CLI removed; use fractary-faber-workflow-run skill
+# fractary-faber workflow-run \
             --work-id ${{ github.event.issue.number }} \
             --autonomy supervised
         env:
@@ -631,7 +638,8 @@ faber-workflow:
   script:
     - npm install -g @fractary/faber-cli
     - fractary-faber config init --autonomy guarded
-    - fractary-faber workflow-run --work-id $CI_MERGE_REQUEST_IID --autonomy supervised
+    - # NOTE: workflow-run CLI removed; use fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id $CI_MERGE_REQUEST_IID --autonomy supervised
   variables:
     GITLAB_TOKEN: $CI_JOB_TOKEN
 ```
@@ -669,7 +677,8 @@ pipeline {
                 script {
                     def result = sh(
                         script: """
-                            fractary-faber workflow-run \
+                            # NOTE: workflow-run CLI removed; use fractary-faber-workflow-run skill
+# fractary-faber workflow-run \
                                 --work-id ${params.ISSUE_NUMBER} \
                                 --autonomy ${params.AUTONOMY} \
                                 --json
@@ -849,7 +858,8 @@ See [Configuration Guide](./configuration.md) for full details.
 async function safeRunWorkflow(workId: string) {
   try {
     const { stdout } = await execAsync(
-      `fractary-faber workflow-run --work-id ${workId} --json`
+      `# NOTE: workflow-run CLI removed; use fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id ${workId} --json`
     );
     return JSON.parse(stdout);
   } catch (error) {
@@ -908,7 +918,8 @@ fractary-faber work issue fetch 123
 
 if fractary-faber config validate; then
   echo "Config is valid"
-  fractary-faber workflow-run --work-id 123
+  # NOTE: workflow-run CLI removed; use fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id 123
 else
   echo "Config validation failed"
   exit 1
@@ -924,7 +935,8 @@ Instead of passing flags every time:
 fractary-faber config set faber.workflows.autonomy guarded
 
 # Now run without specifying options
-fractary-faber workflow-run --work-id 123
+# NOTE: workflow-run CLI removed; use fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id 123
 ```
 
 ### 4. Log CLI Output for Debugging

@@ -324,7 +324,9 @@ jobs:
         env:
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.FABER_APP_PRIVATE_KEY }}
         run: |
-          fractary-faber workflow-run --work-id ${{ github.event.inputs.issue_id }}
+          # NOTE: For CI/CD, use fractary-faber workflow-execute with a plan.json
+          fractary-faber workflow-plan --work-id ${{ github.event.inputs.issue_id }} --skip-confirm
+          fractary-faber workflow-execute .fractary/faber/runs/fractary-faber-${{ github.event.inputs.issue_id }}/plan.json
 ```
 
 ### GitLab CI
@@ -337,7 +339,9 @@ faber_workflow:
   image: node:18
   script:
     - npm install -g @fractary/faber-cli
-    - fractary-faber workflow-run --work-id $ISSUE_ID
+    # NOTE: For CI/CD, use workflow-execute with a plan.json
+    - fractary-faber workflow-plan --work-id $ISSUE_ID --skip-confirm
+    - fractary-faber workflow-execute .fractary/faber/runs/fractary-faber-$ISSUE_ID/plan.json
   only:
     - triggers
 ```
@@ -358,7 +362,9 @@ pipeline {
         stage('Run FABER') {
             steps {
                 sh 'npm install -g @fractary/faber-cli'
-                sh 'fractary-faber workflow-run --work-id ${ISSUE_ID}'
+                // NOTE: For CI/CD, use workflow-execute with a plan.json
+                sh 'fractary-faber workflow-plan --work-id ${ISSUE_ID} --skip-confirm'
+                sh 'fractary-faber workflow-execute .fractary/faber/runs/fractary-faber-${ISSUE_ID}/plan.json'
             }
         }
     }

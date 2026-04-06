@@ -13,7 +13,7 @@ dotenv.config();
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createRunCommand, createStatusCommand, createResumeCommand, createPauseCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowResolveCommand, createWorkflowDebugCommand, createBatchPlanCommand, createBatchRunCommand, createWorkflowExecuteCommand } from './commands/workflow/index.js';
+import { createStatusCommand, createRecoverCommand, createCleanupCommand, createWorkflowCreateCommand, createWorkflowUpdateCommand, createWorkflowInspectCommand, createWorkflowResolveCommand, createWorkflowDebugCommand, createBatchPlanCommand, createWorkflowExecuteCommand } from './commands/workflow/index.js';
 import { createSessionLoadCommand, createSessionSaveCommand } from './commands/session.js';
 import { createWorkCommand } from './commands/work/index.js';
 import { createRepoCommand } from './commands/repo/index.js';
@@ -53,10 +53,7 @@ export function createFaberCLI(): Command {
   // Workflow commands (top-level)
   program.addCommand(createRunsCommand());         // runs dir/plan-path/state-path
   program.addCommand(createPlanCommand());         // workflow-plan
-  program.addCommand(createRunCommand());          // workflow-run
   program.addCommand(createStatusCommand());       // run-inspect
-  program.addCommand(createResumeCommand());       // workflow-resume
-  program.addCommand(createPauseCommand());        // workflow-pause
   program.addCommand(createRecoverCommand());      // workflow-recover
   program.addCommand(createCleanupCommand());      // workflow-cleanup
   program.addCommand(createWorkflowCreateCommand());  // workflow-create
@@ -65,7 +62,6 @@ export function createFaberCLI(): Command {
   program.addCommand(createWorkflowResolveCommand()); // workflow-resolve (full inheritance + bundled defaults)
   program.addCommand(createWorkflowDebugCommand()); // workflow-debug
   program.addCommand(createBatchPlanCommand());     // workflow-batch-plan
-  program.addCommand(createBatchRunCommand());      // workflow-batch-run
   program.addCommand(createWorkflowExecuteCommand()); // workflow-execute (multi-model CLI-native)
   program.addCommand(createSessionLoadCommand());     // session-load
   program.addCommand(createSessionSaveCommand());     // session-save

@@ -23,9 +23,7 @@ Key skills:
 
 ## CLI
 
-Run `fractary-faber --help` for full usage. Key commands:
-- `fractary-faber workflow-plan --work-id <ids>` — plan workflows
-- `fractary-faber workflow-run --work-id <ids>` — execute workflows
+Utility CLI commands (inspection/config only — use skills for workflow execution):
 - `fractary-faber config init|update|validate` — manage configuration
 - `fractary-faber runs verify-complete <run-id>` — verify run completion
 - `fractary-faber run-inspect <id>` — inspect workflow status

@@ -232,19 +232,9 @@ fractary-faber workflow-plan [options]
 
 Either `--work-id` or `--work-label` is required (but not both).
 
-### workflow-run
+### workflow-run (removed)
 
-Run FABER workflow for a work item through all 5 phases (Frame, Architect, Build, Evaluate, Release).
-
-```bash
-fractary-faber workflow-run [options]
-```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--work-id <id>` | Work item ID to process (required) | |
-| `--autonomy <level>` | Autonomy level: `dry-run\|assisted\|guarded\|autonomous` | `guarded` |
-| `--json` | Output as JSON | |
+> **Removed.** Workflow execution now uses the `fractary-faber-workflow-run` skill instead of the CLI. The CLI command has been removed to prevent divergent behavior between skill and CLI execution paths.
 
 ### workflow-batch-plan
 
@@ -266,38 +256,9 @@ Creates `.fractary/faber/batches/{batch-id}/` with `queue.txt` and `state.json`.
 **Claude Code skill equivalent**: `/fractary-faber-workflow-batch-plan <work-ids> [--name <batch-id>]`
 (The skill version spawns a fresh Claude context per item via Task for true context isolation.)
 
-### workflow-batch-run
+### workflow-batch-run (removed)
 
-Execute a planned batch sequentially with state tracking. Runs each pending item and updates `state.json` after every result. Safe to interrupt and resume.
-
-```bash
-fractary-faber workflow-batch-run [options]
-```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--batch <batch-id>` | Batch ID to execute, from `workflow-batch-plan` (required) | |
-| `--autonomous` | Auto-skip failed items without prompting (for unattended overnight runs) | |
-| `--resume` | Skip already-completed items (safe to re-run after interruption) | |
-| `--json` | Output as JSON | |
-
-State is written to `.fractary/faber/batches/{batch-id}/state.json` after every item. Multiple worktrees can run separate batches simultaneously without state collision (each batch has its own directory).
-
-**Claude Code skill equivalent**: `/fractary-faber-workflow-batch-run --batch <batch-id> [--autonomous] [--resume]`
-(The skill version spawns a fresh Claude context per item via Task — the real context reset, not a protocol directive.)
-
-**Typical overnight workflow:**
-
-```bash
-# 1. Plan during the day
-fractary-faber workflow-batch-plan --work-id 258,259,260,261 --name overnight-01
-
-# 2. Run overnight, unattended
-fractary-faber workflow-batch-run --batch overnight-01 --autonomous
-
-# 3. Resume if interrupted
-fractary-faber workflow-batch-run --batch overnight-01 --autonomous --resume
-```
+> **Removed.** Batch workflow execution now uses the `fractary-faber-workflow-batch-run` skill. Use `workflow-batch-plan` to create the batch, then invoke the skill to execute it.
 
 ### workflow-execute
 
@@ -387,37 +348,13 @@ fractary-faber run-inspect [options]
 
 If neither `--work-id` nor `--workflow-id` is provided, lists all workflows.
 
-### workflow-resume
+### workflow-resume (removed)
 
-Resume a paused workflow.
+> **Removed.** Use the `fractary-faber-workflow-run` skill with `--resume` to resume workflows.
 
-```bash
-fractary-faber workflow-resume <workflow_id> [options]
-```
+### workflow-pause (removed)
 
-| Argument | Description |
-|----------|-------------|
-| `<workflow_id>` | Workflow ID to resume |
-
-| Option | Description |
-|--------|-------------|
-| `--json` | Output as JSON |
-
-### workflow-pause
-
-Pause a running workflow.
-
-```bash
-fractary-faber workflow-pause <workflow_id> [options]
-```
-
-| Argument | Description |
-|----------|-------------|
-| `<workflow_id>` | Workflow ID to pause |
-
-| Option | Description |
-|--------|-------------|
-| `--json` | Output as JSON |
+> **Removed.** Workflow pause/resume is managed through the skill-based orchestrator.
 
 ### workflow-recover
 

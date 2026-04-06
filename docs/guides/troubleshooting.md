@@ -470,7 +470,8 @@ cat .fractary/faber/config.json | jq '.workflow.hooks'
 fractary-faber run-inspect --workflow-id <id> --json | jq '.phases'
 
 # Solution 2: Skip failing phase temporarily
-fractary-faber workflow-run --work-id 123 --skip-phases evaluate
+# NOTE: workflow-run CLI has been removed; use the fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id 123 --skip-phases evaluate
 
 # Solution 3: Adjust retry configuration
 {
@@ -491,7 +492,8 @@ fractary-faber workflow-run --work-id 123 --skip-phases evaluate
 
 # Solution 5: Check hooks
 # Pre/post hooks may be failing
-fractary-faber workflow-run --work-id 123 --debug
+# NOTE: workflow-run CLI has been removed; use the fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id 123 --debug
 ```
 
 ### Checkpoint Restore Fails
@@ -514,7 +516,8 @@ fractary-faber recover <workflow-id> --from-phase build
 # Solution 4: Clear corrupted state
 rm -rf .fractary/faber/state/<workflow-id>
 # Start fresh
-fractary-faber workflow-run --work-id 123
+# NOTE: workflow-run CLI has been removed; use the fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id 123
 ```
 
 ### User Input Not Received
@@ -659,7 +662,8 @@ cat .fractary/config.yaml | jq '.cleanup'
 }
 
 # Solution 2: Skip unnecessary phases
-fractary-faber workflow-run --work-id 123 \
+# NOTE: workflow-run CLI has been removed; use the fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id 123 \
   --skip-phases frame,architect
 
 # Solution 3: Optimize hooks
@@ -718,7 +722,8 @@ fractary-faber --debug run --work-id 123
 
 # Environment variable
 export FABER_DEBUG=true
-fractary-faber workflow-run --work-id 123
+# NOTE: workflow-run CLI has been removed; use the fractary-faber-workflow-run skill
+# fractary-faber workflow-run --work-id 123
 
 # Programmatic debug
 import { FaberWorkflow } from '@fractary/faber/workflow';

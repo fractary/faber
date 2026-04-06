@@ -223,8 +223,8 @@ claude
 # After workflow-plan, create a batch from the same work IDs
 fractary-faber workflow-batch-plan --work-id 258,259,260 --name sprint-01
 
-# Run overnight, autonomous mode skips failures and continues
-fractary-faber workflow-batch-run --batch sprint-01 --autonomous
+# Execute the batch using the skill (CLI workflow-batch-run has been removed)
+# Use the fractary-faber-workflow-batch-run skill to run the batch
 ```
 
 Or in Claude Code (each item runs in a fresh context via Task spawning):

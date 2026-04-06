@@ -1,7 +1,12 @@
 /**
- * Workflow commands - FABER workflow execution
+ * Workflow commands - FABER workflow management
  *
- * Provides workflow-run, run-inspect, workflow-resume, workflow-pause commands via FaberWorkflow SDK.
+ * Provides run-inspect, workflow-create, workflow-update, workflow-inspect,
+ * workflow-resolve, workflow-debug, workflow-execute, and workflow-batch-plan commands.
+ *
+ * NOTE: workflow-run, workflow-resume, workflow-pause, and workflow-batch-run
+ * have been removed. Workflow execution should go through the
+ * fractary-faber-workflow-run skill, not the CLI.
  */
 
 import { Command } from 'commander';
@@ -21,160 +26,7 @@ import {
 import { parsePositiveInteger } from '../../utils/validation.js';
 
 /**
- * Create the workflow-run command
- */
-export function createRunCommand(): Command {
-  return new Command('workflow-run')
-    .description('Run FABER workflow (supports comma-separated work IDs for batch execution)')
-    .requiredOption('--work-id <ids>', 'Work item ID(s) to process (comma-separated for batch, e.g., "258,259,260")')
-    .option('--autonomy <level>', 'Autonomy level: supervised|assisted|autonomous', 'supervised')
-    .option('--phase <phases>', 'Execute only specified phase(s) - comma-separated')
-    .option('--force-new', 'Force fresh start, bypass auto-resume')
-    .option('--resume-batch', 'Resume a previously interrupted batch')
-    .option('--json', 'Output as JSON')
-    .action(async (options) => {
-      try {
-        const workIds = options.workId.split(',').map((id: string) => id.trim()).filter(Boolean);
-        const isBatch = workIds.length > 1;
-
-        if (isBatch) {
-          // Batch mode: sequential execution
-          if (!options.json) {
-            console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
-            console.log(chalk.blue.bold('  BATCH MODE: Sequential Multi-Workflow Execution'));
-            console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
-            console.log(chalk.gray(`Work IDs: ${workIds.join(', ')}`));
-            console.log(chalk.gray(`Autonomy: ${options.autonomy}`));
-            if (options.phase) console.log(chalk.gray(`Phases: ${options.phase}`));
-            console.log(chalk.gray(`Total workflows: ${workIds.length}`));
-            console.log('');
-          }
-
-          const results: Array<{ workId: string; status: string; error?: string }> = [];
-
-          for (let i = 0; i < workIds.length; i++) {
-            const workId = workIds[i];
-
-            if (!options.json) {
-              console.log(chalk.blue(`\n═══ Workflow ${i + 1}/${workIds.length}: #${workId} ═══`));
-            }
-
-            try {
-              const workflow = new FaberWorkflow();
-
-              workflow.addEventListener((event, data) => {
-                if (options.json) return;
-                switch (event) {
-                  case 'phase:start':
-                    console.log(chalk.cyan(`\n→ Starting phase: ${String(data.phase || '').toUpperCase()}`));
-                    break;
-                  case 'phase:complete':
-                    console.log(chalk.green(`  ✓ Completed phase: ${data.phase}`));
-                    break;
-                  case 'workflow:fail':
-                  case 'phase:fail':
-                    console.error(chalk.red(`  ✗ Error: ${data.error || 'Unknown error'}`));
-                    break;
-                }
-              });
-
-              const result = await workflow.run({
-                workId,
-                autonomy: options.autonomy,
-                phase: options.phase,
-                forceNew: options.forceNew,
-              });
-
-              results.push({ workId, status: result.status });
-
-              if (!options.json) {
-                console.log(chalk.green(`✓ Workflow ${i + 1}/${workIds.length} completed: #${workId}`));
-              }
-            } catch (error) {
-              const message = error instanceof Error ? error.message : String(error);
-              results.push({ workId, status: 'failed', error: message });
-
-              if (!options.json) {
-                console.error(chalk.red(`✗ Workflow ${i + 1}/${workIds.length} FAILED: #${workId}`));
-                console.error(chalk.red(`  Error: ${message}`));
-                console.error(chalk.yellow('\nBatch stopped due to error. Remaining workflows not executed.'));
-              }
-              break; // Stop batch on error
-            }
-          }
-
-          // Batch summary
-          if (options.json) {
-            console.log(JSON.stringify({ status: 'success', data: { batch: true, results } }, null, 2));
-          } else {
-            const completed = results.filter(r => r.status !== 'failed');
-            const failed = results.filter(r => r.status === 'failed');
-
-            console.log(chalk.blue.bold('\n═══════════════════════════════════════════════'));
-            console.log(chalk.blue.bold('  BATCH COMPLETE'));
-            console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
-            console.log(`Total: ${workIds.length} | Completed: ${completed.length} | Failed: ${failed.length}`);
-            for (const r of results) {
-              if (r.status === 'failed') {
-                console.log(chalk.red(`  ✗ #${r.workId} — ${r.error}`));
-              } else {
-                console.log(chalk.green(`  ✓ #${r.workId} — ${r.status}`));
-              }
-            }
-          }
-
-          if (results.some(r => r.status === 'failed')) {
-            process.exit(1);
-          }
-
-        } else {
-          // Single mode: original behavior
-          const workflow = new FaberWorkflow();
-
-          if (!options.json) {
-            console.log(chalk.blue(`Starting FABER workflow for work item #${workIds[0]}`));
-            console.log(chalk.gray(`Autonomy: ${options.autonomy}`));
-          }
-
-          workflow.addEventListener((event, data) => {
-            if (options.json) return;
-
-            switch (event) {
-              case 'phase:start':
-                console.log(chalk.cyan(`\n→ Starting phase: ${String(data.phase || '').toUpperCase()}`));
-                break;
-              case 'phase:complete':
-                console.log(chalk.green(`  ✓ Completed phase: ${data.phase}`));
-                break;
-              case 'workflow:fail':
-              case 'phase:fail':
-                console.error(chalk.red(`  ✗ Error: ${data.error || 'Unknown error'}`));
-                break;
-            }
-          });
-
-          const result = await workflow.run({
-            workId: workIds[0],
-            autonomy: options.autonomy,
-            phase: options.phase,
-            forceNew: options.forceNew,
-          });
-
-          if (options.json) {
-            console.log(JSON.stringify({ status: 'success', data: result }, null, 2));
-          } else {
-            console.log(chalk.green(`\n✓ Workflow ${result.status}`));
-            console.log(chalk.gray(`  Workflow ID: ${result.workflow_id}`));
-            console.log(chalk.gray(`  Duration: ${result.duration_ms}ms`));
-            console.log(chalk.gray(`  Phases: ${result.phases.map((p: any) => p.phase).join(' → ')}`));
-          }
-        }
-      } catch (error) {
-        handleWorkflowError(error, options);
-      }
-    });
-}
-
+ * Create the run-inspect command
 /**
  * Create the run-inspect command
  */
@@ -254,61 +106,6 @@ export function createStatusCommand(): Command {
               });
             }
           }
-        }
-      } catch (error) {
-        handleWorkflowError(error, options);
-      }
-    });
-}
-
-/**
- * Create the workflow-resume command
- */
-export function createResumeCommand(): Command {
-  return new Command('workflow-resume')
-    .description('Resume a paused workflow')
-    .argument('<workflow_id>', 'Workflow ID to resume')
-    .option('--json', 'Output as JSON')
-    .action(async (workflowId: string, options) => {
-      try {
-        const workflow = new FaberWorkflow();
-
-        if (!options.json) {
-          console.log(chalk.blue(`Resuming workflow: ${workflowId}`));
-        }
-
-        const result = await workflow.resume(workflowId);
-
-        if (options.json) {
-          console.log(JSON.stringify({ status: 'success', data: result }, null, 2));
-        } else {
-          console.log(chalk.green(`\n✓ Workflow ${result.status}`));
-          console.log(chalk.gray(`  Duration: ${result.duration_ms}ms`));
-        }
-      } catch (error) {
-        handleWorkflowError(error, options);
-      }
-    });
-}
-
-/**
- * Create the workflow-pause command
- */
-export function createPauseCommand(): Command {
-  return new Command('workflow-pause')
-    .description('Pause a running workflow')
-    .argument('<workflow_id>', 'Workflow ID to pause')
-    .option('--json', 'Output as JSON')
-    .action(async (workflowId: string, options) => {
-      try {
-        const workflow = new FaberWorkflow();
-
-        workflow.pause(workflowId);
-
-        if (options.json) {
-          console.log(JSON.stringify({ status: 'success', data: { paused: workflowId } }, null, 2));
-        } else {
-          console.log(chalk.green(`✓ Paused workflow: ${workflowId}`));
         }
       } catch (error) {
         handleWorkflowError(error, options);
@@ -643,27 +440,6 @@ export function createBatchPlanCommand(): Command {
     });
 }
 
-/**
- * Create the workflow-batch-run command
- */
-export function createBatchRunCommand(): Command {
-  return new Command('workflow-batch-run')
-    .description('Execute a planned FABER batch sequentially with state tracking')
-    .requiredOption('--batch <batch-id>', 'Batch ID to execute (from workflow-batch-plan)')
-    .option('--autonomous', 'Auto-skip failed items without prompting (for overnight unattended runs)')
-    .option('--resume', 'Skip already-completed items (safe to re-run after interruption)')
-    .option('--phase <phases>', 'Execute only specified phase(s) - comma-separated')
-    .option('--force-new', 'Force fresh start for each item, bypass auto-resume')
-    .option('--json', 'Output as JSON')
-    .action(async (options) => {
-      try {
-        await executeBatchRunCommand(options);
-      } catch (error) {
-        handleWorkflowError(error, options);
-      }
-    });
-}
-
 // ─── Batch Implementation ───────────────────────────────────────────────────
 
 import fs from 'fs/promises';
@@ -699,12 +475,6 @@ function generateBatchId(): string {
   const now = new Date();
   const ts = now.toISOString().replace(/:/g, '-').replace(/\.\d{3}Z$/, 'Z');
   return `batch-${ts}`;
-}
-
-async function readBatchState(batchId: string): Promise<BatchState> {
-  const statePath = path.join(getBatchDir(batchId), 'state.json');
-  const content = await fs.readFile(statePath, 'utf-8');
-  return JSON.parse(content) as BatchState;
 }
 
 async function writeBatchState(batchId: string, state: BatchState): Promise<void> {
@@ -851,198 +621,8 @@ async function executeBatchPlanCommand(options: {
     console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
     console.log(`Total: ${workIds.length} | Planned: ${planned} | Failed: ${failed}`);
     console.log('');
-    console.log(chalk.cyan('To run this batch (unattended):'));
-    console.log(chalk.white(`  fractary-faber workflow-batch-run --batch ${batchId} --autonomous`));
-    console.log('');
-    console.log(chalk.cyan('Or in Claude Code:'));
+    console.log(chalk.cyan('To run this batch, use the workflow-batch-run skill:'));
     console.log(chalk.white(`  /fractary-faber-workflow-batch-run --batch ${batchId} --autonomous`));
-  }
-}
-
-async function executeBatchRunCommand(options: {
-  batch: string;
-  autonomous?: boolean;
-  resume?: boolean;
-  phase?: string;
-  forceNew?: boolean;
-  json?: boolean;
-}): Promise<void> {
-  const batchId = options.batch;
-  const batchDir = getBatchDir(batchId);
-
-  // Verify batch exists
-  try {
-    await fs.access(batchDir);
-  } catch {
-    throw new Error(
-      `Batch '${batchId}' not found.\nExpected: ${batchDir}\n\nCreate a batch first:\n  fractary-faber workflow-batch-plan --work-id <ids> --name ${batchId}`
-    );
-  }
-
-  // Load state
-  let state = await readBatchState(batchId);
-
-  if (state.status === 'completed') {
-    if (options.json) {
-      console.log(JSON.stringify({ status: 'success', data: { batch_id: batchId, message: 'already completed', state } }, null, 2));
-    } else {
-      console.log(chalk.green(`✓ Batch '${batchId}' already completed. Nothing to do.`));
-      const done = state.items.filter(i => i.status === 'completed').length;
-      console.log(chalk.gray(`  Completed: ${done}/${state.items.length}`));
-      console.log(chalk.gray('\nTo re-run, edit state.json and reset items to "pending".'));
-    }
-    return;
-  }
-
-  // Filter items to process
-  const toProcess = options.resume
-    ? state.items.filter(i => i.status !== 'completed' && i.status !== 'skipped')
-    : state.items.filter(i => i.status !== 'completed' && i.status !== 'skipped');
-
-  if (!options.json) {
-    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
-    console.log(chalk.blue.bold('  FABER BATCH RUN'));
-    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
-    console.log(chalk.gray(`Batch ID: ${batchId}`));
-    console.log(chalk.gray(`Mode: ${options.autonomous ? 'autonomous (unattended)' : 'interactive'}`));
-    if (options.resume) {
-      const completed = state.items.filter(i => i.status === 'completed').length;
-      console.log(chalk.gray(`Resume: ${completed}/${state.items.length} already completed`));
-    }
-    if (options.phase) console.log(chalk.gray(`Phase filter: ${options.phase}`));
-    if (options.forceNew) console.log(chalk.gray('Force new: yes'));
-    console.log(chalk.gray(`Remaining: ${toProcess.length} item(s)`));
-    console.log('');
-  }
-
-  const results: Array<{ workId: string; status: string; error?: string }> = [];
-
-  for (let i = 0; i < toProcess.length; i++) {
-    const item = toProcess[i];
-    const workId = item.work_id;
-    const globalIndex = state.items.findIndex(s => s.work_id === workId);
-
-    if (!options.json) {
-      console.log(chalk.blue(`\n═══ Workflow ${i + 1}/${toProcess.length}: #${workId} ═══`));
-    }
-
-    // Mark in progress
-    state.items[globalIndex].status = 'in_progress';
-    state.items[globalIndex].started_at = new Date().toISOString();
-    await writeBatchState(batchId, state);
-
-    try {
-      const workflow = new FaberWorkflow();
-
-      workflow.addEventListener((event, data) => {
-        if (options.json) return;
-        switch (event) {
-          case 'phase:start':
-            console.log(chalk.cyan(`\n  → Phase: ${String(data.phase || '').toUpperCase()}`));
-            break;
-          case 'phase:complete':
-            console.log(chalk.green(`  ✓ Phase: ${data.phase}`));
-            break;
-          case 'workflow:fail':
-          case 'phase:fail':
-            console.error(chalk.red(`  ✗ Error: ${data.error || 'Unknown error'}`));
-            break;
-        }
-      });
-
-      const result = await workflow.run({
-        workId,
-        autonomy: options.autonomous ? 'autonomous' : 'guarded',
-        phase: options.phase,
-        forceNew: options.forceNew,
-      });
-
-      state.items[globalIndex].status = 'completed';
-      state.items[globalIndex].run_id = (result as any).run_id || null;
-      state.items[globalIndex].completed_at = new Date().toISOString();
-      await writeBatchState(batchId, state);
-
-      results.push({ workId, status: 'completed' });
-
-      if (!options.json) {
-        console.log(chalk.green(`✓ Completed: #${workId}`));
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      state.items[globalIndex].status = 'failed';
-      state.items[globalIndex].skipped = true;
-      state.items[globalIndex].error = message;
-      state.items[globalIndex].completed_at = new Date().toISOString();
-      await writeBatchState(batchId, state);
-
-      results.push({ workId, status: 'failed', error: message });
-
-      if (!options.json) {
-        console.error(chalk.red(`✗ Failed: #${workId} — ${message}`));
-      }
-
-      if (!options.autonomous) {
-        // Non-autonomous: stop on first failure
-        if (!options.json) {
-          console.error(chalk.yellow('\nBatch stopped. Use --autonomous to auto-skip failures.'));
-          console.error(chalk.gray(`Resume with: fractary-faber workflow-batch-run --batch ${batchId} --autonomous --resume`));
-        }
-        break;
-      }
-
-      // Autonomous: continue to next item
-      if (!options.json) {
-        console.log(chalk.yellow('  → Auto-skipping (autonomous mode). Continuing...'));
-      }
-    }
-  }
-
-  // Final state
-  const allCompleted = state.items.every(i => i.status === 'completed');
-  const anyFailed = state.items.some(i => i.status === 'failed');
-  state.status = allCompleted ? 'completed' : anyFailed ? 'completed_with_failures' : 'paused';
-  await writeBatchState(batchId, state);
-
-  if (options.json) {
-    const completed = state.items.filter(i => i.status === 'completed').length;
-    const failedCount = state.items.filter(i => i.status === 'failed').length;
-    console.log(JSON.stringify({
-      status: 'success',
-      data: { batch_id: batchId, total: state.items.length, completed, failed: failedCount, results },
-    }, null, 2));
-  } else {
-    const completed = state.items.filter(i => i.status === 'completed').length;
-    const failedCount = state.items.filter(i => i.status === 'failed').length;
-
-    console.log('');
-    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
-    console.log(chalk.blue.bold('  BATCH RUN COMPLETE'));
-    console.log(chalk.blue.bold('═══════════════════════════════════════════════'));
-    console.log(`Total: ${state.items.length} | Completed: ${completed} | Failed: ${failedCount}`);
-    console.log('');
-
-    for (const item of state.items) {
-      if (item.status === 'completed') {
-        console.log(chalk.green(`  ✓ #${item.work_id} — completed`));
-      } else if (item.status === 'failed') {
-        console.log(chalk.red(`  ✗ #${item.work_id} — failed: ${item.error}`));
-      } else if (item.status === 'skipped') {
-        console.log(chalk.yellow(`  ○ #${item.work_id} — skipped`));
-      } else {
-        console.log(chalk.gray(`  ○ #${item.work_id} — ${item.status}`));
-      }
-    }
-
-    if (failedCount > 0) {
-      console.log('');
-      console.log(chalk.cyan('To retry failed items:'));
-      console.log(chalk.white(`  fractary-faber workflow-batch-run --batch ${batchId} --autonomous --resume`));
-    }
-  }
-
-  if (anyFailed && !options.autonomous) {
-    process.exit(1);
   }
 }
 

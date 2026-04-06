@@ -86,9 +86,9 @@ If you have scripts that call removed commands:
 fractary-faber workflow-build --work-id 123
 fractary-faber workflow-execute <plan-id>
 
-# NEW (use workflow-run)
-fractary-faber workflow-run <plan-id> --phase build
-fractary-faber workflow-run <plan-id>
+# NEW (use the fractary-faber-workflow-run skill)
+# Workflow execution is now skill-based, not CLI-based.
+# Invoke the fractary-faber-workflow-run skill from your agentic harness.
 ```
 
 #### 2. Update Custom Workflows

@@ -223,9 +223,8 @@ fractary-faber session-load --work-id "$WORK_ID" --json
 
 Prepare a run for resumption from failure point.
 
-**CLI Command (preferred):**
+**CLI Command:**
 ```bash
-fractary-faber workflow-resume "$RUN_ID" --json
 fractary-faber workflow-debug --run-id "$RUN_ID" --json
 ```
 
@@ -466,7 +465,6 @@ Run ID: {run_id}
 - `fractary-faber run-inspect` - Query run status
 - `fractary-faber session-load` - Load session/run context
 - `fractary-faber session-save` - Set active run
-- `fractary-faber workflow-resume` - Resume workflows
 - `fractary-faber workflow-debug` - Debug run issues
 - `fractary-faber runs dir/plan-path/state-path` - Path queries
 
