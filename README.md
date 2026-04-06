@@ -282,11 +282,10 @@ For comprehensive CLI documentation, see [CLI Reference](docs/public/cli.md).
 Quick reference:
 
 ```bash
-# Workflow
+# Workflow (use skills for execution, CLI for inspection/config)
 fractary-faber config init                            # Initialize project
-fractary-faber workflow-run --work-id <issue>        # Run workflow
 fractary-faber run-inspect --work-id <issue>         # Check status
-fractary-faber workflow-resume <workflow-id>          # Resume workflow
+fractary-faber runs verify-complete <run-id>         # Verify completion
 
 # Work tracking
 fractary-faber work issue fetch <issue>

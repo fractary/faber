@@ -62,16 +62,9 @@ fractary-faber config init --autonomy guarded
 # Plan a workflow (creates plan, branch, worktree)
 fractary-faber workflow-plan --work-id 123
 
-# Start a FABER workflow
-fractary-faber workflow-run --work-id 123
-
 # Check workflow status
 fractary-faber run-inspect
 fractary-faber run-inspect --work-id 123
-
-# Pause/resume workflows
-fractary-faber workflow-pause <workflow-id>
-fractary-faber workflow-resume <workflow-id>
 
 # Recover from checkpoint
 fractary-faber workflow-recover <workflow-id>

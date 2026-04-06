@@ -213,30 +213,22 @@ fractary-faber repo commit "feat: add feature"
 # Plan a workflow
 fractary-faber workflow-plan --work-id 123
 
-# Run FABER workflow
-fractary-faber workflow-run --work-id 123
-
 # Check status
 fractary-faber run-inspect --work-id 123
-
-# Resume paused workflow
-fractary-faber workflow-resume <workflow-id>
 ```
+
+> **Note:** Workflow execution uses skills, not the CLI. Use the `fractary-faber-workflow-run` skill to execute workflows.
 
 ## Batch Workflows
 
-To plan and run multiple issues at once, use the batch commands:
+To plan and run multiple issues at once:
 
 ```bash
 # Plan multiple workflows in one step
 fractary-faber workflow-batch-plan --work-id 258,259,260 --name sprint-01
-
-# Run the batch (can be left unattended overnight)
-fractary-faber workflow-batch-run --batch sprint-01 --autonomous
-
-# Resume if interrupted
-fractary-faber workflow-batch-run --batch sprint-01 --autonomous --resume
 ```
+
+> **Note:** Use the `fractary-faber-workflow-batch-run` skill to execute batches.
 
 You can also filter issues by label instead of listing IDs:
 ```bash

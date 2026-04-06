@@ -95,15 +95,14 @@ const result = await workflow.run({
 });
 ```
 
-Or use the CLI:
+Or use the CLI for inspection:
 
 ```bash
-# Run workflow for issue #123
-fractary-faber workflow-run --work-id 123 --autonomy assisted
-
-# Check status
+# Check workflow status
 fractary-faber run-inspect --work-id 123
 ```
+
+> **Note:** Workflow execution uses the `fractary-faber-workflow-run` skill, not the CLI.
 
 ## SDK Modules
 

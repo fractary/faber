@@ -34,15 +34,14 @@ pip install -e ".[redis]"     # Redis checkpointing
 ### CLI Usage (via FABER CLI)
 
 ```bash
-# Run workflow for issue #123
-fractary-faber workflow-run --work-id 123
-
 # Initialize configuration
 fractary-faber config init
 
 # Check workflow status
 fractary-faber run-inspect --work-id 123
 ```
+
+> **Note:** Workflow execution uses the `fractary-faber-workflow-run` skill, not the CLI.
 
 ### Python API Usage (Recommended)
 
@@ -188,13 +187,9 @@ export FABER_REDIS_URL=redis://...
 
 ## CLI Commands
 
-> **Note**: Use `fractary-faber` CLI commands for terminal access.
+> **Note**: Workflow execution uses the `fractary-faber-workflow-run` skill. CLI commands below are for inspection and configuration only.
 
 ```bash
-# Run workflow
-fractary-faber workflow-run --work-id <id>
-  --autonomy <level>  Autonomy level: supervised|assisted|autonomous
-
 # Initialize configuration
 fractary-faber config init
 
