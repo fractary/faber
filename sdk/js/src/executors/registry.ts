@@ -15,6 +15,7 @@ import type {
   StepExecutorConfig,
 } from './types.js';
 import { ClaudeExecutor } from './providers/claude.js';
+import { ClaudeAgentExecutor } from './providers/claude-agent.js';
 import { OpenAIExecutor } from './providers/openai.js';
 import { OpenAICompatibleExecutor } from './providers/openai-compatible.js';
 import { HttpExecutor } from './providers/http.js';
@@ -174,6 +175,7 @@ export class ExecutorRegistry {
     const registry = new ExecutorRegistry();
 
     registry.register('claude', () => new ClaudeExecutor());
+    registry.register('claude-agent', () => new ClaudeAgentExecutor());
     registry.register('openai', () => new OpenAIExecutor());
     registry.register('openai-compatible', () => new OpenAICompatibleExecutor());
     registry.register('http', () => new HttpExecutor());

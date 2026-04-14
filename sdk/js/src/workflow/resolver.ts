@@ -82,12 +82,33 @@ export interface WorkflowStep {
   /** Position type (added during merge) */
   position?: 'pre_step' | 'step' | 'post_step';
   /**
-   * Executor configuration for this step.
+   * Executor configuration for this step (legacy provider-based routing).
    * When specified, routes execution to the given provider/model instead of
    * the default Claude Code direct execution.
    * Config cascade: step.executor > phase_executors[phase] > workflow.executor > default
    */
   executor?: StepExecutorConfig;
+
+  // ── CLI-native execution attributes (harness-based routing) ──────────
+  // These are used by `workflow-execute` CLI mode. In LLM-based mode
+  // (workflow-run skill), the orchestrating LLM ignores these and
+  // executes steps directly within its own session.
+  // Cascade: step > phase_defaults[phase] > workflow.defaults > CLI args
+
+  /** Model identifier (e.g., 'claude-sonnet-4-6-20250514', 'gpt-4o') */
+  model?: string;
+  /** Agentic harness: 'claude-code' | 'opencode' | 'codex' | 'api' */
+  harness?: string;
+  /** Maximum agentic turns (tool-use round trips) */
+  max_turns?: number;
+  /** Maximum budget in USD for this step */
+  max_budget_usd?: number;
+  /** Tools the agent is allowed to use */
+  allowed_tools?: string[];
+  /** Skills to make available */
+  skills?: string[];
+  /** MCP server configurations keyed by server name */
+  mcp?: Record<string, { command: string; args?: string[] }>;
 }
 
 /**
@@ -193,6 +214,47 @@ export interface WorkflowFileConfig {
    * Cascade: step.executor > phase_executors[phase] > workflow.executor > default
    */
   phase_executors?: Partial<Record<string, StepExecutorConfig>>;
+
+  // ── CLI-native execution configuration ───────────────────────────────
+
+  /**
+   * Workflow-level system prompt for CLI-native execution.
+   * Sets the overall mission context for all steps.
+   * Composed into each step's system prompt as the first block.
+   */
+  prompt?: string;
+
+  /**
+   * Default runtime configuration for all steps in this workflow.
+   * Steps without their own config inherit these values.
+   * Cascade: step > phase_defaults[phase] > defaults > CLI args > system defaults
+   */
+  defaults?: {
+    prompt?: string;
+    model?: string;
+    harness?: string;
+    max_turns?: number;
+    max_budget_usd?: number;
+    allowed_tools?: string[];
+    skills?: string[];
+    mcp?: Record<string, { command: string; args?: string[] }>;
+  };
+
+  /**
+   * Per-phase runtime defaults for CLI-native execution.
+   * Each phase can specify its own prompt, model, harness, etc.
+   * Cascade: step > phase_defaults[phase] > defaults > CLI args > system defaults
+   */
+  phase_defaults?: Partial<Record<string, {
+    prompt?: string;
+    model?: string;
+    harness?: string;
+    max_turns?: number;
+    max_budget_usd?: number;
+    allowed_tools?: string[];
+    skills?: string[];
+    mcp?: Record<string, { command: string; args?: string[] }>;
+  }>>;
 }
 
 /**
@@ -223,6 +285,15 @@ export interface ResolvedWorkflow {
   executor?: StepExecutorConfig;
   /** Per-phase executor overrides (child overrides parent in inheritance) */
   phase_executors?: Partial<Record<string, StepExecutorConfig>>;
+
+  // ── CLI-native execution configuration ───────────────────────────────
+
+  /** Workflow-level system prompt for CLI-native execution */
+  prompt?: string;
+  /** Default runtime configuration (model, harness, max_turns, etc.) */
+  defaults?: WorkflowFileConfig['defaults'];
+  /** Per-phase runtime defaults (prompt, model, harness, etc.) */
+  phase_defaults?: WorkflowFileConfig['phase_defaults'];
 }
 
 /**
@@ -627,6 +698,17 @@ export class WorkflowResolver {
     }
     if (mergedExecutor.phase_executors && Object.keys(mergedExecutor.phase_executors).length > 0) {
       resolved.phase_executors = mergedExecutor.phase_executors;
+    }
+
+    // Include CLI-native execution configuration (child overrides parent)
+    if (childWorkflow.prompt) {
+      resolved.prompt = childWorkflow.prompt;
+    }
+    if (childWorkflow.defaults) {
+      resolved.defaults = childWorkflow.defaults;
+    }
+    if (childWorkflow.phase_defaults) {
+      resolved.phase_defaults = childWorkflow.phase_defaults;
     }
 
     return resolved;

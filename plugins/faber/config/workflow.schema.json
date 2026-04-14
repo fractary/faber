@@ -81,6 +81,26 @@
         "release": { "$ref": "#/definitions/step_executor" }
       },
       "additionalProperties": false
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Workflow-level system prompt for CLI-native execution. Sets the overall mission context for all steps. Composed into each step's system prompt as the first block."
+    },
+    "defaults": {
+      "$ref": "#/definitions/runtime_defaults",
+      "description": "Default runtime configuration for CLI-native execution. Cascade: step > phase_defaults[phase] > defaults > CLI args > system defaults."
+    },
+    "phase_defaults": {
+      "type": "object",
+      "description": "Per-phase runtime defaults for CLI-native execution. Each phase can specify its own prompt, model, harness, etc.",
+      "properties": {
+        "frame": { "$ref": "#/definitions/runtime_defaults" },
+        "architect": { "$ref": "#/definitions/runtime_defaults" },
+        "build": { "$ref": "#/definitions/runtime_defaults" },
+        "evaluate": { "$ref": "#/definitions/runtime_defaults" },
+        "release": { "$ref": "#/definitions/runtime_defaults" }
+      },
+      "additionalProperties": false
     }
   },
   "definitions": {
@@ -238,7 +258,48 @@
         },
         "executor": {
           "$ref": "#/definitions/step_executor",
-          "description": "Executor configuration for this step. When specified, routes execution to the given provider/model instead of default Claude Code execution. Cascade: step > phase_executors > workflow.executor > default."
+          "description": "Executor configuration for this step (legacy provider-based routing). When specified, routes execution to the given provider/model instead of default Claude Code execution. Cascade: step > phase_executors > workflow.executor > default."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model identifier for CLI-native execution (e.g., 'claude-sonnet-4-6-20250514', 'gpt-4o'). Cascade: step > phase_defaults > defaults > CLI args."
+        },
+        "harness": {
+          "type": "string",
+          "enum": ["claude-code", "opencode", "codex", "api"],
+          "description": "Agentic harness for CLI-native execution: 'claude-code' (Agent SDK), 'opencode', 'codex', 'api' (direct Messages API). Cascade: step > phase_defaults > defaults > CLI args."
+        },
+        "max_turns": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum agentic turns (tool-use round trips) for CLI-native execution"
+        },
+        "max_budget_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum budget in USD for this step in CLI-native execution"
+        },
+        "allowed_tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tools the agent is allowed to use in CLI-native execution"
+        },
+        "skills": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Skills to make available in CLI-native execution"
+        },
+        "mcp": {
+          "type": "object",
+          "description": "MCP server configurations for CLI-native execution",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["command"],
+            "properties": {
+              "command": { "type": "string" },
+              "args": { "type": "array", "items": { "type": "string" } }
+            }
+          }
         },
         "changelog": {
           "type": "object",
@@ -482,6 +543,58 @@
           ],
           "default": "stop",
           "description": "Action when step fails: 'stop' shows intelligent prompt with options (default), or a slash command to invoke for recovery. The command receives step context and can return a recovery plan."
+        }
+      }
+    },
+    "runtime_defaults": {
+      "type": "object",
+      "description": "Runtime configuration defaults for CLI-native execution. Used at workflow-level (defaults) and per-phase (phase_defaults).",
+      "additionalProperties": false,
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "System prompt for this level (workflow-level sets mission, phase-level adds phase guidance)"
+        },
+        "model": {
+          "type": "string",
+          "description": "Default model identifier (e.g., 'claude-sonnet-4-6-20250514', 'gpt-4o')"
+        },
+        "harness": {
+          "type": "string",
+          "enum": ["claude-code", "opencode", "codex", "api"],
+          "description": "Agentic harness: 'claude-code' (Agent SDK), 'opencode', 'codex', 'api' (direct Messages API)"
+        },
+        "max_turns": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum agentic turns (tool-use round trips)"
+        },
+        "max_budget_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum budget in USD per step"
+        },
+        "allowed_tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tools the agent is allowed to use (e.g., ['Read', 'Write', 'Edit', 'Bash'])"
+        },
+        "skills": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Skills to make available (e.g., ['fractary-repo', 'fractary-work'])"
+        },
+        "mcp": {
+          "type": "object",
+          "description": "MCP server configurations keyed by server name",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["command"],
+            "properties": {
+              "command": { "type": "string" },
+              "args": { "type": "array", "items": { "type": "string" } }
+            }
+          }
         }
       }
     },

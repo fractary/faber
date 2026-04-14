@@ -20,12 +20,19 @@ import type {
   ExecutionContext,
   ExecutorResult,
   StepExecutorConfig,
+  StepRuntimeConfig,
+  StepPromptContext,
+  StepWorkflowMetadata,
+  HarnessType,
 } from './types.js';
+import { resolveRuntimeConfig } from './types.js';
 import { ExecutorRegistry } from './registry.js';
+import type { ClaudeAgentExecuteOptions } from './providers/claude-agent.js';
 import type {
   ResolvedPhase,
   ResolvedWorkflow,
   WorkflowStep,
+  WorkflowFileConfig,
   StepResultHandling,
 } from '../workflow/resolver.js';
 
@@ -55,6 +62,24 @@ export interface WorkflowExecuteOptions {
   onPhaseStart?: (phase: string) => void;
   /** Callback for phase complete */
   onPhaseComplete?: (phase: string, status: 'completed' | 'failed' | 'skipped') => void;
+
+  // ── CLI-native execution options ───────────────────────────────────
+
+  /** Run ID for state tracking */
+  runId?: string;
+  /** Plan ID for metadata */
+  planId?: string;
+  /** Plan file path for metadata */
+  planPath?: string;
+  /** State file path for metadata */
+  statePath?: string;
+  /** Git branch name */
+  branch?: string;
+
+  /** CLI-level harness override (applies to all steps) */
+  cliHarness?: HarnessType;
+  /** CLI-level model override (applies to all steps) */
+  cliModel?: string;
 }
 
 /** Result from a complete workflow execution */
@@ -95,8 +120,11 @@ export class WorkflowExecutor {
    * For each step, resolves the executor from the config cascade
    * and dispatches execution.
    *
-   * Steps without an executor config use the Claude API executor
-   * as the default (since we're in CLI mode, not Claude Code).
+   * Routing priority:
+   * 1. If step prompt starts with `!` → direct shell command (via claude-agent executor)
+   * 2. If step has `harness` (directly or via cascade) → use harness-mapped executor
+   * 3. If step has legacy `executor` config → use ExecutorRegistry
+   * 4. Default → 'claude-agent' executor (Agent SDK)
    */
   async execute(
     workflow: {
@@ -104,6 +132,12 @@ export class WorkflowExecutor {
       executor?: StepExecutorConfig;
       phase_executors?: Partial<Record<string, StepExecutorConfig>>;
       result_handling?: StepResultHandling;
+      /** Workflow-level system prompt for CLI-native execution */
+      prompt?: string;
+      /** Default runtime configuration */
+      defaults?: WorkflowFileConfig['defaults'];
+      /** Per-phase runtime defaults */
+      phase_defaults?: WorkflowFileConfig['phase_defaults'];
     },
     options: WorkflowExecuteOptions,
   ): Promise<WorkflowExecuteResult> {
@@ -112,6 +146,7 @@ export class WorkflowExecutor {
     let totalStepsCompleted = 0;
     let totalSteps = 0;
     let workflowFailed = false;
+    let globalStepIndex = 0;
 
     // Count total steps
     for (const phaseName of PHASE_ORDER) {
@@ -123,6 +158,12 @@ export class WorkflowExecutor {
 
     // Track outputs from previous steps for context
     const previousOutputs: Record<string, Record<string, unknown>> = {};
+
+    // Build CLI overrides for runtime config resolution
+    const cliOverrides: Partial<StepRuntimeConfig> | undefined =
+      (options.cliHarness || options.cliModel)
+        ? { harness: options.cliHarness, model: options.cliModel }
+        : undefined;
 
     for (const phaseName of PHASE_ORDER) {
       const phase = workflow.phases[phaseName];
@@ -155,18 +196,62 @@ export class WorkflowExecutor {
       const stepResults: StepExecuteResult[] = [];
       let phaseFailed = false;
 
+      // Get phase-level defaults
+      const phaseDefaults = workflow.phase_defaults?.[phaseName];
+
       for (let i = 0; i < phase.steps.length; i++) {
         const step = phase.steps[i];
 
         // If stepToRun is specified, skip all other steps
         if (options.stepToRun && step.id !== options.stepToRun) {
+          globalStepIndex++;
           continue;
         }
 
         options.onStepStart?.(phaseName, step, i, phase.steps.length);
 
-        // Build execution context
-        const context: ExecutionContext = {
+        // Resolve runtime config via cascade:
+        //   step > phase_defaults > workflow.defaults > CLI args > system defaults
+        const stepRuntimeAttrs: Partial<StepRuntimeConfig> = {
+          model: step.model,
+          harness: step.harness as HarnessType | undefined,
+          maxTurns: step.max_turns,
+          maxBudgetUsd: step.max_budget_usd,
+          allowedTools: step.allowed_tools,
+          skills: step.skills,
+          mcp: step.mcp,
+        };
+        const runtimeConfig = resolveRuntimeConfig(
+          stepRuntimeAttrs,
+          phaseDefaults,
+          workflow.defaults,
+          cliOverrides,
+        );
+
+        // Build workflow metadata for system prompt
+        const metadata: StepWorkflowMetadata = {
+          work_id: options.workId,
+          plan_id: options.planId,
+          run_id: options.runId,
+          state_path: options.statePath,
+          plan_path: options.planPath,
+          branch: options.branch,
+          phase: phaseName,
+          step_id: step.id,
+          step_index: globalStepIndex,
+          steps_total: totalSteps,
+          project_root: options.workingDirectory || process.cwd(),
+        };
+
+        // Build prompt context (workflow prompt + phase prompt + metadata)
+        const promptContext: StepPromptContext = {
+          workflowPrompt: workflow.prompt || workflow.defaults?.prompt,
+          phasePrompt: phaseDefaults?.prompt,
+          metadata,
+        };
+
+        // Build execution context (extended with runtime config and prompt context)
+        const context: ExecutionContext & ClaudeAgentExecuteOptions = {
           workId: options.workId,
           phase: phaseName,
           stepId: step.id,
@@ -174,33 +259,44 @@ export class WorkflowExecutor {
           previousOutputs,
           issue: options.issue,
           workingDirectory: options.workingDirectory || process.cwd(),
+          runId: options.runId,
+          runtimeConfig,
+          promptContext,
         };
-
-        // Resolve executor (cascade: step > phase > workflow > default 'claude')
-        const resolved = this.registry.resolveForStep(
-          step,
-          phaseName,
-          workflow.executor,
-          workflow.phase_executors,
-        );
 
         let result: ExecutorResult;
 
-        if (resolved) {
-          // Execute with the resolved executor
-          result = await resolved.executor.execute(
-            step.prompt,
-            context,
-            resolved.config,
+        // Determine execution path
+        const isCommand = step.prompt.trim().startsWith('!');
+        const hasHarness = runtimeConfig.harness != null;
+        const hasLegacyExecutor = step.executor != null;
+
+        if (isCommand || hasHarness) {
+          // Harness-based routing (new path)
+          // Commands (! prefix) always go to claude-agent executor which handles them
+          // Other steps route based on harness type
+          const executorName = this.harnessToExecutor(runtimeConfig.harness || 'claude-code');
+          const executor = this.registry.get(executorName);
+          result = await executor.execute(step.prompt, context, { provider: executorName });
+        } else if (hasLegacyExecutor) {
+          // Legacy executor-based routing
+          const resolved = this.registry.resolveForStep(
+            step,
+            phaseName,
+            workflow.executor,
+            workflow.phase_executors,
           );
+          if (resolved) {
+            result = await resolved.executor.execute(step.prompt, context, resolved.config);
+          } else {
+            const claudeAgent = this.registry.get('claude-agent');
+            result = await claudeAgent.execute(step.prompt, context, { provider: 'claude-agent' });
+          }
         } else {
-          // No executor configured — use claude as default in CLI mode
-          const claudeExecutor = this.registry.get('claude');
-          result = await claudeExecutor.execute(
-            step.prompt,
-            context,
-            { provider: 'claude' },
-          );
+          // No routing config — use default executor (claude-agent for full agentic)
+          const executorName = this.harnessToExecutor(runtimeConfig.harness || 'claude-code');
+          const executor = this.registry.get(executorName);
+          result = await executor.execute(step.prompt, context, { provider: executorName });
         }
 
         stepResults.push({
@@ -216,6 +312,7 @@ export class WorkflowExecutor {
         };
 
         totalStepsCompleted++;
+        globalStepIndex++;
         options.onStepComplete?.(phaseName, step, result);
 
         // Handle step result
@@ -252,6 +349,19 @@ export class WorkflowExecutor {
       steps_completed: totalStepsCompleted,
       steps_total: totalSteps,
     };
+  }
+
+  /**
+   * Map a harness type to an executor provider name in the registry.
+   */
+  private harnessToExecutor(harness: HarnessType): string {
+    switch (harness) {
+      case 'claude-code': return 'claude-agent';
+      case 'api': return 'claude';
+      case 'opencode': return 'claude-agent'; // TODO: OpenCode executor
+      case 'codex': return 'claude-agent';     // TODO: Codex executor
+      default: return 'claude-agent';
+    }
   }
 
   /**

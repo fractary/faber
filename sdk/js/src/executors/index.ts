@@ -19,6 +19,18 @@ export type {
   ExecutorResult,
   Executor,
   ExecutorFactory,
+  HarnessType,
+  StepRuntimeConfig,
+  StepWorkflowMetadata,
+  StepPromptContext,
+  RuntimeDefaults,
+  PhaseRuntimeDefaults,
+} from './types.js';
+
+// Runtime config utilities
+export {
+  buildSystemPrompt,
+  resolveRuntimeConfig,
 } from './types.js';
 
 // Registry
@@ -27,6 +39,7 @@ export { ExecutorRegistry } from './registry.js';
 // Providers
 export {
   ClaudeExecutor,
+  ClaudeAgentExecutor,
   OpenAIExecutor,
   OpenAICompatibleExecutor,
   HttpExecutor,
