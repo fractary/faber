@@ -194,33 +194,36 @@ export class ClaudeAgentExecutor implements Executor {
             : undefined,
 
           // Load project skills and CLAUDE.md
-          settingSources: ['project'] as any[],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          settingSources: ['project'] as string[],
 
           // Full Claude Code tool preset
           tools: { type: 'preset' as const, preset: 'claude_code' as const },
           allowedTools: runtimeConfig.allowedTools,
 
           // MCP servers from step config
-          mcpServers: runtimeConfig.mcp as any,
+          mcpServers: runtimeConfig.mcp as Record<string, { command: string; args?: string[] }> | undefined,
 
           // Autonomous execution
-          permissionMode: 'bypassPermissions' as any,
+          permissionMode: 'bypassPermissions' as const,
         },
       })) {
         if (message.type === 'result') {
-          const resultMsg = message as any;
+          const resultMsg = message;
           if (resultMsg.subtype === 'success') {
-            resultOutput = resultMsg.result || '';
-            if (resultMsg.usage) {
-              inputTokens = resultMsg.usage.input_tokens || 0;
-              outputTokens = resultMsg.usage.output_tokens || 0;
+            resultOutput = String(resultMsg['result'] ?? '');
+            const usage = resultMsg['usage'] as { input_tokens?: number; output_tokens?: number } | undefined;
+            if (usage) {
+              inputTokens = usage.input_tokens || 0;
+              outputTokens = usage.output_tokens || 0;
             }
           } else {
             // Error result (max_turns, max_budget, execution error)
+            const errors = resultMsg['errors'] as string[] | undefined;
             return {
               output: '',
               status: 'failure',
-              error: `Agent SDK error (${resultMsg.subtype}): ${(resultMsg.errors || []).join('; ')}`,
+              error: `Agent SDK error (${String(resultMsg.subtype)}): ${(errors || []).join('; ')}`,
               metadata: {
                 provider: this.provider,
                 model,
