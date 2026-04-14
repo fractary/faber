@@ -2,6 +2,29 @@
     "$schema": "../workflow.schema.json",
     "id": "core",
     "description": "Core FABER workflow primitives - issue management, branching, PR lifecycle. Meant to be extended by other workflows.",
+    "prompt": "You are executing a FABER workflow. Follow project conventions from CLAUDE.md. Work item: #{work_id}.",
+    "defaults": {
+        "harness": "claude-code",
+        "model": "claude-sonnet-4-6-20250514",
+        "max_turns": 25
+    },
+    "phase_defaults": {
+        "frame": {
+            "prompt": "FRAME phase: fetch work item context and set up the working environment."
+        },
+        "architect": {
+            "prompt": "ARCHITECT phase: design the solution and create a specification."
+        },
+        "build": {
+            "prompt": "BUILD phase: implement the changes described in the specification."
+        },
+        "evaluate": {
+            "prompt": "EVALUATE phase: review code quality, test coverage, and CI/CD results."
+        },
+        "release": {
+            "prompt": "RELEASE phase: merge PR to main, sync codex, close issue."
+        }
+    },
     "phases": {
         "frame": {
             "enabled": true,

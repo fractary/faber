@@ -629,15 +629,32 @@ async function executeBatchPlanCommand(options: {
 /**
  * Create the workflow-execute command (multi-model CLI-native execution)
  */
+/**
+ * Create the workflow-execute command (multi-model CLI-native execution)
+ *
+ * Deterministic workflow execution: code controls the step iteration loop,
+ * each step is an isolated invocation with fresh context.
+ *
+ * Routing: `!` prefix → shell command | harness → Agent SDK/API | legacy executor
+ */
 export function createWorkflowExecuteCommand(): Command {
   return new Command('workflow-execute')
     .description('Execute a workflow using the multi-model executor framework (CLI-native, no Claude Code required)')
     .argument('<plan-path>', 'Path to plan.json file')
-    .option('--model <model>', 'Default model for steps without an explicit executor (default: claude-sonnet-4-6-20250514)')
+    .option('--model <model>', 'Default model override for all steps')
+    .option('--harness <harness>', 'Default harness override: claude-code, opencode, codex, api')
     .option('--phase <phases>', 'Execute only specified phase(s) — comma-separated')
     .option('--step <step-id>', 'Execute only a specific step')
+    .option('--dry-run', 'Show what would execute without running')
     .option('--json', 'Output as JSON')
-    .action(async (planPath: string, options: { model?: string; phase?: string; step?: string; json?: boolean }) => {
+    .action(async (planPath: string, options: {
+      model?: string;
+      harness?: string;
+      phase?: string;
+      step?: string;
+      dryRun?: boolean;
+      json?: boolean;
+    }) => {
       try {
         const fs = await import('fs/promises');
         const path = await import('path');
@@ -654,8 +671,8 @@ export function createWorkflowExecuteCommand(): Command {
         // Create executor registry with defaults
         const registry = ExecutorRegistry.createDefault();
 
-        // Override default model if specified
-        const workflowExecutor = plan.workflow.executor || (options.model ? {
+        // Legacy executor support (for backward compatibility)
+        const workflowExecutor = plan.workflow.executor || (options.model && !options.harness ? {
           provider: 'claude',
           model: options.model,
         } : undefined);
@@ -666,20 +683,54 @@ export function createWorkflowExecuteCommand(): Command {
         // Parse options
         const phasesToRun = options.phase?.split(',').map((p: string) => p.trim()) ?? null;
 
-        // Extract work ID from plan
+        // Extract metadata from plan
         const workId = plan.source?.work_id || plan.items?.[0]?.work_id || 'unknown';
         const issue = plan.items?.[0]?.issue;
+        const planId = plan.id;
+        const branch = plan.items?.[0]?.branch?.name;
+
+        // Determine harness display
+        const defaultHarness = options.harness || plan.workflow.defaults?.harness || 'claude-code';
+        const defaultModel = options.model || plan.workflow.defaults?.model;
 
         if (!options.json) {
-          console.log(chalk.blue.bold('FABER Multi-Model Workflow Execution'));
+          console.log(chalk.blue.bold('FABER CLI-Native Workflow Execution'));
           console.log(chalk.gray('═'.repeat(50)));
           console.log(chalk.gray(`Plan: ${resolvedPath}`));
           console.log(chalk.gray(`Work ID: ${workId}`));
           console.log(chalk.gray(`Workflow: ${plan.workflow.id}`));
-          if (workflowExecutor) {
-            console.log(chalk.gray(`Default executor: ${workflowExecutor.provider}${workflowExecutor.model ? ` (${workflowExecutor.model})` : ''}`));
+          console.log(chalk.gray(`Harness: ${defaultHarness}`));
+          if (defaultModel) {
+            console.log(chalk.gray(`Model: ${defaultModel}`));
+          }
+          if (options.dryRun) {
+            console.log(chalk.yellow.bold('\n⚡ DRY RUN — no steps will be executed'));
           }
           console.log('');
+        }
+
+        // Dry run: show step routing and exit
+        if (options.dryRun) {
+          const phaseNames = ['frame', 'architect', 'build', 'evaluate', 'release'] as const;
+          for (const phaseName of phaseNames) {
+            const phase = plan.workflow.phases[phaseName];
+            if (!phase?.enabled && phase?.enabled !== undefined) continue;
+            if (!phase?.steps?.length) continue;
+            console.log(chalk.cyan(`\n${phaseName.toUpperCase()}`));
+            for (const step of phase.steps) {
+              const isCmd = step.prompt?.trim().startsWith('!');
+              const harness = step.harness || plan.workflow.phase_defaults?.[phaseName]?.harness || defaultHarness;
+              const model = step.model || plan.workflow.phase_defaults?.[phaseName]?.model || defaultModel || '';
+              const tag = isCmd
+                ? chalk.green('[command]')
+                : chalk.magenta(`[${harness}${model ? `:${model}` : ''}]`);
+              console.log(chalk.gray(`  ${step.id} ${tag}`));
+              if (isCmd) {
+                console.log(chalk.gray(`    → ${step.prompt.trim().slice(1)}`));
+              }
+            }
+          }
+          return;
         }
 
         // Execute
@@ -689,6 +740,9 @@ export function createWorkflowExecuteCommand(): Command {
             executor: workflowExecutor,
             phase_executors: plan.workflow.phase_executors,
             result_handling: plan.workflow.result_handling,
+            prompt: plan.workflow.prompt,
+            defaults: plan.workflow.defaults,
+            phase_defaults: plan.workflow.phase_defaults,
           },
           {
             workId,
@@ -696,18 +750,26 @@ export function createWorkflowExecuteCommand(): Command {
             workingDirectory: path.dirname(resolvedPath),
             phasesToRun: phasesToRun || undefined,
             stepToRun: options.step || null,
+            planId,
+            planPath: resolvedPath,
+            branch,
+            cliHarness: options.harness as any,
+            cliModel: options.model,
             onPhaseStart: (phase: string) => {
               if (!options.json) {
                 console.log(chalk.cyan(`\n→ Phase: ${phase.toUpperCase()}`));
               }
             },
-            onStepStart: (phase: string, step: any, index: number, total: number) => {
+            onStepStart: (_phase: string, step: any, index: number, total: number) => {
               if (!options.json) {
-                const executor = step.executor;
-                const providerTag = executor
-                  ? chalk.magenta(`[${executor.provider}${executor.model ? `:${executor.model}` : ''}]`)
-                  : chalk.gray('[default]');
-                console.log(chalk.gray(`  [${index + 1}/${total}] ${step.name} ${providerTag}`));
+                const isCmd = step.prompt?.trim().startsWith('!');
+                const stepHarness = step.harness || step.executor?.provider;
+                const tag = isCmd
+                  ? chalk.green('[command]')
+                  : stepHarness
+                    ? chalk.magenta(`[${stepHarness}${step.model ? `:${step.model}` : ''}]`)
+                    : chalk.gray(`[${defaultHarness}]`);
+                console.log(chalk.gray(`  [${index + 1}/${total}] ${step.name} ${tag}`));
               }
             },
             onStepComplete: (_phase: string, step: any, stepResult: any) => {
@@ -715,7 +777,10 @@ export function createWorkflowExecuteCommand(): Command {
                 const icon = stepResult.status === 'success' ? chalk.green('✓') :
                              stepResult.status === 'warning' ? chalk.yellow('⚠') :
                              chalk.red('✗');
-                console.log(`  ${icon} ${step.id} (${stepResult.metadata.duration_ms}ms)`);
+                const providerInfo = stepResult.metadata.provider === 'command'
+                  ? chalk.green('cmd')
+                  : `${stepResult.metadata.provider}`;
+                console.log(`  ${icon} ${step.id} [${providerInfo}] (${stepResult.metadata.duration_ms}ms)`);
                 if (stepResult.metadata.tokens_used) {
                   console.log(chalk.gray(`    tokens: ${stepResult.metadata.tokens_used.input}→${stepResult.metadata.tokens_used.output}`));
                 }

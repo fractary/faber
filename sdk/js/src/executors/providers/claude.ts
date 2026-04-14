@@ -14,6 +14,8 @@ import type {
   ExecutionContext,
   StepExecutorConfig,
 } from '../types.js';
+import { buildSystemPrompt } from '../types.js';
+import type { ClaudeAgentExecuteOptions } from './claude-agent.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6-20250514';
 const DEFAULT_MAX_TOKENS = 8192;
@@ -59,7 +61,38 @@ export class ClaudeExecutor implements Executor {
       messages,
     };
 
-    if (config.system_prompt) {
+    // Build system prompt — use structured format with cache_control
+    // when hierarchical prompt context is available (CLI-native mode)
+    const extendedContext = context as ExecutionContext & ClaudeAgentExecuteOptions;
+    const promptContext = extendedContext.promptContext;
+
+    if (promptContext) {
+      // Structured system prompt with prompt caching
+      const stablePrefix = buildSystemPrompt(promptContext);
+      const systemBlocks: Array<Record<string, unknown>> = [];
+
+      // Stable prefix (workflow prompt + phase prompt + metadata) — cacheable
+      if (stablePrefix) {
+        systemBlocks.push({
+          type: 'text',
+          text: stablePrefix,
+          cache_control: { type: 'ephemeral' },
+        });
+      }
+
+      // Step-specific system prompt override — not cached (varies per step)
+      if (config.system_prompt) {
+        systemBlocks.push({
+          type: 'text',
+          text: config.system_prompt,
+        });
+      }
+
+      if (systemBlocks.length > 0) {
+        body.system = systemBlocks;
+      }
+    } else if (config.system_prompt) {
+      // Legacy: plain string system prompt (no caching)
       body.system = config.system_prompt;
     }
 

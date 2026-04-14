@@ -5,6 +5,7 @@
  */
 
 export { ClaudeExecutor } from './claude.js';
+export { ClaudeAgentExecutor } from './claude-agent.js';
 export { OpenAIExecutor } from './openai.js';
 export { OpenAICompatibleExecutor } from './openai-compatible.js';
 export { HttpExecutor } from './http.js';
