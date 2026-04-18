@@ -405,15 +405,26 @@ merge_phase_steps() {
         merged_steps=$(echo "$merged_steps" "$pre_steps" | jq -s '.[0] + .[1]')
     done
 
-    # Main steps: only from child (index 0)
-    local child_id
-    child_id=$(echo "$chain_json" | jq -r '.[0]')
-    local child_workflow
-    child_workflow=$(load_workflow "$child_id")
-    local main_steps
-    main_steps=$(echo "$child_workflow" | jq --arg phase "$phase" '.phases[$phase].steps // []')
-    main_steps=$(echo "$main_steps" | jq --arg src "$child_id" '[.[] | . + {"source": $src, "position": "step"}]')
-    merged_steps=$(echo "$merged_steps" "$main_steps" | jq -s '.[0] + .[1]')
+    # Main steps: nearest ancestor that defines `steps` wins
+    # (child > parent > grandparent). Child still shadows ancestors when it
+    # declares its own steps; otherwise middle-layer plugin steps are
+    # correctly surfaced. Matches sdk/js/src/workflow/resolver.ts.
+    for ((i=0; i<chain_length; i++)); do
+        local workflow_id
+        workflow_id=$(echo "$chain_json" | jq -r ".[$i]")
+        local workflow_json
+        workflow_json=$(load_workflow "$workflow_id")
+        # has_steps is true when phases[phase].steps is defined (array, possibly empty)
+        local has_steps
+        has_steps=$(echo "$workflow_json" | jq --arg phase "$phase" '.phases[$phase].steps != null')
+        if [[ "$has_steps" == "true" ]]; then
+            local main_steps
+            main_steps=$(echo "$workflow_json" | jq --arg phase "$phase" '.phases[$phase].steps')
+            main_steps=$(echo "$main_steps" | jq --arg src "$workflow_id" '[.[] | . + {"source": $src, "position": "step"}]')
+            merged_steps=$(echo "$merged_steps" "$main_steps" | jq -s '.[0] + .[1]')
+            break
+        fi
+    done
 
     # Post-steps: iterate from child (first) to root (last) = chain order
     for ((i=0; i<chain_length; i++)); do

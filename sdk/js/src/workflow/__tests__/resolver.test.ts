@@ -919,4 +919,139 @@ describe('WorkflowResolver', () => {
       expect(resolved.phases.architect.enabled).toBe(true);
     });
   });
+
+  describe('Main Steps Inheritance', () => {
+    it('should use child steps when child defines them (shadows ancestors)', async () => {
+      createWorkflow('fractary-faber', 'parent-steps', {
+        id: 'parent-steps',
+        phases: {
+          evaluate: { steps: [{ id: 'parent-validate', name: 'Parent validate', prompt: 'parent' }] },
+        },
+      });
+
+      createWorkflow('project', 'child-overrides', {
+        id: 'child-overrides',
+        extends: 'faber@fractary-faber-parent-steps',
+        phases: {
+          evaluate: { steps: [{ id: 'child-validate', name: 'Child validate', prompt: 'child' }] },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('child-overrides');
+      const ids = resolved.phases.evaluate.steps.map((s) => s.id);
+
+      expect(ids).toEqual(['child-validate']);
+    });
+
+    it('should surface middle-layer steps when child is silent on that phase', async () => {
+      // 3-tier chain: project → middle → base
+      // Regression test for https://github.com/fractary/faber/issues/221
+      createWorkflow('fractary-faber', 'base', {
+        id: 'base',
+        phases: {
+          evaluate: { pre_steps: [{ id: 'base-pre', name: 'Base pre', prompt: 'base pre' }] },
+        },
+      });
+
+      createWorkflow('fractary-faber', 'middle', {
+        id: 'middle',
+        extends: 'faber@fractary-faber-base',
+        phases: {
+          evaluate: {
+            steps: [
+              { id: 'middle-execute', name: 'Middle execute', prompt: 'run domain operation' },
+              { id: 'middle-validate', name: 'Middle validate', prompt: 'validate domain result' },
+            ],
+          },
+        },
+      });
+
+      createWorkflow('project', 'project-extends-middle', {
+        id: 'project-extends-middle',
+        extends: 'faber@fractary-faber-middle',
+        phases: {
+          release: { steps: [{ id: 'project-deploy', name: 'Project deploy', prompt: 'deploy' }] },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('project-extends-middle');
+      const evaluateIds = resolved.phases.evaluate.steps.map((s) => s.id);
+
+      expect(evaluateIds).toContain('base-pre');
+      expect(evaluateIds).toContain('middle-execute');
+      expect(evaluateIds).toContain('middle-validate');
+    });
+
+    it('should surface base steps when both child and middle are silent', async () => {
+      createWorkflow('fractary-faber', 'base-with-steps', {
+        id: 'base-with-steps',
+        phases: {
+          evaluate: { steps: [{ id: 'base-step', name: 'Base step', prompt: 'base' }] },
+        },
+      });
+
+      createWorkflow('fractary-faber', 'middle-silent', {
+        id: 'middle-silent',
+        extends: 'faber@fractary-faber-base-with-steps',
+        // middle defines no evaluate phase at all
+      });
+
+      createWorkflow('project', 'project-silent', {
+        id: 'project-silent',
+        extends: 'faber@fractary-faber-middle-silent',
+      });
+
+      const resolved = await resolver.resolveWorkflow('project-silent');
+      const ids = resolved.phases.evaluate.steps.map((s) => s.id);
+
+      expect(ids).toEqual(['base-step']);
+    });
+
+    it('should treat explicit empty steps: [] as an opt-out (shadows ancestors)', async () => {
+      createWorkflow('fractary-faber', 'parent-with-steps', {
+        id: 'parent-with-steps',
+        phases: {
+          evaluate: { steps: [{ id: 'parent-step', name: 'Parent step', prompt: 'parent' }] },
+        },
+      });
+
+      createWorkflow('project', 'child-opts-out', {
+        id: 'child-opts-out',
+        extends: 'faber@fractary-faber-parent-with-steps',
+        phases: {
+          evaluate: { steps: [] },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('child-opts-out');
+      const ids = resolved.phases.evaluate.steps.map((s) => s.id);
+
+      expect(ids).toEqual([]);
+    });
+
+    it('should record the correct source for merged middle-layer steps', async () => {
+      createWorkflow('fractary-faber', 'src-base', {
+        id: 'src-base',
+        phases: { evaluate: { pre_steps: [{ id: 'b', name: 'b', prompt: 'b' }] } },
+      });
+
+      createWorkflow('fractary-faber', 'src-middle', {
+        id: 'src-middle',
+        extends: 'faber@fractary-faber-src-base',
+        phases: { evaluate: { steps: [{ id: 'm', name: 'm', prompt: 'm' }] } },
+      });
+
+      createWorkflow('project', 'src-child', {
+        id: 'src-child',
+        extends: 'faber@fractary-faber-src-middle',
+      });
+
+      const resolved = await resolver.resolveWorkflow('src-child');
+      const middleStep = resolved.phases.evaluate.steps.find((s) => s.id === 'm');
+
+      expect(middleStep).toBeDefined();
+      expect(middleStep?.source).toBe('faber@fractary-faber-src-middle');
+      expect(middleStep?.position).toBe('step');
+    });
+  });
 });
