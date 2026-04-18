@@ -514,13 +514,13 @@ async function validateUrlSecurity(url: string): Promise<void> {
  *
  * Merge algorithm (for each phase):
  * 1. Pre-steps: Root ancestor first (reversed chain order)
- * 2. Main steps: Only from child (first in chain)
+ * 2. Main steps: Nearest ancestor that defines `steps` wins (child > parent > grandparent)
  * 3. Post-steps: Child first (chain order)
  *
  * Example for default → core:
  * - chain = ["default", "core"] (child first)
  * - pre_steps: core.pre_steps, then default.pre_steps
- * - steps: only default.steps
+ * - steps: default.steps if defined, else core.steps
  * - post_steps: default.post_steps, then core.post_steps
  */
 export class WorkflowResolver {
@@ -1064,7 +1064,7 @@ export class WorkflowResolver {
    *
    * Order:
    * 1. Pre-steps: Root ancestor first (reversed chain - index n-1 to 0)
-   * 2. Main steps: Only from child (index 0)
+   * 2. Main steps: Nearest ancestor that defines `steps` wins (child > parent > grandparent)
    * 3. Post-steps: Child first (chain order - index 0 to n-1)
    */
   private mergePhaseSteps(
@@ -1089,17 +1089,23 @@ export class WorkflowResolver {
       }
     }
 
-    // Main steps: only from child (index 0)
-    const childWorkflow = this.workflowCache.get(chain[0])!;
-    const childPhase = childWorkflow.phases?.[phaseName];
-    const mainSteps = childPhase?.steps || [];
-
-    for (const step of mainSteps) {
-      mergedSteps.push({
-        ...step,
-        source: chain[0],
-        position: 'step',
-      });
+    // Main steps: nearest ancestor that defines `steps` wins.
+    // Walk child -> ancestors; the first layer with a defined `steps` array
+    // contributes. Preserves "child shadows" semantics across the full chain
+    // so middle-layer plugin steps surface when the child is silent.
+    for (const workflowId of chain) {
+      const workflow = this.workflowCache.get(workflowId)!;
+      const phase = workflow.phases?.[phaseName];
+      if (phase?.steps !== undefined) {
+        for (const step of phase.steps) {
+          mergedSteps.push({
+            ...step,
+            source: workflowId,
+            position: 'step',
+          });
+        }
+        break;
+      }
     }
 
     // Post-steps: iterate from child (first) to root (last) - chain order

@@ -378,7 +378,7 @@ build_inheritance_chain() {
 
 # Merge steps for a single phase according to inheritance rules
 # Pre-steps: root ancestor first (reversed chain)
-# Main steps: only from child (first in chain)
+# Main steps: nearest ancestor that defines `steps` wins (child > parent > grandparent)
 # Post-steps: child first (chain order)
 merge_phase_steps() {
     local chain_json="$1"
@@ -405,15 +405,25 @@ merge_phase_steps() {
         merged_steps=$(echo "$merged_steps" "$pre_steps" | jq -s '.[0] + .[1]')
     done
 
-    # Main steps: only from child (index 0)
-    local child_id
-    child_id=$(echo "$chain_json" | jq -r '.[0]')
-    local child_workflow
-    child_workflow=$(load_workflow "$child_id")
-    local main_steps
-    main_steps=$(echo "$child_workflow" | jq --arg phase "$phase" '.phases[$phase].steps // []')
-    main_steps=$(echo "$main_steps" | jq --arg src "$child_id" '[.[] | . + {"source": $src, "position": "step"}]')
-    merged_steps=$(echo "$merged_steps" "$main_steps" | jq -s '.[0] + .[1]')
+    # Main steps: nearest ancestor that defines `steps` wins.
+    # Walk child -> ancestors; the first layer with a defined `steps` array
+    # contributes. Preserves "child shadows" semantics across the full chain
+    # so middle-layer plugin steps surface when the child is silent.
+    for ((i=0; i<chain_length; i++)); do
+        local layer_id
+        layer_id=$(echo "$chain_json" | jq -r ".[$i]")
+        local layer_workflow
+        layer_workflow=$(load_workflow "$layer_id")
+        local has_steps
+        has_steps=$(echo "$layer_workflow" | jq --arg phase "$phase" '(.phases[$phase].steps // null) != null')
+        if [[ "$has_steps" == "true" ]]; then
+            local main_steps
+            main_steps=$(echo "$layer_workflow" | jq --arg phase "$phase" '.phases[$phase].steps')
+            main_steps=$(echo "$main_steps" | jq --arg src "$layer_id" '[.[] | . + {"source": $src, "position": "step"}]')
+            merged_steps=$(echo "$merged_steps" "$main_steps" | jq -s '.[0] + .[1]')
+            break
+        fi
+    done
 
     # Post-steps: iterate from child (first) to root (last) = chain order
     for ((i=0; i<chain_length; i++)); do

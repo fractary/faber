@@ -919,4 +919,201 @@ describe('WorkflowResolver', () => {
       expect(resolved.phases.architect.enabled).toBe(true);
     });
   });
+
+  describe('Phase steps Inheritance', () => {
+    it('should use child steps when child defines them (2-tier)', async () => {
+      createWorkflow('fractary-faber', 'base-2tier-child-wins', {
+        id: 'base-2tier-child-wins',
+        phases: {
+          evaluate: {
+            enabled: true,
+            steps: [{ id: 'base-step', name: 'Base step', prompt: 'base' }],
+          },
+        },
+      });
+
+      createWorkflow('project', 'child-2tier-wins', {
+        id: 'child-2tier-wins',
+        extends: 'faber@fractary-faber-base-2tier-child-wins',
+        phases: {
+          evaluate: {
+            steps: [{ id: 'child-step', name: 'Child step', prompt: 'child' }],
+          },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('child-2tier-wins');
+
+      expect(resolved.phases.evaluate.steps.map((s) => s.id)).toEqual(['child-step']);
+    });
+
+    it('should surface ancestor steps when child is silent (2-tier)', async () => {
+      createWorkflow('fractary-faber', 'base-2tier-silent', {
+        id: 'base-2tier-silent',
+        phases: {
+          evaluate: {
+            enabled: true,
+            steps: [
+              { id: 'base-a', name: 'Base A', prompt: 'a' },
+              { id: 'base-b', name: 'Base B', prompt: 'b' },
+            ],
+          },
+        },
+      });
+
+      createWorkflow('project', 'child-2tier-silent', {
+        id: 'child-2tier-silent',
+        extends: 'faber@fractary-faber-base-2tier-silent',
+        phases: {
+          release: { enabled: true },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('child-2tier-silent');
+
+      expect(resolved.phases.evaluate.steps.map((s) => s.id)).toEqual(['base-a', 'base-b']);
+      expect(resolved.phases.evaluate.steps.every((s) => s.position === 'step')).toBe(true);
+      expect(resolved.phases.evaluate.steps.every((s) => s.source === 'base-2tier-silent')).toBe(true);
+    });
+
+    it('should surface middle-layer steps when child is silent (3-tier)', async () => {
+      // Reproduces issue #221: child -> middle -> base, middle defines `steps`,
+      // child is silent on this phase. Middle's steps must surface.
+      createWorkflow('fractary-faber', 'base-3tier', {
+        id: 'base-3tier',
+        phases: {
+          evaluate: {
+            enabled: true,
+            pre_steps: [{ id: 'base-pre', name: 'Base pre', prompt: 'base pre' }],
+          },
+        },
+      });
+
+      createWorkflow('fractary-faber', 'middle-3tier', {
+        id: 'middle-3tier',
+        extends: 'faber@fractary-faber-base-3tier',
+        phases: {
+          evaluate: {
+            enabled: true,
+            steps: [
+              { id: 'middle-execute', name: 'Middle execute', prompt: 'run domain operation' },
+              { id: 'middle-validate', name: 'Middle validate', prompt: 'validate domain result' },
+            ],
+          },
+        },
+      });
+
+      createWorkflow('project', 'project-3tier', {
+        id: 'project-3tier',
+        extends: 'faber@fractary-faber-middle-3tier',
+        phases: {
+          release: {
+            steps: [{ id: 'project-deploy', name: 'Project deploy', prompt: 'deploy' }],
+          },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('project-3tier');
+
+      // pre_steps accumulate; main steps come from nearest ancestor that defines steps (middle)
+      const evaluate = resolved.phases.evaluate;
+      const preIds = evaluate.steps.filter((s) => s.position === 'pre_step').map((s) => s.id);
+      const mainSteps = evaluate.steps.filter((s) => s.position === 'step');
+
+      expect(preIds).toEqual(['base-pre']);
+      expect(mainSteps.map((s) => s.id)).toEqual(['middle-execute', 'middle-validate']);
+      expect(mainSteps.every((s) => s.source === 'middle-3tier')).toBe(true);
+    });
+
+    it('should let child shadow middle steps when child defines its own (3-tier)', async () => {
+      createWorkflow('fractary-faber', 'base-3tier-shadow', {
+        id: 'base-3tier-shadow',
+        phases: { evaluate: { enabled: true } },
+      });
+
+      createWorkflow('fractary-faber', 'middle-3tier-shadow', {
+        id: 'middle-3tier-shadow',
+        extends: 'faber@fractary-faber-base-3tier-shadow',
+        phases: {
+          evaluate: {
+            steps: [{ id: 'middle-step', name: 'Middle', prompt: 'middle' }],
+          },
+        },
+      });
+
+      createWorkflow('project', 'project-3tier-shadow', {
+        id: 'project-3tier-shadow',
+        extends: 'faber@fractary-faber-middle-3tier-shadow',
+        phases: {
+          evaluate: {
+            steps: [{ id: 'child-step', name: 'Child', prompt: 'child' }],
+          },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('project-3tier-shadow');
+
+      const mainSteps = resolved.phases.evaluate.steps.filter((s) => s.position === 'step');
+      expect(mainSteps.map((s) => s.id)).toEqual(['child-step']);
+      expect(mainSteps[0].source).toBe('project-3tier-shadow');
+    });
+
+    it('should surface root steps when child and middle are both silent (3-tier)', async () => {
+      createWorkflow('fractary-faber', 'base-3tier-root', {
+        id: 'base-3tier-root',
+        phases: {
+          evaluate: {
+            enabled: true,
+            steps: [{ id: 'root-only', name: 'Root only', prompt: 'root' }],
+          },
+        },
+      });
+
+      createWorkflow('fractary-faber', 'middle-3tier-root', {
+        id: 'middle-3tier-root',
+        extends: 'faber@fractary-faber-base-3tier-root',
+        phases: { evaluate: { enabled: true } },
+      });
+
+      createWorkflow('project', 'project-3tier-root', {
+        id: 'project-3tier-root',
+        extends: 'faber@fractary-faber-middle-3tier-root',
+        phases: { release: { enabled: true } },
+      });
+
+      const resolved = await resolver.resolveWorkflow('project-3tier-root');
+
+      const mainSteps = resolved.phases.evaluate.steps.filter((s) => s.position === 'step');
+      expect(mainSteps.map((s) => s.id)).toEqual(['root-only']);
+      expect(mainSteps[0].source).toBe('base-3tier-root');
+    });
+
+    it('should treat an explicit empty steps array as shadowing ancestor steps', async () => {
+      // phase.steps === [] means "child has explicitly no steps". The child
+      // defines `steps`, so the nearest-wins rule picks [] and ancestor steps
+      // are suppressed. This matches the intent of shadow semantics.
+      createWorkflow('fractary-faber', 'base-empty-shadow', {
+        id: 'base-empty-shadow',
+        phases: {
+          evaluate: {
+            enabled: true,
+            steps: [{ id: 'base-step', name: 'Base', prompt: 'base' }],
+          },
+        },
+      });
+
+      createWorkflow('project', 'child-empty-shadow', {
+        id: 'child-empty-shadow',
+        extends: 'faber@fractary-faber-base-empty-shadow',
+        phases: {
+          evaluate: { steps: [] },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('child-empty-shadow');
+
+      const mainSteps = resolved.phases.evaluate.steps.filter((s) => s.position === 'step');
+      expect(mainSteps).toEqual([]);
+    });
+  });
 });
