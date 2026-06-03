@@ -7,8 +7,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
+import { jest } from '@jest/globals';
 import { ConfigInitializer } from '../initializer.js';
 import { FaberConfig } from '../../types.js';
+import { fileURLToPath } from 'url';
+
+// ESM-compatible __dirname (this package is "type": "module").
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('ConfigInitializer', () => {
   const testDir = path.join(__dirname, '__test-configs__');

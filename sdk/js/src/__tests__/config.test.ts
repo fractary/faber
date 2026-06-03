@@ -17,6 +17,10 @@ import {
 } from '../config.js';
 import { ConfigInitializer } from '../config/initializer.js';
 import { ConfigValidationError } from '../errors.js';
+import { fileURLToPath } from 'url';
+
+// ESM-compatible __dirname (this package is "type": "module").
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('Config Loading Functions', () => {
   const testDir = path.join(__dirname, '__test-config-loading__');

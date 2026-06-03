@@ -11,6 +11,10 @@ import {
   WorkflowRegistryError,
   RegistryWorkflowNotFoundError,
 } from '../registry.js';
+import { fileURLToPath } from 'url';
+
+// ESM-compatible __dirname (this package is "type": "module").
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
 // Helpers
