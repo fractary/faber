@@ -575,6 +575,8 @@ export class WorkflowResolver {
    *   2. Sibling in same node_modules/@fractary/ directory
    *   3. Legacy Claude marketplace path (if marketplaceRoot is set)
    *   4. Auto-detected Claude plugin marketplaces directory (~/.claude/plugins/marketplaces/)
+   *   5. Single-plugin marketplace checkout root (plugin published at repo root,
+   *      no plugins/<plugin>/ tier) — both explicit and auto-detected locations
    */
   private resolveExternalPackageRoots(plugin: string, marketplace: string): string[] {
     const roots: string[] = [];
@@ -614,6 +616,17 @@ export class WorkflowResolver {
     const autoMarketplace = path.join(os.homedir(), '.claude', 'plugins', 'marketplaces');
     const autoPath = path.join(autoMarketplace, marketplace, 'plugins', plugin);
     if (fs.existsSync(autoPath)) roots.push(autoPath);
+
+    // 5. Single-plugin marketplace: plugin published at the marketplace repo root
+    //    (Claude marketplace.json "source": "./"). Workflows live at
+    //    <marketplace>/.fractary/faber/workflows/ with no plugins/<plugin>/ tier.
+    //    Appended after the monorepo candidates so existing resolution is unchanged.
+    if (this.marketplaceRoot) {
+      const bareRoot = path.join(this.marketplaceRoot, marketplace);
+      if (fs.existsSync(bareRoot)) roots.push(bareRoot);
+    }
+    const autoBareRoot = path.join(autoMarketplace, marketplace);
+    if (fs.existsSync(autoBareRoot)) roots.push(autoBareRoot);
 
     return roots;
   }

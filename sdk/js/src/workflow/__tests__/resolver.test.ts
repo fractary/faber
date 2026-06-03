@@ -610,6 +610,36 @@ describe('WorkflowResolver', () => {
       fs.writeFileSync(path.join(basePath, `${name}.json`), JSON.stringify(fullConfig, null, 2));
     }
 
+    /**
+     * Helper to create a workflow in a single-plugin marketplace layout, where the
+     * plugin is published at the marketplace repo root (Claude marketplace.json
+     * "source": "./") with no plugins/<plugin>/ tier:
+     *   <marketplaceRoot>/<marketplace>/.fractary/faber/workflows/<name>.json
+     */
+    function createSinglePluginWorkflow(
+      marketplace: string,
+      name: string,
+      config: Partial<WorkflowFileConfig>
+    ): void {
+      const basePath = path.join(marketplaceRoot, marketplace, '.fractary/faber/workflows');
+      fs.mkdirSync(basePath, { recursive: true });
+
+      const fullConfig: WorkflowFileConfig = {
+        id: config.id || name,
+        phases: config.phases || {
+          frame: { enabled: true },
+          architect: { enabled: true },
+          build: { enabled: true },
+          evaluate: { enabled: true },
+          release: { enabled: true },
+        },
+        autonomy: config.autonomy || { level: 'guarded' },
+        ...config,
+      };
+
+      fs.writeFileSync(path.join(basePath, `${name}.json`), JSON.stringify(fullConfig, null, 2));
+    }
+
     describe('Explicit plugin@marketplace:workflow Format', () => {
       it('should resolve explicit format: faber@fractary-faber-default', async () => {
         createExplicitWorkflow('fractary-faber', 'faber', 'default', {
@@ -669,6 +699,69 @@ describe('WorkflowResolver', () => {
         await expect(
           resolver.resolveWorkflow('nonexistent@nonexistent-marketplace:workflow')
         ).rejects.toThrow(WorkflowNotFoundError);
+      });
+
+      // Regression for #228: single-plugin marketplaces ship the plugin at the
+      // marketplace repo root (no plugins/<plugin>/ tier), so resolution must
+      // also try the bare <marketplace> checkout dir.
+      it('should resolve explicit format from a single-plugin marketplace (plugin at repo root)', async () => {
+        createSinglePluginWorkflow('corthos-corthography', 'template-render', {
+          id: 'template-render',
+          description: 'Template render workflow from single-plugin marketplace',
+        });
+
+        const resolved = await resolver.resolveWorkflow(
+          'corthos-corthography@corthos-corthography:template-render'
+        );
+
+        expect(resolved.id).toBe('template-render');
+        expect(resolved.description).toBe(
+          'Template render workflow from single-plugin marketplace'
+        );
+        expect(resolved.inheritance_chain).toEqual([
+          'corthos-corthography@corthos-corthography:template-render',
+        ]);
+      });
+
+      it('should support inheritance from a single-plugin marketplace parent', async () => {
+        createSinglePluginWorkflow('corthos-corthography', 'template-render', {
+          id: 'template-render',
+          description: 'Parent workflow',
+          context: {
+            global: 'Parent global context',
+          },
+        });
+
+        createWorkflow('project', 'my-render', {
+          id: 'my-render',
+          extends: 'corthos-corthography@corthos-corthography:template-render',
+          description: 'My custom render workflow',
+          context: {
+            global: 'My custom context',
+          },
+        });
+
+        const resolved = await resolver.resolveWorkflow('my-render');
+
+        expect(resolved.id).toBe('my-render');
+        expect(resolved.inheritance_chain).toEqual([
+          'my-render',
+          'corthos-corthography@corthos-corthography:template-render',
+        ]);
+        expect(resolved.context?.global).toBe('Parent global context\n\nMy custom context');
+      });
+
+      // Guard that the new bare-root candidates didn't shadow monorepo resolution.
+      it('should still resolve monorepo-layout marketplaces (plugins/<plugin>/ tier)', async () => {
+        createExplicitWorkflow('fractary-faber', 'faber', 'monorepo-wf', {
+          id: 'monorepo-wf',
+          description: 'Monorepo workflow',
+        });
+
+        const resolved = await resolver.resolveWorkflow('faber@fractary-faber:monorepo-wf');
+
+        expect(resolved.id).toBe('monorepo-wf');
+        expect(resolved.description).toBe('Monorepo workflow');
       });
     });
 
