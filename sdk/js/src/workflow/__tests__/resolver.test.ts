@@ -184,7 +184,7 @@ describe('WorkflowResolver', () => {
       it('should prepend ancestor global context to child global context', async () => {
         createWorkflow('project', 'child', {
           id: 'child',
-          extends: 'faber@fractary-faber-base',
+          extends: 'faber@fractary-faber:base',
           context: {
             global: 'Child global context',
           },
@@ -198,7 +198,7 @@ describe('WorkflowResolver', () => {
       it('should prepend ancestor phase context to child phase context', async () => {
         createWorkflow('project', 'child-phase', {
           id: 'child-phase',
-          extends: 'faber@fractary-faber-base',
+          extends: 'faber@fractary-faber:base',
           context: {
             phases: {
               build: 'Child build context',
@@ -216,7 +216,7 @@ describe('WorkflowResolver', () => {
       it('should override ancestor step context with child step context', async () => {
         createWorkflow('project', 'child-step', {
           id: 'child-step',
-          extends: 'faber@fractary-faber-base',
+          extends: 'faber@fractary-faber:base',
           context: {
             steps: {
               implement: 'Child implement step (overrides base)',
@@ -233,7 +233,7 @@ describe('WorkflowResolver', () => {
       it('should merge step contexts when different step IDs', async () => {
         createWorkflow('project', 'child-new-step', {
           id: 'child-new-step',
-          extends: 'faber@fractary-faber-base',
+          extends: 'faber@fractary-faber:base',
           context: {
             steps: {
               'new-step': 'Child new step context',
@@ -251,7 +251,7 @@ describe('WorkflowResolver', () => {
       it('should inherit ancestor context when child has none', async () => {
         createWorkflow('project', 'no-child-context', {
           id: 'no-child-context',
-          extends: 'faber@fractary-faber-base',
+          extends: 'faber@fractary-faber:base',
           // No context defined
         });
 
@@ -270,7 +270,7 @@ describe('WorkflowResolver', () => {
 
         createWorkflow('project', 'child-only-context', {
           id: 'child-only-context',
-          extends: 'faber@fractary-faber-no-ctx-base',
+          extends: 'faber@fractary-faber:no-ctx-base',
           context: {
             global: 'Child only global',
           },
@@ -302,7 +302,7 @@ describe('WorkflowResolver', () => {
         // Create parent extending core
         createWorkflow('fractary-faber', 'default', {
           id: 'default',
-          extends: 'faber@fractary-faber-core',
+          extends: 'faber@fractary-faber:core',
           context: {
             global: 'Default global',
             phases: {
@@ -319,7 +319,7 @@ describe('WorkflowResolver', () => {
       it('should accumulate global context from all ancestors (grandparent → parent → child)', async () => {
         createWorkflow('project', 'grandchild', {
           id: 'grandchild',
-          extends: 'faber@fractary-faber-default',
+          extends: 'faber@fractary-faber:default',
           context: {
             global: 'Grandchild global',
           },
@@ -333,7 +333,7 @@ describe('WorkflowResolver', () => {
       it('should accumulate phase context through inheritance chain', async () => {
         createWorkflow('project', 'grandchild-phase', {
           id: 'grandchild-phase',
-          extends: 'faber@fractary-faber-default',
+          extends: 'faber@fractary-faber:default',
           context: {
             phases: {
               build: 'Grandchild build',
@@ -356,7 +356,7 @@ describe('WorkflowResolver', () => {
       it('should resolve step contexts with proper override chain', async () => {
         createWorkflow('project', 'grandchild-step', {
           id: 'grandchild-step',
-          extends: 'faber@fractary-faber-default',
+          extends: 'faber@fractary-faber:default',
           context: {
             steps: {
               'core-step': 'Grandchild overrides core step',
@@ -378,15 +378,15 @@ describe('WorkflowResolver', () => {
       it('should preserve inheritance chain in resolved workflow', async () => {
         createWorkflow('project', 'grandchild-chain', {
           id: 'grandchild-chain',
-          extends: 'faber@fractary-faber-default',
+          extends: 'faber@fractary-faber:default',
         });
 
         const resolved = await resolver.resolveWorkflow('grandchild-chain');
 
         expect(resolved.inheritance_chain).toEqual([
           'grandchild-chain',
-          'faber@fractary-faber-default',
-          'faber@fractary-faber-core',
+          'faber@fractary-faber:default',
+          'faber@fractary-faber:core',
         ]);
       });
     });
@@ -495,7 +495,7 @@ describe('WorkflowResolver', () => {
 
         createWorkflow('project', 'extends-legacy', {
           id: 'extends-legacy',
-          extends: 'faber@fractary-faber-legacy',
+          extends: 'faber@fractary-faber:legacy',
           context: {
             global: 'New context on child',
           },
@@ -504,7 +504,7 @@ describe('WorkflowResolver', () => {
         const resolved = await resolver.resolveWorkflow('extends-legacy');
 
         expect(resolved.context?.global).toBe('New context on child');
-        expect(resolved.inheritance_chain).toEqual(['extends-legacy', 'faber@fractary-faber-legacy']);
+        expect(resolved.inheritance_chain).toEqual(['extends-legacy', 'faber@fractary-faber:legacy']);
       });
 
       it('should preserve other workflow properties alongside context', async () => {
@@ -641,17 +641,17 @@ describe('WorkflowResolver', () => {
     }
 
     describe('Explicit plugin@marketplace:workflow Format', () => {
-      it('should resolve explicit format: faber@fractary-faber-default', async () => {
+      it('should resolve explicit format: faber@fractary-faber:default', async () => {
         createExplicitWorkflow('fractary-faber', 'faber', 'default', {
           id: 'default',
           description: 'Default workflow from explicit format',
         });
 
-        const resolved = await resolver.resolveWorkflow('faber@fractary-faber-default');
+        const resolved = await resolver.resolveWorkflow('faber@fractary-faber:default');
 
         expect(resolved.id).toBe('default');
         expect(resolved.description).toBe('Default workflow from explicit format');
-        expect(resolved.inheritance_chain).toEqual(['faber@fractary-faber-default']);
+        expect(resolved.inheritance_chain).toEqual(['faber@fractary-faber:default']);
       });
 
       it('should resolve explicit format with different marketplace', async () => {
@@ -681,7 +681,7 @@ describe('WorkflowResolver', () => {
         // Create child extending parent using explicit format
         createWorkflow('project', 'my-workflow', {
           id: 'my-workflow',
-          extends: 'faber@fractary-faber-core',
+          extends: 'faber@fractary-faber:core',
           description: 'My custom workflow',
           context: {
             global: 'My custom context',
@@ -691,7 +691,7 @@ describe('WorkflowResolver', () => {
         const resolved = await resolver.resolveWorkflow('my-workflow');
 
         expect(resolved.id).toBe('my-workflow');
-        expect(resolved.inheritance_chain).toEqual(['my-workflow', 'faber@fractary-faber-core']);
+        expect(resolved.inheritance_chain).toEqual(['my-workflow', 'faber@fractary-faber:core']);
         expect(resolved.context?.global).toBe('Core global context\n\nMy custom context');
       });
 
@@ -916,7 +916,7 @@ describe('WorkflowResolver', () => {
       // Child (project-local) only adds a release step, no architect/build declaration
       createWorkflow('project', 'ingest-operate', {
         id: 'ingest-operate',
-        extends: 'faber@fractary-faber-ingest-base',
+        extends: 'faber@fractary-faber:ingest-base',
         phases: {
           release: { steps: [{ id: 'deploy', name: 'Deploy', prompt: 'Deploy the artifact' }] },
         },
@@ -943,7 +943,7 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('project', 'project-reenabled', {
         id: 'project-reenabled',
-        extends: 'faber@fractary-faber-plugin-disabled',
+        extends: 'faber@fractary-faber:plugin-disabled',
         phases: {
           architect: { enabled: true },
         },
@@ -969,7 +969,7 @@ describe('WorkflowResolver', () => {
       // Plugin extends core, disables architect
       createWorkflow('fractary-faber', 'plugin-no-architect', {
         id: 'plugin-no-architect',
-        extends: 'faber@fractary-faber-core-all-on',
+        extends: 'faber@fractary-faber:core-all-on',
         phases: {
           architect: { enabled: false },
         },
@@ -978,7 +978,7 @@ describe('WorkflowResolver', () => {
       // Project-local extends plugin, silent on architect
       createWorkflow('project', 'project-silent', {
         id: 'project-silent',
-        extends: 'faber@fractary-faber-plugin-no-architect',
+        extends: 'faber@fractary-faber:plugin-no-architect',
         phases: {
           release: { steps: [{ id: 'deploy', name: 'Deploy', prompt: 'Deploy the artifact' }] },
         },
@@ -1001,7 +1001,7 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('project', 'child-no-enabled', {
         id: 'child-no-enabled',
-        extends: 'faber@fractary-faber-no-enabled-flag',
+        extends: 'faber@fractary-faber:no-enabled-flag',
         phases: {
           release: { steps: [{ id: 'deploy', name: 'Deploy', prompt: 'Deploy the artifact' }] },
         },
@@ -1027,7 +1027,7 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('project', 'child-2tier-wins', {
         id: 'child-2tier-wins',
-        extends: 'faber@fractary-faber-base-2tier-child-wins',
+        extends: 'faber@fractary-faber:base-2tier-child-wins',
         phases: {
           evaluate: {
             steps: [{ id: 'child-step', name: 'Child step', prompt: 'child' }],
@@ -1056,7 +1056,7 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('project', 'child-2tier-silent', {
         id: 'child-2tier-silent',
-        extends: 'faber@fractary-faber-base-2tier-silent',
+        extends: 'faber@fractary-faber:base-2tier-silent',
         phases: {
           release: { enabled: true },
         },
@@ -1066,7 +1066,9 @@ describe('WorkflowResolver', () => {
 
       expect(resolved.phases.evaluate.steps.map((s) => s.id)).toEqual(['base-a', 'base-b']);
       expect(resolved.phases.evaluate.steps.every((s) => s.position === 'step')).toBe(true);
-      expect(resolved.phases.evaluate.steps.every((s) => s.source === 'base-2tier-silent')).toBe(true);
+      expect(
+        resolved.phases.evaluate.steps.every((s) => s.source === 'faber@fractary-faber:base-2tier-silent')
+      ).toBe(true);
     });
 
     it('should surface middle-layer steps when child is silent (3-tier)', async () => {
@@ -1084,7 +1086,7 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('fractary-faber', 'middle-3tier', {
         id: 'middle-3tier',
-        extends: 'faber@fractary-faber-base-3tier',
+        extends: 'faber@fractary-faber:base-3tier',
         phases: {
           evaluate: {
             enabled: true,
@@ -1098,7 +1100,7 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('project', 'project-3tier', {
         id: 'project-3tier',
-        extends: 'faber@fractary-faber-middle-3tier',
+        extends: 'faber@fractary-faber:middle-3tier',
         phases: {
           release: {
             steps: [{ id: 'project-deploy', name: 'Project deploy', prompt: 'deploy' }],
@@ -1115,7 +1117,7 @@ describe('WorkflowResolver', () => {
 
       expect(preIds).toEqual(['base-pre']);
       expect(mainSteps.map((s) => s.id)).toEqual(['middle-execute', 'middle-validate']);
-      expect(mainSteps.every((s) => s.source === 'middle-3tier')).toBe(true);
+      expect(mainSteps.every((s) => s.source === 'faber@fractary-faber:middle-3tier')).toBe(true);
     });
 
     it('should let child shadow middle steps when child defines its own (3-tier)', async () => {
@@ -1126,7 +1128,7 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('fractary-faber', 'middle-3tier-shadow', {
         id: 'middle-3tier-shadow',
-        extends: 'faber@fractary-faber-base-3tier-shadow',
+        extends: 'faber@fractary-faber:base-3tier-shadow',
         phases: {
           evaluate: {
             steps: [{ id: 'middle-step', name: 'Middle', prompt: 'middle' }],
@@ -1136,7 +1138,7 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('project', 'project-3tier-shadow', {
         id: 'project-3tier-shadow',
-        extends: 'faber@fractary-faber-middle-3tier-shadow',
+        extends: 'faber@fractary-faber:middle-3tier-shadow',
         phases: {
           evaluate: {
             steps: [{ id: 'child-step', name: 'Child', prompt: 'child' }],
@@ -1164,13 +1166,13 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('fractary-faber', 'middle-3tier-root', {
         id: 'middle-3tier-root',
-        extends: 'faber@fractary-faber-base-3tier-root',
+        extends: 'faber@fractary-faber:base-3tier-root',
         phases: { evaluate: { enabled: true } },
       });
 
       createWorkflow('project', 'project-3tier-root', {
         id: 'project-3tier-root',
-        extends: 'faber@fractary-faber-middle-3tier-root',
+        extends: 'faber@fractary-faber:middle-3tier-root',
         phases: { release: { enabled: true } },
       });
 
@@ -1178,7 +1180,7 @@ describe('WorkflowResolver', () => {
 
       const mainSteps = resolved.phases.evaluate.steps.filter((s) => s.position === 'step');
       expect(mainSteps.map((s) => s.id)).toEqual(['root-only']);
-      expect(mainSteps[0].source).toBe('base-3tier-root');
+      expect(mainSteps[0].source).toBe('faber@fractary-faber:base-3tier-root');
     });
 
     it('should treat an explicit empty steps array as shadowing ancestor steps', async () => {
@@ -1197,7 +1199,7 @@ describe('WorkflowResolver', () => {
 
       createWorkflow('project', 'child-empty-shadow', {
         id: 'child-empty-shadow',
-        extends: 'faber@fractary-faber-base-empty-shadow',
+        extends: 'faber@fractary-faber:base-empty-shadow',
         phases: {
           evaluate: { steps: [] },
         },

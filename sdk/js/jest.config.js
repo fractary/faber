@@ -1,10 +1,13 @@
 export default {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.ts', '**/*.+(spec|test).ts'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    // ESM transform so source using `import.meta` (resolver.ts, registry.ts)
+    // compiles. Requires running jest with NODE_OPTIONS=--experimental-vm-modules
+    // (see the `test` npm script). isolatedModules silences the hybrid-module warning.
+    '^.+\\.ts$': ['ts-jest', { useESM: true, isolatedModules: true }],
   },
   collectCoverageFrom: [
     'src/**/*.ts',

@@ -4,6 +4,7 @@
  * Integration tests for the full initialization workflow
  */
 
+import { jest } from '@jest/globals';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigInitializer } from '../../config/initializer.js';
@@ -12,6 +13,10 @@ import {
   loadWorkConfig,
   loadRepoConfig,
 } from '../../config.js';
+import { fileURLToPath } from 'url';
+
+// ESM-compatible __dirname (this package is "type": "module").
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('Init Workflow Integration', () => {
   const testDir = path.join(__dirname, '__test-init-workflow__');
