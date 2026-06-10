@@ -262,7 +262,7 @@
         },
         "model": {
           "type": "string",
-          "description": "Model identifier for CLI-native execution (e.g., 'claude-sonnet-4-6-20250514', 'gpt-4o'). Cascade: step > phase_defaults > defaults > CLI args."
+          "description": "Model identifier for CLI-native execution (e.g., 'claude-sonnet-4-6', 'gpt-4o'). Cascade: step > phase_defaults > defaults > CLI args."
         },
         "harness": {
           "type": "string",
@@ -557,7 +557,7 @@
         },
         "model": {
           "type": "string",
-          "description": "Default model identifier (e.g., 'claude-sonnet-4-6-20250514', 'gpt-4o')"
+          "description": "Default model identifier (e.g., 'claude-sonnet-4-6', 'gpt-4o')"
         },
         "harness": {
           "type": "string",

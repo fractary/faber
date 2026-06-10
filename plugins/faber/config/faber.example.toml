@@ -33,7 +33,7 @@ branch_naming = "feat/{issue_id}-{slug}"
 # Director agent configuration
 type = "default"                      # default | custom
 agent_ref = "agents/fractary-faber-faber-director.md"
-model = "claude-3.7"
+model = "claude-sonnet-4-6"
 max_tokens = 4096
 
 [safety]

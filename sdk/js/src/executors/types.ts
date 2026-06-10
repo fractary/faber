@@ -216,7 +216,7 @@ export type HarnessType = 'claude-code' | 'opencode' | 'codex' | 'api';
  * All fields are optional — unset fields inherit from the next level in the cascade.
  */
 export interface StepRuntimeConfig {
-  /** Model identifier (e.g., 'claude-sonnet-4-6-20250514', 'gpt-4o') */
+  /** Model identifier (e.g., 'claude-sonnet-4-6', 'gpt-4o') */
   model?: string;
 
   /**
