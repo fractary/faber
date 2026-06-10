@@ -26,7 +26,7 @@ import type {
 } from '../types.js';
 import { buildSystemPrompt } from '../types.js';
 
-const DEFAULT_MODEL = 'claude-sonnet-4-6-20250514';
+const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_MAX_TURNS = 25;
 const COMMAND_PREFIX = '!';
 

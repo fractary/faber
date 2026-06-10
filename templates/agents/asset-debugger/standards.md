@@ -266,7 +266,7 @@ Use this checklist to validate debugger agent definitions.
   - Should describe what it debugs
 
 - [ ] **MUST have** `model` field
-  - Valid values: `claude-haiku-4-5`, `claude-sonnet-4-6`, `claude-opus-4-6`
+  - Valid values: `claude-haiku-4-5`, `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-opus-4-8`
   - Recommended: `claude-sonnet-4-6` for debuggers
 
 - [ ] **MUST have** `tools` field

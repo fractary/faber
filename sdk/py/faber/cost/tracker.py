@@ -37,12 +37,13 @@ class ModelPricing:
         return input_cost + output_cost
 
 
-# Default pricing for common models (as of early 2025)
+# Default pricing for common models (as of mid 2026)
 DEFAULT_PRICING: dict[str, ModelPricing] = {
     # Anthropic
+    "claude-opus-4-8": ModelPricing(input_price=5.0, output_price=25.0),
     "claude-opus-4-20250514": ModelPricing(input_price=15.0, output_price=75.0),
     "claude-sonnet-4-6": ModelPricing(input_price=3.0, output_price=15.0),
-    "claude-haiku-4-5": ModelPricing(input_price=0.25, output_price=1.25),
+    "claude-haiku-4-5": ModelPricing(input_price=1.0, output_price=5.0),
     # OpenAI
     "gpt-4o": ModelPricing(input_price=2.50, output_price=10.0),
     "gpt-4o-mini": ModelPricing(input_price=0.15, output_price=0.60),

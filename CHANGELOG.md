@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Version Bumps
+
+| Component | Version | Change |
+|-----------|---------|--------|
+| faber plugin | 5.1.3 | Patch |
+| Marketplace | 5.1.3 | Patch |
+
+### Changed
+
+- **Model Update**: Updated model references to the latest equivalent Claude models
+  - Updated Opus references from `claude-opus-4-6` to `claude-opus-4-8` (issue-reviewer skill, plugin reference docs)
+  - Added `claude-opus-4-8` alongside `claude-opus-4-6` in agent template model enums and the SDK `ModelName` type
+  - Normalized invalid dated Sonnet ID `claude-sonnet-4-6-20250514` to `claude-sonnet-4-6` (workflow defaults, SDK executor defaults, schema examples)
+  - Replaced retired `claude-3.7` example model with `claude-sonnet-4-6` in example configs and skill docs
+  - Added `claude-opus-4-8` pricing and corrected `claude-haiku-4-5` pricing in the Python SDK cost tracker
+
 ## [1.5.47] - 2026-03-28
 
 > **Note:** Patch releases 1.5.2 through 1.5.47 were not individually documented. This entry covers all changes since 1.5.1.

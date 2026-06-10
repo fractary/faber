@@ -5,7 +5,7 @@
  * Used in CLI-native mode where Claude Code is not available.
  *
  * Default env var: ANTHROPIC_API_KEY
- * Default model: claude-sonnet-4-6-20250514
+ * Default model: claude-sonnet-4-6
  */
 
 import type {
@@ -17,7 +17,7 @@ import type {
 import { buildSystemPrompt } from '../types.js';
 import type { ClaudeAgentExecuteOptions } from './claude-agent.js';
 
-const DEFAULT_MODEL = 'claude-sonnet-4-6-20250514';
+const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_MAX_TOKENS = 8192;
 const DEFAULT_API_KEY_ENV = 'ANTHROPIC_API_KEY';
 const API_BASE_URL = 'https://api.anthropic.com/v1';

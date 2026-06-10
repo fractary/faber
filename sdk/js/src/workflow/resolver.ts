@@ -95,7 +95,7 @@ export interface WorkflowStep {
   // executes steps directly within its own session.
   // Cascade: step > phase_defaults[phase] > workflow.defaults > CLI args
 
-  /** Model identifier (e.g., 'claude-sonnet-4-6-20250514', 'gpt-4o') */
+  /** Model identifier (e.g., 'claude-sonnet-4-6', 'gpt-4o') */
   model?: string;
   /** Agentic harness: 'claude-code' | 'opencode' | 'codex' | 'api' */
   harness?: string;
