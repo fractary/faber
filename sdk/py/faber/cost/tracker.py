@@ -40,6 +40,8 @@ class ModelPricing:
 # Default pricing for common models (as of mid 2026)
 DEFAULT_PRICING: dict[str, ModelPricing] = {
     # Anthropic
+    "claude-opus-5": ModelPricing(input_price=5.0, output_price=25.0),
+    "claude-sonnet-5": ModelPricing(input_price=2.0, output_price=10.0),
     "claude-opus-4-8": ModelPricing(input_price=5.0, output_price=25.0),
     "claude-opus-4-20250514": ModelPricing(input_price=15.0, output_price=75.0),
     "claude-sonnet-4-6": ModelPricing(input_price=3.0, output_price=15.0),

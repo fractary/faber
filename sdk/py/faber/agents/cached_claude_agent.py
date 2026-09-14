@@ -31,7 +31,7 @@ class CachedClaudeAgent:
         context.load_from_file(".fractary/docs/STANDARDS.md", "Standards")
 
         agent = CachedClaudeAgent(
-            model="anthropic:claude-sonnet-4-6",
+            model="anthropic:claude-sonnet-5",
             agent_name="my-agent",
             agent_prompt="You are a helpful agent",
             tools=[tool1, tool2],
@@ -53,7 +53,7 @@ class CachedClaudeAgent:
         """Initialize cached Claude agent.
 
         Args:
-            model: Model string (e.g., "anthropic:claude-sonnet-4-6")
+            model: Model string (e.g., "anthropic:claude-sonnet-5")
             agent_name: Agent name
             agent_prompt: Agent-specific system prompt
             tools: List of tools agent can use
@@ -211,7 +211,7 @@ class CachedClaudeAgent:
         # Make initial call with caching
         response = self.client.messages.create(
             model=self.model_name,
-            max_tokens=4096,
+            max_tokens=16000,
             system=self.system_blocks,  # Includes cache_control markers
             messages=anthropic_messages,
             tools=self.anthropic_tools if self.anthropic_tools else None,
@@ -231,7 +231,7 @@ class CachedClaudeAgent:
 
             response = self.client.messages.create(
                 model=self.model_name,
-                max_tokens=4096,
+                max_tokens=16000,
                 system=self.system_blocks,  # Cache hit!
                 messages=anthropic_messages,
                 tools=self.anthropic_tools if self.anthropic_tools else None,

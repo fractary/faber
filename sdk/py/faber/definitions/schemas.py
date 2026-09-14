@@ -25,16 +25,19 @@ class LLMConfig(BaseModel):
     )
     model: str = Field(
         ...,
-        description="Model identifier (e.g., claude-sonnet-4-6)",
+        description="Model identifier (e.g., claude-sonnet-5)",
     )
-    temperature: float = Field(
-        default=0.0,
+    temperature: Optional[float] = Field(
+        default=None,
         ge=0.0,
         le=1.0,
-        description="Temperature for sampling (0.0-1.0)",
+        description=(
+            "Temperature for sampling (0.0-1.0). Leave unset for Claude Opus 4.7+, "
+            "Opus 5, and Sonnet 5, which reject sampling parameters."
+        ),
     )
     max_tokens: int = Field(
-        default=4096,
+        default=16000,
         ge=1,
         le=200000,
         description="Maximum tokens in response",

@@ -98,8 +98,7 @@ type: agent
 
 llm:
   provider: anthropic
-  model: claude-opus-4-20250514
-  temperature: 0.0
+  model: claude-opus-5
 
 system_prompt: |
   You are a data engineering agent that creates ETL pipelines.

@@ -608,7 +608,7 @@ Different operations need different model capabilities:
 **Manager agent (highest common denominator):**
 ```yaml
 # Must use most expensive model for ANY operation
-model: claude-sonnet-4-6  # $15/million tokens
+model: claude-sonnet-5  # $2 in / $10 out per million tokens
 ```
 
 Why? Because:
@@ -620,17 +620,17 @@ Why? Because:
 **Dedicated agents (right model for job):**
 ```yaml
 # branch-create agent (deterministic)
-model: claude-haiku-4-5  # $1/million tokens
+model: claude-haiku-4-5  # $1 in / $5 out per million tokens
 
 # pr-review agent (complex reasoning)
-model: claude-sonnet-4-6  # $15/million tokens
+model: claude-sonnet-5  # $2 in / $10 out per million tokens
 
 # commit agent (simple)
-model: claude-haiku-4-5  # $1/million tokens
+model: claude-haiku-4-5  # $1 in / $5 out per million tokens
 ```
 
 Benefits:
-- ✅ **15x cost savings** on simple operations
+- ✅ **2x cost savings** on simple operations
 - ✅ Fast operations use fast model
 - ✅ Complex operations get powerful model
 - ✅ Right tool for right job
@@ -639,12 +639,12 @@ Benefits:
 
 | Operation | Manager (Sonnet) | Dedicated (Haiku) | Savings |
 |-----------|-----------------|-------------------|---------|
-| List branches | $0.015 | $0.001 | **93%** |
-| Create branch | $0.015 | $0.001 | **93%** |
-| Simple commit | $0.015 | $0.001 | **93%** |
-| Review PR | $0.015 | $0.015 | 0% (needs Sonnet) |
+| List branches | $0.010 | $0.005 | **50%** |
+| Create branch | $0.010 | $0.005 | **50%** |
+| Simple commit | $0.010 | $0.005 | **50%** |
+| Review PR | $0.010 | $0.010 | 0% (needs Sonnet) |
 
-**With dedicated agents:** 3 of 4 operations run 15x cheaper.
+**With dedicated agents:** 3 of 4 operations run 2x cheaper.
 
 **4. Context and Token Optimization**
 
@@ -1210,7 +1210,6 @@ allowed-tools: Skill(fractary-pr-context-preparer), Task(fractary-repo-pr-create
 name: fractary-plugin-command-name
 description: Brief description - delegates to agent
 allowed-tools: Task
-model: claude-haiku-4-5
 argument-hint: '[arg1] [--flag] [--option <value>]'
 ---
 
@@ -1229,8 +1228,9 @@ Task(
 - `name`: Namespaced command name (fractary-plugin-command-name)
 - `description`: Brief description mentioning delegation
 - `allowed-tools: Task`: **CRITICAL** - Physical enforcement of delegation
-- `model`: Usually `claude-haiku-4-5` for efficiency
 - `argument-hint`: Shows expected parameters to user
+
+> **Do not set `model` on commands or skills.** They run inside the master agent, and a model that diverges from it breaks context continuity. Model selection belongs on the agents they delegate to.
 
 **Responsibilities:**
 - Describe what the command does
@@ -1244,7 +1244,6 @@ Task(
 name: fractary-repo-commit
 description: Create semantic commits - delegates to fractary-repo-commit agent
 allowed-tools: Task
-model: claude-haiku-4-5
 argument-hint: '["message"] [--type <type>] [--work-id <id>] [--scope <scope>]'
 ---
 
@@ -1263,7 +1262,6 @@ Task(
 name: fractary-repo-pr-create
 description: Create pull request with conversation context
 allowed-tools: Skill(fractary-pr-context-preparer), Task(fractary-repo-pr-create), TaskCreate, TaskUpdate
-model: claude-sonnet-4-6
 argument-hint: '["title"] [--body "<text>"] [--base <branch>]'
 ---
 

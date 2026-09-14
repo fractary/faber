@@ -129,9 +129,9 @@ workflow:
 
   models:
     frame: anthropic:claude-haiku-4-5
-    architect: anthropic:claude-sonnet-4-6
-    build: anthropic:claude-sonnet-4-6
-    evaluate: anthropic:claude-sonnet-4-6
+    architect: anthropic:claude-opus-5
+    build: anthropic:claude-sonnet-5
+    evaluate: anthropic:claude-sonnet-5
     release: anthropic:claude-haiku-4-5
 
   human_approval:
@@ -303,7 +303,7 @@ config = CostConfig(
 
 tracker = CostTracker("workflow-123", config)
 tracker.add_usage(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     input_tokens=10000,
     output_tokens=5000,
     phase="architect",

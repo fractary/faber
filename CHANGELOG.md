@@ -11,10 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Component | Version | Change |
 |-----------|---------|--------|
-| faber plugin | 5.1.3 | Patch |
-| Marketplace | 5.1.3 | Patch |
+| faber plugin | 5.2.0 | Minor |
+| Marketplace | 5.2.0 | Minor |
 
 ### Changed
+
+- **Model Re-tier (Claude Opus 5 / Sonnet 5)**: Agents now pick models by task complexity
+  - Agent templates: architect, engineer, and engineer-validator → `claude-opus-5`. Architect-validator, configurator, debugger, and project-auditor → `claude-sonnet-5`. Inspector stays on `claude-haiku-4-5`
+  - Template model enums and the SDK `ModelName` type now accept `claude-sonnet-5` and `claude-opus-5`. `claude-sonnet-4-6` and `claude-opus-4-8` are kept for back-compat; `claude-opus-4-6` is dropped
+  - JS SDK: executor and workflow defaults move to `claude-sonnet-5`. The Claude API executor's default `max_tokens` rises from 8192 to 16000, because adaptive thinking tokens count toward the limit
+  - Python SDK: architect phase → `claude-opus-5`, build/evaluate → `claude-sonnet-5`, frame/release stay on `claude-haiku-4-5`. Added `claude-opus-5` and `claude-sonnet-5` pricing. The retired `claude-opus-4-20250514` examples are replaced
+  - Python SDK: `LLMConfig.temperature` now defaults to unset, and Anthropic requests no longer send `temperature=0.0`, which Opus 5 and Sonnet 5 reject. OpenAI/Google keep 0.0. The default `max_tokens` rises from 4096 to 16000
+- **Skills no longer define a model**: Skills run inside the master agent, so model names were removed from the issue-reviewer and faber-debugger skills (prose, report footers, `model_used` output), from the `[director]` config examples, and from command frontmatter examples in the plugin framework guide
 
 - **Model Update**: Updated model references to the latest equivalent Claude models
   - Updated Opus references from `claude-opus-4-6` to `claude-opus-4-8` (issue-reviewer skill, plugin reference docs)

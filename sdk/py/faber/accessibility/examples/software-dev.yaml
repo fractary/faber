@@ -22,10 +22,10 @@ config:
   max_retries: 3
 
 models:
-  default: anthropic:claude-sonnet-4-6
+  default: anthropic:claude-sonnet-5
   classification: anthropic:claude-haiku-4-5
-  reasoning: anthropic:claude-sonnet-4-6
-  review: anthropic:claude-sonnet-4-6
+  reasoning: anthropic:claude-opus-5
+  review: anthropic:claude-sonnet-5
 
 phases:
   - name: frame
