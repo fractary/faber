@@ -43,7 +43,7 @@ class Trigger(BaseModel):
 class ModelConfig(BaseModel):
     """Model routing configuration."""
 
-    default: str = "anthropic:claude-sonnet-4-6"
+    default: str = "anthropic:claude-sonnet-5"
     classification: Optional[str] = None
     reasoning: Optional[str] = None
     review: Optional[str] = None
@@ -194,7 +194,7 @@ class WorkflowSchema(BaseModel):
         description: My custom workflow
 
         models:
-          default: anthropic:claude-sonnet-4-6
+          default: anthropic:claude-sonnet-5
           classification: anthropic:claude-haiku-4-5
 
         phases:
@@ -276,7 +276,7 @@ class AgentSchema(BaseModel):
     Example YAML:
         name: custom-architect
         extends: architect-agent
-        model: anthropic:claude-opus-4-20250514
+        model: anthropic:claude-opus-5
         tools:
           - search_codebase
         system_prompt: |

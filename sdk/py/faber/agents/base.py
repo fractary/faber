@@ -25,10 +25,10 @@ class FaberAgentConfig:
     description: str
     system_prompt: str
     tools: Sequence[BaseTool | Callable]
-    model: str = "anthropic:claude-sonnet-4-6"
+    model: str = "anthropic:claude-sonnet-5"
     human_approval: bool = False
     max_iterations: int = 50
-    temperature: float = 0.0
+    temperature: Optional[float] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -118,7 +118,7 @@ def _get_model(model_string: str) -> BaseChatModel:
     """Get a LangChain model from a model string.
 
     Args:
-        model_string: Model identifier like "anthropic:claude-sonnet-4-6"
+        model_string: Model identifier like "anthropic:claude-sonnet-5"
                      or "openai:gpt-4o"
 
     Returns:
@@ -136,7 +136,7 @@ def _get_model(model_string: str) -> BaseChatModel:
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        return ChatAnthropic(model=model_name)
+        return ChatAnthropic(model=model_name, max_tokens=16000)
     elif provider == "openai":
         from langchain_openai import ChatOpenAI
 

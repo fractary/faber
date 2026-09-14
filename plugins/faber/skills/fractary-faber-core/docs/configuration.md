@@ -69,7 +69,6 @@ Director configuration.
 [director]
 type = "default"                               # default | custom
 skill_ref = "skills/fractary-faber-workflow-run/SKILL.md"  # Skill file path
-model = "claude-sonnet-4-6"                    # AI model
 max_tokens = 4096                              # Max response tokens
 ```
 

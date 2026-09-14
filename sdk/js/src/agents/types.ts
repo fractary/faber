@@ -37,7 +37,12 @@ export type AgentTypeId =
 export type FaberPhaseName = 'frame' | 'architect' | 'build' | 'evaluate' | 'release' | 'any';
 
 /** Model names */
-export type ModelName = 'claude-haiku-4-5' | 'claude-sonnet-4-6' | 'claude-opus-4-6' | 'claude-opus-4-8';
+export type ModelName =
+  | 'claude-haiku-4-5'
+  | 'claude-sonnet-5'
+  | 'claude-opus-5'
+  | 'claude-sonnet-4-6'
+  | 'claude-opus-4-8';
 
 /** Memory scope for cross-session knowledge persistence */
 export type MemoryScope = 'user' | 'project' | 'local';

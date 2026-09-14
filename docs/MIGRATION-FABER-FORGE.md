@@ -187,8 +187,7 @@ description: Custom agent for specialized tasks
 
 llm:
   provider: anthropic
-  model: claude-sonnet-4-6
-  temperature: 0.0
+  model: claude-sonnet-5
   max_tokens: 8192
 
 system_prompt: |
@@ -354,7 +353,7 @@ tools:
   - tool2
 llm:
   provider: anthropic
-  model: claude-sonnet-4-6
+  model: claude-sonnet-5
 version: "1.0.0"
 ```
 

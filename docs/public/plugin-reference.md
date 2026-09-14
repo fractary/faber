@@ -31,7 +31,7 @@ Execute a FABER workflow. The primary command that runs through all 5 phases (Fr
 | `--step <step-id>` | Execute only specified step(s), comma-separated |
 | `--worktree` | Auto-create worktree on conflict without prompting |
 
-**Model:** claude-opus-4-8 (runs directly, not delegated)
+**Execution:** Runs directly in the main agent context (inherits the session model)
 
 **Example:**
 ```

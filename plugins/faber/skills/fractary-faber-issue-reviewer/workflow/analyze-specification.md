@@ -4,7 +4,7 @@ This workflow step verifies that code changes implement all requirements from th
 
 ## Overview
 
-Using the claude-opus-4-8 model, analyze:
+Analyze:
 1. Requirements from specification (or issue if no spec)
 2. Code changes made
 3. Coverage of each requirement by implementation
@@ -75,7 +75,7 @@ Extract from issue description:
 
 For each requirement, analyze if code changes implement it:
 
-**Model Prompt (claude-opus-4-8):**
+**Analysis Prompt:**
 ```
 Role: Code Specification Reviewer
 
@@ -174,7 +174,6 @@ Create detailed compliance analysis:
 {
   "compliance_analysis": {
     "timestamp": "2025-12-05T15:45:00Z",
-    "model_used": "claude-opus-4-8",
     "coverage": {
       "percentage": 94,
       "fully_implemented": 7,

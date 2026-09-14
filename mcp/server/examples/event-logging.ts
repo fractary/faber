@@ -77,7 +77,7 @@ async function logWorkflowEvents() {
         step: 'analyze_requirements',
         status: 'completed',
         message: 'Requirements analysis complete',
-        agent_id: 'claude-sonnet-4.6',
+        agent_id: 'claude-sonnet-5',
         artifacts: [
           {
             type: 'specification',

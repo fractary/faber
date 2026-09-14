@@ -274,7 +274,7 @@ fractary-faber workflow-execute <plan-path> [options]
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--model <model>` | Default model for steps without an explicit executor | `claude-sonnet-4-6` |
+| `--model <model>` | Default model for steps without an explicit executor | `claude-sonnet-5` |
 | `--phase <phases>` | Execute only specified phase(s) — comma-separated (e.g., `build,evaluate`) | |
 | `--step <step-id>` | Execute only a specific step | |
 | `--json` | Output as JSON | |

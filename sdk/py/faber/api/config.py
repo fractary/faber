@@ -44,9 +44,9 @@ def init_config(
             "max_retries": 3,
             "models": {
                 "frame": "anthropic:claude-haiku-4-5",
-                "architect": "anthropic:claude-sonnet-4-6",
-                "build": "anthropic:claude-sonnet-4-6",
-                "evaluate": "anthropic:claude-sonnet-4-6",
+                "architect": "anthropic:claude-opus-5",
+                "build": "anthropic:claude-sonnet-5",
+                "evaluate": "anthropic:claude-sonnet-5",
                 "release": "anthropic:claude-haiku-4-5",
             },
             "human_approval": {

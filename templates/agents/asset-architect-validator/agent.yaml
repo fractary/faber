@@ -13,7 +13,7 @@ validation_mode: static
 
 # Model and tool configuration
 config:
-  recommended_model: claude-sonnet-4-6
+  recommended_model: claude-sonnet-5
   common_tools:
     - Read
     - Glob
@@ -149,10 +149,11 @@ frontmatter_schema:
       type: string
       enum:
         - claude-haiku-4-5
+        - claude-sonnet-5
+        - claude-opus-5
         - claude-sonnet-4-6
-        - claude-opus-4-6
         - claude-opus-4-8
-      default: claude-sonnet-4-6
+      default: claude-sonnet-5
     tools:
       type: array
       items:

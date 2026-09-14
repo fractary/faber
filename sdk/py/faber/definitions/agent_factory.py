@@ -233,19 +233,20 @@ class AgentFactory:
             AgentFactoryError: If provider not supported
         """
         provider = llm_config.provider.lower()
-        model_name = llm_config.model
-        temperature = llm_config.temperature
-        max_tokens = llm_config.max_tokens
+        # Only send temperature when explicitly set: Claude Opus 4.7+, Opus 5,
+        # and Sonnet 5 reject sampling parameters. Other providers keep a 0.0 default.
+        model_kwargs: Dict[str, Any] = {
+            "model": llm_config.model,
+            "max_tokens": llm_config.max_tokens,
+        }
+        if llm_config.temperature is not None:
+            model_kwargs["temperature"] = llm_config.temperature
 
         if provider == "anthropic":
             try:
                 from langchain_anthropic import ChatAnthropic
 
-                return ChatAnthropic(
-                    model=model_name,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
+                return ChatAnthropic(**model_kwargs)
             except ImportError:
                 raise AgentFactoryError(
                     "langchain-anthropic not installed. "
@@ -256,11 +257,7 @@ class AgentFactory:
             try:
                 from langchain_openai import ChatOpenAI
 
-                return ChatOpenAI(
-                    model=model_name,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
+                return ChatOpenAI(**{"temperature": 0.0, **model_kwargs})
             except ImportError:
                 raise AgentFactoryError(
                     "langchain-openai not installed. "
@@ -271,11 +268,7 @@ class AgentFactory:
             try:
                 from langchain_google_genai import ChatGoogleGenerativeAI
 
-                return ChatGoogleGenerativeAI(
-                    model=model_name,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
+                return ChatGoogleGenerativeAI(**{"temperature": 0.0, **model_kwargs})
             except ImportError:
                 raise AgentFactoryError(
                     "langchain-google-genai not installed. "
