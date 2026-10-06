@@ -277,7 +277,10 @@ fractary-faber workflow-execute <plan-path> [options]
 | `--model <model>` | Default model for steps without an explicit executor | `claude-sonnet-5` |
 | `--phase <phases>` | Execute only specified phase(s) — comma-separated (e.g., `build,evaluate`) | |
 | `--step <step-id>` | Execute only a specific step | |
+| `--resume <run-id>` | Resume an earlier run of this plan, skipping the steps it completed | |
 | `--json` | Output as JSON | |
+
+Each execution is a run with its own ID, `{plan_id}-run-{timestamp}`. The run's state is saved next to the plan, in `state-{timestamp}.json`, after every step starts and finishes, in the same format the `fractary-faber-workflow-run` skill writes. A run that crashed, failed, or ran only some phases can be resumed with `--resume`: completed steps are skipped and the interrupted or failed step runs again. The run ends `completed`, `failed`, or `paused` (when a phase or step filter left steps unrun); inspect it with `run-inspect --run-id <run-id>` or check it with `runs verify-complete <run-id>`.
 
 **Example:**
 ```bash
@@ -286,6 +289,9 @@ fractary-faber workflow-execute .fractary/faber/runs/abc123/plan.json
 
 # Execute only the build and evaluate phases
 fractary-faber workflow-execute .fractary/faber/runs/abc123/plan.json --phase build,evaluate
+
+# Resume a run that was interrupted
+fractary-faber workflow-execute .fractary/faber/runs/abc123/plan.json --resume abc123-run-2026-10-06T18-04-05Z
 ```
 
 ### workflow-resolve
@@ -341,12 +347,13 @@ fractary-faber run-inspect [options]
 
 | Option | Description |
 |--------|-------------|
+| `--run-id <id>` | Run ID to check (`{plan_id}-run-{timestamp}`) |
 | `--work-id <id>` | Work item ID to check |
 | `--workflow-id <id>` | Workflow ID to check |
-| `--verbose` | Show detailed phase status |
+| `--verbose` | Show detailed phase status (and step status for runs) |
 | `--json` | Output as JSON |
 
-If neither `--work-id` nor `--workflow-id` is provided, lists all workflows.
+Runs started by `workflow-execute` or the `fractary-faber-workflow-run` skill are shown by `--run-id`, and by `--work-id` (latest run) when the work item has no active legacy workflow. If no option is provided, lists all workflows and all runs; with `--json`, runs are listed under a separate `runs` key.
 
 ### workflow-resume (removed)
 
@@ -487,7 +494,7 @@ fractary-faber session-save [options]
 
 ## Runs
 
-Query FABER run paths. All run files are stored in `.fractary/faber/runs/{run_id}/`.
+Query FABER run paths. All run files are stored in `.fractary/faber/runs/{run_id}/`. A plan-scoped run ID (`{plan_id}-run-{timestamp}`) resolves to its plan's directory, where each run has its own state file: `.fractary/faber/runs/{plan_id}/state-{timestamp}.json`.
 
 ### runs dir
 

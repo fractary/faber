@@ -8,12 +8,17 @@
  * - plan.json: The execution plan
  * - state.json: The workflow state
  *
+ * A plan-scoped run ID (`{plan_id}-run-{run_suffix}`) resolves to its plan's
+ * directory, where each run of the plan has its own state file:
+ * .fractary/faber/runs/{plan_id}/state-{run_suffix}.json
+ *
  * Active workflow tracking: .fractary/faber/runs/.active-run-id
  * - Contains the run ID of the currently active workflow in this worktree
  */
 
 import { Command } from 'commander';
 import * as fs from 'fs';
+import * as path from 'path';
 import {
   FABER_RUNS_DIR,
   ACTIVE_RUN_ID_FILE,
@@ -22,8 +27,16 @@ import {
   getPlanPath,
   getStatePath,
   getActiveRunIdPath,
+  findProjectRoot,
   RELATIVE_PATHS,
 } from '@fractary/faber';
+
+/** Resolve a run path with `resolve`, returning it absolute and relative to the project root */
+function resolveRunPath(resolve: (projectRoot: string) => string): { absolute: string; relative: string } {
+  const projectRoot = findProjectRoot();
+  const absolute = resolve(projectRoot);
+  return { absolute, relative: path.relative(projectRoot, absolute).split(path.sep).join('/') };
+}
 
 export function createRunsCommand(): Command {
   const runsCmd = new Command('runs')
@@ -39,8 +52,7 @@ export function createRunsCommand(): Command {
       try {
         if (runId) {
           // Specific run directory
-          const absPath = getRunDir(runId);
-          const relPath = `${FABER_RUNS_DIR}/${runId}`;
+          const { absolute: absPath, relative: relPath } = resolveRunPath((root) => getRunDir(runId, root));
 
           if (options.json) {
             console.log(JSON.stringify({
@@ -78,8 +90,7 @@ export function createRunsCommand(): Command {
     .option('--json', 'Output as JSON')
     .action((runId: string, options) => {
       try {
-        const absPath = getPlanPath(runId);
-        const relPath = `${FABER_RUNS_DIR}/${runId}/plan.json`;
+        const { absolute: absPath, relative: relPath } = resolveRunPath((root) => getPlanPath(runId, root));
 
         if (options.json) {
           console.log(JSON.stringify({
@@ -104,8 +115,7 @@ export function createRunsCommand(): Command {
     .option('--json', 'Output as JSON')
     .action((runId: string, options) => {
       try {
-        const absPath = getStatePath(runId);
-        const relPath = `${FABER_RUNS_DIR}/${runId}/state.json`;
+        const { absolute: absPath, relative: relPath } = resolveRunPath((root) => getStatePath(runId, root));
 
         if (options.json) {
           console.log(JSON.stringify({
@@ -158,6 +168,7 @@ export function createRunsCommand(): Command {
         console.log(`  Run Directory:      ${RELATIVE_PATHS.RUN_DIR_TEMPLATE}`);
         console.log(`  Plan File:          ${RELATIVE_PATHS.PLAN_PATH_TEMPLATE}`);
         console.log(`  State File:         ${RELATIVE_PATHS.STATE_PATH_TEMPLATE}`);
+        console.log(`  Run State File:     ${RELATIVE_PATHS.RUN_STATE_PATH_TEMPLATE}`);
         console.log(`  Active Run ID File: ${RELATIVE_PATHS.ACTIVE_RUN_ID_FILE}`);
       }
     });

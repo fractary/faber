@@ -22,7 +22,12 @@ import {
   WorkflowResolver,
   ExecutorRegistry,
   WorkflowExecutor,
+  RunStateStore,
+  parseRunId,
+  getRunsDir,
+  getStatePath,
 } from '@fractary/faber';
+import type { RunState } from '@fractary/faber';
 import { parsePositiveInteger } from '../../utils/validation.js';
 
 /**
@@ -33,6 +38,7 @@ import { parsePositiveInteger } from '../../utils/validation.js';
 export function createStatusCommand(): Command {
   return new Command('run-inspect')
     .description('Show workflow run status')
+    .option('--run-id <id>', 'Run ID to check ({plan_id}-run-{timestamp})')
     .option('--work-id <id>', 'Work item ID to check')
     .option('--workflow-id <id>', 'Workflow ID to check')
     .option('--verbose', 'Show detailed status')
@@ -41,7 +47,23 @@ export function createStatusCommand(): Command {
       try {
         const stateManager = new StateManager();
 
-        if (options.workflowId) {
+        if (options.runId) {
+          // Status for one run, started by workflow-execute or the workflow-run skill
+          const statePath = getStatePath(options.runId);
+          let content: string;
+          try {
+            content = await fs.readFile(statePath, 'utf-8');
+          } catch {
+            throw new Error(`Run state not found: ${statePath}`);
+          }
+          const state = JSON.parse(content) as RunState;
+
+          if (options.json) {
+            console.log(JSON.stringify({ status: 'success', data: state }, null, 2));
+          } else {
+            printRunState(state, options.verbose);
+          }
+        } else if (options.workflowId) {
           // Status for specific workflow by ID
           const workflow = new FaberWorkflow();
           const status = workflow.status.get(options.workflowId);
@@ -58,6 +80,20 @@ export function createStatusCommand(): Command {
           const state = stateManager.workflow.getActive(options.workId);
 
           if (!state) {
+            // Runs started by workflow-execute or the workflow-run skill, newest first
+            const runs = RunStateStore.listAll(getRunsDir(), { workId: options.workId });
+            if (runs.length > 0) {
+              if (options.json) {
+                console.log(JSON.stringify({ status: 'success', data: runs[0] }, null, 2));
+              } else {
+                printRunState(runs[0], options.verbose);
+                if (runs.length > 1) {
+                  console.log(chalk.gray(`\n${runs.length - 1} earlier run(s) for work item #${options.workId}; list all runs with run-inspect`));
+                }
+              }
+              return;
+            }
+
             if (options.json) {
               console.log(JSON.stringify({
                 status: 'success',
@@ -90,19 +126,28 @@ export function createStatusCommand(): Command {
             }
           }
         } else {
-          // List all workflows
+          // List all workflows, and all runs started by workflow-execute or the workflow-run skill
           const workflows = stateManager.workflow.list();
+          const runs = RunStateStore.listAll(getRunsDir());
 
           if (options.json) {
-            console.log(JSON.stringify({ status: 'success', data: workflows }, null, 2));
+            console.log(JSON.stringify({ status: 'success', data: workflows, runs }, null, 2));
           } else {
-            if (workflows.length === 0) {
+            if (workflows.length === 0 && runs.length === 0) {
               console.log(chalk.yellow('No workflows found'));
-            } else {
+            }
+            if (workflows.length > 0) {
               console.log(chalk.bold('Workflows:'));
               workflows.forEach((wf: any) => {
                 const stateColor = getStateColor(wf.status);
                 console.log(`  ${wf.workflow_id}: work #${wf.work_id} - ${wf.current_phase || 'N/A'} [${stateColor(wf.status)}]`);
+              });
+            }
+            if (runs.length > 0) {
+              console.log(chalk.bold('Runs:'));
+              runs.forEach((run) => {
+                const stateColor = getStateColor(run.status);
+                console.log(`  ${run.run_id}: work #${run.work_id ?? 'N/A'} - ${run.current_step_id || run.current_phase || 'N/A'} [${stateColor(run.status)}]`);
               });
             }
           }
@@ -645,6 +690,7 @@ export function createWorkflowExecuteCommand(): Command {
     .option('--harness <harness>', 'Default harness override: claude-code, opencode, codex, api')
     .option('--phase <phases>', 'Execute only specified phase(s) — comma-separated')
     .option('--step <step-id>', 'Execute only a specific step')
+    .option('--resume <run-id>', 'Resume an earlier run of this plan, skipping the steps it completed')
     .option('--dry-run', 'Show what would execute without running')
     .option('--json', 'Output as JSON')
     .action(async (planPath: string, options: {
@@ -652,9 +698,11 @@ export function createWorkflowExecuteCommand(): Command {
       harness?: string;
       phase?: string;
       step?: string;
+      resume?: string;
       dryRun?: boolean;
       json?: boolean;
     }) => {
+      let runState: RunStateStore | undefined;
       try {
         const fs = await import('fs/promises');
         const path = await import('path');
@@ -684,9 +732,12 @@ export function createWorkflowExecuteCommand(): Command {
         const phasesToRun = options.phase?.split(',').map((p: string) => p.trim()) ?? null;
 
         // Extract metadata from plan
-        const workId = plan.source?.work_id || plan.items?.[0]?.work_id || 'unknown';
+        const planWorkId: string | undefined = plan.source?.work_id || plan.items?.[0]?.work_id;
+        const workId = planWorkId || 'unknown';
         const issue = plan.items?.[0]?.issue;
-        const planId = plan.id;
+        // Runs are stored next to the plan: .fractary/faber/runs/{plan_id}/
+        const planDir = path.dirname(resolvedPath);
+        const planId: string = plan.id || path.basename(planDir);
         const branch = plan.items?.[0]?.branch?.name;
 
         // Determine harness display
@@ -733,6 +784,38 @@ export function createWorkflowExecuteCommand(): Command {
           return;
         }
 
+        // Run state: resume an earlier run of this plan, or start a new one
+        if (options.resume) {
+          const parsed = parseRunId(options.resume);
+          if (!parsed) {
+            throw new Error(`Invalid run ID: ${options.resume} (expected ${planId}-run-{timestamp})`);
+          }
+          if (parsed.planId !== planId) {
+            throw new Error(`Run ${options.resume} belongs to plan ${parsed.planId}, not ${planId}`);
+          }
+          const earlierRun = RunStateStore.load(planDir, options.resume);
+          if (earlierRun.state.status === 'completed') {
+            throw new Error(`Run ${options.resume} already completed. To run the plan again, omit --resume.`);
+          }
+          runState = earlierRun;
+        } else {
+          const unfinished = RunStateStore.listForPlan(planDir).find((s) => s.status !== 'completed');
+          runState = RunStateStore.create(planDir, {
+            planId,
+            workId: planWorkId ?? null,
+            workflowId: plan.workflow.id ?? null,
+            phases: plan.workflow.phases,
+          });
+          if (unfinished && !options.json) {
+            console.log(chalk.yellow(`Note: run ${unfinished.run_id} of this plan is ${unfinished.status}. To continue it instead, use --resume ${unfinished.run_id}`));
+          }
+        }
+
+        if (!options.json) {
+          console.log(chalk.gray(`Run: ${runState.runId}${options.resume ? ' (resumed)' : ''}`));
+          console.log(chalk.gray(`State: ${path.relative(process.cwd(), runState.statePath)}`));
+        }
+
         // Execute
         const result = await executor.execute(
           {
@@ -755,6 +838,12 @@ export function createWorkflowExecuteCommand(): Command {
             branch,
             cliHarness: options.harness as any,
             cliModel: options.model,
+            runState,
+            onStepSkipped: (_phase: string, step: { id: string }, reason: string) => {
+              if (!options.json) {
+                console.log(chalk.gray(`  ⏭ ${step.id} (${reason})`));
+              }
+            },
             onPhaseStart: (phase: string) => {
               if (!options.json) {
                 console.log(chalk.cyan(`\n→ Phase: ${phase.toUpperCase()}`));
@@ -804,12 +893,22 @@ export function createWorkflowExecuteCommand(): Command {
           const statusIcon = result.status === 'completed' ? chalk.green('✓') : chalk.red('✗');
           console.log(`${statusIcon} Workflow ${result.status} (${result.duration_ms}ms)`);
           console.log(chalk.gray(`  Steps: ${result.steps_completed}/${result.steps_total}`));
+          if (result.steps_already_completed) {
+            console.log(chalk.gray(`  Skipped (completed earlier in this run): ${result.steps_already_completed}`));
+          }
+          console.log(chalk.gray(`  Run: ${result.run_id} [${result.run_status}]`));
+          if (result.run_status !== 'completed') {
+            console.log(chalk.cyan(`\nTo resume: fractary-faber workflow-execute ${planPath} --resume ${result.run_id}`));
+          }
         }
 
         if (result.status === 'failed') {
           process.exit(1);
         }
       } catch (error) {
+        if (runState && !options.json) {
+          console.error(chalk.cyan(`To resume: fractary-faber workflow-execute ${planPath} --resume ${runState.runId}`));
+        }
         handleWorkflowError(error, options);
       }
     });
@@ -817,9 +916,59 @@ export function createWorkflowExecuteCommand(): Command {
 
 // Helper functions
 
+function printRunState(state: RunState, verbose?: boolean): void {
+  console.log(chalk.bold(`Run: ${state.run_id}`));
+  console.log(`  Plan: ${state.plan_id || 'N/A'}`);
+  console.log(`  Work ID: ${state.work_id ?? 'N/A'}`);
+  console.log(`  Workflow: ${state.workflow_id ?? 'N/A'}`);
+  console.log(`  State: ${getStateColor(state.status)(state.status)}`);
+  console.log(`  Current Step: ${state.current_step_id || state.current_phase || 'N/A'}`);
+  console.log(`  Started: ${state.started_at || 'N/A'}`);
+  console.log(`  Updated: ${state.updated_at || 'N/A'}`);
+  if (state.error) {
+    console.log(chalk.red(`  Error: ${state.error}`));
+  }
+  if (state.pause_reason) {
+    console.log(chalk.yellow(`  Paused: ${state.pause_reason}`));
+  }
+
+  console.log(chalk.yellow('\nPhases:'));
+  for (const [phase, phaseState] of Object.entries(state.phases ?? {})) {
+    const steps = Object.entries(phaseState.steps ?? {});
+    const done = steps.filter(([, s]) => s.status === 'completed' || s.status === 'skipped').length;
+    const label = phaseState.enabled === false ? ' (disabled)' : ` (${done}/${steps.length} steps)`;
+    console.log(`  ${getStatusIcon(phaseState.status)} ${phase}${label}`);
+    if (verbose && phaseState.enabled !== false) {
+      for (const [stepId, step] of steps) {
+        const attempts = step.attempts && step.attempts > 1 ? chalk.gray(` [${step.attempts} attempts]`) : '';
+        console.log(`      ${getStatusIcon(step.status)} ${stepId}${attempts}`);
+        if (step.error) {
+          console.log(chalk.red(`        ${step.error}`));
+        }
+      }
+    }
+  }
+}
+
+function getStatusIcon(status: string): string {
+  switch (status) {
+    case 'completed':
+      return chalk.green('✓');
+    case 'in_progress':
+      return chalk.cyan('→');
+    case 'failed':
+      return chalk.red('✗');
+    case 'skipped':
+      return chalk.gray('⏭');
+    default:
+      return chalk.gray('○');
+  }
+}
+
 function getStateColor(state: string): (text: string) => string {
   switch (state) {
     case 'running':
+    case 'in_progress':
       return chalk.cyan;
     case 'completed':
       return chalk.green;
