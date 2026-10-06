@@ -1,10 +1,11 @@
 ---
 id: SPEC-20261004-harness-hardening
-title: "Harness Hardening for FABER and faber-code — Lessons from agent-skills and Harness-Design Practice"
+title: "Harness Hardening for FABER (all maker packs) and faber-code"
 status: proposed
 type: improvement
 project: fractary/faber, fractary/faber-code
 created: 2026-10-04
+updated: 2026-10-06
 author: claude-code
 priority: high
 ---
@@ -13,247 +14,487 @@ priority: high
 
 ## 1. Summary
 
-We compared FABER + faber-code with two references:
+FABER is a generic workflow tool for making anything: code, content, video, data ingests, cloud infrastructure, or a custom asset. faber-code is one pre-packaged workflow ("pack") among several. This spec has three parts:
 
-- **`addyosmani/agent-skills`**: 25 lifecycle skills (Define → Plan → Build → Verify → Review → Ship), 4 reviewer personas, 9 slash commands, hooks, and an eval suite.
-- **"How to Design an Agent Harness: six decisions"** (Yarchi, Aug 2026): a checklist covering the loop and stop rule, tools, memory, crash survival, boundaries, and who says the work is done.
+- **Part 1, core faber:** changes every pack relies on. They must stay domain-neutral.
+- **Part 2, faber-code:** how the software pack adopts them.
+- **Part 3, other packs:** short notes for the remaining packs.
 
-**Conclusion.** The two approaches work at different layers, so this is not a choice between them.
+**Where FABER stands.** FABER's orchestration (phases, inheritance, state, approvals, issue → PR integration) is ahead of comparable tools. The gaps are elsewhere:
 
-- **Outer loop (orchestration).** FABER is a platform-style harness: declarative phases, state, resume, approvals, worktrees, and issue → PR integration. Here it is ahead of agent-skills, which has no orchestrator and relies on a human running commands.
-- **Inner loop (execution).** agent-skills is a discipline pack: how each step is executed and proven. Here it is clearly ahead of faber-code.
+1. "Done" means the steps ran, not that there is evidence the result works.
+2. In faber-code, the agent that made the work also judges it.
+3. faber-code's Build is one monolithic step with no task-level state.
+4. Nothing measures whether a skill, prompt or model change helped.
+5. The code-driven runtime (`fractary-faber workflow-execute`) has six correctness gaps, filed as #235–#240.
 
-Our gaps are not in orchestration. They are:
+**Approach.**
+- Code runs the loop.
+- Each step is a fresh agent session, on any model or provider.
+- "Done" is a layered set of criteria, checked from evidence by validators that did not make the work.
+- Evals measure the whole system.
+- Several packs (video, content, ingest) already follow parts of this. The work is to make it a core guarantee and bring faber-code in line.
 
-1. "Done" means the steps ran, not that there is evidence the change works.
-2. The agent that wrote the code also judges it.
-3. Build is one monolithic step with no task-level state.
-4. Nothing measures whether a skill or prompt change helped.
+## 2. Decisions (2026-10-06)
 
-**Recommendation.** Keep FABER's orchestration. Port agent-skills' inner-loop patterns into faber-code rather than installing the pack. Add executable verification gates, fresh-context review, task-level state, and an eval set. First, fix three gaps in the CLI-native executor (§5, F1–F3).
+| # | Topic | Decision |
+|---|---|---|
+| 1 | Runtime | `fractary-faber workflow-execute` is the runtime for all runs. `/fractary-faber-workflow-run` becomes a thin chat wrapper that starts the CLI, relays approvals and summarizes. |
+| 2 | Project standards | Repo maintainers own each project's standards profile and change it by PR. Org standards arrive through codex sync, are read-only in the project and pinned by version. Each org standard is marked **floor** (projects may only tighten it) or **default** (projects may override it with a recorded reason). |
+| 3 | agent-skills | Port its patterns into faber-code with MIT attribution. Do not take a runtime dependency on it. |
+| 4 | Task state | Task definitions live with the work-item docs and are locked at approval. Task status and evidence live in the run folder. |
+| 5 | Runtime bugs | Filed as one issue each: #235–#240. |
+| 6 | Evals | Pilot first: 10 past work items × 3 runs on the CLI runtime. Set the full suite size and the allowed cost increase from the pilot's numbers. |
+| 7 | Spec form | One spec in two parts (this document). |
 
-## 2. Sources reviewed
+## 3. Terms
+
+| Term | Meaning | Lives in | One per |
+|---|---|---|---|
+| Requirements | What the requester wrote: the issue body plus any user-written spec | Issue tracker, `docs/specs/` | Work item |
+| Work-item docs | What the workflow produces about the work and keeps: research, design, criteria, task definitions, decisions log, change summary | `.fractary/specs/WORK-<id>-*` (committed) | Work item |
+| Run records | Facts about one attempt: plan snapshot, state, events, evidence, transcripts, verdicts, task status | `.fractary/faber/runs/<plan-id>/` | Run |
+| Pack | A packaged workflow plus its skills and agents (faber-code, faber-content, faber-video, faber-ingest, faber-cloud, …) | Its own repo | — |
+| Maker step / validator step | A step that produces work / a step that judges it | Workflow config | — |
+| Check | A way to verify one criterion: command, metric, schema, rubric, human or trial run (§1.3) | Profile, criteria | — |
+| Evidence | A file the harness writes when it runs a check (command, exit code, output, version) | Run records | — |
+| Verdict | A validator's structured result per criterion (§1.3) | Run records | — |
+
+One work item can have several runs, and FABER's run-ID system already supports this with `--rerun` and `rerun_of`. Examples:
+- a second run after review feedback;
+- a fresh start after a bad run;
+- several workflows on one item (faber-video's script-create, then produce, then distribute);
+- partial `--phase` runs;
+- eval trials.
+
+## 4. How a run works
+
+```
+fractary-faber workflow-plan --work-id 258
+  → resolves the workflow (core + pack via extends), fetches the work item,
+    creates the branch/workspace, writes .fractary/faber/runs/<plan-id>/plan.json
+
+fractary-faber workflow-execute <plan.json>          (plain code, no LLM)
+  for each step in the plan:
+    ├─ save state: step in progress
+    ├─ start a fresh agent session for the step (Agent SDK or another provider;
+    │    model, turn and budget caps, allowed tools, project skills loaded)
+    │    → the agent works and writes its outputs to files; its final message
+    │      contains a JSON verdict, e.g. {"status": "failure", ...}
+    ├─ parse the verdict, check required evidence files
+    └─ apply rules: next step / capped fix loop / pause for approval / stop
+```
+
+- **Judgment is always a step.** "Is this good enough?" is answered by a validator step that returns a verdict. No master agent interprets results.
+- **Handoffs go through files and version control,** never through an agent's memory.
+- **Approvals pause the run.** Before a gated step the runtime saves state and exits. `--resume <run> --approve <step>` continues it.
+- **Three ways to start a run:**
+  - the CLI directly;
+  - a Claude Code chat that runs the same commands in the background and relays questions;
+  - an automated trigger (GitHub Action, cron, Routine).
+
+  The loop is the same code in all three.
+
+## 5. Findings
+
+Paths are relative to each repository root.
+
+### Core runtime (all packs)
+
+| # | Finding | Evidence | Issue |
+|---|---|---|---|
+| F1 | A CLI step counts as successful whenever its session ends normally. The FABER response JSON is never parsed, so a failing validator does not stop the run. | faber `sdk/js/src/executors/providers/claude-agent.ts:211-239`; `sdk/js/src/executors/workflow-executor.ts:319-326` | #235 |
+| F2 | `require_approval`, `require_approval_for` and `pause_before_release` are ignored in CLI mode, so gated steps (for example `release-deploy-apply-prod`) would run unapproved. | `sdk/js/src/workflow/resolver.ts:307-308`; `workflow-executor.ts` | #237 |
+| F3 | `max_retries` and `on_failure: retry` are ignored. Any `on_failure` other than `stop`, including `/fractary-faber-workflow-debug --auto-fix`, continues to the next step. | `resolver.ts:308`; `workflow-executor.ts:319-326` | #238 |
+| F4 | `workflow-execute` saves no run state and has no `--resume`. `status` and `recover` cannot see CLI runs. | `cli/src/commands/workflow/index.ts:737-760`; `workflow-executor.ts:69,75,236` | #236 |
+| F5 | Step sessions start in the plan folder (`<workspace>/.fractary/faber/runs/<plan-id>/`) instead of the workspace root. | `cli/src/commands/workflow/index.ts:750`; `cli/src/commands/plan/index.ts:675`; `claude-agent.ts:186` | #239 |
+| F6 | CLI steps run with `bypassPermissions` and the full tool preset, with no sandbox or configurable mode. | `claude-agent.ts:201,208` | #240 |
+| F7 | CLI mode can run a step as a shell command (a prompt starting with `!`; exit code decides), but no workflow uses this for verification and no evidence is recorded. Plugin mode has no deterministic equivalent. The run verifier checks workflow signals, not the product. | `sdk/js/src/executors/providers/claude-agent.ts:88-104`; `plugins/faber/skills/fractary-faber-workflow-run-verifier/SKILL.md` | — |
+| F8 | Core contains software-specific pieces:<br>- the generic `asset-engineer-validator` template (lint, type checks, coverage);<br>- `issue-reviewer`, which gathers code changes and is invoked by nothing;<br>- debugger knowledge-base categories such as `type_system` and `test_failure`. | `templates/agents/asset-engineer-validator/agent.yaml`; `plugins/faber/skills/fractary-faber-issue-reviewer/`; `plugins/faber/knowledge-base/` | — |
+| F9 | No evals exist for skills or workflows. The knowledge base and `anti-patterns.md` record failures but are not regression tests. | `plugins/faber/knowledge-base/*`; `plugins/faber/skills/fractary-faber-workflow-run/anti-patterns.md` | — |
+
+### faber-code
+
+| # | Finding | Evidence |
+|---|---|---|
+| F10 | Plugin-mode steps, validators included, run in one shared context ("you do NOT delegate to sub-agents"). The engineering validator runs tests only "if possible". Since v0.6.0, faber-code's validators run inside that shared context, whereas faber-content, faber-ingest and faber-video run theirs as separate agents. | faber `plugins/faber/skills/fractary-faber-workflow-run/SKILL.md:10,15`; faber-code `plugins/faber-code/skills/fractary-faber-code-validate/workflow/validate-engineering.md:34` |
+| F11 | The engineer workflow is generic ("Write tests alongside code"), and says "If spec is unclear: Document assumption and proceed". | `plugins/faber-code/skills/fractary-faber-code-engineer/workflow/engineer-workflow.md:41,56,104` |
+| F12 | Build is one `build-engineer` step, committed once at the end of the phase. There is no task list, per-task verification or progress record. | `plugins/faber-code/.fractary/faber/workflows/default.json`; faber `plugins/faber/.fractary/faber/workflows/core.json:112` |
+| F13 | Every skill loads the issue body plus all comments as its handoff. That input keeps growing, and anyone who can comment can inject instructions. | `plugins/faber-code/skills/fractary-faber-code-common/scripts/load-work-context.sh:20-21` |
+| F14 | `validate --type product`, the validator that runs the product, exists but is not in the default workflow. For code-only changes, the Evaluate phase is Terraform deploy steps. | `default.json:89-125`; `plugins/faber-code/skills/fractary-faber-code-validate/SKILL.md:26` |
+| F15 | The architect already writes acceptance criteria and a testing strategy, and `validate-product` traces criteria to evidence. But criteria have no stable IDs, verification methods or lock, and no layer above them holds project standards. | `.fractary/docs/templates/code-architecture/template.md:95-101`; `validate-product.md:13-40` |
+| F16 | The README documents agents, per-type validator commands and three workflow files that no longer exist. `config/best-practices-rules.yaml` is referenced only by an old spec. The repo's own `.claude/settings.json` broadly allows `rm`, `curl`, `aws`, `terraform` and `git push`. | `README.md:34,49,60,80,132-138`; `.claude/settings.json:12-25` |
+
+### Other packs (patterns to keep or fix)
+
+| # | Finding | Evidence |
+|---|---|---|
+| P1 | faber-video's done is evidence-based: a deterministic QA gate measured with ffprobe, with blocking and advisory codes, followed by human sign-off before distribution. | faber-video `plugins/faber-video/skills/fractary-faber-video-qa-checklist/SKILL.md` |
+| P2 | faber-content keeps project standards as data in its `faber-content:` config section (SEO threshold profile, rulesets, strict mode), used by its audit engine. But its draft validator hard-codes "800+ words" and one brand voice in the prompt. | faber-content `plugins/faber-content/config/config.example.yaml`; `agents/fractary-faber-content-content-draft-validator.md` |
+| P3 | faber-content and faber-ingest run their validators as separate agents through thin commands, some on smaller models (the content draft validator runs on Haiku). faber-content routes validator failures to `workflow-debug --auto-fix` with no cycle cap. | faber-content `commands/*-validate.md`; `workflows/article-create.json`; faber-ingest `commands/*-validate.md` |
+| P4 | faber-ingest's Evaluate runs a bounded trial (`--env test --max-items 10`) and then validates record counts and error rates. | faber-ingest `.fractary/faber/workflows/ingest-create.json` |
+| P5 | faber-cloud gates apply behind approval, and runs `terraform validate`, plan, plan-validate and security and cost scans as steps. | faber-cloud `.fractary/faber/workflows/infrastructure-deploy.json` |
+
+## Part 1 — Core faber (all maker packs)
+
+### 1.1 Principles
+
+1. **Code runs the loop; agents judge inside steps; humans approve irreversible actions.**
+2. **Done is decided from evidence, by something other than the maker:** a check, a separate validator agent, or a person.
+3. **Every standard has a guide and a sensor.** The maker is told about it, and a check verifies it. A prompt instruction with no check is a guide with no sensor.
+4. **Core stays domain-neutral.**
+   - Core speaks of assets, change sets, checkpoints and isolated workspaces.
+   - Packs supply domain checks: tests, ffprobe, SEO audits, Terraform plans, crawl samples.
+   - Git-based implementations stay available to packs that use git.
+5. **Measure the system, not just each run.** Evals track whether changes help. Each scaffold records which model weakness it compensates for, and is re-tested at every model upgrade.
+
+### 1.2 Layered definition of done
+
+| Layer | Holds | Written by | Approved by | Lives in |
+|---|---|---|---|---|
+| L0 core floor | Rules for every pack:<br>- every pass has evidence;<br>- "could not run" is never a pass;<br>- locked criteria are unchanged;<br>- the bar is never loosened silently;<br>- no irreversible action without approval. | FABER | FABER maintainers | Core; enforced by the runtime and a managed hook |
+| Org standards | Organization-wide rules and guidelines, each marked `floor` or `default` | Org | Org owners, in the codex source | Synced by codex; read-only in the project; pinned by version |
+| L1 project profile | Per dimension: check, threshold or ratchet, when it applies, severity; references to org standards and project standards docs; exceptions with owner and expiry | Pack defaults, then stack detection and a short interview | Repo maintainers, by PR | The pack's section of `.fractary/config.yaml`, validated by the pack's config schema |
+| L2 work-item criteria | Stable-ID, testable statements of what must be true, plus an out-of-scope list and open questions | Frame | A human, or the autonomy policy, at the Frame→Architect gate | Work-item docs; locked by hash |
+| L3 task definitions | Per task: what it is, its acceptance criteria and verify check, mapped to L2 IDs | Architect | Automatic coverage check (every L2 ID covered) | Work-item docs; locked by hash |
+| Run status and evidence | Per task and per criterion: status, evidence files, version | The runtime | — | Run records |
+
+Rules:
+- **Tighten only.** A lower layer may tighten a higher one. Loosening needs an exception with an owner and expiry, and is reported loudly.
+- **Locked criteria.** The maker writes only status and evidence. Amending L2 or L3 sends the item back to Frame for re-approval.
+- **Re-check, don't trust.** A new run on the same work item reuses the locked definitions and re-runs the checks; it does not trust earlier statuses.
+- **Overlays are for how-to.** `context_overlays` stay for project how-to instructions ("posts live in `src/content/blog`", "use `make migrate`"), not for standards.
+
+Example profile shape (keys under `faber.standards` and `faber-content.draft` are proposed):
+
+```yaml
+faber:
+  standards:
+    org:                                   # synced by codex, read-only here
+      - id: ORG-CFG-001
+        source: codex://fractary/core/docs/standards/config-management-standards.md
+        version: 3f9c2a1                   # pinned; bump by PR
+        mode: floor                        # floor | default
+faber-content:                             # pack-declared, schema-validated
+  seo: { profile: article, strict: true }  # existing keys
+  draft:
+    min_words: 800                         # proposed: moved out of the validator prompt
+    voice: docs/standards/brand-voice.md   # judgment standard, rubric-checked by ID
+```
+
+### 1.3 Checks, evidence and verdicts
+
+| Check type | Verifies by | Examples |
+|---|---|---|
+| `command` | Exit code plus parsed output | Test suite, `terraform validate`, `fractary-faber-video qa`, the content audit CLI |
+| `metric` | A measured number against a threshold or ratchet | Coverage on changed lines, loudness in LUFS, crawl error rate, page word count |
+| `schema` | An artifact validates against a schema | VideoScript JSON, front matter, config |
+| `rubric` | A separate judge agent scores a criterion against a referenced guideline | Brand voice, architecture conventions, clarity |
+| `human` | A named person signs off | Video reviewer, production deploy approval |
+| `trial` | A bounded real run in a test environment, then inspection | Ingest `--max-items 10`, cloud test deploy, app smoke run |
+
+- **One entrypoint:** `fractary-faber verify --stage <stage>`. Exit codes: 0 pass, 1 fail, 2 could not run. 2 never counts as a pass. The same entrypoint runs from the executor, hooks and CI.
+- **Evidence files:** the harness writes them, not the agent, under the run folder. Each records the check, exit code, output tail, and the asset version or commit.
+- **Verdict per criterion:** `{id, status: pass|fail|unknown, severity: blocking|advisory, evidence: [...]}`, carried in the FABER response JSON.
+- **Bar-integrity guard (core):** compares the profile, the criteria and check configuration against the baseline, and flags loosened thresholds, removed checks or edited locked criteria. Packs add domain detectors, such as faber-code's skipped tests and lint suppressions.
+
+### 1.4 Validator runner
+
+- **Separate session.** Every validator step runs as its own agent session. In the CLI runtime that is automatic, because each step is a fresh session. Validators get restricted tools: read-only, plus running checks.
+- **Inputs:**
+  - the artifact, presented by the pack (code: a diff; content: a redline; video: the render plus its probe report);
+  - the locked criteria and profile;
+  - harness-written evidence;
+  - tools to run checks.
+
+  Stated intent is allowed. The maker's reasoning and claims ("tests pass") are withheld.
+- **Output:** the verdict schema in §1.3. "Unknown" is allowed and never counts as a pass. Findings are limited to correctness and the stated criteria.
+- **Fix loop:**
+  - validator failure → a fix step that receives only the findings → re-run checks → re-validate;
+  - at most 3 cycles, then escalate or split the work;
+  - a fresh maker session after 2 failed fixes;
+  - a no-progress stop;
+  - keep the best checkpoint, not necessarily the last.
+- **Model choice.** Model and provider are set per validator, and cross-provider judges are allowed. A smaller model must prove itself through validator evals (§1.6).
+
+### 1.5 Runtime (CLI executor)
+
+The CLI executor becomes the only loop. Required work:
+- parse verdicts (#235);
+- saved state and resume (#236);
+- approval pauses (#237);
+- capped retries and fix loops (#238);
+- workspace-root working directory (#239);
+- configurable permissions and sandboxing (#240);
+- a cumulative run budget (the Agent SDK's `maxBudgetUsd` excludes spend restored on resume);
+- per-step wall-clock timeouts;
+- full per-step transcripts.
+
+`/fractary-faber-workflow-run` becomes a wrapper: it starts `workflow-execute` in the background, relays approval prompts and escalations, and summarizes from the run records. Single-session plugin orchestration is retired for unattended runs.
+
+### 1.6 Evals
+
+An eval task is a frozen past work item: its requirements, its starting asset state, and a hidden answer key built from what a human accepted. Tasks differ, but the scoring protocol is the same for all of them.
+
+**What is measured:**
+
+| Measure | Applies to | Target |
+|---|---|---|
+| Answer-key pass rate over 3 runs (pass^3) | Each task's own hidden checks | Above baseline |
+| Invariants: evidence for every pass, locked criteria unchanged, no unapproved irreversible action, within budget, pauses on planted ambiguity, final claims match evidence | Every run, every pack | 100% |
+| Phase evals (below) | Every task | Above baseline |
+| Validator catch rate and false-alarm rate | Planted defects and accepted outputs | ≥ 90% each |
+| Cost and time per verified success; human interventions per run | Every run | Within agreed threshold |
+
+**Phase evals (the same job on every task):**
+
+| Phase | Job | Eval |
+|---|---|---|
+| Frame | Turn a request into testable criteria | Recall of the must-have criteria a human listed; pauses on planted ambiguity |
+| Architect | Make every criterion provable | Share of criteria with a check; share of checks that fail before the work and pass on the accepted answer |
+| Build | Meet the criteria | Hidden answer-key checks pass |
+| Evaluate | Catch bad work, pass good work | Catch rate on planted defects; false alarms on accepted outputs |
+| Release | Ship safely | No unapproved irreversible actions |
+
+**Task sources, per pack:**
+
+| Pack | Frozen task | Answer key | Planted defects |
+|---|---|---|---|
+| code | Closed issue plus the repository before the fix | Tests from the merged change (fail before, pass after) plus the existing suite | Dropped requirement, weakened test |
+| content | Brief plus site state | Editor-approved article; audit rules; voice rubric | Wrong fact, missing citation, off-brand paragraph |
+| video | VideoScript | QA gate blocking codes plus reviewer notes | Silent scene, caption overrun, wrong chart value |
+| ingest | Recorded site snapshot plus job request | Expected records and fields from an accepted crawl | Missing field, duplicates, blocked pages counted as success |
+| cloud | Infrastructure request plus state | Accepted plan; clean policy and security scans | Open security group, missing tags |
+
+**Rules:**
+- Graders are independent of the workflow's own validators.
+- LLM graders are calibrated against human labels.
+- Every trial runs in a clean environment.
+- External sources are recorded (ingest), and cloud evals run plan-only or in a sandbox account.
+- Each failure that escapes to production becomes a new task.
+
+**Pilot.** 10 past faber-code work items × 3 runs on the CLI runtime. Measure pass rates, cost per verified success and variance, then size the suite. About 44 tasks per variant are needed to detect a 30-point change and about 100 for a 20-point change. Use the pilot to set the allowed cost increase for skill changes. Autonomy is earned per project by measured pass^3 and validator catch rate, not by elapsed time.
+
+### 1.7 Core cleanup
+
+- **Validator template.** Make `asset-engineer-validator` domain-neutral (criteria plus evidence). Move the code version to faber-code.
+- **issue-reviewer.** Retire it from core and fold its spec-compliance logic into faber-code's engineering validator (§2.1). Core keeps only the generic validator runner.
+- **Debugger knowledge base.** Packs supply their own knowledge-base categories; core keeps generic ones.
+- **Wording.** Core docs and schemas use change set, checkpoint and isolated workspace, with git implementations behind them.
+
+### 1.8 Core milestones
+
+Sizes: **S** ≤ 1 day, **M** 2–4 days, **L** 1–2 weeks.
+
+| ID | Change | Acceptance | Size |
+|---|---|---|---|
+| A1 | Parse step verdicts (#235) | A failing validator stops the phase under `on_failure: stop` | S |
+| A2 | Approval pauses and `--approve` (#237) | A gated step never runs without approval | M |
+| A3 | Capped retries and fix loops (#238) | Retry caps honoured; slash-command handlers never silently continue | M |
+| A4 | Permission mode configurable; bypass is opt-in with a warning (#240, part 1) | Default runs use the configured mode | S |
+| A5 | Saved state, events and `--resume` (#236) | A killed run resumes at the interrupted step; `status` shows CLI runs | M |
+| A6 | Workspace-root working directory (#239) | Step `cwd` equals the workspace root, with and without a worktree | S |
+| A7 | `/fractary-faber-workflow-run` as a CLI wrapper | Chat starts, relays approvals and summarizes; it never executes steps itself | M |
+| B1 | Eval harness: task format, clean trials, invariants, pass^k, cost per verified success | One command produces a results table | L |
+| B2 | Pilot: 10 faber-code tasks × 3 runs | Baseline recorded; suite size and cost threshold set | M |
+| B3 | Structural lint for skills in every pack | CI fails on a malformed skill | S |
+| B4 | Rule: skill, prompt or model changes ship with an eval comparison; rejected changes are logged | In `CONTRIBUTING.md` | S |
+| B5 | Validator calibration: planted defects plus human labels | Catch and false-alarm rates reported per validator | M |
+| C1 | Standards resolver: org standards via codex (pinned, floor or default), pack-declared project profile, exceptions | Loosening a floor fails; overriding a default needs a reason | M |
+| C2 | Criteria and task-definition schemas, hash locks, coverage check | An edited locked file fails the run | M |
+| C3 | Check runner and `fractary-faber verify --stage` with the six check types and evidence files | Exit 2 never counts as a pass | M |
+| C4 | Transition guard requires evidence for `requires_evidence` steps | Completion without matching evidence is rejected | S |
+| C5 | Generic bar-integrity guard | Loosened thresholds and removed checks are flagged | M |
+| D1 | Validator runner: input packet, withheld claims, verdict schema, restricted tools | Verified from the run transcript | M |
+| D2 | Capped fix loop with fresh maker, no-progress stop and best checkpoint | Loops stop at the cap with resumable state | M |
+| D3 | Cross-provider validator preset | Works end to end on one eval task | S |
+| S1 | Pinned project rules (Always / Ask first / Never) injected into every step | Present in every step prompt | S |
+| S2 | OS-level sandbox for unattended steps; short-lived credentials (#240, part 2) | A write outside the workspace or a non-allowlisted host is blocked | L |
+| S3 | Per-step `allowed_tools`; least-privilege permission profile shipped by the installer | Research steps cannot deploy or push | M |
+| S4 | Per-step transcripts, timeouts and cumulative run budget | Every step has a transcript; hung steps are killed | S |
+| K1–K4 | Core cleanup (§1.7) | No code-specific logic left in core templates or skills | M |
+
+## Part 2 — faber-code adoption
+
+### 2.1 Validators: enhance the existing skill
+
+Keep `fractary-faber-code-validate` and its four types. Change what goes in, what comes out, and how it runs.
+
+- **Inputs:** locked criteria and profile, the diff, harness-written evidence, read-only tools plus check commands. Not the issue comment thread, and not the changeset's claims.
+- **Output:** per-criterion verdicts with evidence pointers and severity, inside the FABER response JSON.
+- **Per type:**
+
+| Type | Checks |
+|---|---|
+| research | Drafted criteria are testable and traceable to the requirements |
+| architecture | Criteria are complete and verifiable; every criterion is covered by a task check; consistent with the profile |
+| engineering | Evidence against criteria; fail-before/pass-after on new tests; code bar-integrity detectors. Absorbs `issue-reviewer`. |
+| product | Runs the product (start the app, call endpoints, drive the UI, run the CLI) against acceptance criteria. Wired into the default workflow. |
+
+- **Execution:** a separate session per validator step, with restricted `allowed_tools`. This rejoins the pattern faber-content, faber-ingest and faber-video already use.
+
+### 2.2 Default code profile
+
+Pack defaults, adjusted per project by stack detection plus an interview, then ratified by PR:
+- test, lint, typecheck and build commands;
+- coverage on changed lines as a ratchet;
+- at least one external check (for example a dependency or security scanner).
+
+Code-specific bar-integrity detectors flag:
+- new `.skip` or `.only`;
+- deleted tests;
+- removed assertions;
+- new suppressions (`eslint-disable`, `@ts-ignore`, `istanbul ignore`, `nosemgrep`, `gitleaks:allow`);
+- stubs in place of logic.
+
+For behaviour changes and bug fixes, new tests must fail on the base commit and pass on the head commit, as SWE-bench does.
+
+### 2.3 Frame and Architect
+
+- **Frame** drafts L2 criteria: stable IDs, testable statements, out-of-scope items, assumptions and open questions. It pauses on ambiguity that affects security, data loss, public interfaces or cost.
+- **Architect** writes the design and the L3 task definitions. Tasks are vertical slices touching at most 5 files, each with a verify check, mapped to L2 IDs. The architect also chooses a check for each criterion.
+
+### 2.4 Build loop
+
+- One fresh session per task.
+- Per task: write a failing test where behaviour changes → implement → run the task check → checkpoint commit referencing the task ID → status and evidence in the run folder → deviations appended to the decisions log.
+- The engineer never edits locked docs. Scope creep is noted, not fixed.
+- On resume, re-run the last task's check, then continue.
+- Ambiguity rule:
+  - assisted and guarded modes pause and ask;
+  - autonomous mode proceeds only on low-risk assumptions, recorded as a warning.
+
+### 2.5 Skill rewrites (ported from agent-skills, MIT attribution)
+
+- Each skill gets the anatomy: when to use, when not to, process with concrete commands, a table of common rationalizations, red flags, and evidence-based verification.
+- Seed the rationalization tables from `anti-patterns.md` and the knowledge base.
+- `SKILL.md` stays at or under 500 lines; specialties become short checklists with on-demand references.
+- Ship a `bug-fix` workflow: reproduce, failing test, fix, guard test.
+
+### 2.6 Handoffs and drift
+
+- Steps read work-item docs, not the comment thread. Issue comments become human-facing summaries only.
+- Fix the README.
+- Delete or wire up `best-practices-rules.yaml`.
+- Trim the repo's `.claude/settings.json`.
+
+### 2.7 faber-code milestones
+
+| ID | Change | Acceptance | Size |
+|---|---|---|---|
+| E1 | README and config drift (§2.6) | No references to things that do not exist | S |
+| E2 | `docs/SKILL-ANATOMY.md` plus lint (B3) | Lint passes on rewritten skills | S |
+| E3 | Frame writes L2 criteria (§2.3) | Research validation fails on untestable criteria | M |
+| E4 | Architect writes L3 task definitions and the check per criterion (§2.3) | Coverage check passes; every task has a check | M |
+| E5 | Task-by-task Build loop (§2.4) | One commit per task; a killed run resumes at the next task | L |
+| E6 | Validator enhancements; product validator wired in; issue-reviewer folded in (§2.1) | Planted-defect catch rate ≥ 90% on the pilot | M |
+| E7 | Default code profile and detectors; fail-before/pass-after (§2.2) | Weakened-test fixtures are flagged | M |
+| E8 | Skill rewrites and the `bug-fix` workflow (§2.5) | pass^3 holds or improves against the pilot within the cost threshold | L |
+| E9 | Handoffs from work-item docs (§2.6) | A planted malicious comment in an eval fixture is not acted on | M |
+
+## Part 3 — Notes for other packs
+
+| Pack | Keep | Adopt |
+|---|---|---|
+| faber-video | Deterministic QA gate with blocking and advisory codes; human sign-off; no LLM at production time; budget gates | Map QA codes to the verdict schema; reviewer sign-off as a `human` check; QA thresholds as profile entries |
+| faber-content | Config section as a standards profile; audit engine; validators as separate agents | Move "800+ words" and brand voice from the validator prompt into the profile and a standards doc; confirm Haiku validators via B5; replace uncapped auto-fix with D2 |
+| faber-ingest | Bounded trial crawl in a test environment; per-phase validators | Error-rate and record thresholds as profile metrics; recorded snapshots for evals |
+| faber-cloud | Approval before apply; validate, plan and scan steps | Plan-only or sandbox-account evals; policy checks as `command` checks with evidence |
+
+## 6. Sequencing
+
+```
+A (runtime) ──► B1–B2 (eval harness + pilot baseline) ──► C (criteria, checks, evidence) ──► D (validators)
+                                                      └──► E3–E9 (faber-code) ◄────────────────┘
+S (sandbox and boundaries) and K (core cleanup) run in parallel from A onward. E1–E2 can start now.
+```
+
+Suggested first slice: A1–A7, then B1–B2. That makes the CLI a trustworthy runtime and gives a measured baseline before any skill rewrite.
+
+## 7. Risks and trade-offs
+
+| Risk | Mitigation |
+|---|---|
+| Cost and time rise (the harness-design article's example ran at about 20× the cost of an unharnessed run) | Scale verification depth by autonomy level and work type. Track cost per verified success and hold changes to the threshold set by the pilot. |
+| New gates fail runs that used to "pass" | Intended. Roll out behind config: on by default for new workflows, opt-in for one release on existing ones. |
+| Core abstractions fit code but not other packs | Every core milestone's acceptance is checked against at least one non-code pack (video or content). |
+| Org standards drift between projects | Versions are pinned and recorded in each run. Updating a standard is a visible PR. |
+| A validator on a small model misses defects | B5 measures catch rate per validator before it is trusted to gate. |
+| Eval maintenance burden | Start with the pilot. Add a task only when a real failure recurs. |
+
+## 8. Success metrics
+
+| Metric | Target |
+|---|---|
+| Runs that report done while a blocking check fails | 0 |
+| pass^3 on the eval suite | Above the pilot baseline, reported per milestone |
+| Validator catch rate on planted defects | ≥ 90% per gating validator |
+| Bar loosened without a recorded exception | 0 |
+| Unapproved irreversible actions | 0 |
+| Cost and time per verified success | Within the threshold set from the pilot |
+| Human interventions per run | Trending down |
+
+## 9. Sources
 
 | Source | Version |
 |---|---|
 | `addyosmani/agent-skills` | `1401c8b` (2026-10-03) |
 | "How to Design an Agent Harness: six decisions that turn a model into a worker you can leave alone" | Yarchi, 2026-08-15 (text supplied by maintainer) |
+| Research report "Agent harness and eval practices 2026" (Anthropic, OpenAI, Spec Kit and others, as of October 2026) | 2026-10-06 (shared separately) |
 | `fractary/faber` | `415af40` |
 | `fractary/faber-code` | `fd6f2f5` |
+| `fractary/faber-video`, `faber-content`, `faber-ingest`, `faber-cloud` | `c71fe41`, `1a109a8`, `0aefd33`, `e8cf897` |
 
-Figures quoted from the article (cost ratios, approval rates, violation rates) are the article's own claims and are cited as such. They were not re-measured.
+Figures quoted from the article and the research report are those sources' claims and were not re-measured.
 
-## 3. Where each approach sits
+## Appendix A — Comparison with agent-skills and the six-decisions checklist
 
-| Layer | agent-skills | FABER + faber-code today |
+### A.1 Layers
+
+| Layer | agent-skills | FABER today |
 |---|---|---|
-| Outer loop: sequencing, state, resume, approvals | A human runs `/spec → /plan → /build → /test → /review → /ship`. `/build auto` is the only autonomous loop (one plan approval, then task-by-task). State is `SPEC.md` + `tasks/plan.md` + `tasks/todo.md`. | Declarative workflow JSON: 5 phases, pre/steps/post, `extends` inheritance. Also `state.json` + events, run IDs, resume, worktrees, batch plan/run, autonomy levels, and compaction hooks. |
-| Inner loop: how a step is executed | Each `SKILL.md` gives process steps, a "Common Rationalizations" table (excuse → rebuttal), red flags, and evidence-based exit criteria. Covers TDD, thin vertical slices, and a commit per slice. | 5 thin workflow skills (research, inspect, architect, engineer, validate), each a ~30-line `SKILL.md` plus a ~100-line workflow doc, with generic steps such as "Write tests alongside code". There is no evidence requirement. |
-| Verification | A standing Definition of Done, plus a verify command per task. A floor guard catches weakened tests and silenced checks. Fresh-context adversarial review (`doubt-driven-development`) and a parallel persona fan-out for ship decisions. | LLM validators review the phase documents and code; tests run only "if possible". In plugin mode, validators run in the same context as the engineer. |
-| Integrations | None (host-agnostic) | GitHub issues and PRs, waiting on CI, deploy steps, codex sync, issue comments |
-| Measurement | 3-tier evals: structural lint, routing, and behavioral with pressure cases. Also a with/without-plugin A/B and a ledger of rejected skill changes. | No evals for skills or workflows. A debugger knowledge base records past failures. |
-| Portability | 10+ hosts | Claude Code, OpenCode, Cursor, Codex, Gemini adapters |
+| Outer loop | A human runs `/spec → /plan → /build → /test → /review → /ship`; `/build auto` is the only autonomous loop | Declarative phases with inheritance, state, events, resume, worktrees, batch runs, autonomy levels |
+| Inner loop | Each skill has steps, a rationalization table, red flags and evidence-based exit criteria; TDD, thin slices, a commit per slice | faber-code: thin skills with generic steps and no evidence requirement |
+| Verification | Standing Definition of Done, per-task verify, floor guard, fresh-context adversarial review | LLM validators; tests "if possible"; same context in plugin mode |
+| Measurement | Structural, routing and behavioural evals; with/without-plugin comparison | None |
 
-## 4. Pros and cons
+### A.2 agent-skills: pros and cons
 
-### 4.1 agent-skills
+**Pros:**
+- targets the dominant failure (claiming done without proof);
+- small, composable, model-neutral skills;
+- verification culture: TDD, slices, floor guard;
+- independent review;
+- durable plan files;
+- measured with evals;
+- near-zero adoption cost.
 
-**Pros**
+**Cons:**
+- no orchestrator, and skill activation is stochastic;
+- human-gated by design;
+- no integrations;
+- generic practices;
+- enforcement mostly prompt-level unless hooks or CI are wired up;
+- costs more tokens and time.
 
-1. **Targets the dominant failure mode.** Agents take the shortest path and claim success. Every skill ends in an evidence checklist ("'Seems right' is never sufficient"). The rationalization tables pre-empt the excuses agents use to skip steps, such as "I'll add tests later".
-2. **Small and composable.** Progressive disclosure: only descriptions load at startup, each `SKILL.md` stays under 500 lines, and references load on demand. Skills are model-neutral ("write the procedure, not the workaround") and portable across hosts.
-3. **Verification culture built in.** TDD and the Prove-It pattern for bugs, thin vertical slices with verify → commit per slice, a standing Definition of Done, and a floor guard that catches the cheapest routes to green. Those routes are `.skip`, deleted tests, removed assertions, new `eslint-disable` or `istanbul ignore` lines, lowered thresholds, and stubs.
-4. **Independent review.** The reviewer gets a fresh context and receives only the ARTIFACT and CONTRACT, never the author's claim. Its framing is adversarial, and cycles stop after 3. Personas never invoke other personas.
-5. **Durable plan files with safety rules.** "Never overwrite an incomplete plan." Restartable session boundaries define what must be persisted before a fresh session.
-6. **Measured.** Deterministic CI checks for structure and routing, behavioral evals on fixture repos graded from transcripts, and pressure cases (time pressure, sunk cost, authority). The authors publish negative results, for example that the review skill fired in only 5 of 7 runs.
-7. **Near-zero adoption cost.** `npx skills add` and no infrastructure.
+### A.3 FABER: pros and cons
 
-**Cons and limits**
+**Pros:**
+- real orchestration with script-based guards;
+- end-to-end SDLC integration;
+- multi-model, multi-harness CLI executor;
+- auditability;
+- failure learning has started.
 
-1. **No orchestrator.** There is no state machine, run identity, or resume beyond files. The model must pick and follow the right skill, and activation is stochastic by the authors' own data. A one-clause description change moved one skill from 7/27 to 21/27 fires.
-2. **Human-gated by design.** `spec-driven-development` ends the turn after the spec and waits for approval, and `/build auto` waits for plan approval. That fits interactive work but fights a 90%-autonomous issue → PR pipeline.
-3. **No integrations.** It has no link to work tracking, the PR lifecycle, deploys, approval routing, or an audit trail.
-4. **Generic.** The practices are Google-flavoured and not project-specific, so they can conflict with house conventions. The pack has 25 skills plus 9 commands, with some overlap.
-5. **Enforcement is mostly prompt-level** unless hooks or CI are wired up. The pack's own escalation path ("written → scripted → tool-backed") admits this.
-6. **Cost.** TDD, per-slice verification, and multiple reviews add tokens and wall-clock time. The article's warning applies: its harnessed example cost about 20× the unharnessed run.
+**Cons:** see §5.
 
-### 4.2 FABER + faber-code (current)
+### A.4 Against the six decisions
 
-**Pros**
-
-1. **Real orchestration.** Phases and steps are declarative JSON with inheritance. State and events, resume, run IDs, worktrees, and batch runs exist, along with script-based guards against fabricated completion that the orchestrator must call before writing state (`validate-state-transition.sh`, `runs verify-complete`).
-2. **End-to-end SDLC integration.** Issue → branch → spec documents → PR → CI → review → merge → issue status, with per-step approvals and autonomy levels.
-3. **Multi-model, multi-harness executor.** CLI-native mode (`fractary-faber workflow-execute`) supports per-step `model`, `harness`, `max_turns`, `max_budget_usd`, `allowed_tools`, `skills`, and `mcp`, with a fresh Agent SDK context per step. That is more capable than anything agent-skills ships.
-4. **Auditability.** Phase documents are in-repo (`WORK-{id}-*.md`), phase summaries are posted to issues, and runs are recorded as events.
-5. **Learning from failure has started.** The debugger keeps a knowledge base (`plugins/faber/knowledge-base/*`), and `anti-patterns.md` records real orchestrator failures.
-
-**Cons**
-
-1. **Done is process-based.** A run is "complete" when every step ran and the run verifier finds the completion signals. No executable check of the product gates completion (F4, F5).
-2. **Self-grading.** In plugin mode, validators run in the same context that wrote the code (F6). In CLI-native mode, validator verdicts are ignored (F1).
-3. **Thin faber-code skills.** Steps are generic, with no concrete commands, rationalization tables, red flags, or evidence requirements. On an unclear spec the instruction is "Document assumption and proceed" (F7).
-4. **Monolithic build.** There is no task slicing, per-task verification or commit, or progress file. A crash mid-build restarts the whole step (F8).
-5. **Context.** In plugin mode, one session spans all five phases and relies on compaction. Handoffs travel through ever-growing issue comments, which are noisy and untrusted input (F9).
-6. **No evals.** Skill, prompt, and model changes (such as the re-tiering in #233) have no eval to compare against (F10).
-7. **Permissions.** CLI-native mode runs `bypassPermissions`, FABER ships no permission or sandbox profile for target projects, and approval gates are not enforced in CLI-native mode (F2, F3, F11).
-8. **Doc drift.** The faber-code README describes agents, commands, and workflows that no longer exist (F12).
-9. **Orchestration in prompts.** Much machinery (anti-pattern docs, transition guards, "NEVER STOP FOR CONTEXT") exists to make an LLM behave like a deterministic orchestrator. The deterministic-executor prototype and the SDK `WorkflowExecutor` show the codebase already moving that loop into code.
-
-### 4.3 Scored against the article's six decisions
-
-| Decision | Article's recommendation | FABER today | Gap |
-|---|---|---|---|
-| 1. Loop and stop rule | A one-sentence, executable done rule; a policy for bad endings; hard caps; a log of every turn. | Done = all steps completed plus run verifier. Bad endings are handled by `on_failure` and the debugger. Caps exist (`max_turns`, `max_budget_usd`) in CLI-native mode only. In CLI-native mode the executor keeps only each step's final result message, not a per-turn log. | **High**: done is not product-based |
-| 2. Tools | Load tools lazily, return structured errors, prune unused tools. | Skills load on demand. The FABER response format already has `error_analysis` and `suggested_fixes`. | Low |
-| 3. Memory | Staged clean windows with a handoff document between stages; pin rules that must survive compaction. | Plugin mode uses one session plus compaction plus `CONTEXT_YIELD`, and reloads `critical_artifacts`. CLI-native mode gives each step a fresh context. Project rules are not pinned. | Medium |
-| 4. Crash survival | SPEC, PLAN (with acceptance criteria), PROGRESS, and DECISIONS files; commit after every working change. | Strong at workflow level (state, events, resume). One spec document per phase, nothing at task level, and a commit only at the end of a phase. | **High** inside Build |
-| 5. Boundaries | OS-level filesystem and network sandbox, short-lived credentials, prompts reserved for real decisions. | CLI-native runs `bypassPermissions`. FABER ships no permission or sandbox profile for target projects. Plugin mode enforces approvals only through the prompt; CLI-native mode does not enforce them at all. | **High** for unattended runs |
-| 6. Who says done | A separate session reviews; actually run the thing; an eval set built from past failures, each task run 3× and judged on the worst run. | Same-context validators that check document structure, with tests optional and no evals. | **Highest** |
-
-## 5. Findings (evidence)
-
-Paths are relative to each repository root.
-
-| # | Finding | Evidence |
+| Decision | FABER today | Gap |
 |---|---|---|
-| F1 | CLI-native mode records any step as `success` when the agent session ends normally. The skill's FABER response JSON is never parsed, so a validator returning `"status": "failure"` does not stop the run. | faber `sdk/js/src/executors/providers/claude-agent.ts:213-239`; `sdk/js/src/executors/workflow-executor.ts:319-326` |
-| F2 | CLI-native mode ignores `require_approval`, `autonomy.require_approval_for`, and `max_retries`. `on_failure` is only "stop" or "continue". With faber-code's default workflow, `release-deploy-apply-prod` would run without approval under `fractary-faber workflow-execute`. | faber `sdk/js/src/executors/workflow-executor.ts` (no autonomy, approval, or retry handling); faber-code `plugins/faber-code/.fractary/faber/workflows/default.json:131,184` |
-| F3 | CLI-native steps run with `permissionMode: 'bypassPermissions'` and the full Claude Code tool preset, with no sandbox. | faber `sdk/js/src/executors/providers/claude-agent.ts:208` |
-| F4 | No step runs the project's test, lint, typecheck, or build commands and gates deterministically on the exit code. The closest is core's `evaluate-pr-review`, where the LLM waits for CI and judges the result (F5). The run verifier checks workflow signals, not the product. | faber `plugins/faber/skills/fractary-faber-workflow-run-verifier/SKILL.md`; faber-code `default.json` (no verify step) |
-| F5 | faber-code's Evaluate phase consists of Terraform plan/apply steps. For a code-only change, product evaluation reduces to core's "wait for CI and auto-fix", which depends on the target repo having CI. | faber-code `default.json:89-125`; faber `plugins/faber/.fractary/faber/workflows/core.json` (`evaluate-pr-review`) |
-| F6 | The plugin-mode orchestrator must run every step, validators included, in one context: "you do NOT delegate to sub-agents for step execution". The engineering validator is read-only and runs tests only "if possible". | faber `plugins/faber/skills/fractary-faber-workflow-run/SKILL.md:10,15`; faber-code `plugins/faber-code/skills/fractary-faber-code-validate/SKILL.md:9`, `.../workflow/validate-engineering.md:34` |
-| F7 | The engineer workflow is generic ("Write tests alongside code", "Run existing tests") and says "If spec is unclear: Document assumption and proceed". | faber-code `plugins/faber-code/skills/fractary-faber-code-engineer/workflow/engineer-workflow.md:41,56,104` |
-| F8 | Build is a single `build-engineer` step. Build-phase changes are committed once, in core's `build-create-pr` post-step. There is no task list, progress record, or per-task verification. | faber-code `default.json` (build phase); faber `core.json:112` |
-| F9 | Each skill loads the issue body plus all comments as its handoff. That input grows every phase, mixes human and agent text, and lets anyone who can comment inject instructions into a step that may run with `bypassPermissions`. | faber-code `plugins/faber-code/skills/fractary-faber-code-common/scripts/load-work-context.sh:20-21`, `.../references/work-context-protocol.md` |
-| F10 | Neither repo has evals for skills or workflows. The failure knowledge base and `anti-patterns.md` are written down but are not executable regression tests. | faber `plugins/faber/knowledge-base/*`, `plugins/faber/skills/fractary-faber-workflow-run/anti-patterns.md` |
-| F11 | FABER ships no least-privilege permission or sandbox profile for target projects, so a run inherits whatever the target repo allows (or bypasses everything, in CLI-native mode). faber-code's own repo settings show the typical result: they broadly allow `Bash(rm:*)`, `Bash(curl:*)`, `Bash(aws:*)`, `Bash(terraform:*)`, and `Bash(git push:*)`. | faber `plugins/faber/config/` (no permissions in templates); faber-code `.claude/settings.json:12-25` |
-| F12 | The faber-code README documents eight agents (`researcher`, `research-validator`, …), four per-type validator commands (`/fractary-faber-code-research-validate`, …), and three workflow files (`software-development.json`, `bug-fix.json`, `feature-development.json`). None exist after the v0.6.0 skill migration: there is no agents directory, validation is one skill with `--type`, and only `default.json` ships. `config/best-practices-rules.yaml` is referenced only by an old spec. | faber-code `README.md:34,49,60,80,132-138`; `plugins/faber-code/config/best-practices-rules.yaml` |
-
-## 6. What to adopt, and what not to
-
-### Adopt (port the patterns)
-
-1. **Skill anatomy** for every faber-code skill: a description that says when to use it, a "When NOT to use" section, a process with concrete commands, a Common Rationalizations table, Red Flags, and an evidence-based Verification checklist.
-2. **Evidence-based Definition of Done.** Acceptance criteria per task, plus a standing project bar enforced by scripts, not prose.
-3. **A task plan with an acceptance criterion and a verify command per task.** The engineer loops implement → verify → commit → record progress, and keeps an append-only decisions log.
-4. **Fresh-context adversarial review.** The reviewer gets only the diff and the contract, never the author's reasoning or claim, with a bounded fix loop.
-5. **A floor guard** run at review time, scoped to the diff.
-6. **Evals built from our own failures**, each task run 3× and judged on the worst run, including pressure cases.
-7. **Pinned rules.** A short Always / Ask first / Never list, reloaded after compaction and injected into every step.
-
-agent-skills is MIT-licensed. Keep attribution wherever text or scripts are adapted from it.
-
-### Do not adopt
-
-1. **The agent-skills pack wholesale inside FABER runs.** Its human gates (stop after the spec, approve the plan) fight autonomous runs. It duplicates our artifacts (`SPEC.md` and `tasks/*.md` vs `WORK-*` specs and `plan.json`). Its skill activation is stochastic, while our steps invoke skills by name. It remains a reasonable optional install for ad-hoc sessions outside FABER.
-2. **25 skills.** faber-code needs about 6 strong ones.
-3. **Lexical trigger/routing evals.** faber-code skills are invoked explicitly by workflow steps, so routing accuracy is not our risk. Behavioral evals are.
-4. **Persona fan-out on every change.** Reserve it for release-bound or high-risk changes; cost scales with it.
-
-## 7. Implementation plan
-
-Each milestone ends with a measurable check. Milestone B (evals) comes before the skill rewrites so that every later change is measured against a baseline. Sizes: **S** ≤ 1 day, **M** 2–4 days, **L** 1–2 weeks.
-
-### Milestone A: correctness fixes and drift (faber, faber-code)
-
-| ID | Repo | Change | Acceptance criteria | Size |
-|---|---|---|---|---|
-| A1 | faber | Parse the FABER response JSON (last fenced or bare JSON object containing `status`) from each step's output in `claude-agent.ts`, and map it to success, warning, or failure. If no JSON is found, the step is a `warning` with reason `no_response_block`. | Unit tests: a validator output with `"status":"failure"` yields a step failure, and `on_failure: stop` halts the phase. | S |
-| A2 | faber | Enforce `require_approval`, `autonomy.require_approval_for`, and `pause_before_release` in `WorkflowExecutor`. Non-interactive runs halt with a distinct exit code and a resumable state instead of executing the step. | A test plan with `release-deploy-apply-prod` in `require_approval_for` never invokes that step without `--approve <step-id>`. | M |
-| A3 | faber | Implement `max_retries` and `on_failure: retry` (phase-level re-run), capped and recorded as `retry_attempt` events. | A test with a step that fails twice and then succeeds completes with `max_retries: 3`, and fails with `max_retries: 1`. | M |
-| A4 | faber | Make the permission mode configurable (`defaults.permission_mode`). Make `bypassPermissions` an explicit opt-in that prints a warning unless a sandbox is configured (see S2). | The default run uses the configured mode, and the warning appears when bypass is used without a sandbox. | S |
-| A5 | faber-code | Rewrite the README to match reality (skills, the one shipped workflow, how to invoke). Delete or wire up `best-practices-rules.yaml`. | No README reference to agents, commands, or workflow files that do not exist. | S |
-
-### Milestone B: measure first (faber; uses faber-code)
-
-| ID | Repo | Change | Acceptance criteria | Size |
-|---|---|---|---|---|
-| B1 | faber | Create `evals/` with 15–20 tasks drawn from real failures, each a small fixture repo plus issue text and graders. Sources: knowledge-base entries; `anti-patterns.md` cases (fabricated completion, context-pressure stop, self-blocking); WORK-422 (files written to the wrong CWD); historical runs that needed a human fix. | Every task has deterministic graders first: tests pass, the expected files change, no test weakening, state consistent. LLM rubric graders are used only for what cannot be checked deterministically. | L |
-| B2 | faber | Add an eval runner that executes each task 3× through `workflow-execute` (headless, sandboxed, pinned model), records pass^3 (the task counts only if all 3 runs pass), cost, wall-clock time, and human-intervention count, and writes results to `evals/results/` (gitignored) plus a summary ledger. | One command produces a baseline table for the current faber-code skills. | M |
-| B3 | faber-code | Add a CI structural lint for skills (frontmatter, required sections once Milestone E lands, `SKILL.md` ≤ 500 lines, valid script references). | CI fails on a malformed skill. | S |
-| B4 | both | Rule: changes to faber-code skills or to the orchestrator's prompts and protocols ship only with an eval comparison against the last baseline, recorded in the ledger. Rejected changes are recorded too (as agent-skills does in `evals/skill-impact.md`). | Added to `CONTRIBUTING.md` and the PR template. | S |
-
-### Milestone C: done means evidence (faber + faber-code)
-
-| ID | Repo | Change | Acceptance criteria | Size |
-|---|---|---|---|---|
-| C1 | faber | Add a project verification config (for example `faber.verification.commands: {test, lint, typecheck, build}` in `.fractary/config.yaml`) and a deterministic **verify step** that a script runs, not the LLM. CLI-native mode can reuse the existing `!command` path. The step writes evidence to `.fractary/faber/runs/{run_id}/evidence/{step_id}.json`: command, exit code, duration, output tail, and the git SHA it ran against. | The verify step fails on a non-zero exit, and the evidence file exists for every verify step. | M |
-| C2 | faber | Extend the transition guard (`validate-state-transition.sh`) and `runs verify-complete`. A step declared `requires_evidence: true` cannot be marked completed unless its evidence file exists, exited 0, and matches the current `HEAD`. | Attempting to mark a step complete without matching evidence is rejected in both plugin and CLI-native modes. | M |
-| C3 | faber | Add a floor-guard script (adapted from agent-skills' `constraint-driven-development` reference), diff-scoped against the branch point. It flags new `.skip`/`.only`, deleted test files, removed assertions, new suppressions (`eslint-disable`, `@ts-ignore`, `istanbul ignore`, `nosemgrep`, `gitleaks:allow`), loosened thresholds in config, and stubs (`throw new Error('not implemented')`, empty `catch`, `TODO` in place of logic). | Fixture diffs for each pattern are flagged, and a clean diff passes. Runs as a blocking Evaluate step. | M |
-| C4 | faber-code | Insert `build-verify` (C1) and `evaluate-floor-guard` (C3) into `default.json`. Make the existing Terraform steps conditional on IaC being present, rather than relying on a prompt instruction to skip them. | A code-only issue runs verify and floor-guard with no Terraform steps. | S |
-| C5 | faber-code | The engineer's changeset must cite evidence file paths, not prose claims. The engineering validator re-runs the verification commands itself and fails if results differ. | Validator tests: a changeset claiming "tests pass" without matching evidence fails validation. | S |
-
-### Milestone D: independent review (faber + faber-code)
-
-| ID | Repo | Change | Acceptance criteria | Size |
-|---|---|---|---|---|
-| D1 | faber | Add a step field `isolation: "fresh"`. In plugin mode, such a step is dispatched to a subagent with only the declared inputs. This is a scoped exception to the "no sub-agent delegation" rule; completion still requires script-written evidence (C2), so fabricated subagent results cannot pass the guard. CLI-native mode is already fresh per step. | The engineering validator runs in a fresh context in both modes, verified from the run's events or transcript. | M |
-| D2 | faber-code | Rewrite the validators as adversarial reviewers. Input is ARTIFACT (the diff plus evidence files) and CONTRACT (the task's acceptance criteria and spec boundaries), never the engineer's summary or claim. Output is findings labelled Critical / Required / Optional / Nit; only Critical and Required block. | The eval tasks with planted defects show the defect caught. | M |
-| D3 | faber | Add a bounded fix loop: validator failure → engineer fix step (receiving only the findings) → re-verify → re-validate, at most 2 cycles, then escalate per autonomy level. This replaces routing validation failures to `workflow-debug --auto-fix`, which has no cycle cap declared in the workflow config. | Eval runs show at most 2 cycles, followed by a clean pause with a resumable state. | M |
-| D4 | faber | Optionally run the reviewer on a different model family or harness through the existing per-step `model`/`harness` fields, as a config preset. | The preset works end-to-end on one eval task. | S |
-
-### Milestone E: inner-loop discipline in faber-code (task-level state and skill anatomy)
-
-| ID | Repo | Change | Acceptance criteria | Size |
-|---|---|---|---|---|
-| E1 | faber-code | Add `docs/SKILL-ANATOMY.md`, adapted from agent-skills' `docs/skill-anatomy.md`, and make B3's lint enforce it. | Lint passes on all rewritten skills. | S |
-| E2 | faber-code | The architect writes a task list into the spec plus a machine-readable `WORK-{id}-tasks.json`. Each task has an id, description, files, acceptance criteria (≤ 3), a verify command, dependencies, and `status: pending\|passing\|failing`. Tasks must touch ≤ 5 files and be vertical slices. The architect lists assumptions explicitly and writes the Always / Ask first / Never boundaries. If the issue bundles several independently testable capabilities, it splits the work into separate modules before writing the spec. | Spec validation fails if any task lacks acceptance criteria or a verify command. | M |
-| E3 | faber-code | The engineer loops task by task: write a failing test where behavior changes (Prove-It for bugs) → implement → run the task's verify command → commit referencing the task id → update `tasks.json` with status and evidence path → append any deviation to `WORK-{id}-decisions.md`. The engineer never edits the spec; scope creep is noted, not fixed ("noticed but not touching"). On resume, it reads `tasks.json`, `git log`, and `git status`, re-runs verification for the last task, and continues. | Eval runs show one commit per task, a resume after a killed run continuing from the next pending task, and no edits to the spec file. | L |
-| E4 | faber-code | Replace "document assumption and proceed" with an autonomy-aware rule. In `assisted` or `guarded` mode, pause and ask. In `autonomous` mode, proceed only on low-risk assumptions, record them in the decisions log, and return `warning`. Pause on any ambiguity touching security, data loss, public API, or cost. | Pressure-case evals ("just make it work", sunk cost) do not bypass the rule. | S |
-| E5 | faber-code | Rewrite research, inspect, architect, engineer, and validate in the anatomy format: Rationalizations tables seeded from our own `anti-patterns.md` and knowledge base, Red Flags, and evidence-based Verification. Convert the specialty and pattern prose into short checklists with on-demand references. | pass^3 on the eval set improves or holds against the B2 baseline at no more than +50% cost per successful run (threshold to confirm). | L |
-| E6 | faber-code | Ship a `bug-fix` workflow: a light frame, then reproduce → failing test → fix → guard test, skipping the full architect phase. | One eval bug task passes 3/3 at lower cost than `default`. | M |
-| E7 | faber-code | Switch handoffs from issue comments to the spec, tasks, and decisions files. Issue comments become human-facing summaries only, and `load-work-context.sh` stops feeding all comments into every step (the issue body plus maintainer-labelled comments only). | The token count per step drops on eval runs, and a planted malicious comment in an eval fixture is not acted on. | M |
-
-### Milestone S: sandbox, boundaries, and pinned rules for unattended runs (faber)
-
-| ID | Repo | Change | Acceptance criteria | Size |
-|---|---|---|---|---|
-| S1 | faber | Add a pinned rules file (`.fractary/faber/RULES.md`, ≤ 40 lines: Always / Ask first / Never) to `critical_artifacts.always_load` and inject it into every CLI-native step's system prompt (`buildSystemPrompt`). | The rules are present after compaction (plugin mode) and in every step prompt (CLI-native). | S |
-| S2 | faber | Run unattended steps in an OS-level sandbox: writes limited to the worktree, network through an allowlist. Use Claude Code's sandboxing or a container per run, to be decided in S2's design. Pair it with short-lived GitHub App tokens (setup already exists in `cli/src/lib/github-app-setup.ts`). | An eval fixture that tries to write outside the worktree, or call a non-allowlisted host, is blocked. | L |
-| S3 | faber, faber-code | Use per-step `allowed_tools` (already in the schema) instead of broad allowlists, and ship a least-privilege permission profile with faber's installer for target projects. Trim faber-code's own `.claude/settings.json` (project-wide `rm`, `curl`, `aws`, `terraform`, `git push`). | Deploy steps still run, and research steps cannot run `terraform` or `git push`. | M |
-| S4 | faber | Stream every Agent SDK message of a CLI-native step to `.fractary/faber/runs/{run_id}/transcripts/{step_id}.jsonl` (today only the final result is kept), and add wall-clock timeouts per step. | Every step of an eval run has a full transcript, and a hung step is killed at its timeout. | S |
-
-### Milestone G: strategic decision (no code until decided)
-
-G1 asks whether CLI-native (code-driven) orchestration should become the default for unattended runs, keeping `/fractary-faber-workflow-run` for interactive and assisted runs. Evidence for: fresh context per step, deterministic loop, and no need for anti-pattern prompts. Evidence against: plugin mode's mature guard and resume machinery, and existing users. Decide after Milestones A–D, using B's eval numbers for both modes on the same tasks.
-
-## 8. Sequencing
-
-```
-A (correctness) ──► B (baseline evals) ──► C (evidence gates) ──► D (independent review)
-                                     │                                 │
-                                     └──► E1–E2 ───────────► E3–E7 ◄───┘
-S (boundaries) can run in parallel from B onward. G is decided after D, using B's numbers.
-```
-
-Suggested first slice (about 1–2 weeks): A1–A3, B1 (10 tasks) and B2, then C1, C2, and C4. That alone turns "done" into "verified" for unattended runs and gives a baseline for everything after it.
-
-## 9. Risks and trade-offs
-
-| Risk | Mitigation |
-|---|---|
-| Cost and time rise (the article's example: harnessed ≈ 20× the unharnessed cost) | Scale verification depth by autonomy level and work type (bug-fix is lighter than a feature). Track cost per successful run in B2 and reject changes that regress it beyond the agreed threshold. |
-| New gates fail runs that "passed" before | That is intended. Roll out behind config (`verification.enabled`, `floor_guard.enabled`): on by default for new workflows, opt-in for one release on existing ones. |
-| The plugin-mode subagent exception (D1) reintroduces fabricated results | Completion requires script-written evidence (C2), so a subagent's claim alone cannot satisfy the guard. |
-| Eval maintenance burden | Start with 10–15 tasks. Add a task only when a real failure happens twice, mirroring the article's "anything broken twice becomes a linter". |
-| TDD is not applicable everywhere (IaC, docs, config) | E3 requires a failing test only for behavior changes. Other task types declare the verify command that fits (for example `terraform validate` or a docs link check). |
-
-## 10. Open decisions for the maintainer
-
-1. **D1 vs G1.** Allow fresh-context subagents for declared steps in plugin mode (D1), or move unattended runs to CLI-native and leave plugin mode unchanged?
-2. **Port vs depend.** This spec recommends porting agent-skills patterns into faber-code. Alternatively, depend on the pack for ad-hoc sessions only.
-3. **Task state location.** `WORK-{id}-tasks.json` beside the spec (reviewable in the PR, as proposed) or under `.fractary/faber/runs/{run_id}/` (run-scoped)?
-4. **Eval budget.** Tokens and money per baseline run (15–20 tasks × 3 runs × 2 modes).
-5. **Thresholds.** The acceptable cost increase per successful run for E5 (proposed: +50%).
-6. **Issues.** Whether to file F1–F3 / A1–A4 as separate GitHub issues now, since A2 is a safety gap independent of this plan.
-
-## 11. Success metrics
-
-| Metric | Target |
-|---|---|
-| Runs that report done while the project's tests fail | 0 (enforced by C1–C2) |
-| pass^3 on the eval set | Above the B2 baseline after C, D, and E, reported per milestone |
-| Defects planted in eval fixtures that the reviewer catches | ≥ 90% |
-| Test-weakening or suppression changes merged without a flag | 0 (C3) |
-| Cost and time per successful run | Within the agreed threshold of the baseline |
-| Human interventions per run | Trending down |
+| 1. Loop and stop rule | Done = steps completed plus run verifier; caps only in CLI mode | High; addressed in §1.2–1.5 |
+| 2. Tools | Skills load on demand; structured error fields | Low |
+| 3. Memory | Plugin mode: one long session; CLI: fresh session per step | Resolved by Decision 1 |
+| 4. Crash survival | Strong at workflow level; nothing at task level | Addressed in §2.4 and Decision 4 |
+| 5. Boundaries | `bypassPermissions`; no permission profile shipped | High; addressed by A4 and S1–S3 |
+| 6. Who says done | Same-context validators; no evals | Highest; addressed in §1.4 and §1.6 |
