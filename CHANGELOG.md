@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaced retired `claude-3.7` example model with `claude-sonnet-4-6` in example configs and skill docs
   - Added `claude-opus-4-8` pricing and corrected `claude-haiku-4-5` pricing in the Python SDK cost tracker
 
+### Fixed
+
+- **`workflow-execute` saves run state and can resume** (#236): Each execution is now a run (`{plan_id}-run-{timestamp}`) whose state is saved next to the plan, in `state-{timestamp}.json`, after every step starts and finishes. The format is the one the `fractary-faber-workflow-run` skill writes
+  - New `--resume <run-id>` skips the steps the run completed and re-runs the interrupted or failed step
+  - Command steps now receive the real `{run_id}`, and steps get `run_id` and `state_path` in their workflow context
+  - JS SDK: new `RunStateStore`; `WorkflowExecutor` takes a `runState` option and reports `run_id`, `state_path`, `run_status` and `steps_already_completed`
+  - `run-inspect` shows these runs: new `--run-id`, `--work-id` falls back to the latest run, and the listing adds runs (JSON: separate `runs` key)
+- **Run paths for plan-scoped run IDs**: `getRunDir`, `getPlanPath` and `getStatePath` (and `runs dir`, `plan-path`, `state-path`, `verify-complete`) now resolve `{plan_id}-run-{timestamp}` to the plan's directory and its `state-{timestamp}.json`, where the workflow-run skill writes state. They previously pointed at `{run_id}/state.json`, which the skill never writes, so `runs verify-complete` could not find a run's state
+
 ## [1.5.47] - 2026-03-28
 
 > **Note:** Patch releases 1.5.2 through 1.5.47 were not individually documented. This entry covers all changes since 1.5.1.

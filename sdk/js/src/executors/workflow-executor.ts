@@ -35,6 +35,7 @@ import type {
   WorkflowFileConfig,
   StepResultHandling,
 } from '../workflow/resolver.js';
+import type { RunStateStore, RunStatus } from '../state/run-state.js';
 
 // ============================================================================
 // Types
@@ -65,13 +66,13 @@ export interface WorkflowExecuteOptions {
 
   // ── CLI-native execution options ───────────────────────────────────
 
-  /** Run ID for state tracking */
+  /** Run ID for state tracking (defaults to the run ID of `runState`) */
   runId?: string;
   /** Plan ID for metadata */
   planId?: string;
   /** Plan file path for metadata */
   planPath?: string;
-  /** State file path for metadata */
+  /** State file path for metadata (defaults to the state file of `runState`) */
   statePath?: string;
   /** Git branch name */
   branch?: string;
@@ -80,6 +81,15 @@ export interface WorkflowExecuteOptions {
   cliHarness?: HarnessType;
   /** CLI-level model override (applies to all steps) */
   cliModel?: string;
+
+  /**
+   * Persistent run state. When set, progress is saved after every step
+   * transition, and steps already completed in this run are skipped, so an
+   * interrupted or failed run can be resumed.
+   */
+  runState?: RunStateStore;
+  /** Callback for a step skipped because it already completed in this run */
+  onStepSkipped?: (phase: string, step: WorkflowStep, reason: string) => void;
 }
 
 /** Result from a complete workflow execution */
@@ -89,6 +99,14 @@ export interface WorkflowExecuteResult {
   duration_ms: number;
   steps_completed: number;
   steps_total: number;
+  /** Steps skipped because they completed earlier in this run (resume) */
+  steps_already_completed?: number;
+  /** Run ID, when executed with run state */
+  run_id?: string;
+  /** Path of the run's state file, when executed with run state */
+  state_path?: string;
+  /** Final status recorded in the run state, when executed with run state */
+  run_status?: RunStatus;
 }
 
 /** Result from a single phase */
@@ -146,7 +164,13 @@ export class WorkflowExecutor {
     let totalStepsCompleted = 0;
     let totalSteps = 0;
     let workflowFailed = false;
+    let workflowError: string | undefined;
     let globalStepIndex = 0;
+    let stepsAlreadyCompleted = 0;
+    const runState = options.runState;
+    const runId = options.runId ?? runState?.runId;
+    const statePath = options.statePath ?? runState?.statePath;
+    runState?.begin();
 
     // Count total steps
     for (const phaseName of PHASE_ORDER) {
@@ -170,6 +194,7 @@ export class WorkflowExecutor {
 
       // Skip disabled phases
       if (!phase.enabled) {
+        runState?.skipPhase(phaseName);
         phaseResults.push({
           phase: phaseName,
           status: 'skipped',
@@ -192,6 +217,7 @@ export class WorkflowExecutor {
 
       // Execute phase
       options.onPhaseStart?.(phaseName);
+      runState?.startPhase(phaseName);
       const phaseStartTime = Date.now();
       const stepResults: StepExecuteResult[] = [];
       let phaseFailed = false;
@@ -208,7 +234,17 @@ export class WorkflowExecutor {
           continue;
         }
 
+        // Resume: a step already completed in this run is not executed again
+        if (runState?.isStepDone(phaseName, step.id)) {
+          stepsAlreadyCompleted++;
+          totalStepsCompleted++;
+          globalStepIndex++;
+          options.onStepSkipped?.(phaseName, step, 'already completed in this run');
+          continue;
+        }
+
         options.onStepStart?.(phaseName, step, i, phase.steps.length);
+        runState?.startStep(phaseName, step.id);
 
         // Resolve runtime config via cascade:
         //   step > phase_defaults > workflow.defaults > CLI args > system defaults
@@ -232,8 +268,8 @@ export class WorkflowExecutor {
         const metadata: StepWorkflowMetadata = {
           work_id: options.workId,
           plan_id: options.planId,
-          run_id: options.runId,
-          state_path: options.statePath,
+          run_id: runId,
+          state_path: statePath,
           plan_path: options.planPath,
           branch: options.branch,
           phase: phaseName,
@@ -259,45 +295,26 @@ export class WorkflowExecutor {
           previousOutputs,
           issue: options.issue,
           workingDirectory: options.workingDirectory || process.cwd(),
-          runId: options.runId,
+          runId,
           runtimeConfig,
           promptContext,
         };
 
         let result: ExecutorResult;
-
-        // Determine execution path
-        const isCommand = step.prompt.trim().startsWith('!');
-        const hasHarness = runtimeConfig.harness != null;
-        const hasLegacyExecutor = step.executor != null;
-
-        if (isCommand || hasHarness) {
-          // Harness-based routing (new path)
-          // Commands (! prefix) always go to claude-agent executor which handles them
-          // Other steps route based on harness type
-          const executorName = this.harnessToExecutor(runtimeConfig.harness || 'claude-code');
-          const executor = this.registry.get(executorName);
-          result = await executor.execute(step.prompt, context, { provider: executorName });
-        } else if (hasLegacyExecutor) {
-          // Legacy executor-based routing
-          const resolved = this.registry.resolveForStep(
-            step,
-            phaseName,
-            workflow.executor,
-            workflow.phase_executors,
-          );
-          if (resolved) {
-            result = await resolved.executor.execute(step.prompt, context, resolved.config);
-          } else {
-            const claudeAgent = this.registry.get('claude-agent');
-            result = await claudeAgent.execute(step.prompt, context, { provider: 'claude-agent' });
-          }
-        } else {
-          // No routing config — use default executor (claude-agent for full agentic)
-          const executorName = this.harnessToExecutor(runtimeConfig.harness || 'claude-code');
-          const executor = this.registry.get(executorName);
-          result = await executor.execute(step.prompt, context, { provider: executorName });
+        try {
+          result = await this.dispatchStep(step, phaseName, workflow, runtimeConfig, context);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          runState?.finishStep(phaseName, step.id, { result: 'failure', error: message });
+          runState?.finishPhase(phaseName);
+          runState?.finish(message);
+          throw error;
         }
+        runState?.finishStep(phaseName, step.id, {
+          result: result.status,
+          error: result.error,
+          duration_ms: result.metadata.duration_ms,
+        });
 
         stepResults.push({
           stepId: step.id,
@@ -320,6 +337,7 @@ export class WorkflowExecutor {
           const handling = this.resolveResultHandling(step, phase, workflow);
           if (handling.on_failure === 'stop') {
             phaseFailed = true;
+            workflowError = `Step ${phaseName}:${step.id} failed${result.error ? `: ${result.error}` : ''}`;
             break;
           }
           // If on_failure is not 'stop', continue to next step
@@ -334,6 +352,7 @@ export class WorkflowExecutor {
         duration_ms: Date.now() - phaseStartTime,
       });
 
+      runState?.finishPhase(phaseName);
       options.onPhaseComplete?.(phaseName, phaseStatus);
 
       if (phaseFailed) {
@@ -342,13 +361,74 @@ export class WorkflowExecutor {
       }
     }
 
+    const runStatus = runState?.finish(workflowFailed ? workflowError : undefined);
+
     return {
       status: workflowFailed ? 'failed' : 'completed',
       phases: phaseResults,
       duration_ms: Date.now() - startTime,
       steps_completed: totalStepsCompleted,
       steps_total: totalSteps,
+      ...(runState && {
+        steps_already_completed: stepsAlreadyCompleted,
+        run_id: runState.runId,
+        state_path: runState.statePath,
+        run_status: runStatus,
+      }),
     };
+  }
+
+  /**
+   * Route a step to its executor and run it.
+   *
+   * Routing priority:
+   * 1. If step prompt starts with `!` → direct shell command (via claude-agent executor)
+   * 2. If step has `harness` (directly or via cascade) → use harness-mapped executor
+   * 3. If step has legacy `executor` config → use ExecutorRegistry
+   * 4. Default → 'claude-agent' executor (Agent SDK)
+   */
+  private dispatchStep(
+    step: WorkflowStep,
+    phaseName: string,
+    workflow: {
+      executor?: StepExecutorConfig;
+      phase_executors?: Partial<Record<string, StepExecutorConfig>>;
+    },
+    runtimeConfig: StepRuntimeConfig,
+    context: ExecutionContext & ClaudeAgentExecuteOptions,
+  ): Promise<ExecutorResult> {
+    // Determine execution path
+    const isCommand = step.prompt.trim().startsWith('!');
+    const hasHarness = runtimeConfig.harness != null;
+    const hasLegacyExecutor = step.executor != null;
+
+    if (isCommand || hasHarness) {
+      // Harness-based routing (new path)
+      // Commands (! prefix) always go to claude-agent executor which handles them
+      // Other steps route based on harness type
+      const executorName = this.harnessToExecutor(runtimeConfig.harness || 'claude-code');
+      const executor = this.registry.get(executorName);
+      return executor.execute(step.prompt, context, { provider: executorName });
+    } else if (hasLegacyExecutor) {
+      // Legacy executor-based routing
+      const resolved = this.registry.resolveForStep(
+        step,
+        phaseName,
+        workflow.executor,
+        workflow.phase_executors,
+      );
+      if (resolved) {
+        return resolved.executor.execute(step.prompt, context, resolved.config);
+      } else {
+        const claudeAgent = this.registry.get('claude-agent');
+        return claudeAgent.execute(step.prompt, context, { provider: 'claude-agent' });
+      }
+    } else {
+      // No routing config — use default executor (claude-agent for full agentic)
+      const executorName = this.harnessToExecutor(runtimeConfig.harness || 'claude-code');
+      const executor = this.registry.get(executorName);
+      return executor.execute(step.prompt, context, { provider: executorName });
+    }
   }
 
   /**
