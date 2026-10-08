@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaced retired `claude-3.7` example model with `claude-sonnet-4-6` in example configs and skill docs
   - Added `claude-opus-4-8` pricing and corrected `claude-haiku-4-5` pricing in the Python SDK cost tracker
 
+- **Skipped steps need a reason in plugin runs**: A run could skip its way past the completion gate, because a skipped step counted as done and nothing limited how many steps one state update skipped
+  - The transition guard (`validate-state-transition.sh`) allows one finished step per update, whether completed, failed or skipped, and rejects a skip that does not record a `reason`. It compares each step's status, so an update that reopens one step while finishing two is also rejected
+  - The completion verifier fails a run with a step skipped without a reason. Which phases are disabled comes from the plan, so a state that marks a phase disabled does not excuse its steps
+  - The workflow-run skill and orchestration protocol say how to skip a step (2.6b, `skipStep`). A phase the user skips now skips each of its steps with the reason; the protocol's examples used an old state layout and left the phase's steps pending, which failed the gate
+  - `state-update-step.sh` records a skipped step's `reason` from its data JSON
+
 ### Fixed
 
 - **`workflow-execute` saves run state and can resume** (#236): Each execution is now a run (`{plan_id}-run-{timestamp}`) whose state is saved next to the plan, in `state-{timestamp}.json`, after every step starts and finishes. The format is the one the `fractary-faber-workflow-run` skill writes
@@ -57,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `load-faber-config.sh` no longer consumes the caller's arguments or prints the config when sourced. This had made `state-read.sh` ignore its arguments, including `--run-id`
   - `state-read.sh` treats a `.json` path such as `.fractary/faber/state.json` as a file, not a jq query
 - **`/fractary-faber-workflow-debug` exists again** (#249): Workflows across the packs name it as their `on_failure` handler, but it was removed in the agent-to-skill migration. The new `fractary-faber-workflow-debug` skill delegates to `fractary-faber-faber-debugger`, proposes fixes without applying them, and returns a `stop` recovery plan. `--auto-fix`, `--learn` and the other old flags are accepted, with no effect yet
+- **`state-update-phase.sh` runs again**: It looked for the transition validator one folder too high. The guard used to skip that missing validator without a word; since the guard now fails when the validator is missing, every call failed
+- **JSON arguments to state and hook scripts**: `state-update-step.sh`, `state-update-phase.sh`, `hook-execute.sh` and `hooks-execute-all.sh` defaulted their optional JSON argument with `${N:-{}}`, which appends a stray `}` whenever the argument is given, so any data or context passed was rejected as invalid JSON
 
 ## [1.5.47] - 2026-03-28
 

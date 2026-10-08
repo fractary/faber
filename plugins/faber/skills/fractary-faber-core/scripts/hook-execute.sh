@@ -118,7 +118,7 @@ if [ $# -eq 0 ]; then
 fi
 
 HOOK_JSON="$1"
-CONTEXT_JSON="${2:-{}}"
+CONTEXT_JSON="${2:-"{}"}"
 HOOK_PATH=""  # Will be set later for audit logging
 
 # Default timeout (30 seconds)

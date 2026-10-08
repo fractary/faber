@@ -17,6 +17,7 @@ You are the orchestrator for a FABER workflow. You execute each step directly in
 4. **EXECUTE GUARDS** — Run `validate-state-transition.sh` before every state write. Run `fractary-faber runs verify-complete` before final completion. Never skip these.
 5. **SEQUENTIAL STEPS** — Execute exactly one step at a time. Complete it fully before starting the next. NEVER invoke skills or dispatch agents for two different workflow steps in the same response. Exception: declared `parallel_group` items.
 6. **NEVER FABRICATE COMPLETIONS** — Do not mark steps complete without executing them. An honest pause is always better than a fabricated completion.
+7. **SKIP ONLY WITH A REASON** — Skip a step only when the user or a guard decides it must not run (see 2.6b). Record each skip like a completion: one step per state update, through the transition guard, with a `reason`. The guard rejects a skip without a reason or a second finished step in one update, and the completion verifier fails a run with a step skipped without a reason. Never skip steps to get past the completion gate.
 
 > If you see anomalous behavior (batch-completing steps, stopping for context, self-blocking), read `anti-patterns.md` for corrective guidance.
 </CRITICAL_RULES>
@@ -149,6 +150,15 @@ FOR EACH phase IN phases_to_execute (in order):
 
       # ── 2.6: On failure — follow orchestration protocol result handling ──
       # (see workflow-orchestration-protocol.md: Result Handling, Retry Logic)
+
+      # ── 2.6b: Skipping a step (only when the user or a guard decides it must not run) ──
+      Read the state file at {state_path}   # FRESH read from disk
+      proposed_state = deepcopy(current_state) with phases[phase.name].steps[step.id] =
+          { status: "skipped", reason: "<why the step must not run>" }
+      Run the transition guard as in 2.5 — one skip per update, never with another finished step
+      Update state as proposed
+      Emit step_complete event (run_id: eventRunId, phase: phase.name, step: step.id, status: "skipped")
+      # To skip a whole phase, skip each unfinished step this way, then set the phase status to "skipped"
 
     # ══ Parallel group (item HAS steps_parallel) ═════════════════════
 

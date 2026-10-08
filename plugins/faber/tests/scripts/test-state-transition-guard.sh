@@ -45,6 +45,55 @@ test_completed_workflow_needs_enabled_phases_done() {
     assert_eq 0 "$STATUS" "exit code with build completed"
 }
 
+test_one_skip_with_reason_is_allowed() {
+    write_state current.json '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "pending"}, "b": {"status": "pending"}}}}}'
+    run "$VALIDATE" --current current.json --proposed-json \
+        '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "skipped", "reason": "User declined the destructive step"}, "b": {"status": "pending"}}}}}'
+    assert_eq 0 "$STATUS" "exit code"
+}
+
+test_skip_without_reason_is_rejected() {
+    write_state current.json '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "pending"}}}}}'
+    run "$VALIDATE" --current current.json --proposed-json \
+        '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "skipped"}}}}}'
+    assert_eq 1 "$STATUS" "exit code without a reason"
+    assert_contains "$OUTPUT" "Step skipped without a reason: build:a" "violation"
+
+    run "$VALIDATE" --current current.json --proposed-json \
+        '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "skipped", "reason": "  "}}}}}'
+    assert_eq 1 "$STATUS" "exit code with a blank reason"
+}
+
+test_skip_without_reason_is_rejected_in_array_layout() {
+    write_state current.json '{"status": "in_progress", "phases": {"build": {"steps": [{"name": "a", "status": "pending"}]}}}'
+    run "$VALIDATE" --current current.json --proposed-json \
+        '{"status": "in_progress", "phases": {"build": {"steps": [{"name": "a", "status": "skipped"}]}}}'
+    assert_eq 1 "$STATUS" "exit code"
+}
+
+test_two_skips_in_one_update_are_rejected() {
+    write_state current.json '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "pending"}, "b": {"status": "pending"}}}}}'
+    run "$VALIDATE" --current current.json --proposed-json \
+        '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "skipped", "reason": "x"}, "b": {"status": "skipped", "reason": "y"}}}}}'
+    assert_eq 1 "$STATUS" "exit code"
+    assert_contains "$OUTPUT" "build:a, build:b" "violation names the steps"
+}
+
+test_completion_and_skip_in_one_update_are_rejected() {
+    write_state current.json '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "in_progress"}, "b": {"status": "pending"}}}}}'
+    run "$VALIDATE" --current current.json --proposed-json \
+        '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "completed"}, "b": {"status": "skipped", "reason": "y"}}}}}'
+    assert_eq 1 "$STATUS" "exit code"
+}
+
+test_finishing_two_steps_while_reopening_one_is_rejected() {
+    # The finished-step count stays +1, but two steps finished in one update
+    write_state current.json '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "pending"}, "b": {"status": "pending"}, "c": {"status": "completed"}}}}}'
+    run "$VALIDATE" --current current.json --proposed-json \
+        '{"status": "in_progress", "phases": {"build": {"steps": {"a": {"status": "completed"}, "b": {"status": "completed"}, "c": {"status": "pending"}}}}}'
+    assert_eq 1 "$STATUS" "exit code"
+}
+
 # Copy the skills the state scripts need, so a test can remove the validator
 copy_skills() {
     mkdir -p plugin/skills
@@ -81,6 +130,19 @@ test_step_update_runs_the_guard() {
     assert_eq 0 "$STATUS" "exit code"
     assert_eq completed "$(jq -r '.phases.build.steps[] | select(.name == "implement") | .status' .fractary/faber/state.json)" "step status"
     assert_eq 1 "$(jq -s 'length' .fractary/faber/state.json)" "state holds one JSON document"
+}
+
+test_step_update_records_a_skip_reason() {
+    mkdir -p .fractary/faber
+    write_state .fractary/faber/state.json '{"status": "in_progress", "phases": {"release": {"status": "in_progress"}}}'
+    run "$STATE_SCRIPTS/state-update-step.sh" release deploy skipped
+    assert_eq 1 "$STATUS" "exit code without a reason"
+    assert_contains "$ERRORS" "Step skipped without a reason" "error"
+
+    run "$STATE_SCRIPTS/state-update-step.sh" release deploy skipped '{"reason": "User declined the destructive step"}'
+    assert_eq 0 "$STATUS" "exit code with a reason"
+    assert_eq "User declined the destructive step" \
+        "$(jq -r '.phases.release.steps[] | select(.name == "deploy") | .reason' .fractary/faber/state.json)" "recorded reason"
 }
 
 run_tests

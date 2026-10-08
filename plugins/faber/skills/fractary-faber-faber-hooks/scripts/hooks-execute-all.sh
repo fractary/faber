@@ -21,7 +21,7 @@ set -euo pipefail
 
 # Arguments
 BOUNDARY="${1:?Boundary required}"
-CONTEXT_JSON="${2:-{}}"
+CONTEXT_JSON="${2:-"{}"}"
 # Legacy argument - kept for backward compatibility but deprecated
 CONFIG_PATH="${3:-}"
 

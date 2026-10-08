@@ -9,12 +9,15 @@
 #   phase       - Phase name (frame, architect, build, evaluate, release)
 #   step_name   - Name of the step to update
 #   status      - Step status (pending, in_progress, completed, failed, skipped)
-#   data_json   - Optional JSON data to store with step (default: {})
+#   data_json   - Optional JSON data to store with step (default: {}). A
+#                 skipped step needs a "reason" in it, which is recorded as
+#                 the step's reason
 #
 # Examples:
 #   state-update-step.sh build implement in_progress
 #   state-update-step.sh build implement completed '{"files_changed": 5}'
 #   state-update-step.sh evaluate test failed '{"test_count": 10, "failures": 2}'
+#   state-update-step.sh release deploy skipped '{"reason": "User declined the destructive step"}'
 
 set -euo pipefail
 
@@ -22,7 +25,7 @@ set -euo pipefail
 PHASE="${1:?Phase name required}"
 STEP_NAME="${2:?Step name required}"
 STATUS="${3:?Status required}"
-DATA_JSON="${4:-{}}"
+DATA_JSON="${4:-"{}"}"
 
 # Resolve paths robustly (works regardless of execution context)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -83,6 +86,9 @@ UPDATED_STATE=$(echo "$CURRENT_STATE" | jq \
     --arg timestamp "$TIMESTAMP" \
     --argjson data "$DATA_JSON" \
     '
+    # A skipped step records its reason from the data
+    ($data | if type == "object" then .reason else null end) as $reason |
+
     # Ensure steps array exists for the phase
     if .phases[$phase].steps == null then
         .phases[$phase].steps = []
@@ -104,6 +110,9 @@ UPDATED_STATE=$(echo "$CURRENT_STATE" | jq \
         else . end |
         if $data != {} then
             .phases[$phase].steps[$idx].data = $data
+        else . end |
+        if $status == "skipped" and $reason != null then
+            .phases[$phase].steps[$idx].reason = $reason
         else . end
     else
         # Create new step entry
@@ -112,6 +121,7 @@ UPDATED_STATE=$(echo "$CURRENT_STATE" | jq \
             "status": $status,
             "started_at": (if $status == "in_progress" then $timestamp else null end),
             "completed_at": (if $status == "completed" then $timestamp else null end),
+            "reason": (if $status == "skipped" then $reason else null end),
             "data": (if $data != {} then $data else null end)
         } | with_entries(select(.value != null))]
     end

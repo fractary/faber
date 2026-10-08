@@ -38,7 +38,7 @@ fi
 
 PHASE="${1:?Phase name required (frame, architect, build, evaluate, release)}"
 STATUS="${2:?Status required (pending, in_progress, completed, failed)}"
-DATA_JSON="${3:-{}}"
+DATA_JSON="${3:-"{}"}"
 
 # Source shared library for centralized path computation
 source "$SCRIPT_DIR/lib/load-faber-config.sh"
@@ -149,7 +149,7 @@ PROPOSED_STATE=$(echo "$CURRENT_STATE" | jq \
     "$UPDATE_EXPR")
 
 # Validate state transition before writing
-FABER_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+FABER_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 VALIDATE_SCRIPT="$FABER_ROOT/skills/fractary-faber-run-manager/scripts/validate-state-transition.sh"
 
 # The guard must run: if the validator is missing or cannot run, the update

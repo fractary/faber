@@ -67,6 +67,34 @@ test_disabled_phase_with_pending_steps_is_not_required() {
     assert_eq 0 "$STATUS" "exit code"
 }
 
+test_skipped_step_with_reason_passes() {
+    make_completed_run
+    edit_state '.phases.build.steps["build-commit"] = {"status": "skipped", "reason": "User declined the destructive step"}'
+    remove_step_event build-commit
+    run "$VERIFY" --run-id "$RUN_ID"
+    assert_eq 0 "$STATUS" "exit code"
+    assert_eq "4/4 steps completed (1 skipped with a reason)" "$(check_field step_count detail)" "step_count detail"
+}
+
+test_skipped_step_without_reason_fails() {
+    make_completed_run
+    edit_state '.phases.build.steps["build-commit"] = {"status": "skipped"}'
+    remove_step_event build-commit
+    run "$VERIFY" --run-id "$RUN_ID"
+    assert_eq 1 "$STATUS" "exit code"
+    assert_eq "Steps skipped without a recorded reason: build:build-commit" "$(check_field step_count detail)" "step_count detail"
+}
+
+test_state_cannot_disable_a_phase_the_plan_enables() {
+    make_completed_run
+    edit_state '.phases.build = {"status": "skipped", "enabled": false, "steps": {
+        "build-implement": {"status": "skipped"}, "build-commit": {"status": "skipped"}}}'
+    rm -f "$(events_dir)"/*.json
+    run "$VERIFY" --run-id "$RUN_ID"
+    assert_eq 1 "$STATUS" "exit code"
+    assert_contains "$(check_field step_count detail)" "build:build-implement, build:build-commit" "step_count detail"
+}
+
 test_array_step_layout_passes() {
     make_completed_run
     edit_state '.phases |= with_entries(.value.steps |= (if type == "object" then [to_entries[] | {name: .key, status: .value.status}] else . end))'
