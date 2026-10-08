@@ -3,7 +3,8 @@
 # validate-state-transition.sh - Validate state transitions for FABER workflows
 #
 # Enforces:
-#   - Max 1 new step completion per update
+#   - At most 1 step finished (completed, failed or skipped) per update
+#   - A step that becomes "skipped" records why, in its "reason"
 #   - Forward-only workflow status transitions (pending -> in_progress -> completed/failed/paused)
 #   - Workflow can only be "completed" if ALL enabled phases are "completed" or "skipped"
 #
@@ -99,22 +100,42 @@ fi
 
 VIOLATIONS="[]"
 
-# Rule 1: Max 1 new step completion per update
-# Count finished steps in current vs proposed. Steps live in .phases[].steps,
-# keyed by step ID (workflow-run skill) or as an array (state-update-step.sh);
-# older states keep a root .steps array.
-FINISHED_STEPS='
-  def finished: . == "success" or . == "failure" or . == "warning" or . == "completed" or . == "failed";
-  ([.steps // [] | if type == "array" then .[] else empty end | select((.status // "") | finished)] | length)
-  + ([.phases // {} | .[] | (.steps // []) | if type == "object" or type == "array" then .[] else empty end
-      | select((.status // "") | finished)] | length)'
-CURRENT_STEP_COUNT=$(echo "$CURRENT_STATE" | jq "$FINISHED_STEPS")
-PROPOSED_STEP_COUNT=$(echo "$PROPOSED_STATE" | jq "$FINISHED_STEPS")
-STEP_DIFF=$((PROPOSED_STEP_COUNT - CURRENT_STEP_COUNT))
+# Rules 1 and 4 compare each step's status in the current and proposed state.
+# Steps live in .phases[].steps, keyed by step ID (workflow-run skill) or as an
+# array (state-update-step.sh); older states keep a root .steps array.
+STEP_CHANGES=$(jq -n --slurpfile current <(printf '%s' "$CURRENT_STATE") --slurpfile proposed <(printf '%s' "$PROPOSED_STATE") '
+  def finished: . == "success" or . == "failure" or . == "warning"
+      or . == "completed" or . == "failed" or . == "skipped";
+  def steps_by_key:
+      [(.phases // {}) | to_entries[] | .key as $ph | (.value.steps // null) |
+          if type == "object" then to_entries[] | {key: "\($ph):\(.key)", value: .value}
+          elif type == "array" then .[] | {key: "\($ph):\(.id // .name)", value: .}
+          else empty end]
+      + [(.steps // []) | if type == "array" then .[] else empty end
+          | {key: "\(.phase // "unknown"):\(.step_id // .id)", value: .}]
+      | from_entries;
+  ($current[0] | steps_by_key) as $before
+  | [($proposed[0] | steps_by_key) | to_entries[]
+     | select(((.value.status // "") | finished) and (.value.status != ($before[.key].status // "")))]
+  | {finished: map(.key),
+     skipped_without_reason: map(select(.value.status == "skipped"
+         and ((.value.reason // "") | tostring | test("\\S") | not)) | .key)}')
 
-if [[ $STEP_DIFF -gt 1 ]]; then
-    VIOLATIONS=$(echo "$VIOLATIONS" | jq --arg diff "$STEP_DIFF" \
-        '. + ["Cannot advance more than 1 step per update (attempted: " + $diff + " new completions)"]')
+# Rule 1: At most 1 step finished per update. A step finishes when it becomes
+# completed, failed or skipped, so a batch of skips is caught like a batch of
+# completions.
+FINISHED_COUNT=$(echo "$STEP_CHANGES" | jq '.finished | length')
+if [[ "$FINISHED_COUNT" -gt 1 ]]; then
+    VIOLATIONS=$(echo "$VIOLATIONS" | jq --argjson changes "$STEP_CHANGES" \
+        '. + ["Cannot advance more than 1 step per update (completed, failed or skipped; attempted " + ($changes.finished | length | tostring) + ": " + ($changes.finished | join(", ")) + ")"]')
+fi
+
+# Rule 4: A skipped step records why. Skipping is for steps the user or a guard
+# decided must not run, never a way to get past the completion gate.
+SKIPPED_WITHOUT_REASON=$(echo "$STEP_CHANGES" | jq -r '.skipped_without_reason | join(", ")')
+if [[ -n "$SKIPPED_WITHOUT_REASON" ]]; then
+    VIOLATIONS=$(echo "$VIOLATIONS" | jq --arg steps "$SKIPPED_WITHOUT_REASON" \
+        '. + ["Step skipped without a reason: " + $steps + " (record why in the step'"'"'s \"reason\")"]')
 fi
 
 # Rule 2: Forward-only status transitions

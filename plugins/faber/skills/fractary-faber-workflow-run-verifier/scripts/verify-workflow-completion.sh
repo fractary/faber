@@ -163,21 +163,25 @@ fi
 if [[ "$PLAN_VALID" == true ]]; then
     # Expected steps: every step of every enabled phase in the plan (the plan's
     # steps already include merged pre/post steps; parallel groups expanded).
-    # A step is done when the state records it completed, succeeded or skipped.
-    # States keep steps in .phases[].steps (keyed by ID, or as an array) or, in
-    # older runs, in completed_step_ids or a root .steps array.
+    # A step is done when the state records it completed or succeeded, or
+    # skipped with a reason. The plan decides which phases are enabled, so a
+    # state that marks a phase disabled does not excuse its steps. States keep
+    # steps in .phases[].steps (keyed by ID, or as an array) or, in older runs,
+    # in completed_step_ids or a root .steps array.
     STEP_REPORT=$(jq -n --slurpfile plan "$PLAN_FILE" --slurpfile state "$STATE_FILE" '
         def step_ids($phase):
             ($phase.steps // [])
             | map(if type == "object" and has("steps_parallel") then .steps_parallel[] else . end)
             | map(.id // .name);
-        def status_of($s; $ph; $id):
+        def step_of($s; $ph; $id):
             ($s.phases[$ph].steps // null) as $steps
-            | (if ($steps | type) == "object" then $steps[$id].status
-               elif ($steps | type) == "array" then ([$steps[] | select((.id // .name) == $id) | .status] | last)
+            | (if ($steps | type) == "object" then $steps[$id]
+               elif ($steps | type) == "array" then ([$steps[] | select((.id // .name) == $id)] | last)
                else null end)
-              // (if (($s.phases[$ph].completed_step_ids // []) | index($id)) != null then "completed" else null end)
-              // ([($s.steps // [])[] | select((.step_id // .id) == $id and ((.phase // $ph) == $ph)) | .status] | last);
+              // (if (($s.phases[$ph].completed_step_ids // []) | index($id)) != null then {status: "completed"} else null end)
+              // ([($s.steps // [])[] | select((.step_id // .id) == $id and ((.phase // $ph) == $ph))] | last)
+              // {};
+        def has_reason: (.reason // "") | tostring | test("\\S");
         def executed($s):
             [($s.phases // {}) | to_entries[] | .key as $ph | (.value.steps // null) |
                 if type == "object" then to_entries[] | select(.value.status == "completed" or .value.status == "success") | {phase: $ph, id: .key}
@@ -188,29 +192,41 @@ if [[ "$PLAN_VALID" == true ]]; then
         ($plan[0]) as $p | ($state[0]) as $s
         | [($p.workflow.phases // {}) | to_entries[] | select(.value.enabled != false)
            | .key as $ph | step_ids(.value)[] | {phase: $ph, id: .}] as $expected
-        | [$expected[] | select((status_of($s; .phase; .id) // "") as $st
-                                | $st == "completed" or $st == "success" or $st == "skipped")] as $done
+        | [$expected[] | . + {step: step_of($s; .phase; .id)}] as $steps
+        | [$steps[] | select(.step.status == "completed" or .step.status == "success"
+                             or (.step.status == "skipped" and (.step | has_reason)))] as $done
+        | [$steps[] | select(.step.status == "skipped" and (.step | has_reason | not))] as $unexplained
         | (executed($s) | unique) as $executed
         | {expected: ($expected | length),
            claimed: ($done | length),
-           missing: [$expected[] | select(. as $e | ($done | index($e)) == null) | "\(.phase):\(.id)"],
+           skipped: ([$done[] | select(.step.status == "skipped")] | length),
+           missing: [$steps[] | select(.step.status != "skipped" and (. as $e | ($done | index($e)) == null))
+                     | "\(.phase):\(.id)"],
+           unexplained: [$unexplained[] | "\(.phase):\(.id)"],
            extra: [$executed[] | select(. as $x | ($expected | index($x)) == null) | "\(.phase):\(.id)"]}')
 
     EXPECTED_STEPS=$(echo "$STEP_REPORT" | jq '.expected')
     CLAIMED_STEPS=$(echo "$STEP_REPORT" | jq '.claimed')
     MISSING_STEPS=$(echo "$STEP_REPORT" | jq -r '.missing | join(", ")')
     EXTRA_STEPS=$(echo "$STEP_REPORT" | jq -r '.extra | join(", ")')
+    UNEXPLAINED_STEPS=$(echo "$STEP_REPORT" | jq -r '.unexplained | join(", ")')
+    SKIPPED_STEPS=$(echo "$STEP_REPORT" | jq '.skipped')
 
     if [[ -n "$EXTRA_STEPS" ]]; then
         ALL_PASSED=false
         CHECKS=$(echo "$CHECKS" | jq --arg x "$EXTRA_STEPS" \
             '. + [{"check": "step_count", "status": "fail", "detail": ("Steps recorded as completed that the plan does not contain: " + $x + " - possible fabrication")}]')
+    elif [[ -n "$UNEXPLAINED_STEPS" ]]; then
+        ALL_PASSED=false
+        CHECKS=$(echo "$CHECKS" | jq --arg u "$UNEXPLAINED_STEPS" \
+            '. + [{"check": "step_count", "status": "fail", "detail": ("Steps skipped without a recorded reason: " + $u)}]')
     elif [[ "$EXPECTED_STEPS" -eq 0 ]]; then
         CHECKS=$(echo "$CHECKS" | jq \
             '. + [{"check": "step_count", "status": "warn", "detail": "Could not determine expected step count from plan"}]')
     elif [[ "$CLAIMED_STEPS" -eq "$EXPECTED_STEPS" ]]; then
-        CHECKS=$(echo "$CHECKS" | jq --argjson e "$EXPECTED_STEPS" --argjson c "$CLAIMED_STEPS" \
-            '. + [{"check": "step_count", "status": "pass", "detail": (($c | tostring) + "/" + ($e | tostring) + " steps completed")}]')
+        CHECKS=$(echo "$CHECKS" | jq --argjson e "$EXPECTED_STEPS" --argjson c "$CLAIMED_STEPS" --argjson k "$SKIPPED_STEPS" \
+            '. + [{"check": "step_count", "status": "pass", "detail": (($c | tostring) + "/" + ($e | tostring) + " steps completed"
+                + (if $k > 0 then " (" + ($k | tostring) + " skipped with a reason)" else "" end))}]')
     else
         ALL_PASSED=false
         CHECKS=$(echo "$CHECKS" | jq --argjson e "$EXPECTED_STEPS" --argjson c "$CLAIMED_STEPS" --arg m "$MISSING_STEPS" \

@@ -578,6 +578,25 @@ await fractary_faber_event_emit({
 
 Guards are mandatory safety checks that MUST pass before proceeding. If any guard fails, STOP immediately.
 
+### Skipping a Step
+
+A step is skipped only when the user or a guard decides it must not run, never because a step's output suggests the work is done. A skip is recorded like a completion: one step per state update, through the transition guard, with a `reason`. The guard rejects a skip without a reason or a second finished step in one update, and the completion verifier fails a run with a step skipped without a reason.
+
+```javascript
+async function skipStep(runId, phaseName, stepId, reason) {
+  const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));   // fresh read
+  const step = state.phases[phaseName].steps[stepId] || {};
+  if (step.status === "completed" || step.status === "skipped") return;
+  state.phases[phaseName].steps[stepId] = { ...step, status: "skipped", reason, updated_at: new Date().toISOString() };
+
+  // Transition guard; on a non-zero exit, pause the run and do not write
+  await Bash({ command: `bash "${PLUGIN_DIR}/skills/fractary-faber-run-manager/scripts/validate-state-transition.sh" --current "${getStatePath(runId)}" --proposed-json '${JSON.stringify(state)}'` });
+
+  await Write({ file_path: `${getStatePath(runId)}`, content: JSON.stringify(state, null, 2) });
+  await fractary_faber_event_emit({ run_id: eventRunId, type: "step_complete", phase: phaseName, step: stepId, status: "skipped", message: reason });
+}
+```
+
 ### Guard 1: Execution Evidence
 
 **Purpose**: Verify that previous step actually executed (not just talked about executing).
@@ -738,23 +757,9 @@ if (isDestructive) {
 
   if (answer === "Skip") {
     console.log(`Skipping destructive step: ${step.name}`);
-    // Mark step as skipped in state
-    await Write({
-      file_path: `${getStatePath(runId)}`,
-      content: JSON.stringify({
-        ...state,
-        steps: [
-          ...state.steps,
-          {
-            step_id: step.step_id,
-            phase: step.phase,
-            status: "skipped",
-            message: "User chose to skip destructive operation",
-            completed_at: new Date().toISOString()
-          }
-        ]
-      }, null, 2)
-    });
+    // Mark the step skipped with a reason, through the transition guard, like
+    // any other finished step (one step per update)
+    await skipStep(runId, step.phase, step.step_id, "User chose to skip destructive operation");
     return "skip"; // Signal to skip this step
   }
 
@@ -1057,19 +1062,18 @@ async function executeAutonomyGate(phase, gateType, runId) {
   if (answer === "Skip Phase") {
     console.log(`User chose to skip ${phase.name} phase`);
 
-    // Update state to mark phase as skipped
+    // Skip each unfinished step, one state update per step, then the phase.
+    // The completion verifier fails a run with steps left pending or skipped
+    // without a reason, so a skipped phase must skip its steps.
+    const reason = `User chose to skip the ${phase.name} phase`;
+    for (const step of phase.steps) {
+      await skipStep(runId, phase.name, step.id, reason);
+    }
     const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
-    await Write({
-      file_path: `${getStatePath(runId)}`,
-      content: JSON.stringify({
-        ...state,
-        phases: state.phases.map(p =>
-          p.name === phase.name
-            ? { ...p, status: "skipped" }
-            : p
-        )
-      }, null, 2)
-    });
+    state.phases[phase.name].status = "skipped";
+    state.phases[phase.name].reason = reason;
+    // Run the transition guard before this write too, as before every state write
+    await Write({ file_path: `${getStatePath(runId)}`, content: JSON.stringify(state, null, 2) });
 
     return "skip"; // Signal to skip this phase
   }
