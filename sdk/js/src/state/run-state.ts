@@ -35,6 +35,8 @@ export interface RunStepState {
   /** Result status reported by the step's executor */
   result?: 'success' | 'warning' | 'failure';
   error?: string;
+  /** Why the result did not come from a valid response block, e.g. `no_response_block` */
+  reason?: string;
   duration_ms?: number;
 }
 
@@ -87,6 +89,7 @@ export interface RunPlanInfo {
 export interface RunStepOutcome {
   result: 'success' | 'warning' | 'failure';
   error?: string;
+  reason?: string;
   duration_ms?: number;
 }
 
@@ -310,6 +313,7 @@ export class RunStateStore {
     delete step.completed_at;
     delete step.result;
     delete step.error;
+    delete step.reason;
     delete step.duration_ms;
     this.data.current_phase = phase;
     this.data.current_step_id = `${phase}:${stepId}`;
@@ -323,6 +327,7 @@ export class RunStateStore {
     const step = this.step(phase, stepId);
     step.result = outcome.result;
     step.completed_at = this.timestamp();
+    if (outcome.reason) step.reason = outcome.reason;
     if (outcome.duration_ms !== undefined) step.duration_ms = outcome.duration_ms;
 
     if (outcome.result === 'failure') {

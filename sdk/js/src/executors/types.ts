@@ -7,6 +7,8 @@
  * or agentic harnesses (Claude Code, OpenCode, Codex).
  */
 
+import type { StepResponse, StepResponseReason } from './step-response.js';
+
 // ============================================================================
 // Step Executor Configuration
 // ============================================================================
@@ -139,6 +141,15 @@ export interface ExecutorResult {
 
   /** Error message if status is 'failure' */
   error?: string;
+
+  /** The FABER response block the step returned, when it is valid (see step-response.ts) */
+  response?: StepResponse;
+
+  /** Why the status did not come from a valid response block */
+  reason?: StepResponseReason;
+
+  /** Problems found when checking the response block against the FABER response schema */
+  response_issues?: string[];
 }
 
 // ============================================================================

@@ -26,6 +26,8 @@ import {
   parseRunId,
   getRunsDir,
   getStatePath,
+  getPlanRoot,
+  findProjectRoot,
 } from '@fractary/faber';
 import type { RunState } from '@fractary/faber';
 import { parsePositiveInteger } from '../../utils/validation.js';
@@ -739,6 +741,9 @@ export function createWorkflowExecuteCommand(): Command {
         const planDir = path.dirname(resolvedPath);
         const planId: string = plan.id || path.basename(planDir);
         const branch = plan.items?.[0]?.branch?.name;
+        // Steps run in the root the plan belongs to: the worktree, or the project
+        // when no worktree was created
+        const workingDirectory = getPlanRoot(resolvedPath) ?? findProjectRoot();
 
         // Determine harness display
         const defaultHarness = options.harness || plan.workflow.defaults?.harness || 'claude-code';
@@ -750,6 +755,7 @@ export function createWorkflowExecuteCommand(): Command {
           console.log(chalk.gray(`Plan: ${resolvedPath}`));
           console.log(chalk.gray(`Work ID: ${workId}`));
           console.log(chalk.gray(`Workflow: ${plan.workflow.id}`));
+          console.log(chalk.gray(`Directory: ${workingDirectory}`));
           console.log(chalk.gray(`Harness: ${defaultHarness}`));
           if (defaultModel) {
             console.log(chalk.gray(`Model: ${defaultModel}`));
@@ -830,7 +836,7 @@ export function createWorkflowExecuteCommand(): Command {
           {
             workId,
             issue: issue ? { number: issue.number, title: issue.title, body: '' } : undefined,
-            workingDirectory: path.dirname(resolvedPath),
+            workingDirectory,
             phasesToRun: phasesToRun || undefined,
             stepToRun: options.step || null,
             planId,
@@ -872,6 +878,15 @@ export function createWorkflowExecuteCommand(): Command {
                 console.log(`  ${icon} ${step.id} [${providerInfo}] (${stepResult.metadata.duration_ms}ms)`);
                 if (stepResult.metadata.tokens_used) {
                   console.log(chalk.gray(`    tokens: ${stepResult.metadata.tokens_used.input}→${stepResult.metadata.tokens_used.output}`));
+                }
+                if (stepResult.error) {
+                  console.log(chalk.red(`    error: ${stepResult.error}`));
+                }
+                if (stepResult.reason) {
+                  console.log(chalk.gray(`    reason: ${stepResult.reason}`));
+                }
+                if (stepResult.response_issues?.length) {
+                  console.log(chalk.gray(`    response issues: ${stepResult.response_issues.join('; ')}`));
                 }
               }
             },
@@ -941,9 +956,13 @@ function printRunState(state: RunState, verbose?: boolean): void {
     if (verbose && phaseState.enabled !== false) {
       for (const [stepId, step] of steps) {
         const attempts = step.attempts && step.attempts > 1 ? chalk.gray(` [${step.attempts} attempts]`) : '';
-        console.log(`      ${getStatusIcon(step.status)} ${stepId}${attempts}`);
+        const icon = step.status === 'completed' && step.result === 'warning' ? chalk.yellow('⚠') : getStatusIcon(step.status);
+        console.log(`      ${icon} ${stepId}${attempts}`);
         if (step.error) {
           console.log(chalk.red(`        ${step.error}`));
+        }
+        if (step.reason) {
+          console.log(chalk.gray(`        reason: ${step.reason}`));
         }
       }
     }

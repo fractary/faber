@@ -342,6 +342,7 @@ FABER v2.1 introduces a required `id` field for step identification. This enable
 | `description` | Conditional | Documentation (what the step does) |
 | `prompt` | Conditional | Execution instruction (how to do it) |
 | `skill` | Conditional | Skill to invoke |
+| `role` | No | `maker` (default) produces work; `validator` judges it and must return a FABER response block. In CLI-native execution a validator without a valid block fails ([RESPONSE-FORMAT.md](./RESPONSE-FORMAT.md)) |
 
 *For backward compatibility, `name` is accepted as identifier if `id` is missing. New workflows should use explicit `id` fields.
 

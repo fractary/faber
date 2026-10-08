@@ -11,11 +11,21 @@ import { WorkflowExecutor } from '../workflow-executor.js';
 import type { WorkflowExecuteOptions } from '../workflow-executor.js';
 import { ExecutorRegistry } from '../registry.js';
 import type { Executor, ExecutorResult, ExecutionContext } from '../types.js';
+import { ClaudeAgentExecutor } from '../providers/claude-agent.js';
 import type { ClaudeAgentExecuteOptions } from '../providers/claude-agent.js';
 import type { ResolvedPhase } from '../../workflow/resolver.js';
 import { RunStateStore } from '../../state/run-state.js';
+import { getPlanRoot, FABER_RUNS_DIR } from '../../paths.js';
 
-type Outcome = ExecutorResult['status'] | 'throw';
+/**
+ * Scripted step outcomes:
+ * - success: the session ends normally and reports success in a response block
+ * - failure: the executor could not run the step
+ * - reports_failure: the session ends normally and reports failure in a response block
+ * - silent: the session ends normally without a response block
+ * - throw: the executor throws
+ */
+type Outcome = 'success' | 'failure' | 'reports_failure' | 'silent' | 'throw';
 
 /** Executor that records the steps it runs and returns scripted outcomes */
 class FakeExecutor implements Executor {
@@ -26,16 +36,21 @@ class FakeExecutor implements Executor {
 
   execute(_prompt: string, context: ExecutionContext): Promise<ExecutorResult> {
     this.calls.push(context as ExecutionContext & ClaudeAgentExecuteOptions);
-    const outcome = this.outcomes[context.stepId] ?? 'success';
+    const id = context.stepId;
+    const outcome = this.outcomes[id] ?? 'success';
     if (outcome === 'throw') {
-      return Promise.reject(new Error(`executor crashed on ${context.stepId}`));
+      return Promise.reject(new Error(`executor crashed on ${id}`));
     }
-    return Promise.resolve({
-      output: `ran ${context.stepId}`,
-      status: outcome,
-      metadata: { provider: 'fake', duration_ms: 5 },
-      ...(outcome === 'failure' && { error: `${context.stepId} failed` }),
-    });
+    const metadata = { provider: 'fake', duration_ms: 5 };
+    if (outcome === 'failure') {
+      return Promise.resolve({ output: '', status: 'failure', error: `${id} failed`, metadata });
+    }
+    const output =
+      outcome === 'silent' ? `ran ${id}`
+      : outcome === 'reports_failure'
+        ? `Checked ${id}.\n\n${JSON.stringify({ status: 'failure', message: `${id} checks failed`, errors: [`${id}: 2 tests failed`] })}`
+        : `Done.\n\n\`\`\`json\n${JSON.stringify({ status: 'success', message: `ran ${id}` })}\n\`\`\``;
+    return Promise.resolve({ output, status: 'success', metadata });
   }
 
   validate(): Promise<{ valid: boolean }> {
@@ -288,6 +303,113 @@ describe('WorkflowExecutor run state', () => {
     expect(state.phases.build.steps.implement).toMatchObject({
       status: 'failed',
       error: 'executor crashed on implement',
+    });
+  });
+});
+
+describe('WorkflowExecutor working directory', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'faber-cwd-test-')));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it.each([
+    ['with a worktree', ['.claude-worktrees', 'acme-app-42']],
+    ['without a worktree', ['project']],
+  ])('runs steps in the root of a plan created %s', async (_label, rootParts) => {
+    const root = path.join(tmpDir, ...rootParts);
+    const planPath = path.join(root, FABER_RUNS_DIR, 'acme-app-42', 'plan.json');
+    fs.mkdirSync(path.dirname(planPath), { recursive: true });
+    fs.writeFileSync(planPath, '{}');
+
+    const workflow = makeWorkflow();
+    workflow.phases.frame.steps = [{ id: 'where', name: 'where', prompt: '!pwd' }];
+    workflow.phases.build.enabled = false;
+    workflow.phases.evaluate.enabled = false;
+    workflow.phases.release.enabled = false;
+
+    const registry = new ExecutorRegistry();
+    registry.register('claude-agent', () => new ClaudeAgentExecutor());
+    const result = await new WorkflowExecutor(registry).execute(workflow, {
+      workId: '42',
+      workingDirectory: getPlanRoot(planPath) ?? undefined,
+    });
+
+    const step = result.phases.find((p) => p.phase === 'frame')?.steps[0];
+    expect(step?.result.status).toBe('success');
+    expect(step?.result.output).toBe(root);
+  });
+});
+
+describe('WorkflowExecutor step verdicts', () => {
+  let planDir: string;
+  let workflow: ReturnType<typeof makeWorkflow>;
+
+  const newRun = (): RunStateStore =>
+    RunStateStore.create(planDir, { planId: 'acme-app-42', phases: workflow.phases });
+
+  beforeEach(() => {
+    planDir = fs.mkdtempSync(path.join(os.tmpdir(), 'faber-verdict-test-'));
+    workflow = makeWorkflow();
+  });
+
+  afterEach(() => {
+    fs.rmSync(planDir, { recursive: true, force: true });
+  });
+
+  it('stops the phase when a step reports failure in its response block', async () => {
+    const fake = new FakeExecutor({ implement: 'reports_failure' });
+    const runState = newRun();
+    const result = await makeExecutor(fake).execute(workflow, { workId: '42', workingDirectory: planDir, runState });
+
+    expect(result.status).toBe('failed');
+    expect(fake.stepIds).toEqual(['fetch-issue', 'implement']);
+    const implement = result.phases.find((p) => p.phase === 'build')?.steps[0].result;
+    expect(implement).toMatchObject({ status: 'failure', error: 'implement: 2 tests failed' });
+    expect(implement?.response?.message).toBe('implement checks failed');
+    expect(runState.state.phases.build.steps.implement).toMatchObject({
+      status: 'failed',
+      result: 'failure',
+      error: 'implement: 2 tests failed',
+    });
+  });
+
+  it('records a warning with the reason when a step returns no response block', async () => {
+    const runState = newRun();
+    const result = await makeExecutor(new FakeExecutor({ implement: 'silent' })).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState,
+    });
+
+    expect(result.status).toBe('completed');
+    const implement = result.phases.find((p) => p.phase === 'build')?.steps[0].result;
+    expect(implement).toMatchObject({ status: 'warning', reason: 'no_response_block' });
+    expect(runState.state.phases.build.steps.implement).toMatchObject({
+      status: 'completed',
+      result: 'warning',
+      reason: 'no_response_block',
+    });
+    expect(result.run_status).toBe('completed');
+  });
+
+  it('fails a validator step that returns no response block', async () => {
+    workflow.phases.build.steps[1].role = 'validator';
+    const fake = new FakeExecutor({ commit: 'silent' });
+    const result = await makeExecutor(fake).execute(workflow, { workId: '42', workingDirectory: planDir });
+
+    expect(result.status).toBe('failed');
+    expect(fake.stepIds).toEqual(['fetch-issue', 'implement', 'commit']);
+    const commit = result.phases.find((p) => p.phase === 'build')?.steps[1].result;
+    expect(commit).toMatchObject({
+      status: 'failure',
+      reason: 'no_response_block',
+      error: 'Validator step returned no FABER response block',
     });
   });
 });

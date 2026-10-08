@@ -88,6 +88,12 @@ export interface WorkflowStep {
    * Config cascade: step.executor > phase_executors[phase] > workflow.executor > default
    */
   executor?: StepExecutorConfig;
+  /**
+   * What the step does: 'maker' (default) produces work, 'validator' judges it.
+   * A validator must return a FABER response block; in CLI-native execution
+   * a validator without a valid block fails instead of warning.
+   */
+  role?: 'maker' | 'validator';
 
   // ── CLI-native execution attributes (harness-based routing) ──────────
   // These are used by `workflow-execute` CLI mode. In LLM-based mode

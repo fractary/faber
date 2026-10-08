@@ -39,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - JS SDK: new `RunStateStore`; `WorkflowExecutor` takes a `runState` option and reports `run_id`, `state_path`, `run_status` and `steps_already_completed`
   - `run-inspect` shows these runs: new `--run-id`, `--work-id` falls back to the latest run, and the listing adds runs (JSON: separate `runs` key)
 - **Run paths for plan-scoped run IDs**: `getRunDir`, `getPlanPath` and `getStatePath` (and `runs dir`, `plan-path`, `state-path`, `verify-complete`) now resolve `{plan_id}-run-{timestamp}` to the plan's directory and its `state-{timestamp}.json`, where the workflow-run skill writes state. They previously pointed at `{run_id}/state.json`, which the skill never writes, so `runs verify-complete` could not find a run's state
+- **`workflow-execute` honors step verdicts** (#235): An agent or model step's result now comes from the FABER response block at the end of its output, so a step or validator that reports `failure` fails and `on_failure: stop` halts the run. Previously every step whose session ended normally counted as a success
+  - A step without a valid block is recorded as a warning with the reason `no_response_block` (or `invalid_response_block`); `pending_input` fails, since a CLI run cannot answer
+  - New step field `role` (`maker` by default, or `validator`): a validator without a valid response block fails
+  - Shell command steps keep their exit code, and a step its executor could not run stays failed
+  - JS SDK: new `applyStepResponse`, `findResponseBlock` and `StepResponseSchema`; `ExecutorResult` gains `response`, `reason` and `response_issues`, and run state records each step's `reason`
+- **`workflow-execute` runs steps in the worktree root** (#239): Steps previously ran in the plan's folder (`.fractary/faber/runs/{plan_id}/`). They now run in the root the plan belongs to: the worktree when the plan was created with one, otherwise the project root. New SDK helper `getPlanRoot`
 
 ## [1.5.47] - 2026-03-28
 
