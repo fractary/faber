@@ -1,0 +1,45 @@
+name: Plugin Scripts CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'plugins/**'
+      - '.gitattributes'
+      - '.github/workflows/ci-plugin.yml'
+  pull_request:
+    paths:
+      - 'plugins/**'
+      - '.gitattributes'
+      - '.github/workflows/ci-plugin.yml'
+
+jobs:
+  scripts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell scripts are executable
+        run: |
+          bad=$(git ls-files -s -- 'plugins/**/*.sh' | awk '$1 != "100755" {print $4}')
+          if [ -n "$bad" ]; then
+            echo "::error::Shell scripts must be committed as executable. Fix with: git update-index --chmod=+x <file>"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: Shell scripts use LF line endings
+        run: |
+          bad=$(git ls-files -z -- 'plugins/**/*.sh' | xargs -0 grep -l $'\r' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Shell scripts must use LF line endings: bash cannot run a script with CRLF"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: Shell scripts parse
+        run: git ls-files -z -- 'plugins/**/*.sh' | xargs -0 -n1 bash -n
+
+      - name: Script tests
+        run: bash plugins/faber/tests/scripts/run-tests.sh

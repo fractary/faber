@@ -5,8 +5,10 @@
 # which uses the SDK's config loading logic. This ensures consistency across all tools.
 #
 # Usage:
-#   source load-faber-config.sh [--project-root <path>]
-#   # Sets FABER_CONFIG (JSON string) and FABER_CONFIG_PATH
+#   source load-faber-config.sh
+#   # Sets FABER_CONFIG (JSON string) and FABER_CONFIG_PATH and defines the
+#   # faber_get_* path functions. When sourced, it reads no arguments, leaves
+#   # the caller's arguments alone and writes nothing to stdout.
 #
 # Or as a standalone script:
 #   ./load-faber-config.sh [--project-root <path>] [--key <jq-path>]
@@ -22,30 +24,39 @@
 
 set -euo pipefail
 
+# A sourced copy shares the caller's arguments, so only parse them, change
+# directory and print the config when the file is run as a script.
+_FABER_CONFIG_SOURCED=false
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    _FABER_CONFIG_SOURCED=true
+fi
+
 # Default values
 _PROJECT_ROOT=""
 _KEY_PATH=""
 
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --project-root)
-            _PROJECT_ROOT="$2"
-            shift 2
-            ;;
-        --key)
-            _KEY_PATH="$2"
-            shift 2
-            ;;
-        *)
-            shift
-            ;;
-    esac
-done
+if [[ "$_FABER_CONFIG_SOURCED" == false ]]; then
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --project-root)
+                _PROJECT_ROOT="$2"
+                shift 2
+                ;;
+            --key)
+                _KEY_PATH="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
 
-# Change to project root if specified
-if [[ -n "$_PROJECT_ROOT" ]]; then
-    cd "$_PROJECT_ROOT"
+    # Change to project root if specified
+    if [[ -n "$_PROJECT_ROOT" ]]; then
+        cd "$_PROJECT_ROOT"
+    fi
 fi
 
 # Try to use the CLI first (preferred - uses SDK logic)
@@ -165,19 +176,25 @@ fi
 export FABER_CONFIG
 export FABER_CONFIG_PATH
 
-# If specific key requested via jq (for backward compatibility)
-if [[ -n "$_KEY_PATH" ]] && [[ -z "$(load_via_cli 2>/dev/null || true)" ]]; then
-    # CLI wasn't used, need to extract key with jq
-    echo "$FABER_CONFIG" | jq -r "$_KEY_PATH" 2>/dev/null || echo "$FABER_CONFIG"
-else
-    echo "$FABER_CONFIG"
+# Print the config when run as a script
+if [[ "$_FABER_CONFIG_SOURCED" == false ]]; then
+    # If specific key requested via jq (for backward compatibility)
+    if [[ -n "$_KEY_PATH" ]] && [[ -z "$(load_via_cli 2>/dev/null || true)" ]]; then
+        # CLI wasn't used, need to extract key with jq
+        echo "$FABER_CONFIG" | jq -r "$_KEY_PATH" 2>/dev/null || echo "$FABER_CONFIG"
+    else
+        echo "$FABER_CONFIG"
+    fi
 fi
 
 # ============================================================================
 # FABER Run Path Functions
 # ============================================================================
-# These functions provide access to FABER run paths via the CLI.
-# All run files are consolidated in: .fractary/faber/runs/{run_id}/
+# These functions resolve FABER run paths via the CLI, falling back to
+# run-paths.sh (the same rules, in shell) when the CLI is not installed.
+# A plan-scoped run ID ({plan_id}-run-{run_suffix}) keeps its files in
+# .fractary/faber/runs/{plan_id}/: plan.json and state-{run_suffix}.json.
+# Any other run ID uses .fractary/faber/runs/{run_id}/.
 #
 # Usage:
 #   RUNS_DIR=$(faber_get_runs_dir)
@@ -185,6 +202,8 @@ fi
 #   PLAN_PATH=$(faber_get_plan_path "my-run-id")
 #   STATE_PATH=$(faber_get_state_path "my-run-id")
 # ============================================================================
+
+source "$(dirname "${BASH_SOURCE[0]}")/run-paths.sh"
 
 # Get the base runs directory path
 # Returns absolute path if CLI available, otherwise relative path
@@ -208,10 +227,10 @@ faber_get_run_dir() {
     fi
 
     if command -v fractary-faber &> /dev/null; then
-        fractary-faber runs dir "$run_id" 2>/dev/null || echo ".fractary/faber/runs/$run_id"
+        fractary-faber runs dir "$run_id" 2>/dev/null || faber_run_dir ".fractary/faber/runs" "$run_id"
     else
         # Fallback to relative path
-        echo ".fractary/faber/runs/$run_id"
+        faber_run_dir ".fractary/faber/runs" "$run_id"
     fi
 }
 
@@ -226,18 +245,19 @@ faber_get_plan_path() {
     fi
 
     if command -v fractary-faber &> /dev/null; then
-        fractary-faber runs plan-path "$run_id" 2>/dev/null || echo ".fractary/faber/runs/$run_id/plan.json"
+        fractary-faber runs plan-path "$run_id" 2>/dev/null || faber_run_plan_file ".fractary/faber/runs" "$run_id"
     else
         # Fallback to relative path
-        echo ".fractary/faber/runs/$run_id/plan.json"
+        faber_run_plan_file ".fractary/faber/runs" "$run_id"
     fi
 }
 
 # Get the state file path for a specific run
 # Arguments:
-#   $1 - run_id (required) - format: {plan_id}-run-{timestamp} or {plan_id}/{run_suffix}
+#   $1 - run_id (required)
 # Returns:
-#   State path in format: .fractary/faber/runs/{run_id}/state.json
+#   .fractary/faber/runs/{plan_id}/state-{run_suffix}.json for a plan-scoped
+#   run ID ({plan_id}-run-{run_suffix}), otherwise .fractary/faber/runs/{run_id}/state.json
 faber_get_state_path() {
     local run_id="$1"
     if [[ -z "$run_id" ]]; then
@@ -253,22 +273,9 @@ faber_get_state_path() {
     fi
 }
 
-# Compute state path from run_id without CLI
-# run_id format: {plan_id}-run-{timestamp} or {plan_id}/{run_suffix}
-# Output: .fractary/faber/runs/{run_id}/state.json
+# Compute state path from run_id without the CLI (same rules as `runs state-path`)
 faber_compute_state_path() {
-    local run_id="$1"
-    local run_marker="-run-"
-
-    # Find the position of -run- marker and convert to slash-separated run dir
-    if [[ "$run_id" == *"$run_marker"* ]]; then
-        local plan_id="${run_id%$run_marker*}"
-        local run_suffix="${run_id#*$run_marker}"
-        echo ".fractary/faber/runs/$plan_id/$run_suffix/state.json"
-    else
-        # Already slash-separated or legacy format
-        echo ".fractary/faber/runs/$run_id/state.json"
-    fi
+    faber_run_state_file ".fractary/faber/runs" "$1"
 }
 
 # Ensure the run directory exists for a given run_id
@@ -293,3 +300,5 @@ export -f faber_get_run_dir 2>/dev/null || true
 export -f faber_get_plan_path 2>/dev/null || true
 export -f faber_get_state_path 2>/dev/null || true
 export -f faber_ensure_run_dir 2>/dev/null || true
+export -f faber_compute_state_path faber_parse_run_id faber_run_dir faber_run_plan_file faber_run_state_file faber_run_events_dir 2>/dev/null || true
+export FABER_RUN_ID_MARKER FABER_RUN_SUFFIX_PATTERN

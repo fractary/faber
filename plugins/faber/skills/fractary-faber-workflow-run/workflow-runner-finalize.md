@@ -20,7 +20,7 @@ Create progress tracking entries for each finalization step:
 ```
 try {
   Mark "Plan Adherence Report" as in_progress
-  Run: bash plugins/faber/skills/fractary-faber-run-manager/scripts/verify-plan-adherence.sh \
+  Run: bash "{PLUGIN_DIR}/skills/fractary-faber-run-manager/scripts/verify-plan-adherence.sh" \
     --run-id "{runId}" --base-path ".fractary/faber/runs" --format markdown
 
   IF source_id exists:

@@ -2,9 +2,13 @@
 #
 # verify-plan-adherence.sh - Compare planned steps against actually executed steps
 #
-# Reads plan.json and state.json to produce a per-phase breakdown of which
+# Reads the run's plan and state to produce a per-phase breakdown of which
 # planned steps were executed, which were skipped, and which unplanned steps
 # were executed. Outputs JSON or GitHub-flavored markdown.
+#
+# A step counts as executed when the state records it completed (or success)
+# in .phases[].steps (keyed by step ID, or as an array), in the older
+# .phases[].completed_step_ids list, or in the older root .steps array.
 #
 # Usage:
 #   verify-plan-adherence.sh --run-id <id> [--base-path <path>] [--format markdown|json]
@@ -16,6 +20,9 @@
 #
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RUN_PATHS_LIB="$SCRIPT_DIR/../../fractary-faber-core/scripts/lib/run-paths.sh"
 
 # Parse arguments
 RUN_ID=""
@@ -64,27 +71,20 @@ if [[ -z "$RUN_ID" ]]; then
     exit 2
 fi
 
-# Derive paths from run_id
-# run_id format: {plan_id}-run-{timestamp}
-RUN_MARKER="-run-"
-PLAN_ID="${RUN_ID%$RUN_MARKER*}"
-RUN_SUFFIX="${RUN_ID##*$RUN_MARKER}"
-
-STATE_FILE="$BASE_PATH/$PLAN_ID/state-$RUN_SUFFIX.json"
-PLAN_FILE="$BASE_PATH/$RUN_ID/plan.json"
-
-# Try alternative plan file location
-if [[ ! -f "$PLAN_FILE" ]]; then
-    PLAN_FILE="$BASE_PATH/$PLAN_ID/plan.json"
+if [[ ! -f "$RUN_PATHS_LIB" ]]; then
+    echo '{"status": "error", "message": "run-paths.sh not found: '"$RUN_PATHS_LIB"'"}' >&2
+    exit 2
 fi
+source "$RUN_PATHS_LIB"
 
-# Try to find state file with fallback
+# Resolve the run's files the way the CLI does. The state must be this run's:
+# never fall back to another run's state.
+STATE_FILE=$(faber_run_state_file "$BASE_PATH" "$RUN_ID")
+PLAN_FILE=$(faber_run_plan_file "$BASE_PATH" "$RUN_ID")
+
 if [[ ! -f "$STATE_FILE" ]]; then
-    STATE_FILE=$(find "$BASE_PATH/$PLAN_ID" -name "state-*.json" -type f 2>/dev/null | head -1)
-    if [[ -z "$STATE_FILE" || ! -f "$STATE_FILE" ]]; then
-        echo '{"status": "error", "message": "State file not found for run: '"$RUN_ID"'"}' >&2
-        exit 2
-    fi
+    echo '{"status": "error", "message": "State file not found for run: '"$RUN_ID"'"}' >&2
+    exit 2
 fi
 
 # Validate plan file exists
@@ -124,8 +124,8 @@ ALL_UNPLANNED="[]"
 HAS_DISCREPANCIES=false
 
 for PHASE in $PHASE_NAMES; do
-    # Check if phase is enabled in plan
-    ENABLED=$(echo "$PLAN" | jq -r --arg p "$PHASE" '.workflow.phases[$p].enabled // true')
+    # Check if phase is enabled in plan (`enabled // true` would turn false into true)
+    ENABLED=$(echo "$PLAN" | jq -r --arg p "$PHASE" '.workflow.phases[$p].enabled != false')
     if [[ "$ENABLED" != "true" ]]; then
         continue
     fi
@@ -138,7 +138,15 @@ for PHASE in $PHASE_NAMES; do
 
     # Get executed step IDs from state
     EXECUTED_IDS=$(echo "$STATE" | jq -r --arg p "$PHASE" '
-        .phases[$p].completed_step_ids // [] | .[]')
+        def done: . == "completed" or . == "success";
+        [(.phases[$p].steps // null |
+            if type == "object" then to_entries[] | select((.value.status // "") | done) | .key
+            elif type == "array" then .[] | select((.status // "") | done) | (.id // .name)
+            else empty end),
+         (.phases[$p].completed_step_ids // [] | .[]),
+         ((.steps // []) | if type == "array" then .[] else empty end
+            | select(.phase == $p and ((.status // "") | done)) | (.step_id // .id))]
+        | map(select(. != null)) | unique | .[]')
 
     # Convert to arrays for comparison
     PLANNED_ARRAY=()

@@ -303,7 +303,7 @@ Prepare final solution output:
 IF all solution attempts have high risk or low confidence:
   Recommend manual investigation
   Provide diagnostic summary for human review
-  Suggest `/fractary-faber-debug --problem "specific question"`
+  Suggest `/fractary-faber-workflow-debug --run-id <run-id> --problem "specific question"`
 ```
 
 **KB Solution Not Applicable:**

@@ -466,6 +466,8 @@ Existing configurations with explicit result_handling will continue to work unch
 
 In addition to predefined actions (`continue`, `stop`), result handlers can invoke **slash commands** for dynamic recovery behavior.
 
+> **Current behavior of `/fractary-faber-workflow-debug`:** the command is the `fractary-faber-workflow-debug` skill, which delegates to the `fractary-faber-faber-debugger` skill. It diagnoses the failure and proposes fixes but does not apply them, and it always returns a recovery plan with `action: "stop"`. `--auto-fix`, `--learn`, `--auto-learn`, `--escalate` and `--max-retries` are accepted so existing workflows keep working, but have no effect yet. A capped automatic fix loop is planned as D2 in `docs/specs/harness-hardening-plan.md`.
+
 ### Detection
 
 If a handler value starts with `/`, it's treated as a slash command to invoke:
@@ -505,7 +507,7 @@ On failure, the workflow-debugger is invoked to diagnose the issue and propose a
 }
 ```
 
-With `--auto-fix`, high-confidence fixes are applied automatically without user approval.
+`--auto-fix` is reserved for applying high-confidence fixes automatically. Today the handler proposes fixes and stops (see the note above).
 
 #### Auto-Fix with Learning
 
@@ -517,7 +519,7 @@ With `--auto-fix`, high-confidence fixes are applied automatically without user 
 }
 ```
 
-Successful resolutions are automatically logged to the knowledge base for future reference.
+`--auto-learn` is reserved for logging successful resolutions to the knowledge base. It has no effect yet.
 
 #### Escalation After Retries
 
@@ -529,7 +531,7 @@ Successful resolutions are automatically logged to the knowledge base for future
 }
 ```
 
-If the issue persists after 3 retries, a GitHub issue is created with full diagnostic context.
+`--escalate` is reserved for creating an issue with full diagnostic context when retries run out. It has no effect yet.
 
 ### Context Injection
 
@@ -605,7 +607,7 @@ Apply this recovery plan?
   [2] Stop workflow
 ```
 
-With `--auto-fix` flag, high-confidence fixes bypass the approval prompt.
+`--auto-fix` will let high-confidence fixes bypass the approval prompt once automatic fixing is available.
 
 ### Backward Compatibility
 

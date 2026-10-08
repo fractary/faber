@@ -71,7 +71,7 @@ This signals the next session to resume cleanly. The progress tracking and state
 Read `workflow-runner-init.md` (in this directory) and execute all initialization steps.
 
 After reading, execute Steps 1.1 through 1.7b in order. These produce the variables used throughout Phase 2:
-`plan_id`, `runId`, `statePath`, `eventRunId`, `work_id`, `source_id`, `workflow`, `state`, `stepTaskIds`, `phaseFilter`, `stepFilter`, `autonomy`
+`plan_id`, `runId`, `statePath`, `eventRunId`, `PLUGIN_DIR`, `work_id`, `source_id`, `workflow`, `state`, `stepTaskIds`, `phaseFilter`, `stepFilter`, `autonomy`
 
 ---
 
@@ -117,7 +117,7 @@ FOR EACH phase IN phases_to_execute (in order):
       # ── 2.3: Mark in_progress ──
       Mark progress for step "{phase.name}:{step.id}" as in_progress
       Update state: phases[phase.name].steps[step.id].status = "in_progress", updated_at = now
-      Emit step_start event
+      Emit step_start event (run_id: eventRunId, phase: phase.name, step: step.id)
 
       # ── 2.4: Execute step ──
       IF step.executor is defined (has "provider" field):
@@ -138,13 +138,13 @@ FOR EACH phase IN phases_to_execute (in order):
       # ── 2.5: Transition guard (MANDATORY — prevents batch fabrication) ──
       Read the state file at {state_path}   # FRESH read from disk
       proposed_state = deepcopy(current_state) with phases[phase.name].steps[step.id].status = "completed"
-      Run: validate-state-transition.sh \
+      Run: bash "{PLUGIN_DIR}/skills/fractary-faber-run-manager/scripts/validate-state-transition.sh" \
               --current {state_path} \
               --proposed-json '{JSON.stringify(proposed_state)}'
       # Exit code != 0 → set status="paused", report, HALT — do NOT write state
 
       Update state: phases[phase.name].steps[step.id].status = "completed", updated_at = now
-      Emit step_complete event
+      Emit step_complete event (run_id: eventRunId, phase: phase.name, step: step.id)
       Mark progress for step "{phase.name}:{step.id}" as completed
 
       # ── 2.6: On failure — follow orchestration protocol result handling ──
@@ -166,13 +166,17 @@ FOR EACH phase IN phases_to_execute (in order):
       FOR EACH (s, result) IN zip(pending, results):
         Read the state file at {state_path}   # Fresh read before each write
         proposed = deepcopy with s marked completed
-        Run: validate-state-transition.sh --current {state_path} --proposed-json '{...}'
+        Run: bash "{PLUGIN_DIR}/skills/fractary-faber-run-manager/scripts/validate-state-transition.sh" --current {state_path} --proposed-json '{...}'
         Update state completed; Emit step_complete; Mark progress as completed
 
   END FOR (items)
 
-  # ── 2.7: Phase complete — re-read state to ground orchestrator ──
-  Read the state file at {state_path}
+  # ── 2.7: Phase complete — record it; the fresh read grounds the orchestrator ──
+  # The completion verifier requires every enabled phase to be "completed" and
+  # backed by a phase_complete event.
+  Emit phase_complete event (run_id: eventRunId, phase: phase.name)
+  Read the state file at {state_path}   # Fresh read before the write
+  Update state: phases[phase.name].status = "completed", completed_at = now
   LOG "── Phase {phase.name} complete ──"
 
 END FOR (phases)

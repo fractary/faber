@@ -117,19 +117,28 @@ UPDATED_STATE=$(echo "$CURRENT_STATE" | jq \
     end
     ')
 
-# Validate state transition before writing
+# Validate state transition before writing. The guard must run: if the
+# validator is missing or cannot run, the update fails instead of skipping it.
 VALIDATE_SCRIPT="$FABER_ROOT/skills/fractary-faber-run-manager/scripts/validate-state-transition.sh"
 
-if [[ -x "$VALIDATE_SCRIPT" ]]; then
-    VALIDATION_RESULT=$("$VALIDATE_SCRIPT" --current "$STATE_FILE" --proposed-json "$UPDATED_STATE" 2>/dev/null) || true
-    VALIDATION_STATUS=$(echo "$VALIDATION_RESULT" | jq -r '.status // "error"' 2>/dev/null)
+if [[ ! -f "$VALIDATE_SCRIPT" ]]; then
+    echo "Error: State transition validator not found: $VALIDATE_SCRIPT" >&2
+    exit 1
+fi
 
-    if [[ "$VALIDATION_STATUS" == "invalid" ]]; then
-        VIOLATIONS=$(echo "$VALIDATION_RESULT" | jq -r '.violations[]' 2>/dev/null)
-        echo "Error: State transition validation failed:" >&2
-        echo "$VIOLATIONS" >&2
-        exit 1
-    fi
+PROPOSED_FILE=$(mktemp)
+printf '%s\n' "$UPDATED_STATE" > "$PROPOSED_FILE"
+VALIDATION_EXIT=0
+VALIDATION_RESULT=$(bash "$VALIDATE_SCRIPT" --current "$STATE_FILE" --proposed "$PROPOSED_FILE" 2>&1) || VALIDATION_EXIT=$?
+rm -f "$PROPOSED_FILE"
+
+if [[ $VALIDATION_EXIT -eq 1 ]]; then
+    echo "Error: State transition validation failed:" >&2
+    echo "$VALIDATION_RESULT" | jq -r '.violations[]' >&2 2>/dev/null || echo "$VALIDATION_RESULT" >&2
+    exit 1
+elif [[ $VALIDATION_EXIT -ne 0 ]]; then
+    echo "Error: State transition validation could not run: $VALIDATION_RESULT" >&2
+    exit 1
 fi
 
 # Write validated state

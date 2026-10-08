@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FABER_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 CORE_SCRIPTS="$FABER_ROOT/skills/fractary-faber-core/scripts"
 
-"$CORE_SCRIPTS/state-read.sh" "$RUN_ID"
+"$CORE_SCRIPTS/state-read.sh" --run-id "$RUN_ID"
 ```
 
 **Expected Output:**

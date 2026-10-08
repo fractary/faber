@@ -31,16 +31,18 @@ if [[ "${1:-}" == "--run-id" ]]; then
     STATE_FILE="$(faber_get_state_path "$RUN_ID")"
     JQ_QUERY="${1:-.}"
 else
-    STATE_FILE="${1:-.fractary/faber/state.json}"
-    JQ_QUERY="${2:-.}"
+    STATE_FILE=".fractary/faber/state.json"
+    JQ_QUERY="."
 
-    # Legacy: Shift if first arg is a jq query (starts with .)
-    if [[ "$STATE_FILE" != .* ]] && [[ "$STATE_FILE" != /* ]] && [[ "$STATE_FILE" == *.json ]]; then
-        JQ_QUERY="${2:-.}"
-    elif [[ "$STATE_FILE" == .* ]]; then
-        # First arg is a query, use default file
-        JQ_QUERY="$STATE_FILE"
-        STATE_FILE=".fractary/faber/state.json"
+    # Legacy: the first argument is a state file (a .json path or an existing
+    # file, such as .fractary/faber/state.json) or else a jq query
+    if [[ $# -ge 1 ]]; then
+        if [[ "$1" == *.json || -f "$1" ]]; then
+            STATE_FILE="$1"
+            JQ_QUERY="${2:-.}"
+        else
+            JQ_QUERY="$1"
+        fi
     fi
 fi
 

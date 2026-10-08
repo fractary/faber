@@ -45,6 +45,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Shell command steps keep their exit code, and a step its executor could not run stays failed
   - JS SDK: new `applyStepResponse`, `findResponseBlock` and `StepResponseSchema`; `ExecutorResult` gains `response`, `reason` and `response_issues`, and run state records each step's `reason`
 - **`workflow-execute` runs steps in the worktree root** (#239): Steps previously ran in the plan's folder (`.fractary/faber/runs/{plan_id}/`). They now run in the root the plan belongs to: the worktree when the plan was created with one, otherwise the project root. New SDK helper `getPlanRoot`
+- **Plugin completion gate passes on a finished run** (#244, #245): `/fractary-faber-workflow-run` paused every run at its completion gate
+  - Plugin shell scripts are committed as executable, and three that had CRLF line endings (which bash cannot run) now use LF. `.gitattributes` keeps `*.sh` on LF, and a new CI job (`ci-plugin.yml`) checks both and runs the new script tests in `plugins/faber/tests/scripts/`
+  - `state-update-step.sh` and `state-update-phase.sh` fail when the transition validator is missing or cannot run. Previously they skipped it without a word
+  - `verify-workflow-completion.sh` reads the run's own state, plan and events (`runs/{plan_id}/{run_suffix}/events`). It counts steps in `.phases[].steps`, takes the required phases from the plan, so disabled phases are not required, names missing and unplanned steps, and finds `validate-plan-step-ids.sh`. It requires a `workflow_complete` event only once the state says `completed`, since the run emits that event after the gate. It no longer falls back to another run's state file
+  - `validate-state-integrity.sh` checks every completed step, in each state layout, against a `step_complete` event in the run's own event log
+  - The transition validator counts completed steps in `.phases[].steps`, and disabled phases no longer block completion
+- **workflow-run skill records what the gate checks**: The skill now creates the run's event directory (the event tool does not create it), records disabled phases as skipped, and marks each finished phase completed with a `phase_complete` event. It passes the event tool the event run ID and the step as `step`. The orchestration protocol's examples passed `step_id`, which the tool drops, and the full run ID, which it rejects
+- **Plan adherence report reads the current state layout** (#227): `verify-plan-adherence.sh` counts steps recorded in `.phases[].steps`, leaves out disabled phases (`enabled // true` read `false` as `true`) and no longer reads another run's state
+- **Plugin shell fallbacks match the CLI's run paths** (#253): New `lib/run-paths.sh` mirrors the SDK's `parseRunId`, so without the CLI, `state-read.sh --run-id` and the other state scripts use `runs/{plan_id}/state-{run_suffix}.json`
+  - `load-faber-config.sh` no longer consumes the caller's arguments or prints the config when sourced. This had made `state-read.sh` ignore its arguments, including `--run-id`
+  - `state-read.sh` treats a `.json` path such as `.fractary/faber/state.json` as a file, not a jq query
+- **`/fractary-faber-workflow-debug` exists again** (#249): Workflows across the packs name it as their `on_failure` handler, but it was removed in the agent-to-skill migration. The new `fractary-faber-workflow-debug` skill delegates to `fractary-faber-faber-debugger`, proposes fixes without applying them, and returns a `stop` recovery plan. `--auto-fix`, `--learn` and the other old flags are accepted, with no effect yet
 
 ## [1.5.47] - 2026-03-28
 

@@ -148,7 +148,10 @@ PROTOCOL_FILE=$(bash -c '
   echo "ERROR: Cannot locate fractary/faber package" >&2; exit 1
 ')
 Read the protocol file at ${PROTOCOL_FILE}
+PLUGIN_DIR="${PROTOCOL_FILE%/docs/workflow-orchestration-protocol.md}"
 ```
+
+Keep `PLUGIN_DIR` (the installed `plugins/faber` folder): later steps run the plugin's scripts from it, since paths such as `plugins/faber/...` only exist inside the faber repository.
 
 The protocol contains: core principles, execution loop, state management, event emission, all 4 guards, result handling, retry logic, autonomy gates.
 
@@ -202,8 +205,11 @@ if (resume_run_id) {
   statePath = getStatePath(runId);
   state = JSON.parse(read the file at statePath);
   // Restore workflow from state if saved
-  // Set eventRunId for event routing
-  const eventRunId = `${plan_id}/${runId.split('-run-')[1]}`;
+  // Set eventRunId for event routing (split on the last "-run-": plan IDs may contain it)
+  const runSuffix = runId.substring(runId.lastIndexOf('-run-') + '-run-'.length);
+  const eventRunId = `${plan_id}/${runSuffix}`;
+  // Runs started by older versions may lack the event log directory
+  Run: mkdir -p ".fractary/faber/runs/${plan_id}/${runSuffix}/events"
   console.log(`✓ Resuming run: ${runId}`);
 } else {
   // New run
@@ -227,8 +233,14 @@ if (resume_run_id) {
     updated_at: new Date().toISOString()
   };
 
-  // Initialize phases in state
+  // Initialize phases in state. A phase the plan disables is recorded as
+  // skipped with enabled: false and no steps, so the completion checks
+  // (`fractary-faber runs verify-complete` and the verifier) do not wait on it.
   for (const phaseName of Object.keys(workflow.phases)) {
+    if (workflow.phases[phaseName].enabled === false) {
+      initialState.phases[phaseName] = { status: "skipped", enabled: false, steps: {}, retry_count: 0 };
+      continue;
+    }
     initialState.phases[phaseName] = { status: "pending", steps: {}, retry_count: 0 };
     const phaseSteps = workflow.phases[phaseName].steps || [];
     for (const step of phaseSteps) {
@@ -236,8 +248,9 @@ if (resume_run_id) {
     }
   }
 
-  // Create run directory sentinel
-  Write "1" to `.fractary/faber/runs/${plan_id}/.run-${timestamp}`
+  // Create the run's event log directory. The event tool writes to
+  // runs/{plan_id}/{run_suffix}/events and does not create it.
+  Run: mkdir -p ".fractary/faber/runs/${plan_id}/${timestamp}/events"
   Write the initial state JSON to {statePath}
   state = initialState;
   console.log(`✓ State initialized: ${statePath}`);
@@ -349,7 +362,7 @@ Tag each progress entry with a key like `{phaseName}:{step.id}` to enable reliab
 
 ```
 try {
-  Run: bash plugins/faber/skills/fractary-faber-run-manager/scripts/validate-plan-step-ids.sh --plan-file "{planPath}"
+  Run: bash "{PLUGIN_DIR}/skills/fractary-faber-run-manager/scripts/validate-plan-step-ids.sh" --plan-file "{planPath}"
   IF exit code != 0:
     WARN "⚠️  STEP ID PREFIX VIOLATIONS: {output}"
     WARN "Steps with wrong prefix will be silently skipped by prefix-based orchestrators. Iterate plan.json directly."
@@ -358,4 +371,4 @@ try {
 } catch { WARN "⚠️  Step ID validation skipped" }
 ```
 
-> **GIT-REVERSION WARNING:** Active state files live in the git-tracked tree. A `git pull` during an active workflow can silently revert state. If you run `git pull` mid-workflow: run `validate-state-integrity.sh --run-id <run-id>` to verify state vs event log before continuing.
+> **GIT-REVERSION WARNING:** Active state files live in the git-tracked tree. A `git pull` during an active workflow can silently revert state. If you run `git pull` mid-workflow: run `bash "{PLUGIN_DIR}/skills/fractary-faber-workflow-run-verifier/scripts/validate-state-integrity.sh" --run-id <run-id>` to verify state vs event log before continuing.
