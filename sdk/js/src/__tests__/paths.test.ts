@@ -3,7 +3,7 @@
  */
 
 import * as path from 'path';
-import { parseRunId, getRunDir, getPlanPath, getStatePath, FABER_RUNS_DIR } from '../paths.js';
+import { parseRunId, getRunDir, getPlanPath, getStatePath, getPlanRoot, FABER_RUNS_DIR } from '../paths.js';
 
 const ROOT = path.join(path.sep, 'project');
 const RUNS = path.join(ROOT, FABER_RUNS_DIR);
@@ -51,5 +51,28 @@ describe('run paths', () => {
     expect(getRunDir('acme-app-42', ROOT)).toBe(path.join(RUNS, 'acme-app-42'));
     expect(getPlanPath('acme-app-42', ROOT)).toBe(path.join(RUNS, 'acme-app-42', 'plan.json'));
     expect(getStatePath('acme-app-42', ROOT)).toBe(path.join(RUNS, 'acme-app-42', 'state.json'));
+  });
+});
+
+describe('getPlanRoot', () => {
+  it('returns the worktree a plan was written to', () => {
+    const worktree = path.join(path.sep, 'home', 'dev', '.claude-worktrees', 'acme-app-42');
+    const planPath = path.join(worktree, FABER_RUNS_DIR, 'acme-app-42', 'plan.json');
+    expect(getPlanRoot(planPath)).toBe(worktree);
+  });
+
+  it('returns the project root when the plan was written without a worktree', () => {
+    expect(getPlanRoot(path.join(ROOT, FABER_RUNS_DIR, 'acme-app-42', 'plan.json'))).toBe(ROOT);
+  });
+
+  it('resolves a relative plan path from the current directory', () => {
+    const planPath = path.join(FABER_RUNS_DIR, 'acme-app-42', 'plan.json');
+    expect(getPlanRoot(planPath)).toBe(process.cwd());
+  });
+
+  it('returns null for a plan stored outside the runs layout', () => {
+    expect(getPlanRoot(path.join(path.sep, 'tmp', 'plan.json'))).toBeNull();
+    expect(getPlanRoot(path.join(ROOT, 'runs', 'acme-app-42', 'plan.json'))).toBeNull();
+    expect(getPlanRoot(path.join(ROOT, FABER_RUNS_DIR, 'plan.json'))).toBeNull();
   });
 });

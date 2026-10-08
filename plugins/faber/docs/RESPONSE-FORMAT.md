@@ -425,6 +425,15 @@ The response `status` maps to workflow `result_handling` configuration:
 
 See [RESULT-HANDLING.md](./RESULT-HANDLING.md) for complete result handling documentation.
 
+### CLI-Native Execution (`workflow-execute`)
+
+In CLI-native execution each agent or model step runs as its own session, and the executor reads the step's response from the end of its output: the last JSON object with a `status` field, bare or in a code fence. That block decides the step's result:
+
+- A valid `status` (`success`, `warning` or `failure`) sets the result. A block that breaks other parts of the schema keeps its status, and the problems are reported as response issues.
+- `pending_input` fails the step, because a CLI run cannot answer questions.
+- Without a valid block, the step is recorded as a `warning` with the reason `no_response_block` (or `invalid_response_block`). A step with `role: validator` fails instead.
+- Shell command steps (`!` prefix) use their exit code, and a step its executor could not run always fails.
+
 ## See Also
 
 - [RESULT-HANDLING.md](./RESULT-HANDLING.md) - Workflow result handling behavior

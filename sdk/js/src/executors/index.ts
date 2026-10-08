@@ -33,6 +33,16 @@ export {
   resolveRuntimeConfig,
 } from './types.js';
 
+// Step responses (FABER response blocks decide step status)
+export {
+  applyStepResponse,
+  findResponseBlock,
+  StepResponseSchema,
+  type StepResponse,
+  type StepResponseReason,
+  type StepResponseOptions,
+} from './step-response.js';
+
 // Registry
 export { ExecutorRegistry } from './registry.js';
 

@@ -256,6 +256,12 @@
         "result_handling": {
           "$ref": "#/definitions/step_result_handling"
         },
+        "role": {
+          "type": "string",
+          "enum": ["maker", "validator"],
+          "default": "maker",
+          "description": "What the step does: 'maker' produces work, 'validator' judges it. A validator must end its output with a FABER response block. In CLI-native execution, a validator without a valid response block fails; any other step is recorded as a warning."
+        },
         "executor": {
           "$ref": "#/definitions/step_executor",
           "description": "Executor configuration for this step (legacy provider-based routing). When specified, routes execution to the given provider/model instead of default Claude Code execution. Cascade: step > phase_executors > workflow.executor > default."

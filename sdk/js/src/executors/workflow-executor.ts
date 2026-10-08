@@ -27,6 +27,7 @@ import type {
 } from './types.js';
 import { resolveRuntimeConfig } from './types.js';
 import { ExecutorRegistry } from './registry.js';
+import { applyStepResponse } from './step-response.js';
 import type { ClaudeAgentExecuteOptions } from './providers/claude-agent.js';
 import type {
   ResolvedPhase,
@@ -310,9 +311,12 @@ export class WorkflowExecutor {
           runState?.finish(message);
           throw error;
         }
+        // The step's own FABER response block decides its status
+        result = applyStepResponse(result, { requireResponse: step.role === 'validator' });
         runState?.finishStep(phaseName, step.id, {
           result: result.status,
           error: result.error,
+          reason: result.reason,
           duration_ms: result.metadata.duration_ms,
         });
 

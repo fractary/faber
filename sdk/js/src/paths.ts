@@ -66,6 +66,20 @@ export function getRunsDir(projectRoot?: string): string {
 }
 
 /**
+ * Get the root directory a plan belongs to, from the plan's path. Plans are
+ * written to `{root}/.fractary/faber/runs/{plan_id}/plan.json`, where the root
+ * is the worktree when the plan was created with one and the project otherwise.
+ * @param planPath - Path to the plan file
+ * @returns Absolute path to the root, or null if the plan is not stored in that layout
+ */
+export function getPlanRoot(planPath: string): string | null {
+  const runsDir = path.dirname(path.dirname(path.resolve(planPath)));
+  const runsSuffix = path.join(...FABER_RUNS_DIR.split('/'));
+  if (!runsDir.endsWith(path.sep + runsSuffix)) return null;
+  return runsDir.slice(0, -(runsSuffix.length + 1)) || path.parse(runsDir).root;
+}
+
+/**
  * Get the directory path for a specific run
  * @param runId - The run identifier (a plan-scoped run ID resolves to its plan's directory)
  * @param projectRoot - Optional project root path (defaults to current working directory)

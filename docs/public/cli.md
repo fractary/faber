@@ -282,6 +282,10 @@ fractary-faber workflow-execute <plan-path> [options]
 
 Each execution is a run with its own ID, `{plan_id}-run-{timestamp}`. The run's state is saved next to the plan, in `state-{timestamp}.json`, after every step starts and finishes, in the same format the `fractary-faber-workflow-run` skill writes. A run that crashed, failed, or ran only some phases can be resumed with `--resume`: completed steps are skipped and the interrupted or failed step runs again. The run ends `completed`, `failed`, or `paused` (when a phase or step filter left steps unrun); inspect it with `run-inspect --run-id <run-id>` or check it with `runs verify-complete <run-id>`.
 
+Steps run in the root the plan belongs to, the directory that contains `.fractary/faber/runs/{plan_id}/`: the worktree when the plan was created with `--worktree`, otherwise the project root. For a plan stored elsewhere, steps run in the project root found from the current directory.
+
+An agent or model step's result comes from the FABER response block at the end of its output (see the plugin's `docs/RESPONSE-FORMAT.md`). A step that reports `failure` fails, so `on_failure: stop` halts the run. A step without a valid block is recorded as a warning with the reason `no_response_block`; a step with `role: validator` fails instead. Shell command steps (`!`) use their exit code.
+
 **Example:**
 ```bash
 # Execute a full plan
