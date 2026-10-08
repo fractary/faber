@@ -4,9 +4,8 @@
 #
 # Enforces:
 #   - Max 1 new step completion per update
-#   - Forward-only step transitions (pending -> in_progress -> success/failure)
-#   - Phase can only be "completed" if ALL its steps are "success"
-#   - Workflow can only be "completed" if ALL enabled phases are "completed"
+#   - Forward-only workflow status transitions (pending -> in_progress -> completed/failed/paused)
+#   - Workflow can only be "completed" if ALL enabled phases are "completed" or "skipped"
 #
 # Usage:
 #   validate-state-transition.sh --current <path> --proposed <path>
@@ -101,9 +100,16 @@ fi
 VIOLATIONS="[]"
 
 # Rule 1: Max 1 new step completion per update
-# Count completed steps in current vs proposed
-CURRENT_STEP_COUNT=$(echo "$CURRENT_STATE" | jq '[.steps // [] | .[] | select(.status == "success" or .status == "failure" or .status == "warning")] | length')
-PROPOSED_STEP_COUNT=$(echo "$PROPOSED_STATE" | jq '[.steps // [] | .[] | select(.status == "success" or .status == "failure" or .status == "warning")] | length')
+# Count finished steps in current vs proposed. Steps live in .phases[].steps,
+# keyed by step ID (workflow-run skill) or as an array (state-update-step.sh);
+# older states keep a root .steps array.
+FINISHED_STEPS='
+  def finished: . == "success" or . == "failure" or . == "warning" or . == "completed" or . == "failed";
+  ([.steps // [] | if type == "array" then .[] else empty end | select((.status // "") | finished)] | length)
+  + ([.phases // {} | .[] | (.steps // []) | if type == "object" or type == "array" then .[] else empty end
+      | select((.status // "") | finished)] | length)'
+CURRENT_STEP_COUNT=$(echo "$CURRENT_STATE" | jq "$FINISHED_STEPS")
+PROPOSED_STEP_COUNT=$(echo "$PROPOSED_STATE" | jq "$FINISHED_STEPS")
 STEP_DIFF=$((PROPOSED_STEP_COUNT - CURRENT_STEP_COUNT))
 
 if [[ $STEP_DIFF -gt 1 ]]; then
@@ -151,7 +157,7 @@ if [[ "$PROPOSED_STATUS" == "completed" ]]; then
     INCOMPLETE_PHASES=$(echo "$PROPOSED_STATE" | jq -r '
         [.phases | to_entries[] |
          select(.value.status != "completed" and .value.status != "skipped" and
-                (.value.enabled // true) == true) |
+                .value.enabled != false) |
          .key] | join(", ")')
 
     if [[ -n "$INCOMPLETE_PHASES" ]]; then

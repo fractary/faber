@@ -2,9 +2,13 @@
 #
 # validate-state-integrity.sh - Cross-validate state claims against event log
 #
-# For each step marked "success" in the state file, verifies that a
-# corresponding step_complete event exists in the immutable event log.
-# For each phase marked "completed", verifies a phase_complete event exists.
+# For each step the state records as completed, verifies that a matching
+# step_complete event exists in the run's immutable event log. For each phase
+# marked "completed", verifies a phase_complete event exists. If the workflow
+# is marked "completed", verifies a workflow_complete event exists.
+#
+# Steps are read from .phases[].steps (keyed by step ID, or as an array) and
+# from the root .steps array that older runs used.
 #
 # Usage:
 #   validate-state-integrity.sh --run-id <id> [--base-path <path>]
@@ -16,6 +20,9 @@
 #
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RUN_PATHS_LIB="$SCRIPT_DIR/../../fractary-faber-core/scripts/lib/run-paths.sh"
 
 # Parse arguments
 RUN_ID=""
@@ -53,29 +60,19 @@ if [[ -z "$RUN_ID" ]]; then
     exit 2
 fi
 
-# Derive paths from run_id
-# run_id format: {plan_id}-run-{timestamp}
-RUN_MARKER="-run-"
-RUN_MARKER_POS="${RUN_ID##*$RUN_MARKER}"
-PLAN_ID="${RUN_ID%$RUN_MARKER*}"
-RUN_SUFFIX="$RUN_MARKER_POS"
-
-STATE_FILE="$BASE_PATH/$PLAN_ID/state-$RUN_SUFFIX.json"
-EVENTS_DIR="$BASE_PATH/$RUN_ID/events"
-
-# Also try alternative event directory locations
-if [[ ! -d "$EVENTS_DIR" ]]; then
-    EVENTS_DIR="$BASE_PATH/$PLAN_ID/events"
+if [[ ! -f "$RUN_PATHS_LIB" ]]; then
+    echo '{"status": "error", "message": "run-paths.sh not found: '"$RUN_PATHS_LIB"'"}' >&2
+    exit 2
 fi
+source "$RUN_PATHS_LIB"
 
-# Validate state file exists
+# The state file and events must be this run's: never fall back to another run's
+STATE_FILE=$(faber_run_state_file "$BASE_PATH" "$RUN_ID")
+EVENTS_DIR=$(faber_run_events_dir "$BASE_PATH" "$RUN_ID")
+
 if [[ ! -f "$STATE_FILE" ]]; then
-    # Try finding state file by pattern
-    STATE_FILE=$(find "$BASE_PATH/$PLAN_ID" -name "state-*.json" -type f 2>/dev/null | head -1)
-    if [[ -z "$STATE_FILE" || ! -f "$STATE_FILE" ]]; then
-        echo '{"status": "error", "message": "State file not found for run: '"$RUN_ID"'"}' >&2
-        exit 2
-    fi
+    echo '{"status": "error", "message": "State file not found for run: '"$RUN_ID"'"}' >&2
+    exit 2
 fi
 
 # Read state file
@@ -85,15 +82,11 @@ if ! echo "$STATE" | jq empty 2>/dev/null; then
     exit 2
 fi
 
-DISCREPANCIES="[]"
-VALIDATED_STEPS=0
-
 # Collect all events into a temporary lookup
 EVENTS_LOOKUP=$(mktemp)
 trap 'rm -f "$EVENTS_LOOKUP"' EXIT
 
-if [[ -d "$EVENTS_DIR" ]]; then
-    # Read all event files and build lookup
+if [[ -n "$EVENTS_DIR" ]]; then
     for event_file in "$EVENTS_DIR"/*.json; do
         [[ -f "$event_file" ]] || continue
         cat "$event_file"
@@ -102,41 +95,38 @@ else
     echo '[]' > "$EVENTS_LOOKUP"
 fi
 
-# Rule 1: Every step with status "success" must have a step_complete event
-COMPLETED_STEPS=$(echo "$STATE" | jq -c '[.steps // [] | .[] | select(.status == "success")]')
-STEP_COUNT=$(echo "$COMPLETED_STEPS" | jq 'length')
+# Rule 1: Every step recorded as completed must have a step_complete event for
+# the same step, and the same phase when the event names one. The event tool
+# stores the step ID in "step"; older emitters used "step_id" or metadata.
+CLAIMED_STEPS=$(echo "$STATE" | jq -c '
+    def done: . == "completed" or . == "success";
+    [(.phases // {}) | to_entries[] | .key as $ph | (.value.steps // null) |
+        if type == "object" then to_entries[] | select((.value.status // "") | done) | {phase: $ph, id: .key}
+        elif type == "array" then .[] | select((.status // "") | done) | {phase: $ph, id: (.id // .name)}
+        else empty end]
+    + [(.steps // []) | if type == "array" then .[] else empty end
+        | select((.status // "") | done) | {phase: .phase, id: (.step_id // .id)}]
+    | map(select(.id != null)) | unique')
+STEP_COUNT=$(echo "$CLAIMED_STEPS" | jq 'length')
 
-for i in $(seq 0 $((STEP_COUNT - 1))); do
-    STEP_ID=$(echo "$COMPLETED_STEPS" | jq -r ".[$i].step_id")
-    STEP_PHASE=$(echo "$COMPLETED_STEPS" | jq -r ".[$i].phase")
+UNBACKED_STEPS=$(jq -c --argjson claimed "$CLAIMED_STEPS" '
+    [.[] | select(.type == "step_complete")
+         | {step: (.step // .step_id // .metadata.step_id), phase: (.phase // .metadata.phase)}] as $events
+    | [$claimed[] | . as $c
+        | select([$events[] | select(.step == $c.id and (.phase == null or $c.phase == null or .phase == $c.phase))]
+                 | length == 0)]' "$EVENTS_LOOKUP")
+VALIDATED_STEPS=$((STEP_COUNT - $(echo "$UNBACKED_STEPS" | jq 'length')))
 
-    # Look for matching step_complete event
-    MATCHING_EVENT=$(jq --arg sid "$STEP_ID" --arg phase "$STEP_PHASE" \
-        '[.[] | select(.type == "step_complete" and .step == $sid and .phase == $phase)] | length' \
-        "$EVENTS_LOOKUP")
-
-    if [[ "$MATCHING_EVENT" -eq 0 ]]; then
-        DISCREPANCIES=$(echo "$DISCREPANCIES" | jq --arg sid "$STEP_ID" --arg phase "$STEP_PHASE" \
-            '. + ["Step \"" + $sid + "\" (phase: " + $phase + ") claimed success but no step_complete event found"]')
-    else
-        VALIDATED_STEPS=$((VALIDATED_STEPS + 1))
-    fi
-done
+DISCREPANCIES=$(echo "$UNBACKED_STEPS" | jq '[.[] |
+    "Step \"" + .id + "\" (phase: " + (.phase // "unknown") + ") claimed completed but no step_complete event found"]')
 
 # Rule 2: Every phase with status "completed" must have a phase_complete event
-COMPLETED_PHASES=$(echo "$STATE" | jq -r '
-    [.phases // {} | to_entries[] | select(.value.status == "completed") | .key] | .[]')
-
-for phase_name in $COMPLETED_PHASES; do
-    MATCHING_PHASE_EVENT=$(jq --arg phase "$phase_name" \
-        '[.[] | select(.type == "phase_complete" and .phase == $phase)] | length' \
-        "$EVENTS_LOOKUP")
-
-    if [[ "$MATCHING_PHASE_EVENT" -eq 0 ]]; then
-        DISCREPANCIES=$(echo "$DISCREPANCIES" | jq --arg phase "$phase_name" \
-            '. + ["Phase \"" + $phase + "\" claimed completed but no phase_complete event found"]')
-    fi
-done
+COMPLETED_PHASES=$(echo "$STATE" | jq -c '[.phases // {} | to_entries[] | select(.value.status == "completed") | .key]')
+UNBACKED_PHASES=$(jq -c --argjson phases "$COMPLETED_PHASES" '
+    [.[] | select(.type == "phase_complete") | (.phase // .metadata.phase)] as $events
+    | [$phases[] | select(. as $p | $events | index($p) == null)]' "$EVENTS_LOOKUP")
+DISCREPANCIES=$(jq -n --argjson d "$DISCREPANCIES" --argjson p "$UNBACKED_PHASES" \
+    '$d + [$p[] | "Phase \"" + . + "\" claimed completed but no phase_complete event found"]')
 
 # Rule 3: If workflow status is "completed", verify workflow_complete event exists
 WORKFLOW_STATUS=$(echo "$STATE" | jq -r '.status // "unknown"')
@@ -155,12 +145,14 @@ if [[ "$DISCREPANCY_COUNT" -gt 0 ]]; then
     echo "$DISCREPANCIES" | jq \
         --argjson validated "$VALIDATED_STEPS" \
         --argjson total "$STEP_COUNT" \
-        '{status: "fail", validated_steps: $validated, total_claimed_steps: $total, discrepancies: .}'
+        --arg events_dir "$EVENTS_DIR" \
+        '{status: "fail", validated_steps: $validated, total_claimed_steps: $total, events_dir: $events_dir, discrepancies: .}'
     exit 1
 else
-    echo "{}" | jq \
+    jq -n \
         --argjson validated "$VALIDATED_STEPS" \
         --argjson total "$STEP_COUNT" \
-        '{status: "pass", validated_steps: $validated, total_claimed_steps: $total}'
+        --arg events_dir "$EVENTS_DIR" \
+        '{status: "pass", validated_steps: $validated, total_claimed_steps: $total, events_dir: $events_dir}'
     exit 0
 fi

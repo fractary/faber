@@ -426,7 +426,7 @@ The debugger can be invoked:
 
 3. **Manually via command:**
    ```
-   /fractary-faber-debug --run-id abc123 --problem "Description"
+   /fractary-faber-workflow-debug --run-id abc123 --problem "Description"
    ```
 
 ## Plugin Dependencies

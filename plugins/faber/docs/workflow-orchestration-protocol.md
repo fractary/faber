@@ -115,10 +115,10 @@ The immutable event log is the leading record. State references event IDs.
 // 1. Emit step_start event FIRST (immutable, returns event_id)
 await MCPSearch({ query: "select:fractary_faber_event_emit" });
 const startEventResult = await fractary_faber_event_emit({
-  run_id: runId,
+  run_id: eventRunId,
   type: "step_start",
   phase: step.phase,
-  step_id: step.step_id,
+  step: step.step_id,
   metadata: {
     name: step.name,
     description: step.description,
@@ -357,10 +357,10 @@ const handling = step.result_handling || {
 
 // 3. Emit step_complete event FIRST (immutable, returns event_id)
 const completeEventResult = await fractary_faber_event_emit({
-  run_id: runId,
+  run_id: eventRunId,
   type: "step_complete",
   phase: step.phase,
-  step_id: step.step_id,
+  step: step.step_id,
   metadata: {
     status: result.status,
     message: result.message
@@ -550,16 +550,22 @@ Events provide an audit trail of workflow execution. Emit events at key points.
 
 ### Event Emission Pattern
 
+Events go to the run's own event log, `.fractary/faber/runs/{plan_id}/{run_suffix}/events/`:
+
+- Pass `run_id: eventRunId`, where `eventRunId = {plan_id}/{run_suffix}`. The tool rejects the full run ID (`{plan_id}-run-{run_suffix}`).
+- Pass the step ID as `step`. The tool has no `step_id` field and drops it, and the completion verifier matches `step_complete` events to state by `step`.
+- Create the events directory when the run starts (see `workflow-runner-init.md`): the tool does not create it.
+
 ```javascript
 // Load MCP tool if not already loaded
 await MCPSearch({ query: "select:fractary_faber_event_emit" });
 
 // Emit event
 await fractary_faber_event_emit({
-  run_id: runId,
+  run_id: eventRunId,
   type: "event_type_here",
   phase: currentPhase,      // Optional, depends on event
-  step_id: currentStepId,   // Optional, depends on event
+  step: currentStepId,      // Optional, depends on event
   metadata: {
     // Event-specific data
   }
@@ -945,10 +951,10 @@ async function handleStepRetry(runId, step) {
 
   // Emit retry event
   await fractary_faber_event_emit({
-    run_id: runId,
+    run_id: eventRunId,
     type: "retry_attempt",
     phase: step.phase,
-    step_id: step.step_id,
+    step: step.step_id,
     metadata: {
       attempt: retryCount + 1,
       max_retries: phase.max_retries
@@ -1013,7 +1019,7 @@ async function executeAutonomyGate(phase, gateType, runId) {
 
   // Emit gate event
   await fractary_faber_event_emit({
-    run_id: runId,
+    run_id: eventRunId,
     type: "autonomy_gate",
     phase: phase.name,
     metadata: {
@@ -1153,10 +1159,10 @@ try {
 
   // Emit failure event
   await fractary_faber_event_emit({
-    run_id: runId,
+    run_id: eventRunId,
     type: "step_failed",
     phase: step.phase,
-    step_id: step.step_id,
+    step: step.step_id,
     metadata: {
       error: error.message
     }
@@ -1229,7 +1235,7 @@ try {
 
   // Emit failure event
   await fractary_faber_event_emit({
-    run_id: runId,
+    run_id: eventRunId,
     type: "workflow_failed",
     metadata: {
       reason: "guard_failure",
@@ -1265,7 +1271,7 @@ if (phase.retry_count >= phase.max_retries) {
 
   // Emit failure event
   await fractary_faber_event_emit({
-    run_id: runId,
+    run_id: eventRunId,
     type: "workflow_failed",
     phase: currentPhase,
     metadata: {
@@ -1296,11 +1302,11 @@ if (phase.retry_count >= phase.max_retries) {
 
 **Before marking ANY workflow as "completed", you MUST run the completion verification script.** This is not optional. The script cross-validates state claims against the immutable event log, verifies all phases are complete, and checks step counts against the plan.
 
+Invoke the `fractary-faber-workflow-run-verifier` skill with `--run-id {runId}`. It runs:
+
 ```bash
 # REQUIRED before setting status: "completed"
-bash plugins/faber/skills/fractary-faber-run-manager/scripts/verify-workflow-completion.sh \
-  --run-id "$RUN_ID" \
-  --base-path ".fractary/faber/runs"
+bash "$SKILL_DIR/scripts/verify-workflow-completion.sh" --run-id "$RUN_ID"
 ```
 
 **If the script returns `status: "fail"` or exits non-zero, you MUST NOT mark the workflow as completed.** Instead:
@@ -1308,7 +1314,7 @@ bash plugins/faber/skills/fractary-faber-run-manager/scripts/verify-workflow-com
 2. If `event_state_integrity` failed: there are step claims without backing events — this indicates fabrication or a protocol violation
 3. If `phases_complete` failed: not all phases are done — continue execution or pause
 4. If `step_count` failed: claimed steps don't match expected — investigate discrepancies
-5. If `workflow_complete_event` failed: the completion event hasn't been emitted yet
+5. If `workflow_complete_event` failed: the state already says `completed` but no `workflow_complete` event was emitted. Before completion this check passes, because the event is emitted after the gate
 
 Only proceed with the completion sequence below after the verification passes.
 
@@ -1318,11 +1324,12 @@ Only proceed with the completion sequence below after the verification passes.
 async function handleWorkflowCompletion(runId) {
   const state = JSON.parse(await Read({ file_path: `${getStatePath(runId)}` }));
 
-  // STEP 1: Run completion verification (MANDATORY)
-  const verifyResult = await Bash({
-    command: `bash plugins/faber/skills/fractary-faber-run-manager/scripts/verify-workflow-completion.sh --run-id "${runId}" --base-path ".fractary/faber/runs"`
+  // STEP 1: Run completion verification (MANDATORY): invoke the
+  // fractary-faber-workflow-run-verifier skill, which returns the script's JSON
+  const verification = await Skill({
+    skill: "fractary-faber-workflow-run-verifier",
+    args: `--run-id ${runId}`
   });
-  const verification = JSON.parse(verifyResult.stdout);
   if (verification.status !== "pass") {
     console.error("Completion verification FAILED:", JSON.stringify(verification, null, 2));
     // DO NOT proceed — pause workflow instead
@@ -1335,7 +1342,7 @@ async function handleWorkflowCompletion(runId) {
   );
 
   const eventResult = await fractary_faber_event_emit({
-    run_id: runId,
+    run_id: eventRunId,
     type: "workflow_complete",
     metadata: {
       duration_seconds: durationSeconds,
@@ -1387,10 +1394,10 @@ async function handleWorkflowFailure(runId, step, result) {
 
   // Emit failure event
   await fractary_faber_event_emit({
-    run_id: runId,
+    run_id: eventRunId,
     type: "workflow_failed",
     phase: step.phase,
-    step_id: step.step_id,
+    step: step.step_id,
     metadata: {
       error: result.error || result.message,
       phase: step.phase

@@ -10,7 +10,7 @@
 #   2. All enabled phases are completed or skipped
 #   3. Claimed step count matches expected steps from plan
 #   4. Step ID prefix convention (all steps follow {phase}-{action} naming)
-#   5. workflow_complete event exists in event log
+#   5. workflow_complete event exists once the state records the workflow as completed
 #
 # Usage:
 #   verify-workflow-completion.sh --run-id <id> [--base-path <path>]
@@ -53,7 +53,7 @@ while [[ $# -gt 0 ]]; do
             echo "  2. All enabled phases are completed or skipped"
             echo "  3. Claimed vs expected step count from plan"
             echo "  4. Step ID prefix convention ({phase}-{action} naming)"
-            echo "  5. workflow_complete event exists"
+            echo "  5. workflow_complete event exists (once state says completed)"
             exit 0
             ;;
         *)
@@ -68,33 +68,24 @@ if [[ -z "$RUN_ID" ]]; then
     exit 2
 fi
 
-# Derive paths from run_id
-# run_id format: {plan_id}-run-{timestamp}
-RUN_MARKER="-run-"
-PLAN_ID="${RUN_ID%$RUN_MARKER*}"
-RUN_SUFFIX="${RUN_ID##*$RUN_MARKER}"
-
-STATE_FILE="$BASE_PATH/$PLAN_ID/state-$RUN_SUFFIX.json"
-EVENTS_DIR="$BASE_PATH/$RUN_ID/events"
-PLAN_FILE="$BASE_PATH/$RUN_ID/plan.json"
-
-# Try alternative event directory locations
-if [[ ! -d "$EVENTS_DIR" ]]; then
-    EVENTS_DIR="$BASE_PATH/$PLAN_ID/events"
+RUN_PATHS_LIB="$SCRIPT_DIR/../../fractary-faber-core/scripts/lib/run-paths.sh"
+if [[ ! -f "$RUN_PATHS_LIB" ]]; then
+    echo '{"status": "error", "message": "run-paths.sh not found: '"$RUN_PATHS_LIB"'"}' >&2
+    exit 2
 fi
+source "$RUN_PATHS_LIB"
 
-# Try alternative plan file locations
-if [[ ! -f "$PLAN_FILE" ]]; then
-    PLAN_FILE="$BASE_PATH/$PLAN_ID/plan.json"
-fi
+# Resolve the run's files the way the CLI does: a plan-scoped run ID keeps the
+# plan and one state file per run in the plan's folder, and its events in
+# {plan_id}/{run_suffix}/events. The state must be this run's: never fall back
+# to another run's state.
+STATE_FILE=$(faber_run_state_file "$BASE_PATH" "$RUN_ID")
+PLAN_FILE=$(faber_run_plan_file "$BASE_PATH" "$RUN_ID")
+EVENTS_DIR=$(faber_run_events_dir "$BASE_PATH" "$RUN_ID")
 
-# Validate state file exists
 if [[ ! -f "$STATE_FILE" ]]; then
-    STATE_FILE=$(find "$BASE_PATH/$PLAN_ID" -name "state-*.json" -type f 2>/dev/null | head -1)
-    if [[ -z "$STATE_FILE" || ! -f "$STATE_FILE" ]]; then
-        echo '{"status": "error", "message": "State file not found for run: '"$RUN_ID"'"}' >&2
-        exit 2
-    fi
+    echo '{"status": "error", "message": "State file not found for run: '"$RUN_ID"'"}' >&2
+    exit 2
 fi
 
 # Read state file
@@ -111,8 +102,8 @@ ALL_PASSED=true
 # Check 1: Event-State Cross-Validation
 # ============================================================
 INTEGRITY_SCRIPT="$SCRIPT_DIR/validate-state-integrity.sh"
-if [[ -x "$INTEGRITY_SCRIPT" ]]; then
-    INTEGRITY_RESULT=$("$INTEGRITY_SCRIPT" --run-id "$RUN_ID" --base-path "$BASE_PATH" 2>/dev/null) || true
+if [[ -f "$INTEGRITY_SCRIPT" ]]; then
+    INTEGRITY_RESULT=$(bash "$INTEGRITY_SCRIPT" --run-id "$RUN_ID" --base-path "$BASE_PATH" 2>/dev/null) || true
     INTEGRITY_STATUS=$(echo "$INTEGRITY_RESULT" | jq -r '.status // "error"')
 
     if [[ "$INTEGRITY_STATUS" == "pass" ]]; then
@@ -132,17 +123,28 @@ if [[ -x "$INTEGRITY_SCRIPT" ]]; then
 else
     ALL_PASSED=false
     CHECKS=$(echo "$CHECKS" | jq \
-        '. + [{"check": "event_state_integrity", "status": "fail", "detail": "validate-state-integrity.sh not found or not executable"}]')
+        '. + [{"check": "event_state_integrity", "status": "fail", "detail": "validate-state-integrity.sh not found"}]')
+fi
+
+PLAN_VALID=false
+if [[ -f "$PLAN_FILE" ]] && jq empty "$PLAN_FILE" 2>/dev/null; then
+    PLAN_VALID=true
 fi
 
 # ============================================================
 # Check 2: All Enabled Phases Completed or Skipped
 # ============================================================
-INCOMPLETE_PHASES=$(echo "$STATE" | jq -r '
-    [.phases // {} | to_entries[] |
-     select(.value.status != "completed" and .value.status != "skipped" and
-            (.value.enabled // true) == true) |
-     .key] | join(", ")')
+# Required phases come from the plan (every phase not disabled), or from the
+# state when there is no plan. The workflow-run skill does not mark disabled
+# phases in state, so the plan is the reliable source.
+if [[ "$PLAN_VALID" == true ]]; then
+    REQUIRED_PHASES=$(jq -c '[.workflow.phases // {} | to_entries[] | select(.value.enabled != false) | .key]' "$PLAN_FILE")
+else
+    REQUIRED_PHASES=$(echo "$STATE" | jq -c '[.phases // {} | to_entries[] | select(.value.enabled != false) | .key]')
+fi
+INCOMPLETE_PHASES=$(echo "$STATE" | jq -r --argjson required "$REQUIRED_PHASES" '
+    [$required[] as $p | (.phases[$p].status // "pending") as $s |
+     select($s != "completed" and $s != "skipped") | $p] | join(", ")')
 
 if [[ -z "$INCOMPLETE_PHASES" ]]; then
     COMPLETED_COUNT=$(echo "$STATE" | jq '[.phases // {} | to_entries[] | select(.value.status == "completed")] | length')
@@ -158,48 +160,65 @@ fi
 # ============================================================
 # Check 3: Claimed vs Expected Step Count from Plan
 # ============================================================
-if [[ -f "$PLAN_FILE" ]]; then
-    PLAN=$(cat "$PLAN_FILE")
-    if echo "$PLAN" | jq empty 2>/dev/null; then
-        # Count expected steps from plan: all steps across all enabled phases
-        # Steps can be in pre_steps, steps, post_steps arrays per phase
-        EXPECTED_STEPS=$(echo "$PLAN" | jq '
-            [.workflow.phases // {} | to_entries[] |
-             select((.value.enabled // true) == true) |
-             ((.value.pre_steps // []) + (.value.steps // []) + (.value.post_steps // []))[]] |
-            length')
+if [[ "$PLAN_VALID" == true ]]; then
+    # Expected steps: every step of every enabled phase in the plan (the plan's
+    # steps already include merged pre/post steps; parallel groups expanded).
+    # A step is done when the state records it completed, succeeded or skipped.
+    # States keep steps in .phases[].steps (keyed by ID, or as an array) or, in
+    # older runs, in completed_step_ids or a root .steps array.
+    STEP_REPORT=$(jq -n --slurpfile plan "$PLAN_FILE" --slurpfile state "$STATE_FILE" '
+        def step_ids($phase):
+            ($phase.steps // [])
+            | map(if type == "object" and has("steps_parallel") then .steps_parallel[] else . end)
+            | map(.id // .name);
+        def status_of($s; $ph; $id):
+            ($s.phases[$ph].steps // null) as $steps
+            | (if ($steps | type) == "object" then $steps[$id].status
+               elif ($steps | type) == "array" then ([$steps[] | select((.id // .name) == $id) | .status] | last)
+               else null end)
+              // (if (($s.phases[$ph].completed_step_ids // []) | index($id)) != null then "completed" else null end)
+              // ([($s.steps // [])[] | select((.step_id // .id) == $id and ((.phase // $ph) == $ph)) | .status] | last);
+        def executed($s):
+            [($s.phases // {}) | to_entries[] | .key as $ph | (.value.steps // null) |
+                if type == "object" then to_entries[] | select(.value.status == "completed" or .value.status == "success") | {phase: $ph, id: .key}
+                elif type == "array" then .[] | select(.status == "completed" or .status == "success") | {phase: $ph, id: (.id // .name)}
+                else empty end]
+            + [($s.phases // {}) | to_entries[] | .key as $ph | (.value.completed_step_ids // [])[] | {phase: $ph, id: .}]
+            + [($s.steps // [])[] | select(.status == "success") | {phase: .phase, id: (.step_id // .id)}];
+        ($plan[0]) as $p | ($state[0]) as $s
+        | [($p.workflow.phases // {}) | to_entries[] | select(.value.enabled != false)
+           | .key as $ph | step_ids(.value)[] | {phase: $ph, id: .}] as $expected
+        | [$expected[] | select((status_of($s; .phase; .id) // "") as $st
+                                | $st == "completed" or $st == "success" or $st == "skipped")] as $done
+        | (executed($s) | unique) as $executed
+        | {expected: ($expected | length),
+           claimed: ($done | length),
+           missing: [$expected[] | select(. as $e | ($done | index($e)) == null) | "\(.phase):\(.id)"],
+           extra: [$executed[] | select(. as $x | ($expected | index($x)) == null) | "\(.phase):\(.id)"]}')
 
-        # Count claimed successful steps from state
-        # Look in both root .steps array and per-phase completed_steps/completed_step_ids
-        CLAIMED_STEPS=$(echo "$STATE" | jq '
-            (
-                [.steps // [] | .[] | select(.status == "success")] | length
-            ) as $root_steps |
-            (
-                [.phases // {} | to_entries[] | .value.completed_step_ids // [] | .[]] | unique | length
-            ) as $phase_steps |
-            if $root_steps > 0 then $root_steps else $phase_steps end')
+    EXPECTED_STEPS=$(echo "$STEP_REPORT" | jq '.expected')
+    CLAIMED_STEPS=$(echo "$STEP_REPORT" | jq '.claimed')
+    MISSING_STEPS=$(echo "$STEP_REPORT" | jq -r '.missing | join(", ")')
+    EXTRA_STEPS=$(echo "$STEP_REPORT" | jq -r '.extra | join(", ")')
 
-        if [[ "$EXPECTED_STEPS" -gt 0 && "$CLAIMED_STEPS" -eq "$EXPECTED_STEPS" ]]; then
-            CHECKS=$(echo "$CHECKS" | jq --argjson e "$EXPECTED_STEPS" --argjson c "$CLAIMED_STEPS" \
-                '. + [{"check": "step_count", "status": "pass", "detail": (($c | tostring) + "/" + ($e | tostring) + " steps completed")}]')
-        elif [[ "$EXPECTED_STEPS" -gt 0 && "$CLAIMED_STEPS" -gt "$EXPECTED_STEPS" ]]; then
-            ALL_PASSED=false
-            CHECKS=$(echo "$CHECKS" | jq --argjson e "$EXPECTED_STEPS" --argjson c "$CLAIMED_STEPS" \
-                '. + [{"check": "step_count", "status": "fail", "detail": ("More steps claimed (" + ($c | tostring) + ") than expected (" + ($e | tostring) + ") - possible fabrication")}]')
-        elif [[ "$EXPECTED_STEPS" -gt 0 ]]; then
-            ALL_PASSED=false
-            CHECKS=$(echo "$CHECKS" | jq --argjson e "$EXPECTED_STEPS" --argjson c "$CLAIMED_STEPS" \
-                '. + [{"check": "step_count", "status": "fail", "detail": ("Only " + ($c | tostring) + "/" + ($e | tostring) + " steps completed")}]')
-        else
-            # No expected steps could be determined from plan
-            CHECKS=$(echo "$CHECKS" | jq \
-                '. + [{"check": "step_count", "status": "warn", "detail": "Could not determine expected step count from plan"}]')
-        fi
-    else
+    if [[ -n "$EXTRA_STEPS" ]]; then
+        ALL_PASSED=false
+        CHECKS=$(echo "$CHECKS" | jq --arg x "$EXTRA_STEPS" \
+            '. + [{"check": "step_count", "status": "fail", "detail": ("Steps recorded as completed that the plan does not contain: " + $x + " - possible fabrication")}]')
+    elif [[ "$EXPECTED_STEPS" -eq 0 ]]; then
         CHECKS=$(echo "$CHECKS" | jq \
-            '. + [{"check": "step_count", "status": "warn", "detail": "Plan file is not valid JSON"}]')
+            '. + [{"check": "step_count", "status": "warn", "detail": "Could not determine expected step count from plan"}]')
+    elif [[ "$CLAIMED_STEPS" -eq "$EXPECTED_STEPS" ]]; then
+        CHECKS=$(echo "$CHECKS" | jq --argjson e "$EXPECTED_STEPS" --argjson c "$CLAIMED_STEPS" \
+            '. + [{"check": "step_count", "status": "pass", "detail": (($c | tostring) + "/" + ($e | tostring) + " steps completed")}]')
+    else
+        ALL_PASSED=false
+        CHECKS=$(echo "$CHECKS" | jq --argjson e "$EXPECTED_STEPS" --argjson c "$CLAIMED_STEPS" --arg m "$MISSING_STEPS" \
+            '. + [{"check": "step_count", "status": "fail", "detail": ("Only " + ($c | tostring) + "/" + ($e | tostring) + " steps completed; not done: " + $m)}]')
     fi
+elif [[ -f "$PLAN_FILE" ]]; then
+    CHECKS=$(echo "$CHECKS" | jq \
+        '. + [{"check": "step_count", "status": "warn", "detail": "Plan file is not valid JSON"}]')
 else
     CHECKS=$(echo "$CHECKS" | jq \
         '. + [{"check": "step_count", "status": "warn", "detail": "Plan file not found - cannot verify step count"}]')
@@ -208,9 +227,9 @@ fi
 # ============================================================
 # Check 4: Step ID Prefix Convention (all steps follow {phase}-{action})
 # ============================================================
-PREFIX_SCRIPT="$SCRIPT_DIR/validate-plan-step-ids.sh"
-if [[ -f "$PLAN_FILE" && -x "$PREFIX_SCRIPT" ]]; then
-    PREFIX_RESULT=$("$PREFIX_SCRIPT" --plan-file "$PLAN_FILE" 2>/dev/null) || true
+PREFIX_SCRIPT="$SCRIPT_DIR/../../fractary-faber-run-manager/scripts/validate-plan-step-ids.sh"
+if [[ -f "$PLAN_FILE" && -f "$PREFIX_SCRIPT" ]]; then
+    PREFIX_RESULT=$(bash "$PREFIX_SCRIPT" --plan-file "$PLAN_FILE" 2>/dev/null) || true
     PREFIX_STATUS=$(echo "$PREFIX_RESULT" | jq -r '.status // "error"')
 
     if [[ "$PREFIX_STATUS" == "pass" ]]; then
@@ -230,7 +249,7 @@ elif [[ ! -f "$PLAN_FILE" ]]; then
         '. + [{"check": "step_id_prefix_convention", "status": "warn", "detail": "Plan file not found — cannot validate step ID prefixes"}]')
 else
     CHECKS=$(echo "$CHECKS" | jq \
-        '. + [{"check": "step_id_prefix_convention", "status": "warn", "detail": "validate-plan-step-ids.sh not found or not executable"}]')
+        '. + [{"check": "step_id_prefix_convention", "status": "warn", "detail": "validate-plan-step-ids.sh not found"}]')
 fi
 
 # ============================================================
@@ -249,14 +268,21 @@ else
 fi
 
 WORKFLOW_COMPLETE_COUNT=$(jq '[.[] | select(.type == "workflow_complete")] | length' "$EVENTS_LOOKUP")
+WORKFLOW_STATUS=$(echo "$STATE" | jq -r '.status // "unknown"')
 
+# The run emits workflow_complete only after this check passes, so the event is
+# required only once the state records the workflow as completed (an audit of
+# a finished run). Before then, its absence is expected.
 if [[ "$WORKFLOW_COMPLETE_COUNT" -gt 0 ]]; then
     CHECKS=$(echo "$CHECKS" | jq \
         '. + [{"check": "workflow_complete_event", "status": "pass", "detail": "workflow_complete event found"}]')
-else
+elif [[ "$WORKFLOW_STATUS" == "completed" ]]; then
     ALL_PASSED=false
     CHECKS=$(echo "$CHECKS" | jq \
-        '. + [{"check": "workflow_complete_event", "status": "fail", "detail": "No workflow_complete event found in event log"}]')
+        '. + [{"check": "workflow_complete_event", "status": "fail", "detail": "State records the workflow as completed but no workflow_complete event found in event log"}]')
+else
+    CHECKS=$(echo "$CHECKS" | jq \
+        '. + [{"check": "workflow_complete_event", "status": "pass", "detail": "Not expected yet: workflow_complete is emitted after this check passes"}]')
 fi
 
 # ============================================================
