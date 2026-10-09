@@ -52,5 +52,15 @@ describe('ClaudeAgentExecutor permission mode', () => {
     await executor.execute('Do it', context({ permissionMode: 'plan' }), { provider: 'claude-agent' });
 
     expect(executor.sessions[0].permissionMode).toBe('plan');
+    expect(executor.sessions[0].allowDangerouslySkipPermissions).toBeUndefined();
+  });
+
+  it('sets the flag the SDK requires for bypassPermissions only when a step opts in', async () => {
+    const executor = new RecordingAgentExecutor();
+    await executor.execute('Do it', context({ permissionMode: 'bypassPermissions' }), { provider: 'claude-agent' });
+    await executor.execute('Do it', context({}), { provider: 'claude-agent' });
+
+    expect(executor.sessions[0]).toMatchObject({ permissionMode: 'bypassPermissions', allowDangerouslySkipPermissions: true });
+    expect(executor.sessions[1].allowDangerouslySkipPermissions).toBeUndefined();
   });
 });

@@ -206,8 +206,9 @@ export class ClaudeAgentExecutor implements Executor {
           // A CLI run has no one to answer a permission prompt, so a tool call
           // that needs permission is denied unless allowedTools or the project's
           // settings allow it. bypassPermissions is an explicit opt-in that the
-          // workflow executor warns about.
+          // workflow executor warns about; the SDK requires the extra flag for it.
           permissionMode,
+          ...(permissionMode === 'bypassPermissions' && { allowDangerouslySkipPermissions: true }),
         },
       })) {
         if (message.type === 'result') {

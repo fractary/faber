@@ -622,7 +622,7 @@
     },
     "permission_mode": {
       "type": "string",
-      "enum": ["default", "acceptEdits", "plan", "bypassPermissions"],
+      "enum": ["default", "acceptEdits", "plan", "dontAsk", "auto", "bypassPermissions"],
       "description": "Permission mode of an agent step's session in CLI-native execution (default 'acceptEdits'). A tool call that needs permission is denied unless allowed_tools or the project's Claude settings allow it. 'bypassPermissions' runs every tool without a check: it is opt-in, and workflow-execute warns when a step uses it. Cascade: step > phase_defaults > defaults."
     },
     "step_executor": {

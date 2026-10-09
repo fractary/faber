@@ -308,10 +308,12 @@ An agent or model step's result comes from the FABER response block at the end o
 
 | `permission_mode` | What the session can do |
 |-------------------|-------------------------|
-| `acceptEdits` (default) | Edit files. Other tools that need permission, such as Bash commands, need an allow rule |
+| `acceptEdits` (default) | Edit files, and run file commands such as `mkdir`, `mv` or `rm`, inside the workspace. Other tools that need permission, such as other Bash commands or web access, need an allow rule |
 | `default` | Only use tools that need no permission or have an allow rule |
-| `plan` | Plan, without editing files or running commands |
-| `bypassPermissions` | Use every tool without a check. Use it only where the run is isolated, such as a disposable container: the run starts with a warning that names these steps |
+| `plan` | Read and plan. Edits and commands that change files are denied |
+| `dontAsk` | Like `default`, with every call that is not allowed denied outright |
+| `auto` | A model classifier decides on actions such as shell commands and network requests |
+| `bypassPermissions` | Use every tool without a check, except calls that deny or ask rules cover. Use it only where the run is isolated, such as a disposable container: the run starts with a warning that names these steps. The Agent SDK refuses this mode when it runs as root outside a sandbox it recognizes |
 
 Until this version every agent step ran with `bypassPermissions`. To keep that, set `permission_mode: bypassPermissions` in `defaults`. Shell command steps (`!`) have no permission mode. An unknown mode stops the run before any step runs.
 

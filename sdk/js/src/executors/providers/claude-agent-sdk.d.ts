@@ -23,6 +23,7 @@ declare module '@anthropic-ai/claude-agent-sdk' {
     disallowedTools?: string[];
     mcpServers?: Record<string, { command: string; args?: string[] }>;
     permissionMode?: string;
+    allowDangerouslySkipPermissions?: boolean;
     hooks?: Record<string, unknown>;
     agents?: Record<string, unknown>;
     env?: Record<string, string | undefined>;
