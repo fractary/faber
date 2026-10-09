@@ -138,7 +138,12 @@ export interface WorkflowPhaseConfig {
 export interface WorkflowAutonomyConfig {
   level?: 'dry-run' | 'assisted' | 'guarded' | 'autonomous';
   description?: string;
+  /** Step IDs that run only after a person approves them */
   require_approval_for?: string[];
+  /** Pause for approval before the release phase starts */
+  pause_before_release?: boolean;
+  /** Phase-specific autonomy overrides */
+  overrides?: Record<string, unknown>;
 }
 
 /**

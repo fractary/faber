@@ -413,3 +413,149 @@ describe('WorkflowExecutor step verdicts', () => {
     });
   });
 });
+
+describe('WorkflowExecutor approval gates', () => {
+  let planDir: string;
+  let workflow: ReturnType<typeof makeWorkflow>;
+
+  const newRun = (): RunStateStore =>
+    RunStateStore.create(planDir, {
+      planId: 'acme-app-42',
+      workId: '42',
+      workflowId: 'default',
+      phases: workflow.phases,
+    });
+
+  beforeEach(() => {
+    planDir = fs.mkdtempSync(path.join(os.tmpdir(), 'faber-approval-test-'));
+    workflow = makeWorkflow();
+  });
+
+  afterEach(() => {
+    fs.rmSync(planDir, { recursive: true, force: true });
+  });
+
+  it('stops before a step listed in require_approval_for and saves the run as awaiting approval', async () => {
+    workflow.autonomy = { require_approval_for: ['commit'] };
+    const runState = newRun();
+    const fake = new FakeExecutor();
+    const required: string[] = [];
+    const result = await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState,
+      onApprovalRequired: (phaseName, step) => required.push(`${phaseName}:${step.id}`),
+    });
+
+    expect(result.status).toBe('awaiting_approval');
+    expect(result.awaiting_approval).toMatchObject({ phase: 'build', step_id: 'commit' });
+    expect(result.awaiting_approval?.reason).toContain('require_approval_for');
+    expect(fake.stepIds).toEqual(['fetch-issue', 'implement']);
+    expect(required).toEqual(['build:commit']);
+    expect(result.phases.find((p) => p.phase === 'build')?.status).toBe('awaiting_approval');
+
+    const saved = RunStateStore.load(planDir, runState.runId).state;
+    expect(saved.status).toBe('awaiting_approval');
+    expect(saved.awaiting_approval).toMatchObject({ phase: 'build', step_id: 'commit' });
+    expect(saved.phases.build.steps.commit.status).toBe('pending');
+  });
+
+  it('runs the gated step when it is approved, and continues the run', async () => {
+    workflow.autonomy = { require_approval_for: ['commit'] };
+    const runState = newRun();
+    await makeExecutor(new FakeExecutor()).execute(workflow, { workId: '42', workingDirectory: planDir, runState });
+
+    const resumed = RunStateStore.load(planDir, runState.runId);
+    const fake = new FakeExecutor();
+    const result = await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState: resumed,
+      approvedSteps: ['commit'],
+    });
+
+    expect(result.status).toBe('completed');
+    expect(fake.stepIds).toEqual(['commit', 'test', 'create-pr']);
+    expect(resumed.state.status).toBe('completed');
+    expect(resumed.state.awaiting_approval).toBeUndefined();
+    expect(resumed.state.phases.build.steps.commit.approved_at).toBeDefined();
+  });
+
+  it('does not run a gated step approved under another step ID', async () => {
+    workflow.autonomy = { require_approval_for: ['commit'] };
+    const fake = new FakeExecutor();
+    const result = await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      approvedSteps: ['implement'],
+    });
+
+    expect(result.status).toBe('awaiting_approval');
+    expect(fake.stepIds).toEqual(['fetch-issue', 'implement']);
+  });
+
+  it('gates the first step of a phase that requires approval, once', async () => {
+    workflow.phases.build.require_approval = true;
+    const runState = newRun();
+    const first = await makeExecutor(new FakeExecutor()).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState,
+    });
+
+    expect(first.awaiting_approval).toMatchObject({ phase: 'build', step_id: 'implement' });
+    expect(first.awaiting_approval?.reason).toContain('build phase requires approval');
+
+    // Approved: the whole phase runs; commit then fails and stops the run
+    const fake = new FakeExecutor({ commit: 'failure' });
+    const second = await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState: RunStateStore.load(planDir, runState.runId),
+      approvedSteps: ['implement'],
+    });
+    expect(second.status).toBe('failed');
+    expect(fake.stepIds).toEqual(['implement', 'commit']);
+
+    // Resuming the failed run re-enters the phase without asking again
+    const fake2 = new FakeExecutor();
+    const third = await makeExecutor(fake2).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState: RunStateStore.load(planDir, runState.runId),
+    });
+    expect(third.status).toBe('completed');
+    expect(fake2.stepIds).toEqual(['commit', 'test', 'create-pr']);
+  });
+
+  it('pauses before release when pause_before_release is set', async () => {
+    workflow.autonomy = { pause_before_release: true };
+    const fake = new FakeExecutor();
+    const result = await makeExecutor(fake).execute(workflow, { workId: '42', workingDirectory: planDir });
+
+    expect(result.status).toBe('awaiting_approval');
+    expect(result.awaiting_approval).toMatchObject({ phase: 'release', step_id: 'create-pr' });
+    expect(result.awaiting_approval?.reason).toContain('pause_before_release');
+    expect(fake.stepIds).toEqual(['fetch-issue', 'implement', 'commit', 'test']);
+  });
+
+  it('combines the reasons when several gates apply to one step', async () => {
+    workflow.autonomy = { pause_before_release: true, require_approval_for: ['create-pr'] };
+    workflow.phases.release.require_approval = true;
+    const result = await makeExecutor(new FakeExecutor()).execute(workflow, { workId: '42', workingDirectory: planDir });
+
+    expect(result.awaiting_approval?.step_id).toBe('create-pr');
+    expect(result.awaiting_approval?.reason).toContain('require_approval_for');
+    expect(result.awaiting_approval?.reason).toContain('release phase requires approval');
+    expect(result.awaiting_approval?.reason).toContain('pause_before_release');
+  });
+
+  it('ignores the autonomy level: an autonomous workflow still stops at its gates', async () => {
+    workflow.autonomy = { level: 'autonomous', require_approval_for: ['test'] };
+    const fake = new FakeExecutor();
+    const result = await makeExecutor(fake).execute(workflow, { workId: '42', workingDirectory: planDir });
+
+    expect(result.status).toBe('awaiting_approval');
+    expect(fake.stepIds).not.toContain('test');
+  });
+});

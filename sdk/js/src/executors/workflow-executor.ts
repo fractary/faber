@@ -35,6 +35,7 @@ import type {
   WorkflowStep,
   WorkflowFileConfig,
   StepResultHandling,
+  WorkflowAutonomyConfig,
 } from '../workflow/resolver.js';
 import type { RunStateStore, RunStatus } from '../state/run-state.js';
 
@@ -91,11 +92,28 @@ export interface WorkflowExecuteOptions {
   runState?: RunStateStore;
   /** Callback for a step skipped because it already completed in this run */
   onStepSkipped?: (phase: string, step: WorkflowStep, reason: string) => void;
+
+  /**
+   * Steps a person approved for this invocation. A step behind an approval
+   * gate runs only when listed here; otherwise the run stops before it with
+   * status `awaiting_approval`.
+   */
+  approvedSteps?: string[];
+  /** Callback when the run stops before a step that needs approval */
+  onApprovalRequired?: (phase: string, step: WorkflowStep, reason: string) => void;
+}
+
+/** The step a run stopped before, until a person approves it */
+export interface ApprovalRequired {
+  phase: string;
+  step_id: string;
+  /** Why the step needs approval */
+  reason: string;
 }
 
 /** Result from a complete workflow execution */
 export interface WorkflowExecuteResult {
-  status: 'completed' | 'failed' | 'paused';
+  status: 'completed' | 'failed' | 'paused' | 'awaiting_approval';
   phases: PhaseExecuteResult[];
   duration_ms: number;
   steps_completed: number;
@@ -108,12 +126,14 @@ export interface WorkflowExecuteResult {
   state_path?: string;
   /** Final status recorded in the run state, when executed with run state */
   run_status?: RunStatus;
+  /** The step the run stopped before, when its status is `awaiting_approval` */
+  awaiting_approval?: ApprovalRequired;
 }
 
 /** Result from a single phase */
 export interface PhaseExecuteResult {
   phase: string;
-  status: 'completed' | 'failed' | 'skipped';
+  status: 'completed' | 'failed' | 'skipped' | 'awaiting_approval';
   steps: StepExecuteResult[];
   duration_ms: number;
 }
@@ -157,6 +177,8 @@ export class WorkflowExecutor {
       defaults?: WorkflowFileConfig['defaults'];
       /** Per-phase runtime defaults */
       phase_defaults?: WorkflowFileConfig['phase_defaults'];
+      /** Approval gates: require_approval_for, pause_before_release */
+      autonomy?: WorkflowAutonomyConfig;
     },
     options: WorkflowExecuteOptions,
   ): Promise<WorkflowExecuteResult> {
@@ -168,6 +190,8 @@ export class WorkflowExecutor {
     let workflowError: string | undefined;
     let globalStepIndex = 0;
     let stepsAlreadyCompleted = 0;
+    let awaitingApproval: ApprovalRequired | undefined;
+    const approvedSteps = new Set(options.approvedSteps ?? []);
     const runState = options.runState;
     const runId = options.runId ?? runState?.runId;
     const statePath = options.statePath ?? runState?.statePath;
@@ -226,6 +250,9 @@ export class WorkflowExecutor {
       // Get phase-level defaults
       const phaseDefaults = workflow.phase_defaults?.[phaseName];
 
+      // A phase gate applies once, before the first step of the phase runs
+      let phaseEntered = runState?.hasPhaseStarted(phaseName) ?? false;
+
       for (let i = 0; i < phase.steps.length; i++) {
         const step = phase.steps[i];
 
@@ -243,6 +270,22 @@ export class WorkflowExecutor {
           options.onStepSkipped?.(phaseName, step, 'already completed in this run');
           continue;
         }
+
+        // Approval gate: a gated step runs only when a person approved it for
+        // this invocation. Nothing else (autonomy level, unattended runs)
+        // counts as approval.
+        const gateReasons = this.approvalReasons(step, phaseName, phase, workflow.autonomy, phaseEntered);
+        if (gateReasons.length > 0) {
+          if (!approvedSteps.has(step.id)) {
+            const reason = gateReasons.join('; ');
+            awaitingApproval = { phase: phaseName, step_id: step.id, reason };
+            runState?.awaitApproval(phaseName, step.id, reason);
+            options.onApprovalRequired?.(phaseName, step, reason);
+            break;
+          }
+          runState?.approveStep(phaseName, step.id);
+        }
+        phaseEntered = true;
 
         options.onStepStart?.(phaseName, step, i, phase.steps.length);
         runState?.startStep(phaseName, step.id);
@@ -348,6 +391,17 @@ export class WorkflowExecutor {
         }
       }
 
+      if (awaitingApproval) {
+        // The phase is not finished: it continues when the run resumes
+        phaseResults.push({
+          phase: phaseName,
+          status: 'awaiting_approval',
+          steps: stepResults,
+          duration_ms: Date.now() - phaseStartTime,
+        });
+        break;
+      }
+
       const phaseStatus = phaseFailed ? 'failed' : 'completed';
       phaseResults.push({
         phase: phaseName,
@@ -363,6 +417,23 @@ export class WorkflowExecutor {
         workflowFailed = true;
         break;
       }
+    }
+
+    if (awaitingApproval) {
+      return {
+        status: 'awaiting_approval',
+        phases: phaseResults,
+        duration_ms: Date.now() - startTime,
+        steps_completed: totalStepsCompleted,
+        steps_total: totalSteps,
+        awaiting_approval: awaitingApproval,
+        ...(runState && {
+          steps_already_completed: stepsAlreadyCompleted,
+          run_id: runState.runId,
+          state_path: runState.statePath,
+          run_status: runState.state.status,
+        }),
+      };
     }
 
     const runStatus = runState?.finish(workflowFailed ? workflowError : undefined);
@@ -446,6 +517,32 @@ export class WorkflowExecutor {
       case 'codex': return 'claude-agent';     // TODO: Codex executor
       default: return 'claude-agent';
     }
+  }
+
+  /**
+   * Why a step needs a person's approval before it runs, if it does:
+   * - it is listed in `autonomy.require_approval_for`
+   * - it is the first step of a phase with `require_approval`
+   * - it is the first release step and `autonomy.pause_before_release` is set
+   */
+  private approvalReasons(
+    step: WorkflowStep,
+    phaseName: string,
+    phase: ResolvedPhase,
+    autonomy: WorkflowAutonomyConfig | undefined,
+    phaseEntered: boolean,
+  ): string[] {
+    const reasons: string[] = [];
+    if (autonomy?.require_approval_for?.includes(step.id)) {
+      reasons.push(`${step.id} is listed in autonomy.require_approval_for`);
+    }
+    if (!phaseEntered && phase.require_approval) {
+      reasons.push(`the ${phaseName} phase requires approval`);
+    }
+    if (!phaseEntered && phaseName === 'release' && autonomy?.pause_before_release) {
+      reasons.push('the workflow pauses before release (autonomy.pause_before_release)');
+    }
+    return reasons;
   }
 
   /**

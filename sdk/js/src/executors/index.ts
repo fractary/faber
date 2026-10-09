@@ -65,4 +65,5 @@ export {
   type WorkflowExecuteResult,
   type PhaseExecuteResult,
   type StepExecuteResult,
+  type ApprovalRequired,
 } from './workflow-executor.js';

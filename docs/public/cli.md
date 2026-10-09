@@ -278,9 +278,19 @@ fractary-faber workflow-execute <plan-path> [options]
 | `--phase <phases>` | Execute only specified phase(s) — comma-separated (e.g., `build,evaluate`) | |
 | `--step <step-id>` | Execute only a specific step | |
 | `--resume <run-id>` | Resume an earlier run of this plan, skipping the steps it completed | |
+| `--approve <step-id>` | Approve the step a resumed run is waiting on (needs `--resume`) | |
 | `--json` | Output as JSON | |
 
 Each execution is a run with its own ID, `{plan_id}-run-{timestamp}`. The run's state is saved next to the plan, in `state-{timestamp}.json`, after every step starts and finishes, in the same format the `fractary-faber-workflow-run` skill writes. A run that crashed, failed, or ran only some phases can be resumed with `--resume`: completed steps are skipped and the interrupted or failed step runs again. The run ends `completed`, `failed`, or `paused` (when a phase or step filter left steps unrun); inspect it with `run-inspect --run-id <run-id>` or check it with `runs verify-complete <run-id>`.
+
+**Approval gates.** Before a step that needs a person's approval, the run stops, is saved as `awaiting_approval`, and the command exits with code `3`. A step needs approval when:
+- it is listed in the workflow's `autonomy.require_approval_for`;
+- it is the first step to run in a phase with `require_approval: true`;
+- it is the first release step and `autonomy.pause_before_release` is set.
+
+To continue, resume the run and approve that step: `--resume <run-id> --approve <step-id>`. The approval applies only to the step the run is waiting on, in that invocation, and is recorded in the step's `approved_at`. Nothing else counts as approval: not the autonomy level, and not a run started by a trigger. A phase gate is asked once; resuming a run that already entered the phase does not ask again.
+
+Exit codes: `0` completed or paused, `1` failed, `3` waiting for approval.
 
 Steps run in the root the plan belongs to, the directory that contains `.fractary/faber/runs/{plan_id}/`: the worktree when the plan was created with `--worktree`, otherwise the project root. For a plan stored elsewhere, steps run in the project root found from the current directory.
 
@@ -296,6 +306,9 @@ fractary-faber workflow-execute .fractary/faber/runs/abc123/plan.json --phase bu
 
 # Resume a run that was interrupted
 fractary-faber workflow-execute .fractary/faber/runs/abc123/plan.json --resume abc123-run-2026-10-06T18-04-05Z
+
+# Approve the step a run stopped before, and continue
+fractary-faber workflow-execute .fractary/faber/runs/abc123/plan.json --resume abc123-run-2026-10-06T18-04-05Z --approve release-deploy-apply-prod
 ```
 
 ### workflow-resolve
