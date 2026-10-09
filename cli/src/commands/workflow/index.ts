@@ -877,6 +877,18 @@ export function createWorkflowExecuteCommand(): Command {
                 console.log(chalk.gray(`  ⏭ ${step.id} (${reason})`));
               }
             },
+            onFailureHandler: (_phase: string, step: { id: string }, handler: string, handlerResult: { status: string; error?: string }) => {
+              if (!options.json) {
+                const command = handler.trim().split(/\s+/)[0];
+                const error = handlerResult.error ? `: ${handlerResult.error}` : '';
+                console.log(chalk.gray(`    on_failure ${command} for ${step.id}: ${handlerResult.status}${error}`));
+              }
+            },
+            onStepRetry: (_phase: string, step: { id: string }, attempt: number, reason: string) => {
+              if (!options.json) {
+                console.log(chalk.yellow(`  ↻ ${step.id}: attempt ${attempt} (${reason})`));
+              }
+            },
             onPhaseStart: (phase: string) => {
               if (!options.json) {
                 console.log(chalk.cyan(`\n→ Phase: ${phase.toUpperCase()}`));
@@ -992,7 +1004,8 @@ function printRunState(state: RunState, verbose?: boolean): void {
   for (const [phase, phaseState] of Object.entries(state.phases ?? {})) {
     const steps = Object.entries(phaseState.steps ?? {});
     const done = steps.filter(([, s]) => s.status === 'completed' || s.status === 'skipped').length;
-    const label = phaseState.enabled === false ? ' (disabled)' : ` (${done}/${steps.length} steps)`;
+    const retries = phaseState.retry_count ? `, ${phaseState.retry_count} ${phaseState.retry_count === 1 ? 'retry' : 'retries'}` : '';
+    const label = phaseState.enabled === false ? ' (disabled)' : ` (${done}/${steps.length} steps${retries})`;
     console.log(`  ${getStatusIcon(phaseState.status)} ${phase}${label}`);
     if (verbose && phaseState.enabled !== false) {
       for (const [stepId, step] of steps) {

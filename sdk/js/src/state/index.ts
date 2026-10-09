@@ -18,6 +18,7 @@ export type {
   RunStepOutcome,
   RunStateStoreOptions,
   RunApprovalWait,
+  RunFailureRecovery,
 } from './run-state.js';
 export type { SessionContext, LoadSessionOptions, SaveSessionOptions } from './session.js';
 export * from './types.js';

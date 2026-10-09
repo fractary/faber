@@ -75,6 +75,24 @@ export interface RunState {
   pause_reason?: string;
   /** The step the run is waiting for a person to approve */
   awaiting_approval?: RunApprovalWait;
+  /** How step failures were handled by `on_failure: retry` or a handler */
+  failure_recoveries?: RunFailureRecovery[];
+}
+
+/** How a step failure was handled: the step ran again, or the run stopped */
+export interface RunFailureRecovery {
+  /** The failed step, as `{phase}:{step_id}` */
+  step: string;
+  /** The attempt that failed */
+  attempt: number;
+  /** The on_failure handler (slash command) that ran, if any */
+  handler?: string;
+  /** The status the handler reported */
+  handler_status?: 'success' | 'warning' | 'failure';
+  /** retry: the step ran again; stop: the run stopped */
+  action: 'retry' | 'stop';
+  reason: string;
+  timestamp: string;
 }
 
 /** A step a run stopped before, until a person approves it */
@@ -313,6 +331,33 @@ export class RunStateStore {
    */
   approveStep(phase: string, stepId: string): void {
     this.step(phase, stepId).approved_at = this.timestamp();
+    this.save();
+  }
+
+  /**
+   * Retries used in the phase in this run. They count against the phase's
+   * `max_retries`, also when the run is resumed.
+   */
+  retryCount(phase: string): number {
+    return this.data.phases[phase]?.retry_count ?? 0;
+  }
+
+  /**
+   * Record how a step failure was handled. A retry counts against the phase's
+   * `max_retries`.
+   */
+  recordFailureRecovery(
+    phase: string,
+    stepId: string,
+    recovery: Omit<RunFailureRecovery, 'step' | 'timestamp'>
+  ): void {
+    if (recovery.action === 'retry') {
+      const phaseState = this.phase(phase);
+      phaseState.retry_count = (phaseState.retry_count ?? 0) + 1;
+    }
+    const recoveries = this.data.failure_recoveries ?? [];
+    recoveries.push({ step: `${phase}:${stepId}`, ...recovery, timestamp: this.timestamp() });
+    this.data.failure_recoveries = recoveries;
     this.save();
   }
 

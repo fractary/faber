@@ -290,6 +290,14 @@ Each execution is a run with its own ID, `{plan_id}-run-{timestamp}`. The run's 
 
 To continue, resume the run and approve that step: `--resume <run-id> --approve <step-id>`. The approval applies only to the step the run is waiting on, in that invocation, and is recorded in the step's `approved_at`. Nothing else counts as approval: not the autonomy level, and not a run started by a trigger. A phase gate is asked once; resuming a run that already entered the phase does not ask again.
 
+**Failures and retries.** A failed step is handled by its `on_failure` (set on the step, phase or workflow; default `stop`):
+- `stop`: the run stops. Resuming it runs the step again.
+- `retry`: the step runs again while the phase has retries left, then the run stops. A phase's `max_retries` sets how many it has: evaluate has 3 unless the workflow sets it, other phases have none.
+- A slash command, such as `/fractary-faber-workflow-debug`: the command runs once, in its own session, and gets the step's context in a JSON file passed as `--step-context-file`. The step runs again only when the command returns a recovery plan with `action: "retry"` and `requires_approval: false`, and the phase has retries left. Otherwise the run stops.
+- `continue`: the run goes on to the next step and ends `failed`.
+
+Retries are counted per phase and saved in the run's state, so resuming a run does not give it new retries. The state also records each step's `attempts` and every retry or stop that `retry` or a command decided (`failure_recoveries`).
+
 Exit codes: `0` completed or paused, `1` failed, `3` waiting for approval.
 
 Steps run in the root the plan belongs to, the directory that contains `.fractary/faber/runs/{plan_id}/`: the worktree when the plan was created with `--worktree`, otherwise the project root. For a plan stored elsewhere, steps run in the project root found from the current directory.

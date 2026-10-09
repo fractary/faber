@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { WorkflowExecutor } from '../workflow-executor.js';
-import type { WorkflowExecuteOptions } from '../workflow-executor.js';
+import type { WorkflowExecuteOptions, WorkflowExecuteResult } from '../workflow-executor.js';
 import { ExecutorRegistry } from '../registry.js';
 import type { Executor, ExecutorResult, ExecutionContext } from '../types.js';
 import { ClaudeAgentExecutor } from '../providers/claude-agent.js';
@@ -27,6 +27,23 @@ import { getPlanRoot, FABER_RUNS_DIR } from '../../paths.js';
  */
 type Outcome = 'success' | 'failure' | 'reports_failure' | 'silent' | 'throw';
 
+/** The result an executor returns for a step with a scripted outcome */
+function scriptedResult(id: string, outcome: Outcome): Promise<ExecutorResult> {
+  if (outcome === 'throw') {
+    return Promise.reject(new Error(`executor crashed on ${id}`));
+  }
+  const metadata = { provider: 'fake', duration_ms: 5 };
+  if (outcome === 'failure') {
+    return Promise.resolve({ output: '', status: 'failure', error: `${id} failed`, metadata });
+  }
+  const output =
+    outcome === 'silent' ? `ran ${id}`
+    : outcome === 'reports_failure'
+      ? `Checked ${id}.\n\n${JSON.stringify({ status: 'failure', message: `${id} checks failed`, errors: [`${id}: 2 tests failed`] })}`
+      : `Done.\n\n\`\`\`json\n${JSON.stringify({ status: 'success', message: `ran ${id}` })}\n\`\`\``;
+  return Promise.resolve({ output, status: 'success', metadata });
+}
+
 /** Executor that records the steps it runs and returns scripted outcomes */
 class FakeExecutor implements Executor {
   readonly provider = 'claude-agent';
@@ -36,21 +53,7 @@ class FakeExecutor implements Executor {
 
   execute(_prompt: string, context: ExecutionContext): Promise<ExecutorResult> {
     this.calls.push(context as ExecutionContext & ClaudeAgentExecuteOptions);
-    const id = context.stepId;
-    const outcome = this.outcomes[id] ?? 'success';
-    if (outcome === 'throw') {
-      return Promise.reject(new Error(`executor crashed on ${id}`));
-    }
-    const metadata = { provider: 'fake', duration_ms: 5 };
-    if (outcome === 'failure') {
-      return Promise.resolve({ output: '', status: 'failure', error: `${id} failed`, metadata });
-    }
-    const output =
-      outcome === 'silent' ? `ran ${id}`
-      : outcome === 'reports_failure'
-        ? `Checked ${id}.\n\n${JSON.stringify({ status: 'failure', message: `${id} checks failed`, errors: [`${id}: 2 tests failed`] })}`
-        : `Done.\n\n\`\`\`json\n${JSON.stringify({ status: 'success', message: `ran ${id}` })}\n\`\`\``;
-    return Promise.resolve({ output, status: 'success', metadata });
+    return scriptedResult(context.stepId, this.outcomes[context.stepId] ?? 'success');
   }
 
   validate(): Promise<{ valid: boolean }> {
@@ -78,7 +81,7 @@ function makeWorkflow(): Parameters<WorkflowExecutor['execute']>[0] {
   };
 }
 
-function makeExecutor(fake: FakeExecutor): WorkflowExecutor {
+function makeExecutor(fake: Executor): WorkflowExecutor {
   const registry = new ExecutorRegistry();
   registry.register('claude-agent', () => fake);
   return new WorkflowExecutor(registry);
@@ -557,5 +560,261 @@ describe('WorkflowExecutor approval gates', () => {
 
     expect(result.status).toBe('awaiting_approval');
     expect(fake.stepIds).not.toContain('test');
+  });
+});
+
+/**
+ * Executor whose step outcomes change by attempt, and that answers on_failure
+ * handlers (prompts starting with `/`) with a scripted response block
+ */
+class AttemptsExecutor implements Executor {
+  readonly provider = 'claude-agent';
+  readonly stepCalls: string[] = [];
+  readonly handlerPrompts: string[] = [];
+
+  constructor(
+    private readonly attempts: Record<string, Outcome[]>,
+    private readonly handler: Record<string, unknown> | 'throw' = {
+      status: 'success',
+      message: 'Diagnosed',
+      recovery_plan: { action: 'stop', rationale: 'needs a person', requires_approval: true },
+    },
+  ) {}
+
+  execute(prompt: string, context: ExecutionContext): Promise<ExecutorResult> {
+    if (prompt.startsWith('/')) {
+      this.handlerPrompts.push(prompt);
+      if (this.handler === 'throw') return Promise.reject(new Error('handler crashed'));
+      return Promise.resolve({
+        output: `Diagnosis done.\n\n${JSON.stringify(this.handler)}`,
+        status: 'success',
+        metadata: { provider: 'fake', duration_ms: 5 },
+      });
+    }
+    this.stepCalls.push(context.stepId);
+    const script = this.attempts[context.stepId] ?? ['success'];
+    const n = this.stepCalls.filter((id) => id === context.stepId).length;
+    return scriptedResult(context.stepId, script[Math.min(n, script.length) - 1]);
+  }
+
+  validate(): Promise<{ valid: boolean }> {
+    return Promise.resolve({ valid: true });
+  }
+
+  /** The context file passed to the handler with --step-context-file */
+  contextFile(index = 0): Record<string, unknown> {
+    const match = /--step-context-file "([^"]+)"/.exec(this.handlerPrompts[index] ?? '');
+    if (!match) throw new Error('The handler prompt has no --step-context-file');
+    return JSON.parse(fs.readFileSync(match[1], 'utf-8')) as Record<string, unknown>;
+  }
+}
+
+describe('WorkflowExecutor retries and on_failure', () => {
+  let planDir: string;
+  let workflow: ReturnType<typeof makeWorkflow>;
+  const debugHandler = '/fractary-faber-workflow-debug --work-id {work_id} --run-id {run_id} --problem "{error}"';
+
+  const newRun = (): RunStateStore =>
+    RunStateStore.create(planDir, {
+      planId: 'acme-app-42',
+      workId: '42',
+      workflowId: 'default',
+      phases: workflow.phases,
+    });
+
+  const run = (fake: AttemptsExecutor, runState?: RunStateStore): Promise<WorkflowExecuteResult> =>
+    makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState,
+    });
+
+  beforeEach(() => {
+    planDir = fs.mkdtempSync(path.join(os.tmpdir(), 'faber-retry-test-'));
+    workflow = makeWorkflow();
+  });
+
+  afterEach(() => {
+    fs.rmSync(planDir, { recursive: true, force: true });
+  });
+
+  it('completes a step that fails twice and then succeeds, with max_retries 3', async () => {
+    workflow.phases.evaluate.max_retries = 3;
+    workflow.phases.evaluate.result_handling = { on_failure: 'retry' };
+    const runState = newRun();
+    const fake = new AttemptsExecutor({ test: ['reports_failure', 'reports_failure', 'success'] });
+    const retries: string[] = [];
+    const result = await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState,
+      onStepRetry: (_phase, step, attempt) => retries.push(`${step.id}#${attempt}`),
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.run_status).toBe('completed');
+    expect(fake.stepCalls.filter((id) => id === 'test')).toHaveLength(3);
+    expect(retries).toEqual(['test#2', 'test#3']);
+    expect(result.phases.find((p) => p.phase === 'evaluate')?.steps[0].attempts).toBe(3);
+    const state = runState.state;
+    expect(state.phases.evaluate.steps.test).toMatchObject({ status: 'completed', attempts: 3 });
+    expect(state.phases.evaluate.retry_count).toBe(2);
+    expect(state.failure_recoveries?.map((r) => [r.step, r.attempt, r.action])).toEqual([
+      ['evaluate:test', 1, 'retry'],
+      ['evaluate:test', 2, 'retry'],
+    ]);
+  });
+
+  it('fails a step that fails twice, with max_retries 1, and stops the run', async () => {
+    workflow.phases.evaluate.max_retries = 1;
+    workflow.phases.evaluate.result_handling = { on_failure: 'retry' };
+    const runState = newRun();
+    const fake = new AttemptsExecutor({ test: ['reports_failure', 'reports_failure', 'success'] });
+    const result = await run(fake, runState);
+
+    expect(result.status).toBe('failed');
+    expect(fake.stepCalls.filter((id) => id === 'test')).toHaveLength(2);
+    expect(fake.stepCalls).not.toContain('create-pr');
+    const state = runState.state;
+    expect(state.status).toBe('failed');
+    expect(state.error).toBe(
+      'Step evaluate:test failed after 2 attempts: test: 2 tests failed ' +
+        '(on_failure is retry, but no retries left (max_retries 1))'
+    );
+    expect(state.phases.evaluate.steps.test).toMatchObject({ status: 'failed', attempts: 2 });
+    expect(state.failure_recoveries?.map((r) => r.action)).toEqual(['retry', 'stop']);
+  });
+
+  it('does not retry under on_failure: retry when the phase allows no retries', async () => {
+    workflow.phases.build.result_handling = { on_failure: 'retry' };
+    const fake = new AttemptsExecutor({ implement: ['reports_failure', 'success'] });
+    const runState = newRun();
+    const result = await run(fake, runState);
+
+    expect(result.status).toBe('failed');
+    expect(fake.stepCalls).toEqual(['fetch-issue', 'implement']);
+    expect(runState.state.error).toContain('the build phase allows no retries (max_retries 0)');
+  });
+
+  it('counts retries per phase, across resumes of the run', async () => {
+    workflow.phases.evaluate = phase(true, ['test', 'smoke']);
+    workflow.phases.evaluate.max_retries = 2;
+    workflow.phases.evaluate.result_handling = { on_failure: 'retry' };
+    const runState = newRun();
+    const first = new AttemptsExecutor({ test: ['reports_failure', 'success'], smoke: ['reports_failure'] });
+    expect((await run(first, runState)).status).toBe('failed');
+    expect(first.stepCalls.filter((id) => id === 'smoke')).toHaveLength(2);
+    expect(runState.state.phases.evaluate.retry_count).toBe(2);
+
+    // The phase used its retries: a resumed run runs the failed step once more
+    const resumed = new AttemptsExecutor({ smoke: ['reports_failure'] });
+    const result = await run(resumed, RunStateStore.load(planDir, runState.runId));
+
+    expect(result.status).toBe('failed');
+    expect(resumed.stepCalls).toEqual(['smoke']);
+    expect(RunStateStore.load(planDir, runState.runId).state.error).toContain('no retries left (max_retries 2)');
+  });
+
+  it('runs a slash-command on_failure handler once and stops the run, never continuing', async () => {
+    workflow.result_handling = { on_failure: debugHandler };
+    const runState = newRun();
+    const fake = new AttemptsExecutor({ implement: ['reports_failure'] });
+    const handled: string[] = [];
+    const result = await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState,
+      onFailureHandler: (_phase, step, handler, handlerResult) =>
+        handled.push(`${step.id}:${handler.split(' ')[0]}:${handlerResult.status}`),
+    });
+
+    expect(result.status).toBe('failed');
+    expect(fake.stepCalls).toEqual(['fetch-issue', 'implement']);
+    expect(handled).toEqual(['implement:/fractary-faber-workflow-debug:success']);
+    expect(fake.handlerPrompts).toHaveLength(1);
+    expect(fake.handlerPrompts[0]).toContain(`${debugHandler} --step-context-file "`);
+
+    // The failed step's context reaches the handler as a file, not in its command
+    expect(fake.contextFile()).toMatchObject({
+      work_id: '42',
+      run_id: runState.runId,
+      phase: 'build',
+      step_id: 'implement',
+      attempt: 1,
+      status: 'failure',
+      error: 'implement: 2 tests failed',
+      errors: ['implement: 2 tests failed'],
+      retry_count: 0,
+      max_retries: 0,
+    });
+
+    const state = runState.state;
+    expect(state.error).toBe(
+      "Step build:implement failed: implement: 2 tests failed (the on_failure handler's recovery plan is stop)"
+    );
+    expect(state.failure_recoveries).toEqual([
+      expect.objectContaining({
+        step: 'build:implement',
+        attempt: 1,
+        handler: debugHandler,
+        handler_status: 'success',
+        action: 'stop',
+      }),
+    ]);
+  });
+
+  it('retries when the handler asks for a retry without approval, within max_retries', async () => {
+    workflow.phases.evaluate.max_retries = 3;
+    workflow.result_handling = { on_failure: debugHandler };
+    const fake = new AttemptsExecutor(
+      { test: ['reports_failure', 'success'] },
+      { status: 'success', message: 'Fixed', recovery_plan: { action: 'retry', requires_approval: false } },
+    );
+    const runState = newRun();
+    const result = await run(fake, runState);
+
+    expect(result.status).toBe('completed');
+    expect(fake.handlerPrompts).toHaveLength(1);
+    expect(fake.stepCalls.filter((id) => id === 'test')).toHaveLength(2);
+    expect(runState.state.phases.evaluate.retry_count).toBe(1);
+  });
+
+  it('stops when the handler proposes a retry that needs approval', async () => {
+    workflow.phases.evaluate.max_retries = 3;
+    workflow.result_handling = { on_failure: debugHandler };
+    const fake = new AttemptsExecutor(
+      { test: ['reports_failure', 'success'] },
+      { status: 'success', message: 'Fix proposed', recovery_plan: { action: 'retry' } },
+    );
+    const runState = newRun();
+    const result = await run(fake, runState);
+
+    expect(result.status).toBe('failed');
+    expect(fake.stepCalls.filter((id) => id === 'test')).toHaveLength(1);
+    expect(runState.state.error).toContain("proposes a retry that needs a person's approval");
+  });
+
+  it('stops when the handler cannot run', async () => {
+    workflow.result_handling = { on_failure: debugHandler };
+    const fake = new AttemptsExecutor({ implement: ['reports_failure'] }, 'throw');
+    const runState = newRun();
+    const result = await run(fake, runState);
+
+    expect(result.status).toBe('failed');
+    expect(fake.stepCalls).toEqual(['fetch-issue', 'implement']);
+    expect(runState.state.status).toBe('failed');
+    expect(runState.state.error).toContain('the on_failure handler failed: could not run: handler crashed');
+    expect(runState.state.failure_recoveries?.[0]).toMatchObject({ handler_status: 'failure', action: 'stop' });
+  });
+
+  it('stops at an on_failure value it does not support', async () => {
+    workflow.result_handling = { on_failure: 'skip' };
+    const fake = new AttemptsExecutor({ implement: ['reports_failure'] });
+    const runState = newRun();
+    const result = await run(fake, runState);
+
+    expect(result.status).toBe('failed');
+    expect(fake.stepCalls).toEqual(['fetch-issue', 'implement']);
+    expect(runState.state.error).toContain('on_failure "skip" is not supported');
   });
 });

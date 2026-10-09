@@ -42,7 +42,7 @@ Accepted for compatibility with existing workflows, with no effect:
 |------|-----|
 | `--auto-fix` | Fixes are proposed, not applied. Automatic fix-and-retry with a cycle cap is not available yet. |
 | `--learn`, `--auto-learn` | The knowledge base is updated when a fix is confirmed to work (the debugger's `learn` operation), not when a step fails. |
-| `--escalate`, `--max-retries <n>` | Retries are set by the step's and phase's `max_retries`. |
+| `--escalate`, `--max-retries <n>` | Retries are set by the phase's `max_retries`. |
 
 Placeholders such as `{run_id}` or `{error}` are filled in by the orchestrator before this skill runs. If one is still a literal placeholder (for example `{error}`), treat it as not given.
 

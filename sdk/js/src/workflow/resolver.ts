@@ -34,7 +34,8 @@ import type { StepExecutorConfig } from '../executors/types.js';
  * Options:
  * - on_success: 'continue' (default) or slash command
  * - on_warning: 'continue' (default), 'stop' (shows prompt), or slash command
- * - on_failure: 'stop' (shows prompt, default) or slash command
+ * - on_failure: 'stop' (shows prompt, default), 'retry' (run the step again,
+ *   up to the phase's max_retries), or slash command
  *
  * Note: 'stop' consistently shows an intelligent prompt with options
  * (continue, fix, stop) for both warnings and failures.
@@ -44,7 +45,7 @@ export interface StepResultHandling {
   on_success?: string;
   /** Action on warning: 'continue' (default), 'stop' (shows prompt with options), or slash command */
   on_warning?: string;
-  /** Action on failure: 'stop' (shows prompt with options, default) or slash command for recovery */
+  /** Action on failure: 'stop' (shows prompt with options, default), 'retry', or slash command for recovery */
   on_failure?: string;
 }
 
@@ -1056,7 +1057,9 @@ export class WorkflowResolver {
         description: childPhase?.description,
         steps: filteredSteps,
         require_approval: childPhase?.require_approval,
-        max_retries: phaseName === 'evaluate' ? childPhase?.max_retries ?? 3 : undefined,
+        // Failed steps run again only under on_failure: retry (or a handler that asks
+        // for a retry); evaluate allows 3 retries unless the workflow sets max_retries
+        max_retries: childPhase?.max_retries ?? (phaseName === 'evaluate' ? 3 : undefined),
         result_handling: childPhase?.result_handling,
       };
     }

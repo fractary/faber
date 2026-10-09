@@ -170,6 +170,16 @@
         "result_handling": {
           "$ref": "#/definitions/step_result_handling",
           "description": "Default result handling for all steps in this phase. Overrides workflow-level default. Can be overridden by step-level config."
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "How many times failed steps in this phase may run again in a run, under on_failure 'retry' or a handler that asks for a retry. Defaults to 3 for evaluate and 0 for other phases."
+        },
+        "require_approval": {
+          "type": "boolean",
+          "description": "Whether the first step of this phase waits for a person's approval"
         }
       }
     },
@@ -544,11 +554,11 @@
         },
         "on_failure": {
           "oneOf": [
-            { "const": "stop" },
+            { "enum": ["stop", "retry"] },
             { "type": "string", "pattern": "^/[a-z][a-z0-9-]*:[a-z][a-z0-9-]*(\\s+.*)?$", "description": "Slash command to invoke (e.g., '/fractary-faber-workflow-debug --auto-fix')" }
           ],
           "default": "stop",
-          "description": "Action when step fails: 'stop' shows intelligent prompt with options (default), or a slash command to invoke for recovery. The command receives step context and can return a recovery plan."
+          "description": "Action when step fails: 'stop' shows intelligent prompt with options (default), 'retry' runs the step again while the phase has retries left (max_retries), or a slash command to invoke for recovery. The command receives step context and can return a recovery plan."
         }
       }
     },

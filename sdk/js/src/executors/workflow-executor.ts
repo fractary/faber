@@ -16,6 +16,9 @@
  * ```
  */
 
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import type {
   ExecutionContext,
   ExecutorResult,
@@ -24,10 +27,11 @@ import type {
   StepPromptContext,
   StepWorkflowMetadata,
   HarnessType,
+  RuntimeDefaults,
 } from './types.js';
 import { resolveRuntimeConfig } from './types.js';
 import { ExecutorRegistry } from './registry.js';
-import { applyStepResponse } from './step-response.js';
+import { applyStepResponse, findResponseBlock } from './step-response.js';
 import type { ClaudeAgentExecuteOptions } from './providers/claude-agent.js';
 import type {
   ResolvedPhase,
@@ -38,6 +42,7 @@ import type {
   WorkflowAutonomyConfig,
 } from '../workflow/resolver.js';
 import type { RunStateStore, RunStatus } from '../state/run-state.js';
+import { parseRunId } from '../paths.js';
 
 // ============================================================================
 // Types
@@ -45,6 +50,8 @@ import type { RunStateStore, RunStatus } from '../state/run-state.js';
 
 /** Phase names in execution order */
 const PHASE_ORDER = ['frame', 'architect', 'build', 'evaluate', 'release'] as const;
+/** Characters of a failed step's output passed to its on_failure handler */
+const HANDLER_OUTPUT_TAIL = 4000;
 /** Options for workflow execution */
 export interface WorkflowExecuteOptions {
   /** Work item ID */
@@ -101,6 +108,42 @@ export interface WorkflowExecuteOptions {
   approvedSteps?: string[];
   /** Callback when the run stops before a step that needs approval */
   onApprovalRequired?: (phase: string, step: WorkflowStep, reason: string) => void;
+
+  /** Callback before a failed step runs again; `attempt` is the attempt about to start */
+  onStepRetry?: (phase: string, step: WorkflowStep, attempt: number, reason: string) => void;
+  /** Callback after a failed step's on_failure handler (a slash command) ran */
+  onFailureHandler?: (phase: string, step: WorkflowStep, handler: string, result: ExecutorResult) => void;
+}
+
+/** What happens after a step fails */
+interface FailureDecision {
+  /** retry: run the step again; stop: stop the run; continue: go on to the next step */
+  action: 'retry' | 'stop' | 'continue';
+  /** Why, when on_failure is not a plain `stop` */
+  reason?: string;
+}
+
+/** A failed step attempt, with what handling its on_failure needs */
+interface FailedAttempt {
+  step: WorkflowStep;
+  phaseName: string;
+  phase: ResolvedPhase;
+  workflow: {
+    executor?: StepExecutorConfig;
+    phase_executors?: Partial<Record<string, StepExecutorConfig>>;
+    result_handling?: StepResultHandling;
+    defaults?: Partial<RuntimeDefaults>;
+  };
+  result: ExecutorResult;
+  attempt: number;
+  /** Retries already used in the phase */
+  retriesUsed: number;
+  context: ExecutionContext & ClaudeAgentExecuteOptions;
+  phaseDefaults?: Partial<RuntimeDefaults>;
+  cliOverrides?: Partial<StepRuntimeConfig>;
+  options: WorkflowExecuteOptions;
+  runId?: string;
+  statePath?: string;
 }
 
 /** The step a run stopped before, until a person approves it */
@@ -142,7 +185,10 @@ export interface PhaseExecuteResult {
 export interface StepExecuteResult {
   stepId: string;
   stepName: string;
+  /** Result of the step's last attempt */
   result: ExecutorResult;
+  /** Times the step ran in this execution (more than 1 when it was retried) */
+  attempts?: number;
 }
 
 // ============================================================================
@@ -192,6 +238,8 @@ export class WorkflowExecutor {
     let stepsAlreadyCompleted = 0;
     let awaitingApproval: ApprovalRequired | undefined;
     const approvedSteps = new Set(options.approvedSteps ?? []);
+    // Retries used per phase, when there is no run state to record them
+    const retriesUsed = new Map<string, number>();
     const runState = options.runState;
     const runId = options.runId ?? runState?.runId;
     const statePath = options.statePath ?? runState?.statePath;
@@ -288,7 +336,6 @@ export class WorkflowExecutor {
         phaseEntered = true;
 
         options.onStepStart?.(phaseName, step, i, phase.steps.length);
-        runState?.startStep(phaseName, step.id);
 
         // Resolve runtime config via cascade:
         //   step > phase_defaults > workflow.defaults > CLI args > system defaults
@@ -344,29 +391,60 @@ export class WorkflowExecutor {
           promptContext,
         };
 
+        // Run the step. When it fails, on_failure decides whether it runs
+        // again (capped by the phase's max_retries), the run stops, or the
+        // run goes on to the next step.
         let result: ExecutorResult;
-        try {
-          result = await this.dispatchStep(step, phaseName, workflow, runtimeConfig, context);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          runState?.finishStep(phaseName, step.id, { result: 'failure', error: message });
-          runState?.finishPhase(phaseName);
-          runState?.finish(message);
-          throw error;
+        let attempt = 0;
+        let failure: FailureDecision | undefined;
+        for (;;) {
+          attempt++;
+          runState?.startStep(phaseName, step.id);
+          try {
+            result = await this.dispatchStep(step, phaseName, workflow, runtimeConfig, context);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            runState?.finishStep(phaseName, step.id, { result: 'failure', error: message });
+            runState?.finishPhase(phaseName);
+            runState?.finish(message);
+            throw error;
+          }
+          // The step's own FABER response block decides its status
+          result = applyStepResponse(result, { requireResponse: step.role === 'validator' });
+          runState?.finishStep(phaseName, step.id, {
+            result: result.status,
+            error: result.error,
+            reason: result.reason,
+            duration_ms: result.metadata.duration_ms,
+          });
+          options.onStepComplete?.(phaseName, step, result);
+
+          if (result.status !== 'failure') break;
+          failure = await this.handleFailure({
+            step,
+            phaseName,
+            phase,
+            workflow,
+            result,
+            attempt,
+            retriesUsed: runState?.retryCount(phaseName) ?? retriesUsed.get(phaseName) ?? 0,
+            context,
+            phaseDefaults,
+            cliOverrides,
+            options,
+            runId,
+            statePath,
+          });
+          if (failure.action !== 'retry') break;
+          retriesUsed.set(phaseName, (retriesUsed.get(phaseName) ?? 0) + 1);
+          options.onStepRetry?.(phaseName, step, attempt + 1, failure.reason ?? 'retry');
         }
-        // The step's own FABER response block decides its status
-        result = applyStepResponse(result, { requireResponse: step.role === 'validator' });
-        runState?.finishStep(phaseName, step.id, {
-          result: result.status,
-          error: result.error,
-          reason: result.reason,
-          duration_ms: result.metadata.duration_ms,
-        });
 
         stepResults.push({
           stepId: step.id,
           stepName: step.name,
           result,
+          attempts: attempt,
         });
 
         // Track outputs
@@ -377,18 +455,17 @@ export class WorkflowExecutor {
 
         totalStepsCompleted++;
         globalStepIndex++;
-        options.onStepComplete?.(phaseName, step, result);
 
-        // Handle step result
-        if (result.status === 'failure') {
-          const handling = this.resolveResultHandling(step, phase, workflow);
-          if (handling.on_failure === 'stop') {
-            phaseFailed = true;
-            workflowError = `Step ${phaseName}:${step.id} failed${result.error ? `: ${result.error}` : ''}`;
-            break;
-          }
-          // If on_failure is not 'stop', continue to next step
+        if (result.status === 'failure' && failure?.action === 'stop') {
+          phaseFailed = true;
+          workflowError =
+            `Step ${phaseName}:${step.id} failed` +
+            (attempt > 1 ? ` after ${attempt} attempts` : '') +
+            (result.error ? `: ${result.error}` : '') +
+            (failure.reason ? ` (${failure.reason})` : '');
+          break;
         }
+        // on_failure: continue goes on to the next step; the run ends failed
       }
 
       if (awaitingApproval) {
@@ -546,6 +623,147 @@ export class WorkflowExecutor {
   }
 
   /**
+   * Decide what happens after a step fails, from its on_failure:
+   * - stop (default): the run stops
+   * - continue: the run goes on to the next step, and ends failed
+   * - retry: the step runs again while the phase has retries left
+   * - a slash command: the command runs as a recovery step. The step runs
+   *   again only when the command's recovery plan is `retry` with
+   *   `requires_approval: false`, and the phase has retries left
+   * Any other value stops the run. Retries are counted per phase, against its
+   * `max_retries`, across resumes of the run.
+   */
+  private async handleFailure(failed: FailedAttempt): Promise<FailureDecision> {
+    const { step, phaseName, phase, workflow, attempt, retriesUsed, options } = failed;
+    const onFailure = this.resolveResultHandling(step, phase, workflow).on_failure.trim();
+    if (onFailure === 'stop') return { action: 'stop' };
+    if (onFailure === 'continue') return { action: 'continue' };
+
+    const maxRetries = phase.max_retries ?? 0;
+    const retryLeft = retriesUsed < maxRetries;
+    const nextRetry = `retry ${retriesUsed + 1} of ${maxRetries}`;
+    const noRetries = maxRetries > 0
+      ? `no retries left (max_retries ${maxRetries})`
+      : `the ${phaseName} phase allows no retries (max_retries 0)`;
+
+    let decision: FailureDecision & { action: 'retry' | 'stop' };
+    let handlerStatus: ExecutorResult['status'] | undefined;
+    if (onFailure === 'retry') {
+      decision = retryLeft
+        ? { action: 'retry', reason: `on_failure is retry, ${nextRetry}` }
+        : { action: 'stop', reason: `on_failure is retry, but ${noRetries}` };
+    } else if (onFailure.startsWith('/')) {
+      const handlerResult = await this.runFailureHandler(onFailure, failed, maxRetries);
+      handlerStatus = handlerResult.status;
+      options.onFailureHandler?.(phaseName, step, onFailure, handlerResult);
+
+      const block = handlerResult.status === 'failure' ? null : findResponseBlock(handlerResult.output);
+      const rawPlan = block?.recovery_plan;
+      const plan = isRecord(rawPlan) ? rawPlan : undefined;
+      const action = typeof plan?.action === 'string' ? plan.action : undefined;
+      if (handlerResult.status === 'failure') {
+        decision = { action: 'stop', reason: `the on_failure handler failed${handlerResult.error ? `: ${handlerResult.error}` : ''}` };
+      } else if (action === 'retry' && plan?.requires_approval === false) {
+        decision = retryLeft
+          ? { action: 'retry', reason: `the on_failure handler asked for a retry, ${nextRetry}` }
+          : { action: 'stop', reason: `the on_failure handler asked for a retry, but ${noRetries}` };
+      } else if (action === 'retry') {
+        decision = { action: 'stop', reason: 'the on_failure handler proposes a retry that needs a person\'s approval: resume the run to retry' };
+      } else {
+        decision = {
+          action: 'stop',
+          reason: action ? `the on_failure handler's recovery plan is ${action}` : 'the on_failure handler returned no recovery plan',
+        };
+      }
+    } else {
+      decision = { action: 'stop', reason: `on_failure "${onFailure}" is not supported` };
+    }
+
+    options.runState?.recordFailureRecovery(phaseName, step.id, {
+      attempt,
+      ...(onFailure.startsWith('/') && { handler: onFailure, handler_status: handlerStatus }),
+      action: decision.action,
+      reason: decision.reason ?? '',
+    });
+    return decision;
+  }
+
+  /**
+   * Run a step's on_failure handler (a slash command) as a recovery step: a
+   * fresh session with the phase's runtime settings. The failed step's context
+   * (IDs, error, the end of its output, retries) is written to a JSON file and
+   * passed as `--step-context-file`, so the error reaches the handler as data,
+   * not as part of its command. `{error}` in the command is not filled in.
+   */
+  private async runFailureHandler(handler: string, failed: FailedAttempt, maxRetries: number): Promise<ExecutorResult> {
+    const startTime = Date.now();
+    try {
+      const contextFile = this.writeStepContext(failed, maxRetries);
+      const handlerStep: WorkflowStep = {
+        id: failed.step.id,
+        name: `${failed.step.name} (on_failure)`,
+        prompt: `${handler} --step-context-file "${contextFile}"`,
+      };
+      const runtimeConfig = resolveRuntimeConfig(
+        undefined,
+        failed.phaseDefaults,
+        failed.workflow.defaults,
+        failed.cliOverrides,
+      );
+      const context = { ...failed.context, stepName: handlerStep.name, runtimeConfig };
+      const result = await this.dispatchStep(handlerStep, failed.phaseName, failed.workflow, runtimeConfig, context);
+      return applyStepResponse(result);
+    } catch (error) {
+      return {
+        output: '',
+        status: 'failure',
+        error: `could not run: ${error instanceof Error ? error.message : String(error)}`,
+        metadata: { provider: 'on_failure', duration_ms: Date.now() - startTime },
+      };
+    }
+  }
+
+  /**
+   * Write the context of a failed step for its on_failure handler. It goes in
+   * the run's directory next to its state file (`{run_suffix}/`), or in a
+   * temporary directory when the execution has no run state.
+   * @returns The file's absolute path
+   */
+  private writeStepContext(failed: FailedAttempt, maxRetries: number): string {
+    const { step, phaseName, result, attempt, options, runId, statePath } = failed;
+    const suffix = runId ? parseRunId(runId)?.suffix : undefined;
+    const dir = statePath && suffix
+      ? path.join(path.dirname(statePath), suffix)
+      : fs.mkdtempSync(path.join(os.tmpdir(), 'faber-step-context-'));
+    fs.mkdirSync(dir, { recursive: true });
+
+    const rawErrors = findResponseBlock(result.output)?.errors;
+    const errors = Array.isArray(rawErrors) ? rawErrors.filter((e): e is string => typeof e === 'string') : [];
+    const stepContext = {
+      work_id: options.workId,
+      run_id: runId ?? null,
+      plan_id: options.planId ?? null,
+      phase: phaseName,
+      step_id: step.id,
+      step_name: step.name,
+      attempt,
+      status: result.status,
+      error: result.error ?? null,
+      ...(errors.length > 0 && { errors }),
+      ...(result.reason && { reason: result.reason }),
+      output: result.output.slice(-HANDLER_OUTPUT_TAIL),
+      retry_count: failed.retriesUsed,
+      max_retries: maxRetries,
+      timestamp: new Date().toISOString(),
+    };
+
+    const safeStepId = step.id.replace(/[^A-Za-z0-9_.-]/g, '_');
+    const file = path.join(dir, `step-context-${phaseName}-${safeStepId}-${attempt}.json`);
+    fs.writeFileSync(file, JSON.stringify(stepContext, null, 2) + '\n', 'utf-8');
+    return path.resolve(file);
+  }
+
+  /**
    * Resolve result handling for a step using the cascade:
    * step > phase > workflow > defaults
    */
@@ -572,4 +790,8 @@ export class WorkflowExecutor {
         'stop',
     };
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
