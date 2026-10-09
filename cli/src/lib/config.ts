@@ -49,7 +49,7 @@ export class ConfigManager {
     }
 
     // Extract anthropic config (from top level)
-    let anthropic: AnthropicConfig = {
+    const anthropic: AnthropicConfig = {
       api_key: process.env.ANTHROPIC_API_KEY || unifiedConfig.anthropic?.api_key,
       model: unifiedConfig.anthropic?.model,
       max_tokens: unifiedConfig.anthropic?.max_tokens,
@@ -84,7 +84,7 @@ export class ConfigManager {
       || unifiedConfig.github?.token
       || anyConfig.work?.handlers?.github?.token;
 
-    let github: GitHubConfig = {
+    const github: GitHubConfig = {
       token,
       organization,
       project,
@@ -142,34 +142,6 @@ export class ConfigManager {
     }
 
     return config;
-  }
-
-  /**
-   * Find config file by searching upwards from current directory
-   * Similar to how git finds .git directory
-   */
-  private static async findConfigFile(dirName: string, fileName: string): Promise<string | null> {
-    let currentDir = process.cwd();
-    const root = path.parse(currentDir).root;
-
-    while (true) {
-      const configPath = path.join(currentDir, dirName, fileName);
-
-      try {
-        await fs.access(configPath);
-        return configPath;
-      } catch (error) {
-        // File doesn't exist, try parent directory
-      }
-
-      // Check if we've reached the root
-      if (currentDir === root) {
-        return null;
-      }
-
-      // Move to parent directory
-      currentDir = path.dirname(currentDir);
-    }
   }
 
   /**

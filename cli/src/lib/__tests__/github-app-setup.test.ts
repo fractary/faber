@@ -14,7 +14,7 @@ import {
   type ManifestConversionResponse,
 } from '../github-app-setup.js';
 import * as fs from 'fs/promises';
-import * as os from 'os';
+import os from 'os';
 import * as path from 'path';
 
 // Mock fetch for API calls
@@ -350,72 +350,48 @@ describe('savePrivateKey', () => {
   const testDir = path.join(os.tmpdir(), 'faber-test-keys');
 
   beforeEach(async () => {
-    // Clean up test directory
-    try {
-      await fs.rm(testDir, { recursive: true, force: true });
-    } catch {
-      // Ignore errors
-    }
+    await fs.rm(testDir, { recursive: true, force: true });
+
+    // savePrivateKey writes under os.homedir(): point it at testDir. Spy on
+    // the default export (the object the code calls); an `import * as os`
+    // namespace cannot be redefined, and setting HOME does not reach
+    // os.homedir() inside Jest.
+    jest.spyOn(os, 'homedir').mockReturnValue(testDir);
   });
 
   afterEach(async () => {
-    // Clean up after tests
-    try {
-      await fs.rm(testDir, { recursive: true, force: true });
-    } catch {
-      // Ignore errors
-    }
+    jest.restoreAllMocks();
+    await fs.rm(testDir, { recursive: true, force: true });
   });
 
   it('saves private key to correct location', async () => {
-    // Mock os.homedir to use test directory
-    const homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(testDir);
+    const keyPath = await savePrivateKey(TEST_PRIVATE_KEY, 'test-org');
 
-    try {
-      const keyPath = await savePrivateKey(TEST_PRIVATE_KEY, 'test-org');
+    expect(keyPath).toBe(path.join(testDir, '.github', 'faber-test-org.pem'));
 
-      expect(keyPath).toBe(path.join(testDir, '.github', 'faber-test-org.pem'));
-
-      // Verify file exists and has correct content
-      const savedKey = await fs.readFile(keyPath, 'utf-8');
-      expect(savedKey).toBe(TEST_PRIVATE_KEY);
-    } finally {
-      homedirSpy.mockRestore();
-    }
+    // Verify file exists and has correct content
+    const savedKey = await fs.readFile(keyPath, 'utf-8');
+    expect(savedKey).toBe(TEST_PRIVATE_KEY);
   });
 
   it('creates .github directory if it does not exist', async () => {
-    const originalHomedir = os.homedir;
-    (os as any).homedir = () => testDir;
+    await savePrivateKey(TEST_PRIVATE_KEY, 'test-org');
 
-    try {
-      await savePrivateKey(TEST_PRIVATE_KEY, 'test-org');
-
-      const githubDir = path.join(testDir, '.github');
-      const stats = await fs.stat(githubDir);
-      expect(stats.isDirectory()).toBe(true);
-    } finally {
-      (os as any).homedir = originalHomedir;
-    }
+    const githubDir = path.join(testDir, '.github');
+    const stats = await fs.stat(githubDir);
+    expect(stats.isDirectory()).toBe(true);
   });
 
   it('overwrites existing key file', async () => {
-    const originalHomedir = os.homedir;
-    (os as any).homedir = () => testDir;
+    // Save first key
+    await savePrivateKey('old key content', 'test-org');
 
-    try {
-      // Save first key
-      await savePrivateKey('old key content', 'test-org');
+    // Save new key
+    const keyPath = await savePrivateKey(TEST_PRIVATE_KEY, 'test-org');
 
-      // Save new key
-      const keyPath = await savePrivateKey(TEST_PRIVATE_KEY, 'test-org');
-
-      // Verify new content
-      const savedKey = await fs.readFile(keyPath, 'utf-8');
-      expect(savedKey).toBe(TEST_PRIVATE_KEY);
-    } finally {
-      (os as any).homedir = originalHomedir;
-    }
+    // Verify new content
+    const savedKey = await fs.readFile(keyPath, 'utf-8');
+    expect(savedKey).toBe(TEST_PRIVATE_KEY);
   });
 });
 

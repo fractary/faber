@@ -281,14 +281,22 @@ describe('validatePlanId', () => {
     expect(() => validatePlanId('Fractary-Faber-258-20260106-143022')).toThrow('Invalid plan ID format');
   });
 
-  it('should reject plan IDs with wrong date format', () => {
-    expect(() => validatePlanId('myorg-myproject-258-2026-143022')).toThrow('Invalid plan ID format');
-    expect(() => validatePlanId('myorg-myproject-258-20260106-1430')).toThrow('Invalid plan ID format');
+  it('should accept current plan IDs, which have no timestamp', () => {
+    expect(validatePlanId('acme-web-42')).toBe(true);
+    expect(validatePlanId('corthosai-core-corthovore-ai-306')).toBe(true);
+    expect(validatePlanId('myorg-myproject-my-feature')).toBe(true);
   });
 
-  it('should reject plan IDs with non-numeric work-id and date parts', () => {
-    expect(() => validatePlanId('myorg-myproject-abc-20260106-143022')).toThrow('Invalid plan ID format');
-    expect(() => validatePlanId('myorg-myproject-258-20260106-abc123')).toThrow('Invalid plan ID format');
+  it('should accept digit segments that resemble a partial timestamp', () => {
+    // The timestamp is optional, so these are ordinary {org}-{project}-{work-id} segments
+    expect(validatePlanId('myorg-myproject-258-2026-143022')).toBe(true);
+    expect(validatePlanId('myorg-myproject-258-20260106-1430')).toBe(true);
+  });
+
+  it('should reject plan IDs with empty segments', () => {
+    expect(() => validatePlanId('-myorg-project-258')).toThrow('Invalid plan ID format');
+    expect(() => validatePlanId('myorg--project-258')).toThrow('Invalid plan ID format');
+    expect(() => validatePlanId('myorg-project-258-')).toThrow('Invalid plan ID format');
   });
 
   it('should reject empty plan IDs', () => {

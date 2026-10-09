@@ -268,10 +268,12 @@ export function slugify(input: string): string {
  * @throws Error if invalid
  */
 export function validatePlanId(planId: string): boolean {
-  // Accepts slug segments. The new format ends with a work-id (digits or slug).
-  // Legacy format may end with -{8digits}-{6digits} timestamp suffix.
-  // Only [a-z0-9-] allowed, which inherently prevents path traversal.
-  const planIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:-\d{8}-\d{6})?$/;
+  // Hyphen-separated lowercase slug segments: {org}-{project}-{work-id}, where
+  // the work ID is digits or a slug. Legacy IDs end with a -{8 digits}-{6 digits}
+  // timestamp, which matches as ordinary segments, so it cannot be told apart
+  // from digit segments of a new ID. Only [a-z0-9-] is allowed, which
+  // inherently prevents path traversal.
+  const planIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
   if (!planIdPattern.test(planId)) {
     throw new Error(

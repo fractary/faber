@@ -63,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `load-faber-config.sh` no longer consumes the caller's arguments or prints the config when sourced. This had made `state-read.sh` ignore its arguments, including `--run-id`
   - `state-read.sh` treats a `.json` path such as `.fractary/faber/state.json` as a file, not a jq query
 - **`/fractary-faber-workflow-debug` exists again** (#249): Workflows across the packs name it as their `on_failure` handler, but it was removed in the agent-to-skill migration. The new `fractary-faber-workflow-debug` skill delegates to `fractary-faber-faber-debugger`, proposes fixes without applying them, and returns a `stop` recovery plan. `--auto-fix`, `--learn` and the other old flags are accepted, with no effect yet
+- **CLI tests pass and run in CI** (#250): A new `CLI CI` workflow runs on `cli/**` and `sdk/js/**` changes. It installs from the workspace root, builds the SDK, and runs the CLI's lint, typecheck, tests and build. 19 CLI tests failed on main:
+  - The `ConfigManager` tests still read the removed `.fractary/settings.json`. They now load a real `.fractary/config.yaml`, and cover the missing-config and migrate errors, validation errors and `work`/`repo` fallbacks
+  - The `savePrivateKey` tests could not mock `os.homedir()` (an `import * as os` namespace cannot be spied on), and one wrote a key into the real `~/.github`
+  - The `validatePlanId` tests expected every plan ID to end in a timestamp. Current plan IDs are `{org}-{project}-{work-id}`, so `validatePlanId` matches slug segments only; its optional timestamp group matched nothing extra
+  - Lint errors fixed (`prefer-const`), and the unused `ConfigManager.findConfigFile` removed
 - **`state-update-phase.sh` runs again**: It looked for the transition validator one folder too high. The guard used to skip that missing validator without a word; since the guard now fails when the validator is missing, every call failed
 - **JSON arguments to state and hook scripts**: `state-update-step.sh`, `state-update-phase.sh`, `hook-execute.sh` and `hooks-execute-all.sh` defaulted their optional JSON argument with `${N:-{}}`, which appends a stray `}` whenever the argument is given, so any data or context passed was rejected as invalid JSON
 
