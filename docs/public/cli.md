@@ -304,6 +304,17 @@ Steps run in the root the plan belongs to, the directory that contains `.fractar
 
 An agent or model step's result comes from the FABER response block at the end of its output (see the plugin's `docs/RESPONSE-FORMAT.md`). A step that reports `failure` fails, so `on_failure: stop` halts the run. A step without a valid block is recorded as a warning with the reason `no_response_block`; a step with `role: validator` fails instead. Shell command steps (`!`) use their exit code.
 
+**Permissions.** An agent step runs in an Agent SDK session with the permission mode set by `permission_mode` on the step, in `phase_defaults`, or in `defaults`. A CLI run has no one to answer a permission prompt, so a tool call that needs permission is denied unless the step's `allowed_tools` or the project's Claude settings (`.claude/settings.json`) allow it.
+
+| `permission_mode` | What the session can do |
+|-------------------|-------------------------|
+| `acceptEdits` (default) | Edit files. Other tools that need permission, such as Bash commands, need an allow rule |
+| `default` | Only use tools that need no permission or have an allow rule |
+| `plan` | Plan, without editing files or running commands |
+| `bypassPermissions` | Use every tool without a check. Use it only where the run is isolated, such as a disposable container: the run starts with a warning that names these steps |
+
+Until this version every agent step ran with `bypassPermissions`. To keep that, set `permission_mode: bypassPermissions` in `defaults`. Shell command steps (`!`) have no permission mode. An unknown mode stops the run before any step runs.
+
 **Example:**
 ```bash
 # Execute a full plan

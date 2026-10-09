@@ -889,6 +889,11 @@ export function createWorkflowExecuteCommand(): Command {
                 console.log(chalk.yellow(`  ↻ ${step.id}: attempt ${attempt} (${reason})`));
               }
             },
+            onWarning: (message: string) => {
+              if (!options.json) {
+                console.log(chalk.yellow(`⚠ ${message}`));
+              }
+            },
             onPhaseStart: (phase: string) => {
               if (!options.json) {
                 console.log(chalk.cyan(`\n→ Phase: ${phase.toUpperCase()}`));

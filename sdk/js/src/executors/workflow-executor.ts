@@ -29,7 +29,7 @@ import type {
   HarnessType,
   RuntimeDefaults,
 } from './types.js';
-import { resolveRuntimeConfig } from './types.js';
+import { resolveRuntimeConfig, PERMISSION_MODES } from './types.js';
 import { ExecutorRegistry } from './registry.js';
 import { applyStepResponse, findResponseBlock } from './step-response.js';
 import type { ClaudeAgentExecuteOptions } from './providers/claude-agent.js';
@@ -113,6 +113,8 @@ export interface WorkflowExecuteOptions {
   onStepRetry?: (phase: string, step: WorkflowStep, attempt: number, reason: string) => void;
   /** Callback after a failed step's on_failure handler (a slash command) ran */
   onFailureHandler?: (phase: string, step: WorkflowStep, handler: string, result: ExecutorResult) => void;
+  /** Callback for a warning about how the run is configured, given before any step runs */
+  onWarning?: (message: string) => void;
 }
 
 /** What happens after a step fails */
@@ -171,6 +173,8 @@ export interface WorkflowExecuteResult {
   run_status?: RunStatus;
   /** The step the run stopped before, when its status is `awaiting_approval` */
   awaiting_approval?: ApprovalRequired;
+  /** Warnings about how the run was configured, such as steps that bypass permission checks */
+  warnings?: string[];
 }
 
 /** Result from a single phase */
@@ -245,6 +249,26 @@ export class WorkflowExecutor {
     const statePath = options.statePath ?? runState?.statePath;
     runState?.begin();
 
+    // Build CLI overrides for runtime config resolution
+    const cliOverrides: Partial<StepRuntimeConfig> | undefined =
+      (options.cliHarness || options.cliModel)
+        ? { harness: options.cliHarness, model: options.cliModel }
+        : undefined;
+
+    // Permission modes: an unknown mode stops the run before any step runs,
+    // and steps that bypass permission checks are reported once
+    const warnings: string[] = [];
+    try {
+      const bypassWarning = this.checkPermissionModes(workflow, options, cliOverrides);
+      if (bypassWarning) {
+        warnings.push(bypassWarning);
+        options.onWarning?.(bypassWarning);
+      }
+    } catch (error) {
+      runState?.finish(error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+
     // Count total steps
     for (const phaseName of PHASE_ORDER) {
       const phase = workflow.phases[phaseName];
@@ -255,12 +279,6 @@ export class WorkflowExecutor {
 
     // Track outputs from previous steps for context
     const previousOutputs: Record<string, Record<string, unknown>> = {};
-
-    // Build CLI overrides for runtime config resolution
-    const cliOverrides: Partial<StepRuntimeConfig> | undefined =
-      (options.cliHarness || options.cliModel)
-        ? { harness: options.cliHarness, model: options.cliModel }
-        : undefined;
 
     for (const phaseName of PHASE_ORDER) {
       const phase = workflow.phases[phaseName];
@@ -337,23 +355,7 @@ export class WorkflowExecutor {
 
         options.onStepStart?.(phaseName, step, i, phase.steps.length);
 
-        // Resolve runtime config via cascade:
-        //   step > phase_defaults > workflow.defaults > CLI args > system defaults
-        const stepRuntimeAttrs: Partial<StepRuntimeConfig> = {
-          model: step.model,
-          harness: step.harness as HarnessType | undefined,
-          maxTurns: step.max_turns,
-          maxBudgetUsd: step.max_budget_usd,
-          allowedTools: step.allowed_tools,
-          skills: step.skills,
-          mcp: step.mcp,
-        };
-        const runtimeConfig = resolveRuntimeConfig(
-          stepRuntimeAttrs,
-          phaseDefaults,
-          workflow.defaults,
-          cliOverrides,
-        );
+        const runtimeConfig = this.stepRuntimeConfig(step, phaseDefaults, workflow.defaults, cliOverrides);
 
         // Build workflow metadata for system prompt
         const metadata: StepWorkflowMetadata = {
@@ -504,6 +506,7 @@ export class WorkflowExecutor {
         steps_completed: totalStepsCompleted,
         steps_total: totalSteps,
         awaiting_approval: awaitingApproval,
+        ...(warnings.length > 0 && { warnings }),
         ...(runState && {
           steps_already_completed: stepsAlreadyCompleted,
           run_id: runState.runId,
@@ -521,6 +524,7 @@ export class WorkflowExecutor {
       duration_ms: Date.now() - startTime,
       steps_completed: totalStepsCompleted,
       steps_total: totalSteps,
+      ...(warnings.length > 0 && { warnings }),
       ...(runState && {
         steps_already_completed: stepsAlreadyCompleted,
         run_id: runState.runId,
@@ -594,6 +598,72 @@ export class WorkflowExecutor {
       case 'codex': return 'claude-agent';     // TODO: Codex executor
       default: return 'claude-agent';
     }
+  }
+
+  /**
+   * Resolve a step's runtime config via the cascade:
+   *   step > phase_defaults > workflow.defaults > CLI args > system defaults
+   */
+  private stepRuntimeConfig(
+    step: WorkflowStep,
+    phaseDefaults: Partial<RuntimeDefaults> | undefined,
+    workflowDefaults: Partial<RuntimeDefaults> | undefined,
+    cliOverrides: Partial<StepRuntimeConfig> | undefined,
+  ): StepRuntimeConfig {
+    const stepRuntimeAttrs: Partial<StepRuntimeConfig> = {
+      model: step.model,
+      harness: step.harness as HarnessType | undefined,
+      maxTurns: step.max_turns,
+      maxBudgetUsd: step.max_budget_usd,
+      allowedTools: step.allowed_tools,
+      skills: step.skills,
+      mcp: step.mcp,
+      permissionMode: step.permission_mode,
+    };
+    return resolveRuntimeConfig(stepRuntimeAttrs, phaseDefaults, workflowDefaults, cliOverrides);
+  }
+
+  /**
+   * Check the permission mode of every agent step this execution will run.
+   * @returns A warning naming the steps that use `bypassPermissions`, if any
+   * @throws Error if a step's permission mode is not a known mode
+   */
+  private checkPermissionModes(
+    workflow: {
+      phases: ResolvedWorkflow['phases'];
+      defaults?: Partial<RuntimeDefaults>;
+      phase_defaults?: WorkflowFileConfig['phase_defaults'];
+    },
+    options: WorkflowExecuteOptions,
+    cliOverrides: Partial<StepRuntimeConfig> | undefined,
+  ): string | undefined {
+    const bypass: string[] = [];
+    for (const phaseName of PHASE_ORDER) {
+      const phase = workflow.phases[phaseName];
+      if (!phase.enabled || (options.phasesToRun && !options.phasesToRun.includes(phaseName))) continue;
+      for (const step of phase.steps) {
+        if (options.stepToRun && step.id !== options.stepToRun) continue;
+        if (options.runState?.isStepDone(phaseName, step.id)) continue;
+        const runtimeConfig = this.stepRuntimeConfig(step, workflow.phase_defaults?.[phaseName], workflow.defaults, cliOverrides);
+        const mode = runtimeConfig.permissionMode;
+        if (mode !== undefined && !PERMISSION_MODES.includes(mode)) {
+          throw new Error(
+            `Step ${phaseName}:${step.id} has an unknown permission_mode "${String(mode)}" ` +
+            `(expected one of: ${PERMISSION_MODES.join(', ')})`
+          );
+        }
+        // Only an agent session has permission checks; a ! command step runs a shell command
+        const isAgentSession = !step.prompt.trim().startsWith('!') &&
+          this.harnessToExecutor(runtimeConfig.harness || 'claude-code') === 'claude-agent';
+        if (mode === 'bypassPermissions' && isAgentSession) bypass.push(`${phaseName}:${step.id}`);
+      }
+    }
+    if (bypass.length === 0) return undefined;
+    return (
+      `${bypass.length} step(s) run with permission_mode bypassPermissions and no sandbox: ` +
+      'every tool runs without a permission check, so these steps can change files outside the ' +
+      `workspace and reach any network host. Steps: ${bypass.join(', ')}`
+    );
   }
 
   /**

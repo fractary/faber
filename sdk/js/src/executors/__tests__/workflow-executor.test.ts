@@ -818,3 +818,95 @@ describe('WorkflowExecutor retries and on_failure', () => {
     expect(runState.state.error).toContain('on_failure "skip" is not supported');
   });
 });
+
+describe('WorkflowExecutor permission modes', () => {
+  let planDir: string;
+  let workflow: ReturnType<typeof makeWorkflow>;
+
+  beforeEach(() => {
+    planDir = fs.mkdtempSync(path.join(os.tmpdir(), 'faber-permission-test-'));
+    workflow = makeWorkflow();
+  });
+
+  afterEach(() => {
+    fs.rmSync(planDir, { recursive: true, force: true });
+  });
+
+  const modes = (fake: FakeExecutor): Record<string, string | undefined> =>
+    Object.fromEntries(fake.calls.map((c) => [c.stepId, c.runtimeConfig?.permissionMode]));
+
+  it('leaves the permission mode to the executor default when nothing sets it', async () => {
+    const fake = new FakeExecutor();
+    const result = await makeExecutor(fake).execute(workflow, { workId: '42', workingDirectory: planDir });
+
+    expect(result.status).toBe('completed');
+    expect(Object.values(modes(fake)).every((m) => m === undefined)).toBe(true);
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('passes each step the permission mode from step > phase_defaults > defaults', async () => {
+    workflow.defaults = { permission_mode: 'default' };
+    workflow.phase_defaults = { build: { permission_mode: 'plan' } };
+    workflow.phases.build.steps[0].permission_mode = 'acceptEdits';
+    const fake = new FakeExecutor();
+    await makeExecutor(fake).execute(workflow, { workId: '42', workingDirectory: planDir });
+
+    expect(modes(fake)).toEqual({
+      'fetch-issue': 'default',
+      implement: 'acceptEdits',
+      commit: 'plan',
+      test: 'default',
+      'create-pr': 'default',
+    });
+  });
+
+  it('warns once, before any step runs, about agent steps that bypass permission checks', async () => {
+    workflow.phases.build.steps[0].permission_mode = 'bypassPermissions';
+    workflow.phases.evaluate.steps[0].permission_mode = 'bypassPermissions';
+    // A ! command step runs a shell command, not an agent session
+    workflow.phases.release.steps[0] = { id: 'create-pr', name: 'create-pr', prompt: '!true', permission_mode: 'bypassPermissions' };
+    const events: string[] = [];
+    const fake = new FakeExecutor();
+    const result = await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      onWarning: (message) => events.push(`warning: ${message}`),
+      onStepStart: (_phase, step) => events.push(`start: ${step.id}`),
+    });
+
+    expect(result.status).toBe('completed');
+    expect(events[0]).toMatch(/^warning: 2 step\(s\) run with permission_mode bypassPermissions and no sandbox/);
+    expect(events[0]).toContain('Steps: build:implement, evaluate:test');
+    expect(events.filter((e) => e.startsWith('warning:'))).toHaveLength(1);
+    expect(result.warnings).toEqual([events[0].replace('warning: ', '')]);
+  });
+
+  it('warns only about the steps this execution runs', async () => {
+    workflow.phases.build.steps[0].permission_mode = 'bypassPermissions';
+    const fake = new FakeExecutor();
+    const result = await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      phasesToRun: ['evaluate'],
+    });
+
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('stops before any step runs when a permission mode is unknown', async () => {
+    workflow.defaults = { permission_mode: 'yolo' as unknown as 'default' };
+    const runState = RunStateStore.create(planDir, {
+      planId: 'acme-app-42',
+      workId: '42',
+      workflowId: 'default',
+      phases: workflow.phases,
+    });
+    const fake = new FakeExecutor();
+
+    await expect(
+      makeExecutor(fake).execute(workflow, { workId: '42', workingDirectory: planDir, runState })
+    ).rejects.toThrow('Step frame:fetch-issue has an unknown permission_mode "yolo"');
+    expect(fake.calls).toHaveLength(0);
+    expect(runState.state.status).toBe('failed');
+  });
+});

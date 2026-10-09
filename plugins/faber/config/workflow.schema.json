@@ -317,6 +317,9 @@
             }
           }
         },
+        "permission_mode": {
+          "$ref": "#/definitions/permission_mode"
+        },
         "changelog": {
           "type": "object",
           "description": "If present, a changelog entry is emitted when this step completes successfully. Only steps producing meaningful external artifacts should have this.",
@@ -611,8 +614,16 @@
               "args": { "type": "array", "items": { "type": "string" } }
             }
           }
+        },
+        "permission_mode": {
+          "$ref": "#/definitions/permission_mode"
         }
       }
+    },
+    "permission_mode": {
+      "type": "string",
+      "enum": ["default", "acceptEdits", "plan", "bypassPermissions"],
+      "description": "Permission mode of an agent step's session in CLI-native execution (default 'acceptEdits'). A tool call that needs permission is denied unless allowed_tools or the project's Claude settings allow it. 'bypassPermissions' runs every tool without a check: it is opt-in, and workflow-execute warns when a step uses it. Cascade: step > phase_defaults > defaults."
     },
     "step_executor": {
       "type": "object",

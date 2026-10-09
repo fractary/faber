@@ -21,7 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // ESM-compatible require() for resolving npm package mains
 const _require = createRequire(import.meta.url);
-import type { StepExecutorConfig } from '../executors/types.js';
+import type { StepExecutorConfig, PermissionMode } from '../executors/types.js';
 
 // ============================================================================
 // Workflow File Types
@@ -116,6 +116,8 @@ export interface WorkflowStep {
   skills?: string[];
   /** MCP server configurations keyed by server name */
   mcp?: Record<string, { command: string; args?: string[] }>;
+  /** Agent SDK permission mode for this step's session (default 'acceptEdits') */
+  permission_mode?: PermissionMode;
 }
 
 /**
@@ -250,6 +252,7 @@ export interface WorkflowFileConfig {
     allowed_tools?: string[];
     skills?: string[];
     mcp?: Record<string, { command: string; args?: string[] }>;
+    permission_mode?: PermissionMode;
   };
 
   /**
@@ -266,6 +269,7 @@ export interface WorkflowFileConfig {
     allowed_tools?: string[];
     skills?: string[];
     mcp?: Record<string, { command: string; args?: string[] }>;
+    permission_mode?: PermissionMode;
   }>>;
 }
 

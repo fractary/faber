@@ -25,12 +25,15 @@ export type {
   StepPromptContext,
   RuntimeDefaults,
   PhaseRuntimeDefaults,
+  PermissionMode,
 } from './types.js';
 
 // Runtime config utilities
 export {
   buildSystemPrompt,
   resolveRuntimeConfig,
+  PERMISSION_MODES,
+  DEFAULT_PERMISSION_MODE,
 } from './types.js';
 
 // Step responses (FABER response blocks decide step status)
