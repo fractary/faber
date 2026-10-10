@@ -521,6 +521,23 @@ async function validateUrlSecurity(url: string): Promise<void> {
   }
 }
 
+/**
+ * Merge result handling across an inheritance chain, given child first: for
+ * each field (`on_success`, `on_warning`, `on_failure`), the nearest layer that
+ * sets it wins.
+ * @returns The merged handling, or undefined if no layer sets any field
+ */
+function mergeResultHandling(layers: Array<StepResultHandling | undefined>): StepResultHandling | undefined {
+  const merged: StepResultHandling = {};
+  for (const layer of [...layers].reverse()) {
+    if (!layer) continue;
+    for (const [field, value] of Object.entries(layer) as Array<[keyof StepResultHandling, string | undefined]>) {
+      if (value !== undefined) merged[field] = value;
+    }
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
 // ============================================================================
 // Workflow Resolver Class
 // ============================================================================
@@ -701,7 +718,7 @@ export class WorkflowResolver {
       description: childWorkflow.description,
       inheritance_chain: chain,
       phases,
-      autonomy: childWorkflow.autonomy,
+      autonomy: this.mergeAutonomy(chain),
       critical_artifacts: childWorkflow.critical_artifacts,
       integrations: childWorkflow.integrations,
     };
@@ -715,9 +732,10 @@ export class WorkflowResolver {
       resolved.context = context;
     }
 
-    // Include workflow-level result_handling if defined
-    if (childWorkflow.result_handling) {
-      resolved.result_handling = childWorkflow.result_handling;
+    // Include workflow-level result_handling, inherited field by field
+    const resultHandling = mergeResultHandling(chain.map((id) => this.workflowCache.get(id)?.result_handling));
+    if (resultHandling) {
+      resolved.result_handling = resultHandling;
     }
 
     // Include executor config (child overrides parent in inheritance)
@@ -1056,19 +1074,48 @@ export class WorkflowResolver {
       const childWorkflow = this.workflowCache.get(chain[0])!;
       const childPhase = childWorkflow.phases?.[phaseName];
 
+      // Inherited settings: the nearest workflow in the chain that sets one wins
+      const phaseLayers = chain.map((id) => this.workflowCache.get(id)?.phases?.[phaseName]);
+      const nearest = <K extends 'require_approval' | 'max_retries'>(key: K): WorkflowPhaseConfig[K] =>
+        phaseLayers.find((layer) => layer?.[key] !== undefined)?.[key];
+
       phases[phaseName] = {
         enabled: this.resolvePhaseEnabled(chain, phaseName),
         description: childPhase?.description,
         steps: filteredSteps,
-        require_approval: childPhase?.require_approval,
+        require_approval: nearest('require_approval'),
         // Failed steps run again only under on_failure: retry (or a handler that asks
         // for a retry); evaluate allows 3 retries unless the workflow sets max_retries
-        max_retries: childPhase?.max_retries ?? (phaseName === 'evaluate' ? 3 : undefined),
-        result_handling: childPhase?.result_handling,
+        max_retries: nearest('max_retries') ?? (phaseName === 'evaluate' ? 3 : undefined),
+        result_handling: mergeResultHandling(phaseLayers.map((layer) => layer?.result_handling)),
       };
     }
 
     return phases as ResolvedWorkflow['phases'];
+  }
+
+  /**
+   * Merge autonomy settings across the inheritance chain. The nearest workflow
+   * that sets a field wins, except `require_approval_for`: it is the union of
+   * every workflow's list, so extending a workflow never drops its approval
+   * gates. Removing an inherited gate means skipping its step.
+   */
+  private mergeAutonomy(chain: string[]): WorkflowAutonomyConfig | undefined {
+    let merged: WorkflowAutonomyConfig | undefined;
+    const gates: string[] = [];
+    // Walk from the root ancestor to the child, so nearer workflows override
+    for (const workflowId of [...chain].reverse()) {
+      const autonomy = this.workflowCache.get(workflowId)?.autonomy;
+      if (!autonomy) continue;
+      merged = { ...merged, ...autonomy };
+      for (const stepId of autonomy.require_approval_for ?? []) {
+        if (!gates.includes(stepId)) gates.push(stepId);
+      }
+    }
+    if (merged && gates.length > 0) {
+      merged.require_approval_for = gates;
+    }
+    return merged;
   }
 
   /**

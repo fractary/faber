@@ -1233,4 +1233,84 @@ describe('WorkflowResolver', () => {
       expect(resolved.phases.release.max_retries).toBe(0);
     });
   });
+
+  describe('Inherited settings', () => {
+    const basePhases = {
+      frame: { enabled: true },
+      architect: { enabled: true },
+      build: { enabled: true, result_handling: { on_failure: '/fractary-faber-workflow-debug' } },
+      evaluate: { enabled: true, max_retries: 2 },
+      release: { enabled: true, require_approval: true },
+    };
+
+    beforeEach(() => {
+      createWorkflow('fractary-faber', 'gated-base', {
+        id: 'gated-base',
+        phases: basePhases,
+        autonomy: {
+          level: 'guarded',
+          pause_before_release: true,
+          require_approval_for: ['release-merge'],
+        },
+        result_handling: { on_warning: 'continue', on_failure: '/fractary-faber-workflow-debug' },
+      });
+    });
+
+    it('inherits approval gates, retries and handlers when the child sets none', async () => {
+      createWorkflow('project', 'silent-child', {
+        id: 'silent-child',
+        extends: 'faber@fractary-faber:gated-base',
+        phases: {},
+        autonomy: undefined,
+      });
+
+      const resolved = await resolver.resolveWorkflow('silent-child');
+
+      expect(resolved.autonomy).toEqual({
+        level: 'guarded',
+        pause_before_release: true,
+        require_approval_for: ['release-merge'],
+      });
+      expect(resolved.result_handling).toEqual({ on_warning: 'continue', on_failure: '/fractary-faber-workflow-debug' });
+      expect(resolved.phases.release.require_approval).toBe(true);
+      expect(resolved.phases.evaluate.max_retries).toBe(2);
+      expect(resolved.phases.build.result_handling).toEqual({ on_failure: '/fractary-faber-workflow-debug' });
+    });
+
+    it('adds the child\'s approval gates to the inherited ones', async () => {
+      createWorkflow('project', 'gating-child', {
+        id: 'gating-child',
+        extends: 'faber@fractary-faber:gated-base',
+        phases: {},
+        autonomy: { level: 'autonomous', require_approval_for: ['release-deploy', 'release-merge'] },
+      });
+
+      const resolved = await resolver.resolveWorkflow('gating-child');
+
+      expect(resolved.autonomy?.require_approval_for).toEqual(['release-merge', 'release-deploy']);
+      expect(resolved.autonomy?.level).toBe('autonomous');
+      expect(resolved.autonomy?.pause_before_release).toBe(true);
+    });
+
+    it('lets the child override a single setting and keeps the rest', async () => {
+      createWorkflow('project', 'overriding-child', {
+        id: 'overriding-child',
+        extends: 'faber@fractary-faber:gated-base',
+        phases: {
+          release: { require_approval: false },
+          evaluate: { max_retries: 0 },
+        },
+        autonomy: { level: 'guarded', pause_before_release: false },
+        result_handling: { on_failure: 'stop' },
+      });
+
+      const resolved = await resolver.resolveWorkflow('overriding-child');
+
+      expect(resolved.autonomy?.pause_before_release).toBe(false);
+      expect(resolved.autonomy?.require_approval_for).toEqual(['release-merge']);
+      expect(resolved.result_handling).toEqual({ on_warning: 'continue', on_failure: 'stop' });
+      expect(resolved.phases.release.require_approval).toBe(false);
+      expect(resolved.phases.evaluate.max_retries).toBe(0);
+    });
+  });
 });

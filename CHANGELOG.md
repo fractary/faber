@@ -54,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Extending a workflow no longer drops its approval gates or failure handlers** (#266): The resolver took `autonomy`, the workflow-level `result_handling`, and each phase's `require_approval`, `max_retries` and `result_handling` from the child workflow only. So a project workflow that extended faber-code's default lost faber-code's approval gates, its pause before release, the release phase's approval and its `/fractary-faber-workflow-debug` handler, and a production merge ran without approval
+  - `autonomy.require_approval_for` is now the union across the inheritance chain, so an extension cannot drop a gate without skipping its step
+  - `pause_before_release`, `level`, the result-handling fields, and a phase's `require_approval` and `max_retries` come from the nearest workflow that sets them
+  - The JS SDK resolver and the plugin's `merge-workflows.sh` merge the same way, with new tests for both
 - **`workflow-execute` saves run state and can resume** (#236): Each execution is now a run (`{plan_id}-run-{timestamp}`) whose state is saved next to the plan, in `state-{timestamp}.json`, after every step starts and finishes. The format is the one the `fractary-faber-workflow-run` skill writes
   - New `--resume <run-id>` skips the steps the run completed and re-runs the interrupted or failed step
   - Command steps now receive the real `{run_id}`, and steps get `run_id` and `state_path` in their workflow context
