@@ -114,7 +114,7 @@ async function manualAppConfiguration(
   }
 
   // Load existing config or create new one
-  let config: UnifiedConfig = loadYamlConfig() || {
+  const config: UnifiedConfig = loadYamlConfig() || {
     version: '2.0',
   };
 
@@ -594,7 +594,7 @@ async function updateConfig(
   }
 ): Promise<void> {
   // Load existing config or create new one
-  let config: UnifiedConfig = loadYamlConfig() || {
+  const config: UnifiedConfig = loadYamlConfig() || {
     version: '2.0',
   };
 

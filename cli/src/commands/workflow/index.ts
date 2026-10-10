@@ -684,6 +684,9 @@ async function executeBatchPlanCommand(options: {
  *
  * Routing: `!` prefix → shell command | harness → Agent SDK/API | legacy executor
  */
+/** workflow-execute exit code when the run stopped before a step that needs approval */
+export const EXIT_AWAITING_APPROVAL = 3;
+
 export function createWorkflowExecuteCommand(): Command {
   return new Command('workflow-execute')
     .description('Execute a workflow using the multi-model executor framework (CLI-native, no Claude Code required)')
@@ -693,6 +696,7 @@ export function createWorkflowExecuteCommand(): Command {
     .option('--phase <phases>', 'Execute only specified phase(s) — comma-separated')
     .option('--step <step-id>', 'Execute only a specific step')
     .option('--resume <run-id>', 'Resume an earlier run of this plan, skipping the steps it completed')
+    .option('--approve <step-id>', 'Approve the step a resumed run is waiting on (with --resume)')
     .option('--dry-run', 'Show what would execute without running')
     .option('--json', 'Output as JSON')
     .action(async (planPath: string, options: {
@@ -701,6 +705,7 @@ export function createWorkflowExecuteCommand(): Command {
       phase?: string;
       step?: string;
       resume?: string;
+      approve?: string;
       dryRun?: boolean;
       json?: boolean;
     }) => {
@@ -790,6 +795,12 @@ export function createWorkflowExecuteCommand(): Command {
           return;
         }
 
+        // An approval is given for the step a run stopped before, after the
+        // person has seen where the run is: it needs --resume of that run
+        if (options.approve && !options.resume) {
+          throw new Error('--approve needs --resume <run-id>: approve the step a run is waiting on');
+        }
+
         // Run state: resume an earlier run of this plan, or start a new one
         if (options.resume) {
           const parsed = parseRunId(options.resume);
@@ -802,6 +813,15 @@ export function createWorkflowExecuteCommand(): Command {
           const earlierRun = RunStateStore.load(planDir, options.resume);
           if (earlierRun.state.status === 'completed') {
             throw new Error(`Run ${options.resume} already completed. To run the plan again, omit --resume.`);
+          }
+          if (options.approve) {
+            const waiting = earlierRun.state.awaiting_approval;
+            if (earlierRun.state.status !== 'awaiting_approval' || !waiting) {
+              throw new Error(`Run ${options.resume} is not waiting for an approval`);
+            }
+            if (waiting.step_id !== options.approve) {
+              throw new Error(`Run ${options.resume} is waiting for approval of ${waiting.step_id}, not ${options.approve}`);
+            }
           }
           runState = earlierRun;
         } else {
@@ -832,6 +852,7 @@ export function createWorkflowExecuteCommand(): Command {
             prompt: plan.workflow.prompt,
             defaults: plan.workflow.defaults,
             phase_defaults: plan.workflow.phase_defaults,
+            autonomy: plan.workflow.autonomy,
           },
           {
             workId,
@@ -845,9 +866,32 @@ export function createWorkflowExecuteCommand(): Command {
             cliHarness: options.harness as any,
             cliModel: options.model,
             runState,
+            approvedSteps: options.approve ? [options.approve] : undefined,
+            onApprovalRequired: (phase: string, step: { id: string }, reason: string) => {
+              if (!options.json) {
+                console.log(chalk.yellow(`  ⏸ ${phase}:${step.id} needs approval: ${reason}`));
+              }
+            },
             onStepSkipped: (_phase: string, step: { id: string }, reason: string) => {
               if (!options.json) {
                 console.log(chalk.gray(`  ⏭ ${step.id} (${reason})`));
+              }
+            },
+            onFailureHandler: (_phase: string, step: { id: string }, handler: string, handlerResult: { status: string; error?: string }) => {
+              if (!options.json) {
+                const command = handler.trim().split(/\s+/)[0];
+                const error = handlerResult.error ? `: ${handlerResult.error}` : '';
+                console.log(chalk.gray(`    on_failure ${command} for ${step.id}: ${handlerResult.status}${error}`));
+              }
+            },
+            onStepRetry: (_phase: string, step: { id: string }, attempt: number, reason: string) => {
+              if (!options.json) {
+                console.log(chalk.yellow(`  ↻ ${step.id}: attempt ${attempt} (${reason})`));
+              }
+            },
+            onWarning: (message: string) => {
+              if (!options.json) {
+                console.log(chalk.yellow(`⚠ ${message}`));
               }
             },
             onPhaseStart: (phase: string) => {
@@ -901,24 +945,34 @@ export function createWorkflowExecuteCommand(): Command {
           },
         );
 
+        const waiting = result.awaiting_approval;
         if (options.json) {
           console.log(JSON.stringify({ status: 'success', data: result }, null, 2));
         } else {
           console.log(chalk.gray('\n' + '═'.repeat(50)));
-          const statusIcon = result.status === 'completed' ? chalk.green('✓') : chalk.red('✗');
+          const statusIcon = result.status === 'completed' ? chalk.green('✓')
+            : waiting ? chalk.yellow('⏸')
+            : chalk.red('✗');
           console.log(`${statusIcon} Workflow ${result.status} (${result.duration_ms}ms)`);
           console.log(chalk.gray(`  Steps: ${result.steps_completed}/${result.steps_total}`));
           if (result.steps_already_completed) {
             console.log(chalk.gray(`  Skipped (completed earlier in this run): ${result.steps_already_completed}`));
           }
           console.log(chalk.gray(`  Run: ${result.run_id} [${result.run_status}]`));
-          if (result.run_status !== 'completed') {
+          if (waiting) {
+            console.log(chalk.yellow(`\nWaiting for approval of ${waiting.phase}:${waiting.step_id}: ${waiting.reason}`));
+            console.log(chalk.cyan(`To approve and continue: fractary-faber workflow-execute ${planPath} --resume ${result.run_id} --approve ${waiting.step_id}`));
+          } else if (result.run_status !== 'completed') {
             console.log(chalk.cyan(`\nTo resume: fractary-faber workflow-execute ${planPath} --resume ${result.run_id}`));
           }
         }
 
         if (result.status === 'failed') {
           process.exit(1);
+        }
+        if (waiting) {
+          // Distinct exit code: stopped before a step until a person approves it
+          process.exit(EXIT_AWAITING_APPROVAL);
         }
       } catch (error) {
         if (runState && !options.json) {
@@ -946,12 +1000,17 @@ function printRunState(state: RunState, verbose?: boolean): void {
   if (state.pause_reason) {
     console.log(chalk.yellow(`  Paused: ${state.pause_reason}`));
   }
+  if (state.awaiting_approval) {
+    const waiting = state.awaiting_approval;
+    console.log(chalk.yellow(`  Awaiting approval: ${waiting.phase}:${waiting.step_id} (${waiting.reason})`));
+  }
 
   console.log(chalk.yellow('\nPhases:'));
   for (const [phase, phaseState] of Object.entries(state.phases ?? {})) {
     const steps = Object.entries(phaseState.steps ?? {});
     const done = steps.filter(([, s]) => s.status === 'completed' || s.status === 'skipped').length;
-    const label = phaseState.enabled === false ? ' (disabled)' : ` (${done}/${steps.length} steps)`;
+    const retries = phaseState.retry_count ? `, ${phaseState.retry_count} ${phaseState.retry_count === 1 ? 'retry' : 'retries'}` : '';
+    const label = phaseState.enabled === false ? ' (disabled)' : ` (${done}/${steps.length} steps${retries})`;
     console.log(`  ${getStatusIcon(phaseState.status)} ${phase}${label}`);
     if (verbose && phaseState.enabled !== false) {
       for (const [stepId, step] of steps) {
@@ -994,6 +1053,7 @@ function getStateColor(state: string): (text: string) => string {
     case 'failed':
       return chalk.red;
     case 'paused':
+    case 'awaiting_approval':
       return chalk.yellow;
     case 'idle':
     case 'pending':

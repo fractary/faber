@@ -24,7 +24,7 @@ import type {
   StepRuntimeConfig,
   StepPromptContext,
 } from '../types.js';
-import { buildSystemPrompt } from '../types.js';
+import { buildSystemPrompt, DEFAULT_PERMISSION_MODE } from '../types.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-5';
 const DEFAULT_MAX_TURNS = 25;
@@ -167,14 +167,13 @@ export class ClaudeAgentExecutor implements Executor {
 
     const model = runtimeConfig.model || config.model || DEFAULT_MODEL;
     const maxTurns = runtimeConfig.maxTurns || DEFAULT_MAX_TURNS;
+    const permissionMode = runtimeConfig.permissionMode ?? DEFAULT_PERMISSION_MODE;
 
     // Build hierarchical system prompt
     const composedPrompt = promptContext ? buildSystemPrompt(promptContext) : undefined;
 
     try {
-      // Dynamic import — the Agent SDK is an optional dependency.
-      // It's only needed when running in CLI-native mode with harness: 'claude-code'.
-      const { query } = await import('@anthropic-ai/claude-agent-sdk');
+      const { query } = await this.loadAgentSdk();
 
       let resultOutput = '';
       let inputTokens = 0;
@@ -204,8 +203,12 @@ export class ClaudeAgentExecutor implements Executor {
           // MCP servers from step config
           mcpServers: runtimeConfig.mcp as Record<string, { command: string; args?: string[] }> | undefined,
 
-          // Autonomous execution
-          permissionMode: 'bypassPermissions' as const,
+          // A CLI run has no one to answer a permission prompt, so a tool call
+          // that needs permission is denied unless allowedTools or the project's
+          // settings allow it. bypassPermissions is an explicit opt-in that the
+          // workflow executor warns about; the SDK requires the extra flag for it.
+          permissionMode,
+          ...(permissionMode === 'bypassPermissions' && { allowDangerouslySkipPermissions: true }),
         },
       })) {
         if (message.type === 'result') {
@@ -276,6 +279,14 @@ export class ClaudeAgentExecutor implements Executor {
         },
       };
     }
+  }
+
+  /**
+   * Load the Agent SDK. It is an optional dependency, imported only when an
+   * agent step runs in CLI-native mode (harness: 'claude-code').
+   */
+  protected loadAgentSdk(): Promise<Pick<typeof import('@anthropic-ai/claude-agent-sdk'), 'query'>> {
+    return import('@anthropic-ai/claude-agent-sdk');
   }
 
   // ══════════════════════════════════════════════════════════════════════

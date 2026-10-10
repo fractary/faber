@@ -28,7 +28,7 @@ When a step or hook does not specify `result_handling`, these defaults are appli
 |-------|---------|---------|-------------|
 | `on_success` | `"continue"` | `continue`, slash command | Proceed automatically to next step |
 | `on_warning` | `"continue"` | `continue`, `stop`, slash command | Log warning and proceed, or `stop` to show prompt with options |
-| `on_failure` | `"stop"` | `stop`, slash command | Show prompt with options, or use slash command for dynamic recovery |
+| `on_failure` | `"stop"` | `stop`, `retry`, slash command | Show prompt with options, run the step again (up to the phase's `max_retries`), or use slash command for dynamic recovery |
 
 **Note**: The `stop` option consistently shows an intelligent prompt with options (continue, fix, stop) for both warnings and failures. This provides a unified user experience. Slash commands (e.g., `/fractary-faber-workflow-debug`) can be used for automated recovery.
 
@@ -608,6 +608,24 @@ Apply this recovery plan?
 ```
 
 `--auto-fix` will let high-confidence fixes bypass the approval prompt once automatic fixing is available.
+
+### In CLI runs (`workflow-execute`)
+
+`fractary-faber workflow-execute` runs without a person to answer prompts, so it handles a failed step this way:
+
+| `on_failure` | What happens |
+|--------------|--------------|
+| `stop` (default) | The run stops. Resuming it runs the step again |
+| `retry` | The step runs again while the phase has retries left, then the run stops |
+| Slash command | The command runs once, as its own session. The step runs again only when the command's recovery plan is `retry` with `requires_approval: false` and the phase has retries left. Otherwise the run stops |
+| `continue` | The run goes on to the next step and ends `failed` |
+| Anything else | The run stops |
+
+- **Retries** are counted per phase against its `max_retries`: evaluate allows 3 unless the workflow sets it, other phases allow none unless they set it. The count is kept in the run's state, so a resumed run does not get new retries.
+- **Step context** is written to a JSON file passed to the command as `--step-context-file`. It holds the IDs, the error, the end of the step's output, and the retry count. `{work_id}`, `{run_id}`, `{phase}` and `{step_id}` are filled in, but `{error}` is not, so error text never becomes part of the command.
+- **Records:** each step's `attempts`, each phase's `retry_count`, and a `failure_recoveries` entry for every retry or stop decided by `retry` or a handler are saved in the run's state.
+
+`/fractary-faber-workflow-debug` returns a `stop` plan, so a step that names it diagnoses the failure and stops.
 
 ### Backward Compatibility
 

@@ -1,0 +1,60 @@
+name: CLI CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'cli/**'
+      - 'sdk/js/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-cli.yml'
+  pull_request:
+    paths:
+      - 'cli/**'
+      - 'sdk/js/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-cli.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      # The CLI uses the SDK through the npm workspace, so install from the root
+      # and build the SDK first
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SDK
+        run: npm run build
+        working-directory: ./sdk/js
+
+      - name: Run linter
+        run: npm run lint
+        working-directory: ./cli
+
+      - name: Type check
+        run: npm run typecheck
+        working-directory: ./cli
+
+      - name: Run tests
+        run: npm test
+        working-directory: ./cli
+
+      - name: Build
+        run: npm run build
+        working-directory: ./cli

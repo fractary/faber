@@ -1211,4 +1211,26 @@ describe('WorkflowResolver', () => {
       expect(mainSteps).toEqual([]);
     });
   });
+
+  describe('Phase max_retries', () => {
+    it('carries max_retries for any phase, and defaults evaluate to 3', async () => {
+      createWorkflow('project', 'retries', {
+        id: 'retries',
+        phases: {
+          frame: { enabled: true },
+          architect: { enabled: true },
+          build: { enabled: true, max_retries: 2 },
+          evaluate: { enabled: true },
+          release: { enabled: true, max_retries: 0 },
+        },
+      });
+
+      const resolved = await resolver.resolveWorkflow('retries');
+
+      expect(resolved.phases.frame.max_retries).toBeUndefined();
+      expect(resolved.phases.build.max_retries).toBe(2);
+      expect(resolved.phases.evaluate.max_retries).toBe(3);
+      expect(resolved.phases.release.max_retries).toBe(0);
+    });
+  });
 });

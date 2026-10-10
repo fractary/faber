@@ -1,5 +1,9 @@
 /**
  * Unit tests for ConfigManager
+ *
+ * load() reads the unified .fractary/config.yaml from a temporary project on
+ * disk. Claude Code's config (fs/promises) and the home directory and platform
+ * (os) are mocked.
  */
 
 import { ConfigManager } from '../config.js';
@@ -7,66 +11,78 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
-// Mock fs and os modules
+// Mock fs/promises (Claude Code config) and os (home directory, platform)
 jest.mock('fs/promises');
 jest.mock('os');
+
+// Real modules for creating the project on disk
+const realFs = jest.requireActual<typeof import('fs')>('fs');
+const realOs = jest.requireActual<typeof import('os')>('os');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockOs = os as jest.Mocked<typeof os>;
 
+let projectDir: string;
+
+/** Write the project's .fractary/config.yaml */
+function writeConfig(yaml: string): void {
+  realFs.mkdirSync(path.join(projectDir, '.fractary'), { recursive: true });
+  realFs.writeFileSync(path.join(projectDir, '.fractary', 'config.yaml'), yaml);
+}
+
+/** Return the given Claude Code config for paths containing `match`; every other read fails */
+function claudeConfigAt(match: string, directory: string): void {
+  mockFs.readFile.mockImplementation(async (filePath: any) => {
+    if (String(filePath).includes(match)) {
+      return JSON.stringify({ worktree: { directory } });
+    }
+    throw new Error('File not found');
+  });
+}
+
 describe('ConfigManager', () => {
   beforeEach(() => {
-    // Clear all mocks before each test
     jest.clearAllMocks();
 
-    // Setup default mocks
     mockOs.homedir.mockReturnValue('/home/testuser');
     mockOs.platform.mockReturnValue('linux');
 
-    // Mock process.cwd()
-    jest.spyOn(process, 'cwd').mockReturnValue('/project');
+    projectDir = realFs.mkdtempSync(path.join(realOs.tmpdir(), 'faber-config-'));
+    jest.spyOn(process, 'cwd').mockReturnValue(projectDir);
 
-    // Clear environment variables
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.GITHUB_TOKEN;
+
+    // No Claude Code config unless a test provides one
+    mockFs.readFile.mockRejectedValue(new Error('File not found'));
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+    realFs.rmSync(projectDir, { recursive: true, force: true });
   });
 
   describe('load', () => {
-    it('should load config from environment variables', async () => {
-      process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
-      process.env.GITHUB_TOKEN = 'test-github-token';
-
-      // Mock no config files
-      mockFs.readFile.mockRejectedValue(new Error('File not found'));
-
-      const config = await ConfigManager.load();
-
-      expect(config.anthropic?.api_key).toBe('test-anthropic-key');
-      expect(config.github?.token).toBe('test-github-token');
+    it('should fail when .fractary/config.yaml is missing', async () => {
+      await expect(ConfigManager.load()).rejects.toThrow('No .fractary/config.yaml found');
     });
 
-    it('should load config from FABER config file', async () => {
-      const faberConfig = {
-        anthropic: {
-          api_key: 'file-anthropic-key',
-        },
-        github: {
-          token: 'file-github-token',
-          organization: 'test-org',
-          project: 'test-project',
-        },
-      };
+    it('should ask to migrate when only the old settings.json exists', async () => {
+      realFs.mkdirSync(path.join(projectDir, '.fractary'), { recursive: true });
+      realFs.writeFileSync(path.join(projectDir, '.fractary', 'settings.json'), '{}');
 
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('.fractary/settings.json')) {
-          return JSON.stringify(faberConfig);
-        }
-        throw new Error('File not found');
-      });
+      await expect(ConfigManager.load()).rejects.toThrow('fractary-faber migrate');
+    });
+
+    it('should load anthropic and github settings from config.yaml', async () => {
+      writeConfig(`version: "2.0"
+anthropic:
+  api_key: file-anthropic-key
+github:
+  token: file-github-token
+  organization: test-org
+  project: test-project
+`);
 
       const config = await ConfigManager.load();
 
@@ -76,47 +92,56 @@ describe('ConfigManager', () => {
       expect(config.github?.project).toBe('test-project');
     });
 
-    it('should merge environment variables with config file', async () => {
+    it('should prefer environment variables over config.yaml', async () => {
       process.env.ANTHROPIC_API_KEY = 'env-anthropic-key';
-
-      const faberConfig = {
-        github: {
-          token: 'file-github-token',
-          organization: 'test-org',
-        },
-      };
-
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('.fractary/settings.json')) {
-          return JSON.stringify(faberConfig);
-        }
-        throw new Error('File not found');
-      });
+      process.env.GITHUB_TOKEN = 'env-github-token';
+      writeConfig(`version: "2.0"
+anthropic:
+  api_key: file-anthropic-key
+github:
+  token: file-github-token
+  organization: test-org
+`);
 
       const config = await ConfigManager.load();
 
-      // Env var should take precedence for anthropic
       expect(config.anthropic?.api_key).toBe('env-anthropic-key');
-      // File config should be used for github
-      expect(config.github?.token).toBe('file-github-token');
+      expect(config.github?.token).toBe('env-github-token');
       expect(config.github?.organization).toBe('test-org');
     });
 
+    it('should fall back to the work section for the GitHub organization, project and token', async () => {
+      writeConfig(`version: "2.0"
+work:
+  handlers:
+    github:
+      owner: work-org
+      repo: work-repo
+      token: work-token
+`);
+
+      const config = await ConfigManager.load();
+
+      expect(config.github?.organization).toBe('work-org');
+      expect(config.github?.project).toBe('work-repo');
+      expect(config.github?.token).toBe('work-token');
+    });
+
+    it('should parse the organization and project from an owner/repo string', async () => {
+      writeConfig(`version: "2.0"
+github:
+  repo: acme/widgets
+`);
+
+      const config = await ConfigManager.load();
+
+      expect(config.github?.organization).toBe('acme');
+      expect(config.github?.project).toBe('widgets');
+    });
+
     it('should read Claude Code config for worktree location (Linux)', async () => {
-      mockOs.platform.mockReturnValue('linux');
-
-      const claudeConfig = {
-        worktree: {
-          directory: '/custom/worktree/path',
-        },
-      };
-
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('.config/claude/config.json')) {
-          return JSON.stringify(claudeConfig);
-        }
-        throw new Error('File not found');
-      });
+      writeConfig('version: "2.0"\n');
+      claudeConfigAt('.config/claude/config.json', '/custom/worktree/path');
 
       const config = await ConfigManager.load();
 
@@ -126,19 +151,8 @@ describe('ConfigManager', () => {
     it('should read Claude Code config for worktree location (macOS)', async () => {
       mockOs.platform.mockReturnValue('darwin');
       mockOs.homedir.mockReturnValue('/Users/testuser');
-
-      const claudeConfig = {
-        worktree: {
-          directory: '/Users/testuser/claude-worktrees',
-        },
-      };
-
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('Library/Application Support/Claude/config.json')) {
-          return JSON.stringify(claudeConfig);
-        }
-        throw new Error('File not found');
-      });
+      writeConfig('version: "2.0"\n');
+      claudeConfigAt('Library/Application Support/Claude/config.json', '/Users/testuser/claude-worktrees');
 
       const config = await ConfigManager.load();
 
@@ -149,43 +163,24 @@ describe('ConfigManager', () => {
       mockOs.platform.mockReturnValue('win32');
       mockOs.homedir.mockReturnValue('C:\\Users\\testuser');
       process.env.APPDATA = 'C:\\Users\\testuser\\AppData\\Roaming';
-
-      const claudeConfig = {
-        worktree: {
-          directory: 'C:\\Users\\testuser\\.claude-worktrees',
-        },
-      };
-
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('Claude') && filePath.includes('config.json')) {
-          return JSON.stringify(claudeConfig);
-        }
-        throw new Error('File not found');
-      });
+      writeConfig('version: "2.0"\n');
+      claudeConfigAt('Claude', 'C:\\Users\\testuser\\.claude-worktrees');
 
       const config = await ConfigManager.load();
 
-      // Note: The value is copied directly from Claude config, preserving original separators
+      // The value is copied from Claude config, keeping its separators
       expect(config.worktree?.location).toBe('C:\\Users\\testuser\\.claude-worktrees');
     });
 
     it('should try fallback Claude config paths', async () => {
-      mockOs.platform.mockReturnValue('linux');
-
-      const claudeConfig = {
-        worktree: {
-          directory: '/fallback/worktree/path',
-        },
-      };
-
+      writeConfig('version: "2.0"\n');
       mockFs.readFile.mockImplementation(async (filePath: any) => {
-        // First path fails
-        if (filePath.includes('.config/claude/config.json')) {
+        // First path fails, second succeeds
+        if (String(filePath).includes('.config/claude/config.json')) {
           throw new Error('File not found');
         }
-        // Second path succeeds
-        if (filePath.includes('.claude/config.json')) {
-          return JSON.stringify(claudeConfig);
+        if (String(filePath).includes('.claude/config.json')) {
+          return JSON.stringify({ worktree: { directory: '/fallback/worktree/path' } });
         }
         throw new Error('File not found');
       });
@@ -196,7 +191,7 @@ describe('ConfigManager', () => {
     });
 
     it('should use default worktree location when Claude config not found', async () => {
-      mockFs.readFile.mockRejectedValue(new Error('File not found'));
+      writeConfig('version: "2.0"\n');
 
       const config = await ConfigManager.load();
 
@@ -204,57 +199,47 @@ describe('ConfigManager', () => {
     });
 
     it('should not inherit from Claude config when inherit_from_claude is false', async () => {
-      const faberConfig = {
-        worktree: {
-          location: '/custom/faber/worktree',
-          inherit_from_claude: false,
-        },
-      };
-
-      const claudeConfig = {
-        worktree: {
-          directory: '/claude/worktree',
-        },
-      };
-
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('.fractary/settings.json')) {
-          return JSON.stringify(faberConfig);
-        }
-        if (filePath.includes('claude/config.json')) {
-          return JSON.stringify(claudeConfig);
-        }
-        throw new Error('File not found');
-      });
+      writeConfig(`version: "2.0"
+faber:
+  worktree:
+    location: /custom/faber/worktree
+    inherit_from_claude: false
+`);
+      claudeConfigAt('claude/config.json', '/claude/worktree');
 
       const config = await ConfigManager.load();
 
-      // Should use FABER config, not Claude config
       expect(config.worktree?.location).toBe('/custom/faber/worktree');
     });
 
-    it('should set default workflow config path', async () => {
-      mockFs.readFile.mockRejectedValue(new Error('File not found'));
+    it('should let Claude config override the worktree location unless inherit_from_claude is false', async () => {
+      writeConfig(`version: "2.0"
+faber:
+  worktree:
+    location: /file/worktree
+`);
+      claudeConfigAt('claude/config.json', '/claude/worktree');
 
       const config = await ConfigManager.load();
 
-      expect(config.workflow?.config_path).toBe('/project/.fractary/faber/workflows');
+      expect(config.worktree?.location).toBe('/claude/worktree');
     });
 
-    it('should use workflow config from FABER config file', async () => {
-      const faberConfig = {
-        workflow: {
-          default: 'custom-workflow',
-          config_path: '/custom/workflows',
-        },
-      };
+    it('should set default workflow config path', async () => {
+      writeConfig('version: "2.0"\n');
 
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('.fractary/settings.json')) {
-          return JSON.stringify(faberConfig);
-        }
-        throw new Error('File not found');
-      });
+      const config = await ConfigManager.load();
+
+      expect(config.workflow?.config_path).toBe(path.join(projectDir, '.fractary', 'faber', 'workflows'));
+    });
+
+    it('should use the legacy workflow section', async () => {
+      writeConfig(`version: "2.0"
+faber:
+  workflow:
+    default: custom-workflow
+    config_path: /custom/workflows
+`);
 
       const config = await ConfigManager.load();
 
@@ -262,74 +247,42 @@ describe('ConfigManager', () => {
       expect(config.workflow?.config_path).toBe('/custom/workflows');
     });
 
-    it('should handle malformed JSON in config files gracefully', async () => {
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('.fractary/settings.json')) {
-          return 'invalid json {{{';
-        }
-        throw new Error('File not found');
-      });
+    it('should map the workflows section (v2.1) to the workflow default and path', async () => {
+      writeConfig(`version: "2.0"
+faber:
+  workflows:
+    default: v21-workflow
+    path: /v21/workflows
+`);
 
-      // Should not throw, should use defaults
+      const config = await ConfigManager.load();
+
+      expect(config.workflow?.default).toBe('v21-workflow');
+      expect(config.workflow?.config_path).toBe('/v21/workflows');
+    });
+
+    it('should reject a config.yaml that fails validation', async () => {
+      writeConfig(`version: "2.0"
+anthropic:
+  max_tokens: 0
+`);
+
+      await expect(ConfigManager.load()).rejects.toThrow('Configuration validation failed');
+    });
+
+    it('should reject a malformed config.yaml', async () => {
+      writeConfig('version: "2.0"\nanthropic: [unclosed\n');
+
+      await expect(ConfigManager.load()).rejects.toThrow('Failed to load config');
+    });
+
+    it('should apply defaults for an empty faber section', async () => {
+      writeConfig('version: "2.0"\nfaber: {}\n');
+
       const config = await ConfigManager.load();
 
       expect(config.worktree?.location).toBe('/home/testuser/.claude-worktrees');
-    });
-
-    it('should handle empty config files', async () => {
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('.fractary/settings.json')) {
-          return '{}';
-        }
-        throw new Error('File not found');
-      });
-
-      const config = await ConfigManager.load();
-
-      expect(config.worktree?.location).toBe('/home/testuser/.claude-worktrees');
-      expect(config.workflow?.config_path).toBe('/project/.fractary/faber/workflows');
-    });
-
-    it('should merge partial configs correctly', async () => {
-      process.env.ANTHROPIC_API_KEY = 'env-key';
-
-      const faberConfig = {
-        anthropic: {
-          // Override env key with file key
-          api_key: 'file-key',
-        },
-        github: {
-          organization: 'test-org',
-        },
-        worktree: {
-          location: '/file/worktree',
-          // Note: Without inherit_from_claude: false, Claude config will override
-        },
-      };
-
-      const claudeConfig = {
-        worktree: {
-          // Will override FABER config unless inherit_from_claude is explicitly false
-          directory: '/claude/worktree',
-        },
-      };
-
-      mockFs.readFile.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('.fractary/settings.json')) {
-          return JSON.stringify(faberConfig);
-        }
-        if (filePath.includes('claude/config.json')) {
-          return JSON.stringify(claudeConfig);
-        }
-        throw new Error('File not found');
-      });
-
-      const config = await ConfigManager.load();
-
-      expect(config.anthropic?.api_key).toBe('file-key');
-      expect(config.github?.organization).toBe('test-org');
-      // Claude config overrides FABER config when inherit_from_claude is not explicitly false
-      expect(config.worktree?.location).toBe('/claude/worktree');
+      expect(config.workflow?.config_path).toBe(path.join(projectDir, '.fractary', 'faber', 'workflows'));
     });
   });
 

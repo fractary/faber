@@ -17,7 +17,7 @@ import * as path from 'path';
 import { RUN_ID_MARKER, parseRunId } from '../paths.js';
 
 /** Overall status of a run */
-export type RunStatus = 'in_progress' | 'paused' | 'completed' | 'failed';
+export type RunStatus = 'in_progress' | 'paused' | 'awaiting_approval' | 'completed' | 'failed';
 
 /** Status of a phase within a run */
 export type RunPhaseStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'skipped';
@@ -38,6 +38,8 @@ export interface RunStepState {
   /** Why the result did not come from a valid response block, e.g. `no_response_block` */
   reason?: string;
   duration_ms?: number;
+  /** When a person approved running this step (approval gates) */
+  approved_at?: string;
 }
 
 /** Persisted state of one phase */
@@ -71,6 +73,35 @@ export interface RunState {
   completed_at?: string;
   error?: string;
   pause_reason?: string;
+  /** The step the run is waiting for a person to approve */
+  awaiting_approval?: RunApprovalWait;
+  /** How step failures were handled by `on_failure: retry` or a handler */
+  failure_recoveries?: RunFailureRecovery[];
+}
+
+/** How a step failure was handled: the step ran again, or the run stopped */
+export interface RunFailureRecovery {
+  /** The failed step, as `{phase}:{step_id}` */
+  step: string;
+  /** The attempt that failed */
+  attempt: number;
+  /** The on_failure handler (slash command) that ran, if any */
+  handler?: string;
+  /** The status the handler reported */
+  handler_status?: 'success' | 'warning' | 'failure';
+  /** retry: the step ran again; stop: the run stopped */
+  action: 'retry' | 'stop';
+  reason: string;
+  timestamp: string;
+}
+
+/** A step a run stopped before, until a person approves it */
+export interface RunApprovalWait {
+  phase: string;
+  step_id: string;
+  /** Why the step needs approval */
+  reason: string;
+  since: string;
 }
 
 /** Plan information needed to start a run */
@@ -267,6 +298,66 @@ export class RunStateStore {
     delete this.data.completed_at;
     delete this.data.error;
     delete this.data.pause_reason;
+    delete this.data.awaiting_approval;
+    this.save();
+  }
+
+  /**
+   * True when a step of the phase has started in this run, so the phase was
+   * entered (and any approval to enter it was given) earlier.
+   */
+  hasPhaseStarted(phase: string): boolean {
+    const steps = Object.values(this.data.phases[phase]?.steps ?? {});
+    return steps.some(
+      (s) => s.status === 'in_progress' || s.status === 'completed' || s.status === 'failed' || s.approved_at !== undefined
+    );
+  }
+
+  /**
+   * Stop before a step until a person approves it. The run is saved as
+   * `awaiting_approval`; resuming with an approval of the step continues it.
+   */
+  awaitApproval(phase: string, stepId: string, reason: string): void {
+    this.step(phase, stepId);
+    this.data.status = 'awaiting_approval';
+    this.data.current_phase = phase;
+    this.data.current_step_id = `${phase}:${stepId}`;
+    this.data.awaiting_approval = { phase, step_id: stepId, reason, since: this.timestamp() };
+    this.save();
+  }
+
+  /**
+   * Record that a person approved running a step.
+   */
+  approveStep(phase: string, stepId: string): void {
+    this.step(phase, stepId).approved_at = this.timestamp();
+    this.save();
+  }
+
+  /**
+   * Retries used in the phase in this run. They count against the phase's
+   * `max_retries`, also when the run is resumed.
+   */
+  retryCount(phase: string): number {
+    return this.data.phases[phase]?.retry_count ?? 0;
+  }
+
+  /**
+   * Record how a step failure was handled. A retry counts against the phase's
+   * `max_retries`.
+   */
+  recordFailureRecovery(
+    phase: string,
+    stepId: string,
+    recovery: Omit<RunFailureRecovery, 'step' | 'timestamp'>
+  ): void {
+    if (recovery.action === 'retry') {
+      const phaseState = this.phase(phase);
+      phaseState.retry_count = (phaseState.retry_count ?? 0) + 1;
+    }
+    const recoveries = this.data.failure_recoveries ?? [];
+    recoveries.push({ step: `${phase}:${stepId}`, ...recovery, timestamp: this.timestamp() });
+    this.data.failure_recoveries = recoveries;
     this.save();
   }
 

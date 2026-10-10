@@ -278,13 +278,44 @@ fractary-faber workflow-execute <plan-path> [options]
 | `--phase <phases>` | Execute only specified phase(s) — comma-separated (e.g., `build,evaluate`) | |
 | `--step <step-id>` | Execute only a specific step | |
 | `--resume <run-id>` | Resume an earlier run of this plan, skipping the steps it completed | |
+| `--approve <step-id>` | Approve the step a resumed run is waiting on (needs `--resume`) | |
 | `--json` | Output as JSON | |
 
 Each execution is a run with its own ID, `{plan_id}-run-{timestamp}`. The run's state is saved next to the plan, in `state-{timestamp}.json`, after every step starts and finishes, in the same format the `fractary-faber-workflow-run` skill writes. A run that crashed, failed, or ran only some phases can be resumed with `--resume`: completed steps are skipped and the interrupted or failed step runs again. The run ends `completed`, `failed`, or `paused` (when a phase or step filter left steps unrun); inspect it with `run-inspect --run-id <run-id>` or check it with `runs verify-complete <run-id>`.
 
+**Approval gates.** Before a step that needs a person's approval, the run stops, is saved as `awaiting_approval`, and the command exits with code `3`. A step needs approval when:
+- it is listed in the workflow's `autonomy.require_approval_for`;
+- it is the first step to run in a phase with `require_approval: true`;
+- it is the first release step and `autonomy.pause_before_release` is set.
+
+To continue, resume the run and approve that step: `--resume <run-id> --approve <step-id>`. The approval applies only to the step the run is waiting on, in that invocation, and is recorded in the step's `approved_at`. Nothing else counts as approval: not the autonomy level, and not a run started by a trigger. A phase gate is asked once; resuming a run that already entered the phase does not ask again.
+
+**Failures and retries.** A failed step is handled by its `on_failure` (set on the step, phase or workflow; default `stop`):
+- `stop`: the run stops. Resuming it runs the step again.
+- `retry`: the step runs again while the phase has retries left, then the run stops. A phase's `max_retries` sets how many it has: evaluate has 3 unless the workflow sets it, other phases have none.
+- A slash command, such as `/fractary-faber-workflow-debug`: the command runs once, in its own session, and gets the step's context in a JSON file passed as `--step-context-file`. The step runs again only when the command returns a recovery plan with `action: "retry"` and `requires_approval: false`, and the phase has retries left. Otherwise the run stops.
+- `continue`: the run goes on to the next step and ends `failed`.
+
+Retries are counted per phase and saved in the run's state, so resuming a run does not give it new retries. The state also records each step's `attempts` and every retry or stop that `retry` or a command decided (`failure_recoveries`).
+
+Exit codes: `0` completed or paused, `1` failed, `3` waiting for approval.
+
 Steps run in the root the plan belongs to, the directory that contains `.fractary/faber/runs/{plan_id}/`: the worktree when the plan was created with `--worktree`, otherwise the project root. For a plan stored elsewhere, steps run in the project root found from the current directory.
 
 An agent or model step's result comes from the FABER response block at the end of its output (see the plugin's `docs/RESPONSE-FORMAT.md`). A step that reports `failure` fails, so `on_failure: stop` halts the run. A step without a valid block is recorded as a warning with the reason `no_response_block`; a step with `role: validator` fails instead. Shell command steps (`!`) use their exit code.
+
+**Permissions.** An agent step runs in an Agent SDK session with the permission mode set by `permission_mode` on the step, in `phase_defaults`, or in `defaults`. A CLI run has no one to answer a permission prompt, so a tool call that needs permission is denied unless the step's `allowed_tools` or the project's Claude settings (`.claude/settings.json`) allow it.
+
+| `permission_mode` | What the session can do |
+|-------------------|-------------------------|
+| `acceptEdits` (default) | Edit files, and run file commands such as `mkdir`, `mv` or `rm`, inside the workspace. Other tools that need permission, such as other Bash commands or web access, need an allow rule |
+| `default` | Only use tools that need no permission or have an allow rule |
+| `plan` | Read and plan. Edits and commands that change files are denied |
+| `dontAsk` | Like `default`, with every call that is not allowed denied outright |
+| `auto` | A model classifier decides on actions such as shell commands and network requests |
+| `bypassPermissions` | Use every tool without a check, except calls that deny or ask rules cover. Use it only where the run is isolated, such as a disposable container: the run starts with a warning that names these steps. The Agent SDK refuses this mode when it runs as root outside a sandbox it recognizes |
+
+Until this version every agent step ran with `bypassPermissions`. To keep that, set `permission_mode: bypassPermissions` in `defaults`. Shell command steps (`!`) have no permission mode. An unknown mode stops the run before any step runs.
 
 **Example:**
 ```bash
@@ -296,6 +327,9 @@ fractary-faber workflow-execute .fractary/faber/runs/abc123/plan.json --phase bu
 
 # Resume a run that was interrupted
 fractary-faber workflow-execute .fractary/faber/runs/abc123/plan.json --resume abc123-run-2026-10-06T18-04-05Z
+
+# Approve the step a run stopped before, and continue
+fractary-faber workflow-execute .fractary/faber/runs/abc123/plan.json --resume abc123-run-2026-10-06T18-04-05Z --approve release-deploy-apply-prod
 ```
 
 ### workflow-resolve

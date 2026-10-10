@@ -253,7 +253,40 @@ export interface StepRuntimeConfig {
 
   /** MCP server configurations keyed by server name */
   mcp?: Record<string, { command: string; args?: string[] }>;
+
+  /** Agent SDK permission mode for the step's session (default `acceptEdits`) */
+  permissionMode?: PermissionMode;
 }
+
+/**
+ * Permission mode of an agent step's session (Claude Agent SDK). A CLI run
+ * has no one to answer a permission prompt, so a tool call that needs
+ * permission is denied unless `allowed_tools` or the project's Claude
+ * settings allow it.
+ * - 'default': only tools that need no permission, or are allowed, run
+ * - 'acceptEdits' (default): file edits, and file commands such as mkdir or
+ *   mv, inside the working directory are accepted too
+ * - 'plan': the session reads and plans; edits and commands that change
+ *   files are denied
+ * - 'dontAsk': like 'default', with every unapproved call denied outright
+ * - 'auto': a model classifier reviews actions such as shell commands
+ * - 'bypassPermissions': every tool runs without a check. Opt-in only; the
+ *   workflow executor warns when a step uses it
+ */
+export type PermissionMode = 'default' | 'acceptEdits' | 'plan' | 'dontAsk' | 'auto' | 'bypassPermissions';
+
+/** Permission modes a step can set */
+export const PERMISSION_MODES: readonly PermissionMode[] = [
+  'default',
+  'acceptEdits',
+  'plan',
+  'dontAsk',
+  'auto',
+  'bypassPermissions',
+];
+
+/** Permission mode of a step that sets none */
+export const DEFAULT_PERMISSION_MODE: PermissionMode = 'acceptEdits';
 
 /**
  * Structured metadata auto-injected into each step's system prompt.
@@ -359,6 +392,8 @@ export interface RuntimeDefaults {
   skills?: string[];
   /** Default MCP servers */
   mcp?: Record<string, { command: string; args?: string[] }>;
+  /** Default permission mode for agent steps */
+  permission_mode?: PermissionMode;
 }
 
 /**
@@ -428,6 +463,12 @@ export function resolveRuntimeConfig(
       phaseDefaults?.mcp ??
       workflowDefaults?.mcp ??
       cliOverrides?.mcp ??
+      undefined,
+    permissionMode:
+      step?.permissionMode ??
+      phaseDefaults?.permission_mode ??
+      workflowDefaults?.permission_mode ??
+      cliOverrides?.permissionMode ??
       undefined,
   };
 }
