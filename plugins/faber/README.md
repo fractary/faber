@@ -571,6 +571,11 @@ faber:
 - [Error Codes](docs/ERROR-CODES.md) - Complete error reference
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Problem-to-solution guide
 
+### Building Packs
+- [Pack Best Practices](docs/PACK-BEST-PRACTICES.md) - What core FABER expects from a pack, with a conformance checklist
+- [Plugin Extension Guide](docs/PLUGIN-EXTENSION-GUIDE.md) - Pack layout, workflows, and how projects use a pack
+- [Workflow Step Reference](docs/WORKFLOW-STEP-REFERENCE.md) - Workflow fields that `workflow-execute` reads
+
 ### Technical Specifications
 - [SPEC-00029](../../specs/SPEC-00029-FABER-CLI-PLANNING.md) - CLI planning architecture (v3.4.0+)
 - [SPEC-00030](../../specs/SPEC-00030-FRACTARY-REPO-ENHANCEMENTS.md) - fractary-repo requirements

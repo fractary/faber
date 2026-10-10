@@ -6,9 +6,17 @@ Guidelines for building and using FABER workflow skills effectively.
 
 FABER skills orchestrate workflow execution across phases (Frame → Architect → Build → Evaluate → Release). This guide covers best practices for response handling, error recovery, and integration.
 
+For everything core expects from a pack (runtime contract, validators, approvals, permissions, conformance checklist), see [PACK-BEST-PRACTICES.md](./PACK-BEST-PRACTICES.md).
+
 ## Skill Response Format
 
 All FABER skills MUST return responses using the **standard FABER response format**.
+
+In CLI runs (`fractary-faber workflow-execute`), the response block decides the step's result:
+
+- **The block comes last.** The runtime reads the last JSON object with a `status` field in the step's output. Print nothing after the block that has a `status` field.
+- **Pass a subagent's block through.** A skill that delegates to a subagent ends with the subagent's block, verbatim. A prose summary in its place loses the result, and the step is recorded as a warning (`no_response_block`).
+- **Validators set `role: validator`** on their workflow step. A validator step without a valid block fails instead of warning.
 
 ### Required Fields
 
@@ -32,8 +40,6 @@ All FABER skills MUST return responses using the **standard FABER response forma
 
 - **Schema**: `plugins/faber/config/schemas/skill-response.schema.json`
 - **Documentation**: `plugins/faber/docs/RESPONSE-FORMAT.md`
-- **Best Practices**: `docs/standards/SKILL-RESPONSE-BEST-PRACTICES.md`
-- **Migration Guide**: `docs/MIGRATE-SKILL-RESPONSES.md`
 
 ## Response Status Values
 
@@ -81,7 +87,7 @@ All FABER skills MUST return responses using the **standard FABER response forma
 ### Failure
 - Goal NOT achieved
 - Critical error occurred
-- Workflow stops immediately (immutable behavior)
+- The step's `on_failure` decides what happens next; the default, `stop`, stops the workflow
 
 ```json
 {
@@ -115,9 +121,11 @@ Steps can configure how different result statuses are handled.
 {
   "on_success": "continue",   // Proceed automatically
   "on_warning": "continue",   // Log warning, proceed
-  "on_failure": "stop"        // IMMUTABLE - always stops
+  "on_failure": "stop"        // Stop the workflow
 }
 ```
+
+`on_failure` can also be `retry` or a slash-command handler such as `/fractary-faber-workflow-debug`. In CLI runs, a failed step never lets the run continue silently. See [RESULT-HANDLING.md](./RESULT-HANDLING.md) for what each value does.
 
 ### Custom Configurations
 
@@ -133,24 +141,6 @@ Steps can configure how different result statuses are handled.
 With `on_warning: "stop"`, warnings display an intelligent prompt with options (continue, fix, stop). This is recommended for critical steps where warnings should be reviewed.
 
 ## Validation Tooling
-
-### Audit Your Skills
-
-Run the validation script to check skill compliance:
-
-```bash
-# Check all plugins
-./scripts/validate-skill-responses.sh
-
-# Check specific plugin
-./scripts/validate-skill-responses.sh plugins/faber
-
-# Get detailed report
-./scripts/validate-skill-responses.sh --verbose
-
-# JSON output for CI
-./scripts/validate-skill-responses.sh --json
-```
 
 ### Validate Individual Responses
 
@@ -249,19 +239,19 @@ Common error patterns and suggested responses:
 
 ## Logging and Audit
 
-FABER tracks all step results in workflow state:
+A CLI run records each step's result in the run's state file:
 
 ```json
 {
   "phases": {
     "build": {
+      "retry_count": 1,
       "steps": {
         "implement": {
           "status": "completed",
-          "result": {
-            "status": "success",
-            "message": "Implementation complete"
-          }
+          "result": "success",
+          "attempts": 2,
+          "duration_ms": 84213
         }
       }
     }
@@ -269,16 +259,17 @@ FABER tracks all step results in workflow state:
 }
 ```
 
-For failures, recovery actions are also tracked:
+When `on_failure: retry` or a handler decides what happens after a failure, the decision is recorded too:
 
 ```json
 {
   "failure_recoveries": [
     {
       "step": "build:implement",
-      "timestamp": "2025-12-05T10:30:00Z",
-      "action": "suggested_fix",
-      "outcome": "retry_attempted"
+      "attempt": 1,
+      "action": "retry",
+      "reason": "on_failure is retry, retry 1 of 2",
+      "timestamp": "2026-10-10T10:30:00Z"
     }
   ]
 }
@@ -295,14 +286,13 @@ For existing skills that need updating:
 - [ ] Add `error_analysis` for failure cases
 - [ ] Add `suggested_fixes` for recoverable issues
 - [ ] Remove deprecated fields (`error_code`, `result`, etc.)
+- [ ] Make the response block the last JSON object in the output
 - [ ] Test with response-validator skill
 - [ ] Update skill documentation
 
-See `docs/MIGRATE-SKILL-RESPONSES.md` for detailed migration guide.
-
 ## See Also
 
+- [PACK-BEST-PRACTICES.md](./PACK-BEST-PRACTICES.md) - What core expects from a pack
 - [RESPONSE-FORMAT.md](./RESPONSE-FORMAT.md) - Complete response schema
 - [RESULT-HANDLING.md](./RESULT-HANDLING.md) - Result handling configuration
-- [SKILL-RESPONSE-BEST-PRACTICES.md](../../../docs/standards/SKILL-RESPONSE-BEST-PRACTICES.md) - Developer guide
-- [MIGRATE-SKILL-RESPONSES.md](../../../docs/MIGRATE-SKILL-RESPONSES.md) - Migration guide
+- [WORKFLOW-STEP-REFERENCE.md](./WORKFLOW-STEP-REFERENCE.md) - Workflow fields CLI runs read

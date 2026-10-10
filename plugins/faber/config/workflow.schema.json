@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/fractary/claude-plugins/main/plugins/faber/config/workflow.schema.json",
+  "$id": "https://raw.githubusercontent.com/fractary/faber/main/plugins/faber/config/workflow.schema.json",
   "title": "FABER Workflow Schema",
   "description": "JSON Schema for FABER workflow files. Workflows can extend other workflows via the 'extends' field, creating an inheritance chain where parent pre_steps run before and post_steps run after child workflow steps.",
   "type": "object",
