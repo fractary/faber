@@ -77,6 +77,12 @@ A pack workflow extends core and adds its steps:
   - `post_steps` from every workflow run, the child's first.
   - Main `steps` come from the nearest workflow that defines them, so setting `steps` replaces the parent's.
   - `skip_steps` drops inherited steps by ID.
+  - Approval gates add up: `autonomy.require_approval_for` is the union of every workflow in the chain.
+  - These come from the nearest workflow that sets them:
+    - `pause_before_release` and `level`;
+    - `result_handling`, field by field;
+    - a phase's `require_approval` and `max_retries`;
+    - the runtime settings `prompt`, `defaults` and `phase_defaults`, field by field.
 - **References:**
   - `extends` uses the form `<plugin>@<marketplace>:<workflow>`; core is `faber@fractary-faber:core`.
   - A project refers to your workflow the same way, for example `faber-code@fractary-faber-code:default`.

@@ -521,6 +521,28 @@ async function validateUrlSecurity(url: string): Promise<void> {
   }
 }
 
+/**
+ * Merge an object setting across an inheritance chain, given child first: for
+ * each field, the nearest layer that sets it wins. Used for result handling
+ * (`on_success`, `on_warning`, `on_failure`) and runtime defaults.
+ * @returns The merged object, or undefined if no layer sets any field
+ */
+function mergeFields<T extends object>(layers: Array<T | undefined>): T | undefined {
+  const merged: Record<string, unknown> = {};
+  for (const layer of [...layers].reverse()) {
+    if (!layer) continue;
+    for (const [field, value] of Object.entries(layer)) {
+      if (value !== undefined) merged[field] = value;
+    }
+  }
+  return Object.keys(merged).length > 0 ? (merged as T) : undefined;
+}
+
+/** Merge result handling across an inheritance chain, field by field */
+function mergeResultHandling(layers: Array<StepResultHandling | undefined>): StepResultHandling | undefined {
+  return mergeFields(layers);
+}
+
 // ============================================================================
 // Workflow Resolver Class
 // ============================================================================
@@ -701,7 +723,7 @@ export class WorkflowResolver {
       description: childWorkflow.description,
       inheritance_chain: chain,
       phases,
-      autonomy: childWorkflow.autonomy,
+      autonomy: this.mergeAutonomy(chain),
       critical_artifacts: childWorkflow.critical_artifacts,
       integrations: childWorkflow.integrations,
     };
@@ -715,9 +737,10 @@ export class WorkflowResolver {
       resolved.context = context;
     }
 
-    // Include workflow-level result_handling if defined
-    if (childWorkflow.result_handling) {
-      resolved.result_handling = childWorkflow.result_handling;
+    // Include workflow-level result_handling, inherited field by field
+    const resultHandling = mergeResultHandling(chain.map((id) => this.workflowCache.get(id)?.result_handling));
+    if (resultHandling) {
+      resolved.result_handling = resultHandling;
     }
 
     // Include executor config (child overrides parent in inheritance)
@@ -729,15 +752,24 @@ export class WorkflowResolver {
       resolved.phase_executors = mergedExecutor.phase_executors;
     }
 
-    // Include CLI-native execution configuration (child overrides parent)
-    if (childWorkflow.prompt) {
-      resolved.prompt = childWorkflow.prompt;
+    // Include CLI-native execution configuration, inherited field by field
+    const layers = chain.map((id) => this.workflowCache.get(id));
+    const prompt = layers.find((layer) => layer?.prompt !== undefined)?.prompt;
+    if (prompt !== undefined) {
+      resolved.prompt = prompt;
     }
-    if (childWorkflow.defaults) {
-      resolved.defaults = childWorkflow.defaults;
+    const defaults = mergeFields(layers.map((layer) => layer?.defaults));
+    if (defaults) {
+      resolved.defaults = defaults;
     }
-    if (childWorkflow.phase_defaults) {
-      resolved.phase_defaults = childWorkflow.phase_defaults;
+    const phaseNames = new Set(layers.flatMap((layer) => Object.keys(layer?.phase_defaults ?? {})));
+    const phaseDefaults: NonNullable<WorkflowFileConfig['phase_defaults']> = {};
+    for (const phaseName of phaseNames) {
+      const merged = mergeFields(layers.map((layer) => layer?.phase_defaults?.[phaseName]));
+      if (merged) phaseDefaults[phaseName] = merged;
+    }
+    if (Object.keys(phaseDefaults).length > 0) {
+      resolved.phase_defaults = phaseDefaults;
     }
 
     return resolved;
@@ -1056,19 +1088,48 @@ export class WorkflowResolver {
       const childWorkflow = this.workflowCache.get(chain[0])!;
       const childPhase = childWorkflow.phases?.[phaseName];
 
+      // Inherited settings: the nearest workflow in the chain that sets one wins
+      const phaseLayers = chain.map((id) => this.workflowCache.get(id)?.phases?.[phaseName]);
+      const nearest = <K extends 'require_approval' | 'max_retries'>(key: K): WorkflowPhaseConfig[K] =>
+        phaseLayers.find((layer) => layer?.[key] !== undefined)?.[key];
+
       phases[phaseName] = {
         enabled: this.resolvePhaseEnabled(chain, phaseName),
         description: childPhase?.description,
         steps: filteredSteps,
-        require_approval: childPhase?.require_approval,
+        require_approval: nearest('require_approval'),
         // Failed steps run again only under on_failure: retry (or a handler that asks
         // for a retry); evaluate allows 3 retries unless the workflow sets max_retries
-        max_retries: childPhase?.max_retries ?? (phaseName === 'evaluate' ? 3 : undefined),
-        result_handling: childPhase?.result_handling,
+        max_retries: nearest('max_retries') ?? (phaseName === 'evaluate' ? 3 : undefined),
+        result_handling: mergeResultHandling(phaseLayers.map((layer) => layer?.result_handling)),
       };
     }
 
     return phases as ResolvedWorkflow['phases'];
+  }
+
+  /**
+   * Merge autonomy settings across the inheritance chain. The nearest workflow
+   * that sets a field wins, except `require_approval_for`: it is the union of
+   * every workflow's list, so extending a workflow never drops its approval
+   * gates. Removing an inherited gate means skipping its step.
+   */
+  private mergeAutonomy(chain: string[]): WorkflowAutonomyConfig | undefined {
+    let merged: WorkflowAutonomyConfig | undefined;
+    const gates: string[] = [];
+    // Walk from the root ancestor to the child, so nearer workflows override
+    for (const workflowId of [...chain].reverse()) {
+      const autonomy = this.workflowCache.get(workflowId)?.autonomy;
+      if (!autonomy) continue;
+      merged = { ...merged, ...autonomy };
+      for (const stepId of autonomy.require_approval_for ?? []) {
+        if (!gates.includes(stepId)) gates.push(stepId);
+      }
+    }
+    if (merged && gates.length > 0) {
+      merged.require_approval_for = gates;
+    }
+    return merged;
   }
 
   /**

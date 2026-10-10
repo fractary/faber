@@ -72,6 +72,7 @@ Details: [RESULT-HANDLING.md](./RESULT-HANDLING.md).
 |---|---|
 | Put every irreversible step behind an approval: deploy, apply, publish, distribute, merge and paid generation. Use one of:<br>- `autonomy.require_approval_for` with the step ID;<br>- `require_approval` on its phase;<br>- `autonomy.pause_before_release`. | **Enforced** in CLI runs ([#237]). The run stops and exits with code 3, and continues only with `--resume <run> --approve <step>`. The autonomy level never counts as approval. |
 | Keep the tool-level safety rail as well, so a gate is not the only protection. Example: faber-cloud applies a protected environment only from an approved plan ([fractary/faber-cloud#53]). | **Required** |
+| A project workflow that extends the pack's workflow keeps its gates. `require_approval_for` adds up across the chain, so an extension cannot drop a gate unless it skips the step. `pause_before_release`, a phase's `require_approval` and the failure handlers come from the nearest workflow that sets them. | **Enforced** ([#266]) |
 
 ## 6. Least privilege
 
@@ -154,6 +155,10 @@ Copy this into a "FABER conformance" section of the pack README. Link this guide
   - retries and failure handlers ([#238]);
   - permission modes ([#240], part 1);
   - the `/fractary-faber-workflow-debug` handler ([#249]).
+- **2026-10-10.** Workflows that extend a pack's workflow now inherit its settings ([#266]):
+  - approval gates and the pause before release;
+  - failure handlers;
+  - runtime defaults, such as `permission_mode`.
 
 [spec]: https://github.com/fractary/faber/blob/main/docs/specs/harness-hardening-plan.md
 [#235]: https://github.com/fractary/faber/issues/235
@@ -165,4 +170,5 @@ Copy this into a "FABER conformance" section of the pack README. Link this guide
 [#243]: https://github.com/fractary/faber/pull/243
 [#249]: https://github.com/fractary/faber/issues/249
 [#262]: https://github.com/fractary/faber/issues/262
+[#266]: https://github.com/fractary/faber/issues/266
 [fractary/faber-cloud#53]: https://github.com/fractary/faber-cloud/pull/53

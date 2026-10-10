@@ -551,6 +551,55 @@ merge_context_overlays() {
     fi
 }
 
+# Settings inherited through the chain, matching the SDK resolver:
+# - autonomy: the nearest workflow that sets a field wins, except
+#   require_approval_for, which is the union of every workflow's list, so
+#   extending a workflow never drops its approval gates
+# - workflow and phase result_handling: per field, the nearest setting wins
+# - phase require_approval and max_retries: the nearest setting wins
+#   (evaluate allows 3 retries by default)
+merge_inherited_settings() {
+    local chain_json="$1"
+    local workflows="[]"
+    local chain_length
+    chain_length=$(echo "$chain_json" | jq 'length')
+
+    # Child first, like the chain
+    for ((i=0; i<chain_length; i++)); do
+        local workflow_id
+        workflow_id=$(echo "$chain_json" | jq -r ".[$i]")
+        workflows=$(jq -n --argjson ws "$workflows" --argjson w "$(load_workflow "$workflow_id")" '$ws + [$w]')
+    done
+
+    echo "$workflows" | jq '
+        def nearest(f): [.[] | f | select(. != null)][0];
+        def fieldwise(f): reduce (reverse | .[] | f | select(. != null)) as $x ({}; . + ($x | with_entries(select(.value != null))))
+            | if . == {} then null else . end;
+        . as $ws
+        | {
+            autonomy: (
+                [$ws | reverse | .[] | .autonomy | select(. != null)] as $layers
+                | if ($layers | length) == 0 then null
+                  else (reduce $layers[] as $a ({}; . + $a))
+                     + (reduce ($layers[] | .require_approval_for // [] | .[]) as $g ([]; if index([$g]) then . else . + [$g] end)
+                        | if length > 0 then {require_approval_for: .} else {} end)
+                  end
+            ),
+            result_handling: ($ws | fieldwise(.result_handling)),
+            phases: (["frame", "architect", "build", "evaluate", "release"]
+                | map(. as $p | {
+                    key: $p,
+                    value: {
+                        require_approval: ($ws | nearest(.phases[$p].require_approval)),
+                        max_retries: (($ws | nearest(.phases[$p].max_retries)) as $m
+                            | if $m == null and $p == "evaluate" then 3 else $m end),
+                        result_handling: ($ws | fieldwise(.phases[$p].result_handling))
+                    }
+                })
+                | from_entries)
+        }'
+}
+
 # Main execution
 main() {
     # Build inheritance chain
@@ -565,14 +614,18 @@ main() {
     local skip_steps
     skip_steps=$(echo "$child_workflow" | jq '.skip_steps // []')
 
-    # Initialize merged workflow with child's metadata
+    # Settings inherited through the chain (autonomy, result handling, phase gates)
+    local inherited
+    inherited=$(merge_inherited_settings "$chain")
+
+    # Initialize merged workflow with child's metadata and the inherited settings
     local merged
-    merged=$(echo "$child_workflow" | jq '{
+    merged=$(echo "$child_workflow" | jq --argjson inh "$inherited" '{
         id: .id,
         description: .description,
-        autonomy: .autonomy,
+        autonomy: $inh.autonomy,
         integrations: .integrations
-    }')
+    } + (if $inh.result_handling == null then {} else {result_handling: $inh.result_handling} end)')
 
     # Add inheritance chain metadata
     merged=$(echo "$merged" | jq --argjson chain "$chain" '. + {inheritance_chain: $chain}')
@@ -600,25 +653,12 @@ main() {
         local enabled
         enabled=$(echo "$child_workflow" | jq --arg phase "$phase" '.phases[$phase].enabled // true')
 
-        # Get max_retries for evaluate phase
-        local max_retries=""
-        if [[ "$phase" == "evaluate" ]]; then
-            max_retries=$(echo "$child_workflow" | jq '.phases.evaluate.max_retries // 3')
-        fi
-
-        # Build phase object
-        if [[ "$phase" == "evaluate" ]]; then
-            phases=$(echo "$phases" | jq --arg phase "$phase" \
-                --argjson steps "$phase_steps" \
-                --argjson enabled "$enabled" \
-                --argjson max_retries "$max_retries" \
-                '. + {($phase): {enabled: $enabled, steps: $steps, max_retries: $max_retries}}')
-        else
-            phases=$(echo "$phases" | jq --arg phase "$phase" \
-                --argjson steps "$phase_steps" \
-                --argjson enabled "$enabled" \
-                '. + {($phase): {enabled: $enabled, steps: $steps}}')
-        fi
+        # Build phase object, with its inherited require_approval, max_retries and result_handling
+        phases=$(echo "$phases" | jq --arg phase "$phase" \
+            --argjson steps "$phase_steps" \
+            --argjson enabled "$enabled" \
+            --argjson inh "$inherited" \
+            '. + {($phase): ({enabled: $enabled, steps: $steps} + ($inh.phases[$phase] | with_entries(select(.value != null))))}')
     done
 
     # Validate unique step IDs

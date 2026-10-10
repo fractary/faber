@@ -39,7 +39,7 @@ Plugin runs (`/fractary-faber-workflow-run`) ignore the runtime fields: model, h
 
 | Field | What it does in a CLI run |
 |---|---|
-| `extends` | Inherits from another workflow, such as `faber@fractary-faber:core`. References take the form `plugin@marketplace:workflow`, a project-local name, or `url:https://...`. |
+| `extends` | Inherits from another workflow, such as `faber@fractary-faber:core`. References take the form `plugin@marketplace:workflow`, a project-local name, or `url:https://...`. Steps merge by position. `autonomy.require_approval_for` is the union across the chain. Every other setting comes from the nearest workflow that sets it, field by field within `defaults`, `phase_defaults` and `result_handling`. |
 | `prompt` | Workflow-level system prompt, added to every agent step. |
 | `defaults` | Runtime fields for every step: `prompt`, `model`, `harness`, `max_turns`, `max_budget_usd`, `allowed_tools`, `skills`, `mcp`, `permission_mode`. |
 | `phase_defaults` | The same fields, per phase. |
