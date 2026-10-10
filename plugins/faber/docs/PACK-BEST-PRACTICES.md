@@ -155,7 +155,10 @@ Copy this into a "FABER conformance" section of the pack README. Link this guide
   - retries and failure handlers ([#238]);
   - permission modes ([#240], part 1);
   - the `/fractary-faber-workflow-debug` handler ([#249]).
-- **2026-10-10.** Approval gates, pause before release and failure handlers are inherited by workflows that extend a pack's workflow ([#266]).
+- **2026-10-10.** Workflows that extend a pack's workflow now inherit its settings ([#266]):
+  - approval gates and the pause before release;
+  - failure handlers;
+  - runtime defaults, such as `permission_mode`.
 
 [spec]: https://github.com/fractary/faber/blob/main/docs/specs/harness-hardening-plan.md
 [#235]: https://github.com/fractary/faber/issues/235

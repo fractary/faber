@@ -522,20 +522,25 @@ async function validateUrlSecurity(url: string): Promise<void> {
 }
 
 /**
- * Merge result handling across an inheritance chain, given child first: for
- * each field (`on_success`, `on_warning`, `on_failure`), the nearest layer that
- * sets it wins.
- * @returns The merged handling, or undefined if no layer sets any field
+ * Merge an object setting across an inheritance chain, given child first: for
+ * each field, the nearest layer that sets it wins. Used for result handling
+ * (`on_success`, `on_warning`, `on_failure`) and runtime defaults.
+ * @returns The merged object, or undefined if no layer sets any field
  */
-function mergeResultHandling(layers: Array<StepResultHandling | undefined>): StepResultHandling | undefined {
-  const merged: StepResultHandling = {};
+function mergeFields<T extends object>(layers: Array<T | undefined>): T | undefined {
+  const merged: Record<string, unknown> = {};
   for (const layer of [...layers].reverse()) {
     if (!layer) continue;
-    for (const [field, value] of Object.entries(layer) as Array<[keyof StepResultHandling, string | undefined]>) {
+    for (const [field, value] of Object.entries(layer)) {
       if (value !== undefined) merged[field] = value;
     }
   }
-  return Object.keys(merged).length > 0 ? merged : undefined;
+  return Object.keys(merged).length > 0 ? (merged as T) : undefined;
+}
+
+/** Merge result handling across an inheritance chain, field by field */
+function mergeResultHandling(layers: Array<StepResultHandling | undefined>): StepResultHandling | undefined {
+  return mergeFields(layers);
 }
 
 // ============================================================================
@@ -747,15 +752,24 @@ export class WorkflowResolver {
       resolved.phase_executors = mergedExecutor.phase_executors;
     }
 
-    // Include CLI-native execution configuration (child overrides parent)
-    if (childWorkflow.prompt) {
-      resolved.prompt = childWorkflow.prompt;
+    // Include CLI-native execution configuration, inherited field by field
+    const layers = chain.map((id) => this.workflowCache.get(id));
+    const prompt = layers.find((layer) => layer?.prompt !== undefined)?.prompt;
+    if (prompt !== undefined) {
+      resolved.prompt = prompt;
     }
-    if (childWorkflow.defaults) {
-      resolved.defaults = childWorkflow.defaults;
+    const defaults = mergeFields(layers.map((layer) => layer?.defaults));
+    if (defaults) {
+      resolved.defaults = defaults;
     }
-    if (childWorkflow.phase_defaults) {
-      resolved.phase_defaults = childWorkflow.phase_defaults;
+    const phaseNames = new Set(layers.flatMap((layer) => Object.keys(layer?.phase_defaults ?? {})));
+    const phaseDefaults: NonNullable<WorkflowFileConfig['phase_defaults']> = {};
+    for (const phaseName of phaseNames) {
+      const merged = mergeFields(layers.map((layer) => layer?.phase_defaults?.[phaseName]));
+      if (merged) phaseDefaults[phaseName] = merged;
+    }
+    if (Object.keys(phaseDefaults).length > 0) {
+      resolved.phase_defaults = phaseDefaults;
     }
 
     return resolved;

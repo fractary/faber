@@ -1312,5 +1312,33 @@ describe('WorkflowResolver', () => {
       expect(resolved.phases.release.require_approval).toBe(false);
       expect(resolved.phases.evaluate.max_retries).toBe(0);
     });
+
+    it('inherits runtime defaults field by field', async () => {
+      createWorkflow('fractary-faber', 'runtime-base', {
+        id: 'runtime-base',
+        prompt: 'Base mission',
+        defaults: { model: 'base-model', max_turns: 30, permission_mode: 'dontAsk' },
+        phase_defaults: {
+          build: { prompt: 'Build guidance', allowed_tools: ['Bash(npm test *)'] },
+          evaluate: { permission_mode: 'plan' },
+        },
+      });
+      createWorkflow('project', 'runtime-child', {
+        id: 'runtime-child',
+        extends: 'faber@fractary-faber:runtime-base',
+        phases: {},
+        defaults: { model: 'child-model' },
+        phase_defaults: { build: { max_turns: 10 } },
+      });
+
+      const resolved = await resolver.resolveWorkflow('runtime-child');
+
+      expect(resolved.prompt).toBe('Base mission');
+      expect(resolved.defaults).toEqual({ model: 'child-model', max_turns: 30, permission_mode: 'dontAsk' });
+      expect(resolved.phase_defaults).toEqual({
+        build: { prompt: 'Build guidance', allowed_tools: ['Bash(npm test *)'], max_turns: 10 },
+        evaluate: { permission_mode: 'plan' },
+      });
+    });
   });
 });
