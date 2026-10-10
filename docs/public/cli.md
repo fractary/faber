@@ -275,6 +275,7 @@ fractary-faber workflow-execute <plan-path> [options]
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--model <model>` | Default model for steps without an explicit executor | `claude-sonnet-5` |
+| `--harness <harness>` | Default harness for steps that set none: `claude-code`, `api`, `opencode` or `codex` | `claude-code` |
 | `--phase <phases>` | Execute only specified phase(s) — comma-separated (e.g., `build,evaluate`) | |
 | `--step <step-id>` | Execute only a specific step | |
 | `--resume <run-id>` | Resume an earlier run of this plan, skipping the steps it completed | |
@@ -316,6 +317,8 @@ An agent or model step's result comes from the FABER response block at the end o
 | `bypassPermissions` | Use every tool without a check, except calls that deny or ask rules cover. Use it only where the run is isolated, such as a disposable container: the run starts with a warning that names these steps. The Agent SDK refuses this mode when it runs as root outside a sandbox it recognizes |
 
 Until this version every agent step ran with `bypassPermissions`. To keep that, set `permission_mode: bypassPermissions` in `defaults`. Shell command steps (`!`) have no permission mode. An unknown mode stops the run before any step runs.
+
+Every step, phase and workflow field that `workflow-execute` reads is listed in the plugin's [Workflow Step Reference](../../plugins/faber/docs/WORKFLOW-STEP-REFERENCE.md).
 
 **Example:**
 ```bash

@@ -207,16 +207,24 @@ pytest tests/test_api.py
 
 1. **Ensure your PR addresses a single concern**
 2. **Update documentation** if you're changing behavior
-3. **Add or update tests** to maintain coverage
-4. **Ensure CI passes** (all tests and lints)
-5. **Request review** from maintainers
-6. **Address feedback** promptly
+3. **Update the pack guide** if you change what packs must do. That covers:
+   - the FABER response format;
+   - workflow schema fields;
+   - runtime behavior, such as how results, approvals, retries or permissions are handled;
+   - handler names.
+
+   Update [`plugins/faber/docs/PACK-BEST-PRACTICES.md`](plugins/faber/docs/PACK-BEST-PRACTICES.md) in the same PR: the practice, its status tag, and the *What changed* section. When a practice becomes enforced, update the packs' alignment issues too.
+4. **Add or update tests** to maintain coverage
+5. **Ensure CI passes** (all tests and lints)
+6. **Request review** from maintainers
+7. **Address feedback** promptly
 
 ### PR Checklist
 
 - [ ] Tests pass locally
 - [ ] Code is linted and formatted
 - [ ] Documentation is updated
+- [ ] Pack contract changes update `plugins/faber/docs/PACK-BEST-PRACTICES.md`
 - [ ] Commit messages follow conventions
 - [ ] No breaking changes (or clearly documented)
 - [ ] CHANGELOG updated (if applicable)

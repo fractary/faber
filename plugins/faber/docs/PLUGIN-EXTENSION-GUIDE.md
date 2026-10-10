@@ -1,914 +1,117 @@
 # FABER Plugin Extension Guide
 
-**Audience**: Plugin developers creating specialized `faber-{type}` plugins
+**Audience:** authors of FABER packs, the plugins that add domain skills and workflows on top of core FABER. Examples are faber-code, faber-cloud, faber-content, faber-ingest and faber-video.
 
-**Goal**: Extend core FABER with domain-specific skills and workflows
+This guide covers how a pack is laid out and wired into projects. For what core expects from a pack's steps, validators, approvals and permissions, and the conformance checklist, see [PACK-BEST-PRACTICES.md](./PACK-BEST-PRACTICES.md).
 
-## Overview
+## What a pack provides
 
-Specialized FABER plugins (like `faber-cloud`, `faber-app`) extend the core FABER workflow by:
-1. Adding domain-specific **skills**
-2. Providing specialized **workflows** that use those skills
-3. Adding workflows to the **core FABER config** (not separate configs)
+- **Skills** for the pack's domain: research, design, build, deploy and validate.
+- **Workflows** that extend core FABER's `core` workflow with steps that use those skills.
+- Optionally, a **config section** in `.fractary/config.yaml` for pack settings (for example `faber-cloud:`), validated by the pack's config schema. Standards and thresholds belong there or in standards docs, not in prompts.
 
-**Key principle**: All workflows centralize in the `faber:` section of `.fractary/config.yaml` for unified management and easy GitHub app integration.
+Core owns the five phases (Frame, Architect, Build, Evaluate, Release), the runtime and the run records. A pack adds steps within those phases; it does not add phases.
 
-## ⚠️ Critical: Preserve the Default Workflow
+## Layout
 
-**IMPORTANT**: When adding custom workflows, **ALWAYS keep the default workflow**. Custom workflows should be **added alongside** the default workflow, not replace it.
+A pack is a Claude Code plugin, published from a repository that is also its marketplace:
 
-**Why keep the default workflow?**
-- ✅ Provides a standard software development baseline that works for most issues
-- ✅ Gives teams a fallback for general development tasks
-- ✅ Serves as a reference implementation for custom workflows
-- ✅ Ensures FABER works out-of-the-box even with custom plugins installed
-
-**Example of correct workflows array in config.yaml:**
-```yaml
-faber:
-  workflows:
-    - id: default
-      file: ./workflows/default.json
-      description: "Standard FABER workflow (Frame -> Architect -> Build -> Evaluate -> Release)"
-      # default workflow is RETAINED
-    - id: cloud
-      file: ./workflows/cloud.json
-      description: "Infrastructure workflow (Terraform -> Deploy -> Monitor)"
-      # custom workflow is ADDED
-    - id: hotfix
-      file: ./workflows/hotfix.json
-      description: "Expedited workflow for critical patches"
-      # another custom workflow is ADDED
 ```
-
-**Workflow files structure:**
-```
-.fractary/
-├── config.yaml              # Main config (with faber: section referencing workflows)
-└── plugins/faber/workflows/ # Workflow definition files
-    ├── default.json         # Standard FABER workflow
-    ├── cloud.json           # Infrastructure workflow (from faber-cloud plugin)
-    └── hotfix.json          # Hotfix workflow
-```
-
-**How to use multiple workflows:**
-```bash
-# Use default workflow (general development)
-/fractary-faber-run 123
-
-# Use cloud workflow (infrastructure changes)
-/fractary-faber-run 456 --workflow cloud
-
-# Use hotfix workflow (critical patches)
-/fractary-faber-run 789 --workflow hotfix
-```
-
-## Architecture
-
-### Core FABER (baseline)
-```
-faber/
-  ├── commands/
-  │   └── init.md              # Creates default workflow
-  └── skills/                   # Universal skills
-      ├── frame/
-      ├── architect/
-      ├── build/
-      ├── evaluate/
-      └── release/
-```
-
-### Specialized Plugin (example: faber-cloud)
-```
-faber-cloud/
-  ├── commands/
-  │   └── init.md              # Copies workflow templates to project
-  ├── skills/                   # Cloud-specific skills
-  │   ├── terraform-manager/
-  │   ├── aws-deployer/
-  │   ├── cost-estimator/
-  │   └── security-scanner/
-  └── config/
-      └── workflows/            # Workflow templates (copied during init)
-          ├── cloud.json        # Infrastructure workflow
-          └── README.md         # Workflow documentation
-```
-
-**Template-Copy Pattern**: During plugin initialization, workflow templates are copied from `plugins/faber-cloud/config/workflows/` to `.fractary/faber/workflows/` and referenced in the main `faber:` section of `.fractary/config.yaml`.
-
-## Creating a Specialized Plugin
-
-### Step 1: Plugin Structure
-
-Create standard plugin structure:
-
-```bash
-plugins/faber-{type}/
+<repo>/
 ├── .claude-plugin/
-│   └── plugin.json           # Plugin manifest
-├── commands/
-│   └── init.md              # Init command (copies workflow templates)
-├── skills/
-│   ├── {skill-name}/
-│   │   ├── SKILL.md
-│   │   └── scripts/
-│   └── ...
-├── config/
-│   ├── workflows/            # Workflow templates (source)
-│   │   ├── {type}.json       # Workflow definition
-│   │   └── README.md         # Workflow documentation
-│   └── issue-templates/      # GitHub issue templates (source)
-│       ├── {type}.yml        # Issue template for this workflow
-│       └── README.md         # Template documentation
-└── README.md
+│   └── marketplace.json                # lists the plugin
+└── plugins/<pack>/
+    ├── .claude-plugin/
+    │   └── plugin.json                 # {"name", "version", "description", "skills": "./skills/"}
+    ├── skills/
+    │   └── fractary-faber-<pack>-<name>/
+    │       ├── SKILL.md
+    │       └── scripts/ ...            # and reference files the skill reads
+    ├── .fractary/faber/workflows/
+    │   └── <workflow-id>.json          # workflows the pack ships
+    └── config/                         # config schema and defaults (optional)
 ```
 
-**Note**: Workflow templates are stored in `config/workflows/` in the plugin and copied to `.fractary/faber/workflows/` during project initialization. References are added to the `faber:` section of `.fractary/config.yaml`.
+- **Skills, not commands.** Put each capability in a skill. A workflow step calls it by name: `/fractary-faber-code-engineer --work-id {work_id}`, or "Use the fractary-faber-code-engineer skill to ...". Prefix every skill with the pack name, as in `fractary-faber-code-engineer`. There is no `plugin:command` colon form.
+- **Agents.** A skill may delegate to a subagent in `agents/`. Its final output must then be the subagent's FABER response block, passed through verbatim (see the [runtime contract](./PACK-BEST-PRACTICES.md#1-runtime-contract)).
 
-### Step 2: Define Specialized Skills
+## Workflows
 
-Each skill should:
-- Perform a specific domain task
-- Follow the 2-layer architecture (slash command → skill → script)
-- Document clearly what it does
-
-**Example**: `skills/fractary-faber-terraform-manager/SKILL.md`
-
-```markdown
-# Terraform Manager Skill
-
-Manages Terraform operations (plan, apply, destroy) for infrastructure workflows.
-
-## Operations
-
-- **plan**: Generate Terraform execution plan
-- **apply**: Apply Terraform changes
-- **validate**: Validate Terraform configuration
-- **cost-estimate**: Estimate infrastructure costs
-
-## Usage
-
-Invoked by faber-cloud workflows in the build and evaluate phases.
-```
-
-### Step 3: Create Workflow Template
-
-Define a workflow that uses your specialized skills.
-
-**Location**: `config/workflows/cloud.json` (in your plugin directory)
-
-This file will be copied to `.fractary/faber/workflows/cloud.json` during project initialization.
-
-**Example**: `plugins/faber-cloud/config/workflows/cloud.json`
+A pack workflow extends core and adds its steps:
 
 ```json
 {
-  "$schema": "../../../faber/config/workflow.schema.json",
-  "id": "cloud",
-  "description": "Infrastructure workflow (Terraform → Deploy → Monitor)",
+  "$schema": "https://raw.githubusercontent.com/fractary/faber/main/plugins/faber/config/workflow.schema.json",
+  "id": "default",
+  "description": "Software development workflow",
+  "extends": "faber@fractary-faber:core",
   "phases": {
-    "frame": {
-      "enabled": true,
-      "description": "Frame: Fetch issue, create branch",
-      "steps": [
-        {
-          "name": "fetch-issue",
-          "description": "Fetch infrastructure issue",
-          "skill": "fractary-work-issue-fetcher"
-        },
-        {
-          "name": "create-branch",
-          "description": "Create infrastructure branch",
-          "skill": "fractary-repo-branch-manager"
-        }
-      ]
-    },
-    "architect": {
-      "enabled": true,
-      "description": "Architect: Design infrastructure",
-      "steps": [
-        {
-          "name": "design-infrastructure",
-          "description": "Generate infrastructure design",
-          "skill": "faber-cloud:infrastructure-designer"
-        },
-        {
-          "name": "cost-estimate",
-          "description": "Estimate infrastructure costs",
-          "skill": "faber-cloud:cost-estimator"
-        }
-      ]
-    },
     "build": {
-      "enabled": true,
-      "description": "Build: Generate Terraform code",
-      "steps": [
+      "pre_steps": [
         {
-          "name": "terraform-plan",
-          "description": "Generate Terraform execution plan",
-          "skill": "faber-cloud:terraform-manager"
+          "id": "build-engineer",
+          "name": "Engineer Solution",
+          "prompt": "Use the fractary-faber-code-engineer skill to implement the solution for work item {work_id}."
         },
         {
-          "name": "security-scan",
-          "description": "Scan for security issues (checkov, tfsec)",
-          "skill": "faber-cloud:security-scanner"
-        },
-        {
-          "name": "commit",
-          "description": "Commit Terraform code",
-          "skill": "fractary-repo-commit-creator"
-        }
-      ]
-    },
-    "evaluate": {
-      "enabled": true,
-      "description": "Evaluate: Validate and test infrastructure",
-      "max_retries": 2,
-      "steps": [
-        {
-          "name": "terraform-validate",
-          "description": "Validate Terraform configuration",
-          "skill": "faber-cloud:terraform-manager"
-        },
-        {
-          "name": "compliance-check",
-          "description": "Check compliance policies",
-          "skill": "faber-cloud:compliance-checker"
-        },
-        {
-          "name": "cost-review",
-          "description": "Review estimated costs",
-          "skill": "faber-cloud:cost-estimator"
-        }
-      ]
-    },
-    "release": {
-      "enabled": true,
-      "description": "Release: Apply infrastructure changes",
-      "require_approval": true,
-      "steps": [
-        {
-          "name": "terraform-apply",
-          "description": "Apply Terraform changes to infrastructure",
-          "skill": "faber-cloud:terraform-manager"
-        },
-        {
-          "name": "deploy-infra",
-          "description": "Deploy infrastructure components",
-          "skill": "faber-cloud:aws-deployer"
-        },
-        {
-          "name": "create-pr",
-          "description": "Create PR documenting infrastructure changes",
-          "skill": "fractary-repo-pr-manager"
+          "id": "build-engineer-validate",
+          "name": "Validate Engineer Work",
+          "role": "validator",
+          "prompt": "Use the fractary-faber-code-validate skill with type 'engineering' for work item {work_id}.",
+          "permission_mode": "dontAsk",
+          "allowed_tools": ["Bash(npm test *)", "Bash(npm run lint *)"]
         }
       ]
     }
-  },
-  "hooks": {
-    "pre_frame": [],
-    "post_frame": [],
-    "pre_architect": [
-      {
-        "type": "document",
-        "name": "infrastructure-standards",
-        "path": "docs/infrastructure/STANDARDS.md",
-        "description": "Load infrastructure design standards"
-      }
-    ],
-    "post_architect": [],
-    "pre_build": [],
-    "post_build": [],
-    "pre_evaluate": [],
-    "post_evaluate": [],
-    "pre_release": [
-      {
-        "type": "skill",
-        "name": "final-cost-check",
-        "skill": "faber-cloud:cost-estimator",
-        "description": "Final cost verification before applying"
-      }
-    ],
-    "post_release": [
-      {
-        "type": "script",
-        "name": "notify-ops-team",
-        "path": "./scripts/notify-ops.sh",
-        "description": "Notify operations team of infrastructure changes"
-      }
-    ]
   },
   "autonomy": {
     "level": "guarded",
-    "pause_before_release": true,
-    "require_approval_for": ["release"],
-    "overrides": {}
+    "require_approval_for": ["evaluate-deploy-apply-test"]
   }
 }
 ```
 
-### Step 4: Create Init Skill
+- **Steps** have an `id` that is unique across the merged workflow, a `name` and a `prompt`. They may add `role`, `result_handling` and runtime fields. The old `skill` and `command` step fields are deprecated. Every field is listed in [WORKFLOW-STEP-REFERENCE.md](./WORKFLOW-STEP-REFERENCE.md).
+- **Inheritance:** a phase runs its `pre_steps`, then its main `steps`, then its `post_steps`.
+  - `pre_steps` from every workflow in the chain run, the root's first.
+  - `post_steps` from every workflow run, the child's first.
+  - Main `steps` come from the nearest workflow that defines them, so setting `steps` replaces the parent's.
+  - `skip_steps` drops inherited steps by ID.
+- **References:**
+  - `extends` uses the form `<plugin>@<marketplace>:<workflow>`; core is `faber@fractary-faber:core`.
+  - A project refers to your workflow the same way, for example `faber-code@fractary-faber-code:default`.
 
-The init skill **copies workflow templates** and **adds references** to the core FABER config using the **template-copy pattern**:
+## How projects use a pack
 
-**Example**: `skills/fractary-faber-cloud-config/SKILL.md`
+1. **Install the plugin**: `/plugin install <plugin>@<marketplace>`. CLI runs load only the project's Claude settings (`settingSources: ['project']`), so enable the plugin for the project in `.claude/settings.json`, not only for your user.
+2. **Add a project workflow** that extends the pack's workflow. Put project-specific steps or `context` overlays in it, rather than copying the pack's file:
 
-```markdown
-# /fractary-faber-cloud:configure
-
-Initialize cloud infrastructure workflow for FABER.
-
-## What This Does
-
-1. Copies workflow template from plugin to project
-2. Adds workflow reference to `.fractary/config.yaml` (faber: section)
-
-**Files created:**
-- `.fractary/faber/workflows/cloud.json` (workflow definition)
-
-**Files modified:**
-- `.fractary/config.yaml` (adds workflow reference to faber: section)
-
-## Prerequisites
-
-- Core FABER must be initialized first: `/fractary-faber-configure`
-
-## Usage
-
-```bash
-# Add cloud workflow to existing FABER config
-/fractary-faber-cloud:configure
-
-# Specify environment (optional)
-/fractary-faber-cloud:configure --env production
-/fractary-faber-cloud:configure --env staging
-```
-
-## Implementation (Template-Copy Pattern)
-
-This command should:
-1. Check if core FABER config exists (require `/fractary-faber-configure` first)
-2. Create `.fractary/faber/workflows/` directory if needed
-3. Copy workflow template:
-   - From: `plugins/faber-cloud/config/workflows/cloud.json`
-   - To: `.fractary/faber/workflows/cloud.json`
-4. Load existing config from `.fractary/config.yaml`
-5. Check if "cloud" workflow reference already exists in faber.workflows (warn if duplicate)
-6. Add workflow reference to faber.workflows array:
-   ```yaml
-   - id: cloud
-     file: ./workflows/cloud.json
-     description: "Infrastructure workflow (Terraform -> Deploy -> Monitor)"
+   ```json
+   {
+     "id": "app",
+     "extends": "faber-code@fractary-faber-code:default"
+   }
    ```
-7. Write updated config back to `.fractary/config.yaml`
-8. Validate configuration and workflow file
-9. Report success with usage instructions
 
-## After Initialization
+   Save it as `.fractary/faber/workflows/app.json`. Check the merged result with `fractary-faber workflow-resolve app`.
+3. **Plan and run:**
+   - Plan with `fractary-faber workflow-plan --work-id 123 --workflow app`, or label the issue `workflow:app`.
+   - Run with `fractary-faber workflow-execute <plan.json>` or `/fractary-faber-workflow-run <plan-id>`.
 
-The "cloud" workflow will be available:
+## Issue templates (optional)
 
-```bash
-# Use cloud workflow for infrastructure issues
-/fractary-faber-run 123 --workflow cloud
+A pack can ship GitHub issue templates whose labels include `workflow:<id>`. `workflow-plan` then picks that workflow for issues created from the template. Keep templates in the pack (for example `config/issue-templates/`). Document how a project copies them into `.github/ISSUE_TEMPLATE/`.
 
-# Status for cloud workflow
-/fractary-faber-status 123
-```
+## Before you release
+
+- Go through the [conformance checklist](./PACK-BEST-PRACTICES.md#11-conformance-checklist) and keep it in the pack README.
+- CI runs the pack's tests.
+- Every workflow resolves: run `fractary-faber workflow-resolve` for each one.
 
 ## See Also
 
-- Core FABER: `/fractary-faber-configure`
-- Workflow selection: `/fractary-faber-run --help`
-```
-
-### Step 5: Create GitHub Issue Templates (Recommended)
-
-Provide GitHub issue templates that mirror your workflow definitions. These templates will be copied to the project's `.github/ISSUE_TEMPLATE/` directory during initialization.
-
-**Why include issue templates:**
-- Provides workflow selection at issue creation time
-- Pre-populates metadata and labels aligned with specific workflows
-- Ensures issues have the right structure for the workflow they'll follow
-- Makes custom workflows discoverable to users
-
-#### Template Structure in Plugin
-
-Store issue templates in your plugin's `config/issue-templates/` directory:
-
-```
-plugins/faber-cloud/
-├── config/
-│   ├── workflows/            # Workflow definitions
-│   │   └── cloud.json
-│   └── issue-templates/      # Issue templates
-│       ├── cloud.yml         # Template for cloud workflow
-│       └── README.md         # Documentation
-```
-
-#### Example: Cloud Infrastructure Template
-
-**File**: `plugins/faber-cloud/config/issue-templates/cloud.yml`
-
-```yaml
-name: Cloud Infrastructure Change
-description: Infrastructure workflow using Terraform and AWS
-title: "[Infrastructure]: "
-labels: ["type:infrastructure", "workflow:cloud"]
-body:
-  - type: markdown
-    attributes:
-      value: |
-        This issue will follow the **cloud FABER workflow**:
-        Frame → Architect (cost estimate) → Build (Terraform) → Evaluate (security scan) → Release (apply)
-
-  - type: dropdown
-    id: change-type
-    attributes:
-      label: Change Type
-      description: What type of infrastructure change?
-      options:
-        - New resource
-        - Update existing resource
-        - Delete resource
-        - Configuration change
-    validations:
-      required: true
-
-  - type: dropdown
-    id: environment
-    attributes:
-      label: Target Environment
-      description: Which environment will this affect?
-      options:
-        - Development
-        - Staging
-        - Production
-    validations:
-      required: true
-
-  - type: textarea
-    id: description
-    attributes:
-      label: Infrastructure Description
-      description: What infrastructure should be created/modified?
-      placeholder: Describe the infrastructure components...
-    validations:
-      required: true
-
-  - type: textarea
-    id: resources
-    attributes:
-      label: AWS Resources
-      description: What AWS resources will be affected?
-      placeholder: |
-        - EC2 instances
-        - S3 buckets
-        - RDS databases
-        - etc.
-
-  - type: textarea
-    id: cost-estimate
-    attributes:
-      label: Expected Cost Impact
-      description: Estimated monthly cost change
-      placeholder: |
-        Current: $X/month
-        New: $Y/month
-        Increase: $Z/month
-
-  - type: checkboxes
-    id: security
-    attributes:
-      label: Security Considerations
-      description: Have you considered security implications?
-      options:
-        - label: Security groups configured properly
-        - label: IAM roles follow least privilege
-        - label: Encryption enabled where applicable
-        - label: Compliance requirements reviewed
-
-  - type: textarea
-    id: rollback
-    attributes:
-      label: Rollback Plan
-      description: How can this change be reverted if needed?
-```
-
-#### Copy Templates During Init
-
-Modify your init command to copy both workflow definitions AND issue templates:
-
-**Updated implementation** (extend Step 4's init logic):
-
-```javascript
-function initFaberCloudWorkflow() {
-  // ... existing workflow copy logic ...
-
-  // Copy issue template
-  const issueTemplateDir = '.github/ISSUE_TEMPLATE'
-  const templateSource = 'plugins/faber-cloud/config/issue-templates/cloud.yml'
-  const templateTarget = '.github/ISSUE_TEMPLATE/cloud.yml'
-
-  // Create .github/ISSUE_TEMPLATE directory if needed
-  if (!exists(issueTemplateDir)) {
-    mkdir(issueTemplateDir, { recursive: true })
-    log("Created .github/ISSUE_TEMPLATE directory")
-  }
-
-  // Copy issue template
-  if (exists(templateTarget)) {
-    warn("Cloud issue template already exists, skipping copy")
-  } else {
-    copyFile(templateSource, templateTarget)
-    log("Copied cloud issue template to .github/ISSUE_TEMPLATE/cloud.yml")
-  }
-
-  // Report success with issue template info
-  success(`Cloud workflow added to FABER
-
-  Files created:
-    - .fractary/faber/workflows/cloud.json (workflow definition)
-    - .github/ISSUE_TEMPLATE/cloud.yml (issue template)
-
-  Files modified:
-    - .fractary/config.yaml (added workflow reference to faber: section)
-
-  Usage:
-    1. Create issue using "Cloud Infrastructure Change" template
-    2. Run: /fractary-faber-run <issue-number>
-    3. FABER detects "workflow:cloud" label and uses cloud workflow
-
-  Customize:
-    - Workflow: .fractary/faber/workflows/cloud.json
-    - Template: .github/ISSUE_TEMPLATE/cloud.yml
-  `)
-}
-```
-
-#### Multiple Templates Example
-
-If your plugin provides multiple workflows, provide corresponding templates:
-
-```
-plugins/faber-cloud/config/issue-templates/
-├── cloud-aws.yml       # AWS-specific infrastructure
-├── cloud-gcp.yml       # GCP-specific infrastructure
-├── cloud-azure.yml     # Azure-specific infrastructure
-└── README.md           # Template documentation
-```
-
-Your init command should copy the appropriate template:
-
-```bash
-# Copy AWS template
-/fractary-faber-cloud:configure --provider aws
-# Copies: cloud-aws.yml → .github/ISSUE_TEMPLATE/cloud-aws.yml
-
-# Copy GCP template
-/fractary-faber-cloud:configure --provider gcp
-# Copies: cloud-gcp.yml → .github/ISSUE_TEMPLATE/cloud-gcp.yml
-```
-
-#### Template Best Practices
-
-1. **Label mapping**: Use `workflow:{id}` label to map to workflow ID
-   ```yaml
-   labels: ["type:infrastructure", "workflow:cloud"]
-   ```
-
-2. **Workflow documentation**: Include markdown explaining the workflow
-   ```yaml
-   - type: markdown
-     attributes:
-       value: |
-         This issue follows the **cloud workflow**:
-         Frame → Architect (cost) → Build (Terraform) → Evaluate → Release
-   ```
-
-3. **Domain-specific fields**: Include fields relevant to your workflow
-   - Infrastructure: environment, resources, cost estimate
-   - Application: feature type, UI/API, dependencies
-   - Documentation: doc type, audience, scope
-
-4. **Validation**: Use required fields for critical information
-   ```yaml
-   validations:
-     required: true
-   ```
-
-5. **Checklists**: Include pre-flight checks
-   ```yaml
-   - type: checkboxes
-     id: prerequisites
-     attributes:
-       label: Prerequisites
-       options:
-         - label: Design approved
-         - label: Cost estimated
-   ```
-
-#### Documentation in README
-
-Document the template in `config/issue-templates/README.md`:
-
-```markdown
-# Cloud Infrastructure Issue Templates
-
-This directory contains GitHub issue templates for the faber-cloud plugin workflows.
-
-## Templates
-
-### cloud.yml
-Maps to the `cloud` workflow for general infrastructure changes.
-
-**Labels**: `type:infrastructure`, `workflow:cloud`
-**Workflow**: Frame → Architect (cost) → Build (Terraform) → Evaluate → Release
-
-**Fields**:
-- Change Type: Type of infrastructure modification
-- Target Environment: dev/staging/production
-- Infrastructure Description: What to create/modify
-- AWS Resources: Affected resource types
-- Cost Estimate: Expected monthly cost impact
-- Security Considerations: Security checklist
-- Rollback Plan: How to revert changes
-
-## Usage
-
-After running `/fractary-faber-cloud:configure`, users can:
-
-1. Go to GitHub → Issues → New Issue
-2. Select "Cloud Infrastructure Change" template
-3. Fill out the form
-4. Issue is created with `workflow:cloud` label
-5. Run `/fractary-faber-run <issue-number>` to execute cloud workflow
-```
-
-### Step 6: Implement Init Logic (Template-Copy Pattern)
-
-The init command should programmatically copy workflow templates and add references:
-
-```javascript
-// Pseudocode for init implementation using template-copy pattern
-
-function initFaberCloudWorkflow() {
-  // 1. Check prerequisites
-  const unifiedConfigPath = '.fractary/config.yaml'
-  if (!exists(unifiedConfigPath)) {
-    error("Core FABER not initialized. Run /fractary-faber-configure first")
-    return
-  }
-
-  // 2. Create workflows directory if needed
-  const workflowsDir = '.fractary/faber/workflows'
-  if (!exists(workflowsDir)) {
-    mkdir(workflowsDir)
-  }
-
-  // 3. Copy workflow template
-  const templatePath = 'plugins/faber-cloud/config/workflows/cloud.json'
-  const targetPath = '.fractary/faber/workflows/cloud.json'
-
-  if (exists(targetPath)) {
-    warn("Cloud workflow file already exists, skipping copy")
-  } else {
-    copyFile(templatePath, targetPath)
-    log("Copied cloud workflow template")
-  }
-
-  // 4. Load existing config (extract faber section from YAML)
-  const fullConfig = readYAML(unifiedConfigPath)
-  const config = fullConfig.faber
-
-  // 5. CRITICAL: Verify default workflow reference exists
-  const defaultWorkflow = config.workflows.find(w => w.id === 'default')
-  if (!defaultWorkflow) {
-    error("Default workflow not found. This should never happen. Re-run /fractary-faber-configure")
-    return
-  }
-
-  // 6. Check for duplicate reference
-  const existingCloudRef = config.workflows.find(w => w.id === 'cloud')
-  if (existingCloudRef) {
-    warn("Cloud workflow reference already exists in config")
-    return
-  }
-
-  // 7. Add workflow reference to config (NOT the full workflow)
-  const workflowRef = {
-    "id": "cloud",
-    "file": "./workflows/cloud.json",
-    "description": "Infrastructure workflow (Terraform -> Deploy -> Monitor)"
-  }
-
-  // 8. Add reference to workflows array (PRESERVE default workflow)
-  config.workflows.push(workflowRef)
-
-  // 9. Write updated config back to YAML
-  fullConfig.faber = config
-  writeYAML(unifiedConfigPath, fullConfig)
-
-  // 10. Validate configuration
-  const configValidation = validateConfig(config)
-  if (!configValidation.valid) {
-    error("Configuration validation failed", configValidation.errors)
-    return
-  }
-
-  // 11. Validate workflow file
-  const workflowValidation = validateWorkflowFile(targetPath)
-  if (!workflowValidation.valid) {
-    error("Workflow file validation failed", workflowValidation.errors)
-    return
-  }
-
-  // 12. Report success
-  success(`Cloud workflow added to FABER
-
-  Files created:
-    - .fractary/faber/workflows/cloud.json
-
-  Files modified:
-    - .fractary/config.yaml (added workflow reference to faber: section)
-
-  Usage:
-    /fractary-faber-run <work-id> --workflow cloud
-
-  Customize:
-    Edit .fractary/faber/workflows/cloud.json
-    Modify phases, steps, and hooks as needed
-  `)
-}
-```
-
-### Step 7: Update Testing Flow
-
-When testing your plugin integration, verify both workflow and issue template installation:
-
-```bash
-# Test integration
-1. /fractary-faber-configure                    # Core FABER
-2. /fractary-faber-cloud:configure              # Your plugin
-
-# Verify files created
-3. ls .fractary/faber/workflows/   # Should show cloud.json
-4. ls .github/ISSUE_TEMPLATE/              # Should show cloud.yml
-
-# Verify config
-5. yq '.faber' .fractary/config.yaml    # Should reference cloud workflow
-
-# Test issue template
-6. Create test issue using "Cloud Infrastructure Change" template on GitHub
-7. /fractary-faber-run <issue-number>      # Should auto-detect workflow from label
-```
-
-## Best Practices
-
-### 1. Namespace Your Skills
-
-Use consistent naming:
-```
-faber-cloud:terraform-manager
-faber-cloud:aws-deployer
-faber-app:ui-generator
-faber-app:api-designer
-```
-
-### 2. Provide Multiple Workflow Options
-
-A plugin can provide multiple workflows:
-
-```json
-{
-  "workflows": [
-    {
-      "id": "cloud-aws",
-      "description": "AWS infrastructure workflow"
-    },
-    {
-      "id": "cloud-gcp",
-      "description": "GCP infrastructure workflow"
-    },
-    {
-      "id": "cloud-azure",
-      "description": "Azure infrastructure workflow"
-    }
-  ]
-}
-```
-
-Let users choose:
-```bash
-/fractary-faber-cloud:configure --provider aws
-/fractary-faber-cloud:configure --provider gcp
-```
-
-### 3. Respect Core FABER Structure
-
-- Don't modify core FABER phases (frame, architect, build, evaluate, release)
-- Add steps within phases, don't create new phases
-- Use hooks for pre/post phase operations
-- Follow phase-level hook structure (10 hooks total)
-
-### 4. Document Skill Dependencies
-
-Clearly document what tools/platforms your skills require:
-
-```markdown
-## Prerequisites
-
-- Terraform >= 1.0
-- AWS CLI configured
-- checkov for security scanning
-- Environment variables:
-  - AWS_ACCESS_KEY_ID
-  - AWS_SECRET_ACCESS_KEY
-  - AWS_REGION
-```
-
-### 5. Provide Configuration Examples
-
-Show users how to customize your workflows:
-
-```json
-// Example customization for faber-cloud
-{
-  "workflows": [
-    {
-      "id": "cloud",
-      "phases": {
-        "build": {
-          "steps": [
-            {
-              "name": "terraform-plan",
-              "skill": "faber-cloud:terraform-manager",
-              "config": {
-                "backend": "s3",
-                "state_key": "terraform.tfstate",
-                "auto_approve": false
-              }
-            }
-          ]
-        }
-      }
-    }
-  ]
-}
-```
-
-## Testing Your Plugin
-
-### Test Integration Flow
-
-1. Initialize core FABER:
-   ```bash
-   /fractary-faber-configure
-   ```
-
-2. Initialize your plugin:
-   ```bash
-   /fractary-faber-cloud:configure
-   ```
-
-3. Verify config:
-   ```bash
-   yq '.faber' .fractary/config.yaml
-   # Should show both "default" and "cloud" workflows in faber.workflows
-   ```
-
-4. Run audit:
-   ```bash
-   /fractary-faber-audit
-   # Should validate both workflows
-   ```
-
-5. Test workflow:
-   ```bash
-   /fractary-faber-run 123 --workflow cloud --autonomy dry-run
-   ```
-
-## Examples
-
-### Example 1: faber-cloud Plugin
-
-See `plugins/faber-cloud/` for complete implementation showing:
-- Terraform management skills
-- AWS deployment skills
-- Infrastructure workflows
-- Multi-environment support
-
-### Example 2: faber-app Plugin (planned)
-
-Would provide:
-- UI generation skills
-- API design skills
-- Database migration skills
-- Full-stack application workflows
-
-## See Also
-
-- [PROJECT-INTEGRATION-GUIDE.md](./PROJECT-INTEGRATION-GUIDE.md) - For end users adopting FABER
-- [CONFIGURATION.md](./CONFIGURATION.md) - Configuration reference
-- Core FABER: `plugins/faber/`
-- Example plugin: `plugins/faber-cloud/`
+- [PACK-BEST-PRACTICES.md](./PACK-BEST-PRACTICES.md): what core expects from a pack, with status tags and the checklist
+- [WORKFLOW-STEP-REFERENCE.md](./WORKFLOW-STEP-REFERENCE.md): workflow fields that CLI runs read
+- [FABER-SKILL-BEST-PRACTICES.md](./FABER-SKILL-BEST-PRACTICES.md): the FABER response block
+- [RESULT-HANDLING.md](./RESULT-HANDLING.md): `on_failure`, retries and handlers
+- [PROJECT-INTEGRATION-GUIDE.md](./PROJECT-INTEGRATION-GUIDE.md): adopting FABER in a project

@@ -14,6 +14,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | faber plugin | 5.2.0 | Minor |
 | Marketplace | 5.2.0 | Minor |
 
+### Added
+
+- **Pack best-practices guide** (#255, version 1): `plugins/faber/docs/PACK-BEST-PRACTICES.md` describes what core expects from a maker pack. It covers the runtime contract, validators, failure handling, approvals, least privilege, handoffs, skill anatomy, workflow hygiene, and tests and evals. Each practice is tagged as enforced (with the change that enforced it), required, or planned (with its milestone). It ends with a conformance checklist that packs copy into their README
+  - New `plugins/faber/docs/WORKFLOW-STEP-REFERENCE.md` lists the step, phase and workflow fields that `workflow-execute` reads and what each does. These were documented only in the schema. It records that `skills` has no effect yet (#263), and that `harness: api` steps ignore `model` (#264)
+  - `PLUGIN-EXTENSION-GUIDE.md` is rewritten for today's packs: skills instead of `commands/`, no colon-style names, the current step format, `extends`, and how projects use a pack workflow. The planned `faber-app` example is gone
+  - `FABER-SKILL-BEST-PRACTICES.md`:
+    - the response block must come last;
+    - a delegating skill passes its subagent's block through;
+    - validators set `role: validator`;
+    - `on_failure` is no longer described as an immutable stop;
+    - the run-state examples match what CLI runs write;
+    - three links to files that do not exist are removed
+  - The faber README, the plugin README and `docs/public/` link to the guide. `CONTRIBUTING.md` and a new PR template require pack-contract changes to update it in the same PR
+  - The workflow schema's `$id` now points at this repository instead of `fractary/claude-plugins`. `docs/public/cli.md` lists the `--harness` option
+
 ### Changed
 
 - **Model Re-tier (Claude Opus 5 / Sonnet 5)**: Agents now pick models by task complexity

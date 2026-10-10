@@ -133,6 +133,7 @@ fractary-faber run-inspect --work-id 123
 - [Intelligent Guardrails](./guardrails.md) - Autonomy and safety model
 - [CLI Reference](./cli.md) - Command-line interface
 - [Plugin Reference](./plugin-reference.md) - Plugin commands and agents
+- [Pack Best Practices](https://github.com/fractary/faber/blob/main/plugins/faber/docs/PACK-BEST-PRACTICES.md) - What core FABER expects from a pack (faber-code, faber-cloud and others)
 - [API Reference](./api.md) - Programmatic API
 
 ## Community & Support
