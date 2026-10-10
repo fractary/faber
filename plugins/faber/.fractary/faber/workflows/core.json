@@ -40,7 +40,7 @@
                     "id": "frame-env-switch-test",
                     "name": "Set Environment",
                     "description": "Set the environment for the workflow to test to use appropriate .env variables.",
-                    "prompt": "Use the fractary-core-env-switch skill to switch to the test environment."
+                    "prompt": "Use the fractary-core-env-switcher skill to switch to the test environment."
                 },
                 {
                     "id": "frame-codex-sync",
@@ -73,7 +73,7 @@
                     "id": "architect-env-switch-test",
                     "name": "Set Environment",
                     "description": "Set the environment for the workflow to test to use appropriate .env variables.",
-                    "prompt": "Use the fractary-core-env-switch skill to switch to the test environment."
+                    "prompt": "Use the fractary-core-env-switcher skill to switch to the test environment."
                 }
             ],
             "steps": [],
@@ -100,7 +100,7 @@
                     "id": "build-env-switch-test",
                     "name": "Set Environment",
                     "description": "Set the environment for the workflow to test to use appropriate .env variables.",
-                    "prompt": "Use the fractary-core-env-switch skill to switch to the test environment."
+                    "prompt": "Use the fractary-core-env-switcher skill to switch to the test environment."
                 }
             ],
             "steps": [],
@@ -127,13 +127,13 @@
                     "id": "evaluate-env-switch-test",
                     "name": "Set Environment",
                     "description": "Set the environment for the workflow to test to use appropriate .env variables.",
-                    "prompt": "Use the fractary-core-env-switch skill to switch to the test environment."
+                    "prompt": "Use the fractary-core-env-switcher skill to switch to the test environment."
                 },
                 {
                     "id": "evaluate-pr-review",
                     "name": "Review PR CI Checks",
                     "description": "Wait for and review CI/CD pipeline results",
-                    "prompt": "Use the fractary-repo-pr-review skill to review PR {pr_id}. Wait for CI to complete and auto-fix any issues found."
+                    "prompt": "Use the fractary-repo-pr-reviewer skill to review the open pull request from this run's branch for work item {work_id}. Wait for CI to complete and auto-fix any issues found."
                 },
                 {
                     "id": "evaluate-forward-to-test",
@@ -165,7 +165,7 @@
                     "id": "release-env-switch-prod",
                     "name": "Set Environment to Production",
                     "description": "Set the environment for the workflow to production to use appropriate .env variables for release.",
-                    "prompt": "Use the fractary-core-env-switch skill to switch to the prod environment."
+                    "prompt": "Use the fractary-core-env-switcher skill to switch to the prod environment."
                 },
                 {
                     "id": "release-create-pr",
@@ -177,7 +177,7 @@
                     "id": "release-pr-merge-prod",
                     "name": "Merge PR to Main Branch",
                     "description": "Merge the pull request to the main branch.",
-                    "prompt": "Use the fractary-repo-pr-merge skill to merge PR {pr_id} with squash strategy. Delete the source branch after merge.",
+                    "prompt": "Use the fractary-repo-pr-merge skill to merge the open pull request from this run's branch for work item {work_id} into the production branch, with squash strategy. Delete the source branch after merge.",
                     "changelog": {
                         "event_type": "CODE_MERGED",
                         "environment": "prod"
