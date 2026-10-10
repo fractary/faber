@@ -169,16 +169,11 @@ For complex issues (6+ steps or multiple concerns):
 
 **Create Specification:**
 ```bash
-# Invoke fractary-docs-write with solution context
-/fractary-docs-write spec \
-  --work-id 244 \
-  --prompt "Debugger identified the following issues requiring coordinated fixes:
-    1. Type errors in auth module
-    2. Missing dependency types
-    3. Test expectations need update
-
-    This spec should detail the implementation order and testing strategy."
+# Create a bug-fix spec with fractary-docs-writer
+/fractary-docs-writer spec-bug --work-id 244
 ```
+
+Give the writer the solution context: the issues that need coordinated fixes (for example, type errors in the auth module, missing dependency types, and test expectations to update), the implementation order, and the testing strategy.
 
 **Spec Content:**
 ```markdown

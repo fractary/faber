@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The core workflow names current skills and no `{pr_id}`** (#269): Every workflow that extends `faber@fractary-faber:core` inherits these steps
+  - The five environment-switch steps asked for `fractary-core-env-switch`, and `evaluate-pr-review` for `fractary-repo-pr-review`. fractary/core names them `fractary-core-env-switcher` and `fractary-repo-pr-reviewer`
+  - `evaluate-pr-review` and `release-pr-merge-prod` used `{pr_id}`, which no runtime fills in, so the production merge step received the literal text `{pr_id}`. They now name the open pull request from the run's branch for the work item
+  - The orchestration protocol's examples and the debugger's spec step named `/fractary-docs-write`, which fractary-docs archived. They now use `/fractary-docs-writer`
+  - New `plugins/faber/tests/scripts/test-core-workflow.sh` checks that core.json names only known skills and only placeholders both runtimes fill
 - **Extending a workflow no longer drops its approval gates or failure handlers** (#266): The resolver took `autonomy`, the workflow-level `result_handling`, and each phase's `require_approval`, `max_retries` and `result_handling` from the child workflow only. So a project workflow that extended faber-code's default lost faber-code's approval gates, its pause before release, the release phase's approval and its `/fractary-faber-workflow-debug` handler, and a production merge ran without approval
   - `autonomy.require_approval_for` is now the union across the inheritance chain, so an extension cannot drop a gate without skipping its step
   - `pause_before_release`, `level`, the result-handling fields, and a phase's `require_approval` and `max_retries` come from the nearest workflow that sets them
