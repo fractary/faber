@@ -59,7 +59,7 @@ The block's schema is `config/schemas/skill-response.schema.json`, and [RESPONSE
 | Practice | Status |
 |---|---|
 | Gates use `on_failure: stop`, the default. | **Enforced** ([#238]) |
-| Every `on_failure` handler exists. Core ships `/fractary-faber-workflow-debug`, which diagnoses the failure and stops the run. | **Enforced**: the handler exists ([#249]). In CLI runs, a handler that fails or cannot run stops the run ([#238]). |
+| Every `on_failure` handler exists. Core ships `/fractary-faber-workflow-debug`, which diagnoses the failure and stops the run. | **Required**. Core restored the handler ([#249]), and in CLI runs a handler that fails or cannot run stops the run ([#238]). A lint that rejects unknown handlers is planned (B3). |
 | Use `on_failure: retry` only for steps that are safe to repeat, and set `max_retries` on the phase. Evaluate allows 3 by default, other phases none. Retries are counted per phase and kept when a run is resumed. | **Enforced** in CLI runs ([#238]) |
 | No uncapped fix loops. `--auto-fix` has no effect today, and a skill must not loop on its own. | **Required**. A capped fix loop is planned (D2). |
 | Handlers get the step's error from the `--step-context-file` JSON, not from `{error}` in the command. | **Enforced** in CLI runs ([#238]) |
