@@ -53,10 +53,12 @@ export { ExecutorRegistry } from './registry.js';
 export {
   ClaudeExecutor,
   ClaudeAgentExecutor,
+  setAgentSdkLoader,
   OpenAIExecutor,
   OpenAICompatibleExecutor,
   HttpExecutor,
 } from './providers/index.js';
+export type { AgentSdkLoader } from './providers/claude-agent.js';
 
 // CLI entry point (for Claude Code Bash invocation)
 export { executeStepCli } from './cli-entry.js';

@@ -30,6 +30,23 @@ const DEFAULT_MODEL = 'claude-sonnet-5';
 const DEFAULT_MAX_TURNS = 25;
 const COMMAND_PREFIX = '!';
 
+/** Loads the Claude Agent SDK module: `() => import('@anthropic-ai/claude-agent-sdk')` */
+export type AgentSdkLoader = () => Promise<unknown>;
+
+let agentSdkLoader: AgentSdkLoader | undefined;
+
+/**
+ * Set how agent steps load the Claude Agent SDK. By default they import
+ * `@anthropic-ai/claude-agent-sdk` from where `@fractary/faber` is installed.
+ * An application that depends on the Agent SDK itself, such as the
+ * fractary-faber CLI, passes a loader that imports it from its own location:
+ * npm may install it where `@fractary/faber` cannot see it, since the Agent SDK
+ * needs zod 4 and `@fractary/faber` uses zod 3. Pass undefined for the default.
+ */
+export function setAgentSdkLoader(loader: AgentSdkLoader | undefined): void {
+  agentSdkLoader = loader;
+}
+
 /**
  * Extended execution parameters for ClaudeAgentExecutor.
  *
@@ -266,16 +283,19 @@ export class ClaudeAgentExecutor implements Executor {
         },
       };
     } catch (error) {
-      // Handle case where Agent SDK is not installed
+      // The Agent SDK is not installed. Node's ESM loader reports this as
+      // "Cannot find package '<name>'", with the code ERR_MODULE_NOT_FOUND.
       if (
         error instanceof Error &&
-        (error.message.includes('Cannot find module') || error.message.includes('ERR_MODULE_NOT_FOUND'))
+        ((error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND' || error.message.includes('Cannot find module')) &&
+        error.message.includes('@anthropic-ai/claude-agent-sdk')
       ) {
         return {
           output: '',
           status: 'failure',
-          error: 'Claude Agent SDK (@anthropic-ai/claude-agent-sdk) is not installed. ' +
-            'Install it with: npm install @anthropic-ai/claude-agent-sdk',
+          error: 'Claude Agent SDK (@anthropic-ai/claude-agent-sdk) is not installed. The fractary-faber CLI ' +
+            'depends on it; when you use @fractary/faber as a library, install it next to it: ' +
+            'npm install @anthropic-ai/claude-agent-sdk',
           metadata: {
             provider: this.provider,
             model,
@@ -298,10 +318,14 @@ export class ClaudeAgentExecutor implements Executor {
   }
 
   /**
-   * Load the Agent SDK. It is an optional dependency, imported only when an
-   * agent step runs in CLI-native mode (harness: 'claude-code').
+   * Load the Agent SDK, only when an agent step runs (harness: 'claude-code'):
+   * with the loader set by `setAgentSdkLoader`, or from `@fractary/faber`'s own
+   * location
    */
   protected loadAgentSdk(): Promise<Pick<typeof import('@anthropic-ai/claude-agent-sdk'), 'query'>> {
+    if (agentSdkLoader) {
+      return agentSdkLoader() as Promise<Pick<typeof import('@anthropic-ai/claude-agent-sdk'), 'query'>>;
+    }
     return import('@anthropic-ai/claude-agent-sdk');
   }
 

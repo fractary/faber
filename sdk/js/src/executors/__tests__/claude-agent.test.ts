@@ -4,7 +4,7 @@
  * The options an agent step's session gets from its runtime config.
  */
 
-import { ClaudeAgentExecutor } from '../providers/claude-agent.js';
+import { ClaudeAgentExecutor, setAgentSdkLoader } from '../providers/claude-agent.js';
 import type { ClaudeAgentExecuteOptions } from '../providers/claude-agent.js';
 import type { ExecutionContext } from '../types.js';
 
@@ -62,6 +62,47 @@ describe('ClaudeAgentExecutor permission mode', () => {
 
     expect(executor.sessions[0]).toMatchObject({ permissionMode: 'bypassPermissions', allowDangerouslySkipPermissions: true });
     expect(executor.sessions[1].allowDangerouslySkipPermissions).toBeUndefined();
+  });
+});
+
+/** Executor whose Agent SDK cannot be loaded, as when the package is not installed */
+class MissingSdkExecutor extends ClaudeAgentExecutor {
+  protected override loadAgentSdk(): ReturnType<ClaudeAgentExecutor['loadAgentSdk']> {
+    const error = new Error(
+      "Cannot find package '@anthropic-ai/claude-agent-sdk' imported from /opt/faber/dist/executors/providers/claude-agent.js"
+    ) as NodeJS.ErrnoException;
+    error.code = 'ERR_MODULE_NOT_FOUND';
+    return Promise.reject(error);
+  }
+}
+
+describe('ClaudeAgentExecutor Agent SDK loader', () => {
+  afterEach(() => setAgentSdkLoader(undefined));
+
+  it('loads the Agent SDK with the loader an application sets', async () => {
+    const prompts: string[] = [];
+    setAgentSdkLoader(() => Promise.resolve({
+      query: ({ prompt }: { prompt: string }) => {
+        prompts.push(prompt);
+        return (async function* (): AsyncGenerator<Record<string, unknown>> {
+          yield { type: 'result', subtype: 'success', result: 'done' };
+        })();
+      },
+    }));
+    const result = await new ClaudeAgentExecutor().execute('Do it', context({}), { provider: 'claude-agent' });
+
+    expect(result).toMatchObject({ status: 'success', output: 'done' });
+    expect(prompts).toEqual(['Do it']);
+  });
+});
+
+describe('ClaudeAgentExecutor without the Agent SDK', () => {
+  it('fails the step and names the package to install', async () => {
+    const result = await new MissingSdkExecutor().execute('Do it', context({}), { provider: 'claude-agent' });
+
+    expect(result.status).toBe('failure');
+    expect(result.error).toContain('Claude Agent SDK (@anthropic-ai/claude-agent-sdk) is not installed');
+    expect(result.error).toContain('npm install @anthropic-ai/claude-agent-sdk');
   });
 });
 

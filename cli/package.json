@@ -37,6 +37,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.296",
     "@fractary/core": "*",
     "@fractary/faber": "*",
     "ajv": "^8.12.0",

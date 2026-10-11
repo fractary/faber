@@ -100,6 +100,14 @@ export interface WorkflowExecuteOptions {
    * project's settings, such as the permissions an eval's trials get
    */
   settings?: string;
+  /**
+   * Spending cap for the run in USD, such as an eval trial's budget, counting
+   * the cost already recorded in `runState`. Each agent session gets what is
+   * left as its `maxBudgetUsd`, and no step, retry or on_failure handler
+   * starts once it is spent: the run stops failed, and a step that could not
+   * start stays pending, so the run can resume with a larger cap.
+   */
+  maxCostUsd?: number;
 
   /**
    * Persistent run state. When set, progress is saved after every step
@@ -133,6 +141,8 @@ interface FailureDecision {
   action: 'retry' | 'stop' | 'continue';
   /** Why, when on_failure is not a plain `stop` */
   reason?: string;
+  /** What the on_failure handler's session cost, when one ran */
+  handlerCostUsd?: number;
 }
 
 /** A failed step attempt, with what handling its on_failure needs */
@@ -156,6 +166,16 @@ interface FailedAttempt {
   options: WorkflowExecuteOptions;
   runId?: string;
   statePath?: string;
+  /** What is left of the run's spending cap, when it has one */
+  budgetLeftUsd?: number;
+}
+
+/** A step's runtime config, with its sessions limited to what is left of the run's spending cap */
+function withinBudget(config: StepRuntimeConfig, budgetLeftUsd: number | undefined): StepRuntimeConfig {
+  if (budgetLeftUsd === undefined) return config;
+  // Never 0, which a session might read as no limit
+  const left = Math.max(0.000001, Math.round(budgetLeftUsd * 1e6) / 1e6);
+  return { ...config, maxBudgetUsd: config.maxBudgetUsd === undefined ? left : Math.min(config.maxBudgetUsd, left) };
 }
 
 /** The step a run stopped before, until a person approves it */
@@ -268,6 +288,11 @@ export class WorkflowExecutor {
         ? { harness: options.cliHarness, model: options.cliModel, plugins, settings: options.settings }
         : undefined;
 
+    // Spending cap: what the run's sessions have cost, across resumes
+    const maxCost = options.maxCostUsd;
+    let spentUsd = runState?.state.cost_usd ?? 0;
+    const budgetLeft = (): number | undefined => (maxCost === undefined ? undefined : maxCost - spentUsd);
+
     // Permission modes: an unknown mode stops the run before any step runs,
     // and steps that bypass permission checks are reported once
     const warnings: string[] = [];
@@ -366,6 +391,16 @@ export class WorkflowExecutor {
         }
         phaseEntered = true;
 
+        // No step starts once the run's budget is spent: it stays pending
+        const budgetBeforeStep = budgetLeft();
+        if (budgetBeforeStep !== undefined && budgetBeforeStep <= 0) {
+          phaseFailed = true;
+          workflowError =
+            `Run stopped before ${phaseName}:${step.id}: its sessions have cost ` +
+            `$${spentUsd.toFixed(2)} of its $${(maxCost ?? 0).toFixed(2)} budget`;
+          break;
+        }
+
         options.onStepStart?.(phaseName, step, i, phase.steps.length);
 
         const runtimeConfig = this.stepRuntimeConfig(step, phaseDefaults, workflow.defaults, cliOverrides);
@@ -409,14 +444,22 @@ export class WorkflowExecutor {
         // Run the step. When it fails, on_failure decides whether it runs
         // again (capped by the phase's max_retries), the run stops, or the
         // run goes on to the next step.
-        let result: ExecutorResult;
+        let result: ExecutorResult | undefined;
         let attempt = 0;
         let failure: FailureDecision | undefined;
         for (;;) {
+          // No retry starts once the run's budget is spent
+          const left = budgetLeft();
+          if (result && left !== undefined && left <= 0) {
+            failure = { action: 'stop', reason: 'the run\'s budget is spent' };
+            break;
+          }
           attempt++;
           runState?.startStep(phaseName, step.id);
+          const attemptConfig = withinBudget(runtimeConfig, left);
+          context.runtimeConfig = attemptConfig;
           try {
-            result = await this.dispatchStep(step, phaseName, workflow, runtimeConfig, context);
+            result = await this.dispatchStep(step, phaseName, workflow, attemptConfig, context);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             runState?.finishStep(phaseName, step.id, { result: 'failure', error: message });
@@ -426,6 +469,7 @@ export class WorkflowExecutor {
           }
           // The step's own FABER response block decides its status
           result = applyStepResponse(result, { requireResponse: step.role === 'validator' });
+          spentUsd += result.metadata.cost_usd ?? 0;
           runState?.finishStep(phaseName, step.id, {
             result: result.status,
             error: result.error,
@@ -451,10 +495,16 @@ export class WorkflowExecutor {
             options,
             runId,
             statePath,
+            budgetLeftUsd: budgetLeft(),
           });
+          spentUsd += failure.handlerCostUsd ?? 0;
           if (failure.action !== 'retry') break;
           retriesUsed.set(phaseName, (retriesUsed.get(phaseName) ?? 0) + 1);
           options.onStepRetry?.(phaseName, step, attempt + 1, failure.reason ?? 'retry');
+        }
+
+        if (result === undefined) {
+          throw new Error(`Step ${phaseName}:${step.id} did not run`);
         }
 
         stepResults.push({
@@ -740,6 +790,8 @@ export class WorkflowExecutor {
       decision = retryLeft
         ? { action: 'retry', reason: `on_failure is retry, ${nextRetry}` }
         : { action: 'stop', reason: `on_failure is retry, but ${noRetries}` };
+    } else if (onFailure.startsWith('/') && failed.budgetLeftUsd !== undefined && failed.budgetLeftUsd <= 0) {
+      decision = { action: 'stop', reason: 'the run\'s budget is spent, so the on_failure handler did not run' };
     } else if (onFailure.startsWith('/')) {
       const handlerResult = await this.runFailureHandler(onFailure, failed, maxRetries);
       handlerStatus = handlerResult.status;
@@ -768,6 +820,12 @@ export class WorkflowExecutor {
       decision = { action: 'stop', reason: `on_failure "${onFailure}" is not supported` };
     }
 
+    // A retry needs budget left after the handler, if one ran
+    const budgetLeft = failed.budgetLeftUsd === undefined ? undefined : failed.budgetLeftUsd - (handlerUsage.cost_usd ?? 0);
+    if (decision.action === 'retry' && budgetLeft !== undefined && budgetLeft <= 0) {
+      decision = { action: 'stop', reason: `${decision.reason ?? 'retry'}, but the run's budget is spent` };
+    }
+
     options.runState?.recordFailureRecovery(phaseName, step.id, {
       attempt,
       ...(onFailure.startsWith('/') && { handler: onFailure, handler_status: handlerStatus }),
@@ -776,7 +834,7 @@ export class WorkflowExecutor {
       action: decision.action,
       reason: decision.reason ?? '',
     });
-    return decision;
+    return { ...decision, ...(handlerUsage.cost_usd !== undefined && { handlerCostUsd: handlerUsage.cost_usd }) };
   }
 
   /**
@@ -795,11 +853,9 @@ export class WorkflowExecutor {
         name: `${failed.step.name} (on_failure)`,
         prompt: `${handler} --step-context-file "${contextFile}"`,
       };
-      const runtimeConfig = resolveRuntimeConfig(
-        undefined,
-        failed.phaseDefaults,
-        failed.workflow.defaults,
-        failed.cliOverrides,
+      const runtimeConfig = withinBudget(
+        resolveRuntimeConfig(undefined, failed.phaseDefaults, failed.workflow.defaults, failed.cliOverrides),
+        failed.budgetLeftUsd,
       );
       const context = { ...failed.context, stepName: handlerStep.name, runtimeConfig };
       const result = await this.dispatchStep(handlerStep, failed.phaseName, failed.workflow, runtimeConfig, context);

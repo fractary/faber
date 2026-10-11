@@ -139,6 +139,7 @@ async function runTrial(
           runState: state,
           plugins: task.plugins,
           settings: task.settings,
+          maxCostUsd: task.budget_usd,
           onWarning: options.onWarning,
         },
       ),

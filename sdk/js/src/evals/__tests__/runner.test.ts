@@ -22,13 +22,13 @@ import type { ExecutionContext } from '../../executors/types.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES = path.resolve(__dirname, '../../../../../evals/fixtures');
 
-/** The real executor, which runs ! steps, recording the plugins and settings each step's session gets */
+/** The real executor, which runs ! steps, recording the plugins, settings and budget each step's session gets */
 class PluginRecordingExecutor extends ClaudeAgentExecutor {
-  readonly sessions: Array<{ plugins?: string[]; settings?: string }> = [];
+  readonly sessions: Array<{ plugins?: string[]; settings?: string; maxBudgetUsd?: number }> = [];
 
   override execute(...args: Parameters<ClaudeAgentExecutor['execute']>): ReturnType<ClaudeAgentExecutor['execute']> {
-    const { plugins, settings } = (args[1] as ExecutionContext & ClaudeAgentExecuteOptions).runtimeConfig ?? {};
-    this.sessions.push({ plugins, settings });
+    const { plugins, settings, maxBudgetUsd } = (args[1] as ExecutionContext & ClaudeAgentExecuteOptions).runtimeConfig ?? {};
+    this.sessions.push({ plugins, settings, maxBudgetUsd });
     return super.execute(...args);
   }
 }
@@ -133,7 +133,7 @@ describe('runEvalSuite', () => {
     expect(violations(trials[0].invariants).map((v) => v.id)).toEqual(['run_ended']);
   }, 60_000);
 
-  it('loads the suite\'s plugins and settings into every session and takes the workflow from them', async () => {
+  it('gives every session the suite\'s plugins, settings and the trial\'s budget, and takes the workflow from the plugins', async () => {
     const suiteDir = suiteWithBuildSteps('in-repo', [{ id: 'unused', prompt: '!exit 1' }]);
     // The pack under test: a plugin with the workflow, outside the repository
     const pack = path.join(suiteDir, 'packs', 'fixture-pack');
@@ -148,7 +148,7 @@ describe('runEvalSuite', () => {
     const taskFile = path.join(suiteDir, 'task', 'task.yaml');
     fs.writeFileSync(path.join(suiteDir, 'trial-settings.json'), '{ "permissions": { "allow": ["Bash(sh:*)"] } }');
     fs.writeFileSync(taskFile, fs.readFileSync(taskFile, 'utf-8')
-      .replace('workflow: in-repo', 'workflow: fixture-pack@fixture-market:solve\nplugins: [../packs/fixture-pack]\nsettings: ../trial-settings.json'));
+      .replace('workflow: in-repo', 'workflow: fixture-pack@fixture-market:solve\nplugins: [../packs/fixture-pack]\nsettings: ../trial-settings.json\nbudget_usd: 5'));
     // The pack is a repository with a change that is not committed
     const git = (...args: string[]): string =>
       execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t.invalid', ...args], { cwd: pack, encoding: 'utf-8' }).trim();
@@ -163,7 +163,7 @@ describe('runEvalSuite', () => {
     const { summary, trials } = await runEvalSuite(loadEvalSuite(suiteDir), { registry });
 
     expect(trials[0]).toMatchObject({ passed: true, run_status: 'completed' });
-    expect(agent.sessions).toEqual([{ plugins: [pack], settings: path.join(suiteDir, 'trial-settings.json') }]);
+    expect(agent.sessions).toEqual([{ plugins: [pack], settings: path.join(suiteDir, 'trial-settings.json'), maxBudgetUsd: 5 }]);
     // The results name the version of the pack they measured
     expect(summary.plugins).toEqual([{ path: pack, commit: git('rev-parse', 'HEAD'), modified: true }]);
   }, 60_000);

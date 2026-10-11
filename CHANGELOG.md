@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A task's `plugin@marketplace:workflow` reference resolves first from a listed directory named `<plugin>`, so the workflow and its skills come from the same copy of the pack. `WorkflowResolver` takes these directories as `pluginDirs`, and `WorkflowExecutor` takes the plugins and settings file as `plugins` and `settings`
   - A suite's `settings` file is applied to every session on top of the repository's settings (the Agent SDK's `settings`, like Claude Code's `--settings`), so trials get the permissions a developer's checkout would have. A CLI run has no one to answer a permission prompt
   - `setup` commands run in the trial's repository before the run, such as `npm ci`, and before `eval check` grades. A trial whose setup fails could not start, and is not graded
+  - A task's `budget_usd` caps its trial's spending, and is no longer only checked afterwards. `WorkflowExecutor` takes `maxCostUsd` for a run: each agent session gets what is left as its `maxBudgetUsd`, and no step, retry or on_failure handler starts once it is spent. The run stops failed, and a step that could not start stays pending, so a resume with a larger cap goes on from it
   - The results name the commit of each plugin, and whether it had uncommitted changes, so a baseline records which version of the pack it measured
 - **Eval harness** (#272, B1): `fractary-faber eval run <suite>` runs every task of an eval suite k times and prints the results table: passes and pass^k per task, mean cost and time, cost per verified success, and invariant violations
   - A task is a frozen past work item (`task.yaml`): the repository before the change, the work item as it was, and a hidden answer key from the accepted change. `fractary-faber eval check <suite>` confirms each answer key fails before the change and passes with it
@@ -68,6 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CLI runs can run agent steps** (#276): `@fractary/faber-cli` depends on `@anthropic-ai/claude-agent-sdk`, which every agent step needs. A published install failed every step with `Cannot find package '@anthropic-ai/claude-agent-sdk'`
+  - The CLI hands `setAgentSdkLoader` a loader that imports the Agent SDK from the CLI's own dependencies. npm can install it where `@fractary/faber` cannot import it: the Agent SDK needs zod 4, and `@fractary/faber` uses zod 3. In this repository, it lands in `cli/node_modules`
+  - When `@fractary/faber` is used as a library without the Agent SDK, the step fails with a message that names the package to install. The old check never matched Node's "Cannot find package" error
+  - The Agent SDK's peer dependencies move this repository's `@modelcontextprotocol/sdk` from 1.25.1 to 1.32.1, within `mcp/server`'s `^1.0.0`
 - **The core workflow names current skills and no `{pr_id}`** (#269): Every workflow that extends `faber@fractary-faber:core` inherits these steps
   - The five environment-switch steps asked for `fractary-core-env-switch`, and `evaluate-pr-review` for `fractary-repo-pr-review`. fractary/core names them `fractary-core-env-switcher` and `fractary-repo-pr-reviewer`
   - `evaluate-pr-review` and `release-pr-merge-prod` used `{pr_id}`, which no runtime fills in, so the production merge step received the literal text `{pr_id}`. They now name the open pull request from the run's branch for the work item

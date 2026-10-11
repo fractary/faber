@@ -849,6 +849,138 @@ describe('WorkflowExecutor retries and on_failure', () => {
   });
 });
 
+/** Executor whose sessions each cost $1, failing a step the given number of times first, and recording each session's budget */
+class CostExecutor implements Executor {
+  readonly provider = 'claude-agent';
+  readonly calls: Array<{ stepName: string; maxBudgetUsd?: number }> = [];
+
+  constructor(private readonly failures: Record<string, number> = {}) {}
+
+  execute(_prompt: string, context: ExecutionContext): Promise<ExecutorResult> {
+    const { runtimeConfig } = context as ExecutionContext & ClaudeAgentExecuteOptions;
+    this.calls.push({ stepName: context.stepName, maxBudgetUsd: runtimeConfig?.maxBudgetUsd });
+    const failing = (this.failures[context.stepId] ?? 0) > 0;
+    if (failing) this.failures[context.stepId]--;
+    const response = { status: failing ? 'failure' : 'success', message: `ran ${context.stepId}` };
+    return Promise.resolve({
+      output: `Done.\n\n${JSON.stringify(response)}`,
+      status: 'success',
+      metadata: { provider: 'fake', duration_ms: 5, cost_usd: 1 },
+    });
+  }
+
+  validate(): Promise<{ valid: boolean }> {
+    return Promise.resolve({ valid: true });
+  }
+
+  budgets(stepName: string): Array<number | undefined> {
+    return this.calls.filter((c) => c.stepName === stepName).map((c) => c.maxBudgetUsd);
+  }
+}
+
+describe('WorkflowExecutor spending cap', () => {
+  let planDir: string;
+  let workflow: ReturnType<typeof makeWorkflow>;
+
+  const newRun = (): RunStateStore =>
+    RunStateStore.create(planDir, {
+      planId: 'acme-app-42',
+      workId: '42',
+      workflowId: 'default',
+      phases: workflow.phases,
+    });
+
+  const run = (fake: CostExecutor, runState: RunStateStore, maxCostUsd: number): Promise<WorkflowExecuteResult> =>
+    makeExecutor(fake).execute(workflow, { workId: '42', workingDirectory: planDir, runState, maxCostUsd });
+
+  beforeEach(() => {
+    planDir = fs.mkdtempSync(path.join(os.tmpdir(), 'faber-budget-test-'));
+    workflow = makeWorkflow();
+  });
+
+  afterEach(() => {
+    fs.rmSync(planDir, { recursive: true, force: true });
+  });
+
+  it('gives each session what is left of the budget, and starts no step once it is spent', async () => {
+    const fake = new CostExecutor();
+    const runState = newRun();
+    const started: string[] = [];
+    const result = await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      runState,
+      maxCostUsd: 2.5,
+      onStepStart: (_phase, step) => started.push(step.id),
+    });
+
+    expect(result.status).toBe('failed');
+    expect(started).toEqual(['fetch-issue', 'implement', 'commit']);
+    expect(fake.calls).toEqual([
+      { stepName: 'fetch-issue', maxBudgetUsd: 2.5 },
+      { stepName: 'implement', maxBudgetUsd: 1.5 },
+      { stepName: 'commit', maxBudgetUsd: 0.5 },
+    ]);
+    expect(runState.state.error).toBe('Run stopped before evaluate:test: its sessions have cost $3.00 of its $2.50 budget');
+    // The step that could not start stays pending, for a resume with a larger budget
+    expect(runState.state.phases.evaluate.steps.test).toMatchObject({ status: 'pending' });
+  });
+
+  it("keeps a step's own lower max_budget_usd", async () => {
+    workflow.phases.build.steps[0].max_budget_usd = 0.25;
+    const fake = new CostExecutor();
+    await run(fake, newRun(), 10);
+
+    expect(fake.budgets('implement')).toEqual([0.25]);
+    expect(fake.budgets('commit')).toEqual([8]);
+  });
+
+  it('counts the cost a run recorded before it was resumed', async () => {
+    const runState = newRun();
+    await run(new CostExecutor(), runState, 2);
+
+    const resumed = new CostExecutor();
+    const result = await run(resumed, RunStateStore.load(planDir, runState.runId), 4);
+
+    expect(result.status).toBe('failed');
+    expect(resumed.calls).toEqual([
+      { stepName: 'commit', maxBudgetUsd: 2 },
+      { stepName: 'test', maxBudgetUsd: 1 },
+    ]);
+  });
+
+  it("caps an on_failure handler's session, and runs none once the budget is spent", async () => {
+    workflow.result_handling = { on_failure: '/fractary-faber-workflow-debug --work-id {work_id}' };
+    const capped = new CostExecutor({ implement: 1 });
+    await run(capped, newRun(), 3.5);
+    expect(capped.budgets('implement (on_failure)')).toEqual([1.5]);
+
+    const spent = new CostExecutor({ implement: 1 });
+    const runState = newRun();
+    const result = await run(spent, runState, 2);
+    expect(result.status).toBe('failed');
+    expect(spent.calls.map((c) => c.stepName)).toEqual(['fetch-issue', 'implement']);
+    expect(runState.state.failure_recoveries?.[0]).toMatchObject({
+      action: 'stop',
+      reason: "the run's budget is spent, so the on_failure handler did not run",
+    });
+  });
+
+  it('retries only while budget is left', async () => {
+    workflow.phases.evaluate.max_retries = 3;
+    workflow.phases.evaluate.result_handling = { on_failure: 'retry' };
+    const fake = new CostExecutor({ test: 5 });
+    const runState = newRun();
+    const result = await run(fake, runState, 4.5);
+
+    // The first three steps cost $3, and the first attempt at test $1: the retry gets the $0.50 left
+    expect(result.status).toBe('failed');
+    expect(fake.budgets('test')).toEqual([1.5, 0.5]);
+    expect(runState.state.failure_recoveries?.map((r) => r.action)).toEqual(['retry', 'stop']);
+    expect(runState.state.failure_recoveries?.[1].reason).toContain("but the run's budget is spent");
+  });
+});
+
 describe('WorkflowExecutor permission modes', () => {
   let planDir: string;
   let workflow: ReturnType<typeof makeWorkflow>;
