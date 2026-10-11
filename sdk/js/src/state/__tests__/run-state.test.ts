@@ -284,6 +284,58 @@ describe('RunStateStore', () => {
     });
   });
 
+  describe('cost and tokens', () => {
+    it("adds up a step's attempts, and every session of the run", () => {
+      const store = RunStateStore.create(planDir, PLAN);
+      store.startStep('build', 'implement');
+      store.finishStep('build', 'implement', { result: 'failure', cost_usd: 0.1, tokens_used: { input: 1000, output: 100 } });
+      store.recordFailureRecovery('build', 'implement', {
+        attempt: 1,
+        handler: '/fractary-faber-workflow-debug',
+        handler_status: 'success',
+        handler_cost_usd: 0.05,
+        handler_tokens_used: { input: 500, output: 50 },
+        action: 'retry',
+        reason: 'the on_failure handler asked for a retry',
+      });
+      store.startStep('build', 'implement');
+      store.finishStep('build', 'implement', { result: 'success', cost_usd: 0.2, tokens_used: { input: 2000, output: 200 } });
+
+      const state = readState(store);
+      expect(state.phases.build.steps.implement).toMatchObject({
+        attempts: 2,
+        cost_usd: 0.3,
+        tokens_used: { input: 3000, output: 300 },
+      });
+      expect(state.failure_recoveries?.[0]).toMatchObject({ handler_cost_usd: 0.05 });
+      expect(state.cost_usd).toBe(0.35);
+      expect(state.tokens_used).toEqual({ input: 3500, output: 350 });
+    });
+
+    it('keeps adding to the totals when the run is resumed', () => {
+      const store = RunStateStore.create(planDir, PLAN);
+      store.startStep('frame', 'fetch-issue');
+      store.finishStep('frame', 'fetch-issue', { result: 'success', cost_usd: 0.25 });
+
+      const resumed = RunStateStore.load(planDir, store.runId);
+      resumed.startStep('build', 'implement');
+      resumed.finishStep('build', 'implement', { result: 'success', cost_usd: 0.5 });
+
+      expect(readState(resumed).cost_usd).toBe(0.75);
+    });
+
+    it('records no cost when the provider reports none', () => {
+      const store = RunStateStore.create(planDir, PLAN);
+      store.startStep('build', 'implement');
+      store.finishStep('build', 'implement', { result: 'success', duration_ms: 3 });
+
+      const state = readState(store);
+      expect(state.cost_usd).toBeUndefined();
+      expect(state.tokens_used).toBeUndefined();
+      expect(state.phases.build.steps.implement.cost_usd).toBeUndefined();
+    });
+  });
+
   describe('listing', () => {
     it('lists the runs of a plan newest first and skips unreadable files', () => {
       const clock = steppingClock();

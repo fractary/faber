@@ -609,6 +609,22 @@ class AttemptsExecutor implements Executor {
   }
 }
 
+/** An AttemptsExecutor whose sessions report a cost: 0.10 per step attempt, 0.05 per handler */
+class PricedExecutor extends AttemptsExecutor {
+  override async execute(prompt: string, context: ExecutionContext): Promise<ExecutorResult> {
+    const result = await super.execute(prompt, context);
+    const handler = prompt.startsWith('/');
+    return {
+      ...result,
+      metadata: {
+        ...result.metadata,
+        cost_usd: handler ? 0.05 : 0.1,
+        tokens_used: handler ? { input: 50, output: 5 } : { input: 100, output: 10 },
+      },
+    };
+  }
+}
+
 describe('WorkflowExecutor retries and on_failure', () => {
   let planDir: string;
   let workflow: ReturnType<typeof makeWorkflow>;
@@ -761,6 +777,20 @@ describe('WorkflowExecutor retries and on_failure', () => {
         action: 'stop',
       }),
     ]);
+  });
+
+  it('records the cost of every session: each step attempt and the handler', async () => {
+    workflow.result_handling = { on_failure: debugHandler };
+    const runState = newRun();
+    const result = await run(new PricedExecutor({ implement: ['reports_failure'] }), runState);
+
+    // fetch-issue and implement cost 0.10 each, and the handler 0.05
+    expect(result.cost_usd).toBe(0.25);
+    const state = runState.state;
+    expect(state.phases.build.steps.implement).toMatchObject({ cost_usd: 0.1, tokens_used: { input: 100, output: 10 } });
+    expect(state.failure_recoveries?.[0]).toMatchObject({ handler_cost_usd: 0.05, handler_tokens_used: { input: 50, output: 5 } });
+    expect(state.cost_usd).toBe(0.25);
+    expect(state.tokens_used).toEqual({ input: 250, output: 25 });
   });
 
   it('retries when the handler asks for a retry without approval, within max_retries', async () => {

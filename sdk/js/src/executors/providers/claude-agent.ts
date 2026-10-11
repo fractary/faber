@@ -178,6 +178,7 @@ export class ClaudeAgentExecutor implements Executor {
       let resultOutput = '';
       let inputTokens = 0;
       let outputTokens = 0;
+      let costUsd: number | undefined;
 
       for await (const message of query({
         prompt: this.substituteVariables(prompt, context),
@@ -213,13 +214,17 @@ export class ClaudeAgentExecutor implements Executor {
       })) {
         if (message.type === 'result') {
           const resultMsg = message;
+          // A failed session costs money too, so usage and cost are read
+          // from every result
+          const usage = resultMsg['usage'] as { input_tokens?: number; output_tokens?: number } | undefined;
+          if (usage) {
+            inputTokens = usage.input_tokens || 0;
+            outputTokens = usage.output_tokens || 0;
+          }
+          const cost = resultMsg['total_cost_usd'];
+          if (typeof cost === 'number' && Number.isFinite(cost)) costUsd = cost;
           if (resultMsg.subtype === 'success') {
             resultOutput = String(resultMsg['result'] ?? '');
-            const usage = resultMsg['usage'] as { input_tokens?: number; output_tokens?: number } | undefined;
-            if (usage) {
-              inputTokens = usage.input_tokens || 0;
-              outputTokens = usage.output_tokens || 0;
-            }
           } else {
             // Error result (max_turns, max_budget, execution error)
             const errors = resultMsg['errors'] as string[] | undefined;
@@ -231,6 +236,10 @@ export class ClaudeAgentExecutor implements Executor {
                 provider: this.provider,
                 model,
                 duration_ms: Date.now() - startTime,
+                tokens_used: inputTokens || outputTokens
+                  ? { input: inputTokens, output: outputTokens }
+                  : undefined,
+                cost_usd: costUsd,
               },
             };
           }
@@ -247,6 +256,7 @@ export class ClaudeAgentExecutor implements Executor {
           tokens_used: inputTokens || outputTokens
             ? { input: inputTokens, output: outputTokens }
             : undefined,
+          cost_usd: costUsd,
         },
       };
     } catch (error) {

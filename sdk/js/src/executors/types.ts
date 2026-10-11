@@ -137,6 +137,8 @@ export interface ExecutorResult {
       input: number;
       output: number;
     };
+    /** Cost of the session in USD (if the provider reports it) */
+    cost_usd?: number;
   };
 
   /** Error message if status is 'failure' */
