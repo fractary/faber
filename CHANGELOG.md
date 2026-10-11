@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Run cost in CLI runs** (#272, B1a): `workflow-execute` records the cost in USD and the tokens of every session whose provider reports them, as the first slice of the eval harness's cost per verified success
+  - Agent SDK steps report `total_cost_usd` and usage, for failed sessions too, which used to drop their tokens
+  - The run state adds them up per step across attempts (`cost_usd`, `tokens_used`), per on_failure handler (`handler_cost_usd`, `handler_tokens_used`) and per run across resumes
+  - The command prints each step's cost and the run's total, and `run-inspect` shows the run's cost
 - **Pack best-practices guide** (#255, version 1): `plugins/faber/docs/PACK-BEST-PRACTICES.md` describes what core expects from a maker pack. It covers the runtime contract, validators, failure handling, approvals, least privilege, handoffs, skill anatomy, workflow hygiene, and tests and evals. Each practice is tagged as enforced (with the change that enforced it), required, or planned (with its milestone). It ends with a conformance checklist that packs copy into their README
   - New `plugins/faber/docs/WORKFLOW-STEP-REFERENCE.md` lists the step, phase and workflow fields that `workflow-execute` reads and what each does. These were documented only in the schema. It records that `skills` has no effect yet (#263), and that `harness: api` steps ignore `model` (#264)
   - `PLUGIN-EXTENSION-GUIDE.md` is rewritten for today's packs: skills instead of `commands/`, no colon-style names, the current step format, `extends`, and how projects use a pack workflow. The planned `faber-app` example is gone

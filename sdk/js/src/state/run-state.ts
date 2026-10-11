@@ -38,8 +38,18 @@ export interface RunStepState {
   /** Why the result did not come from a valid response block, e.g. `no_response_block` */
   reason?: string;
   duration_ms?: number;
+  /** Cost in USD of the step's sessions, across all its attempts, when the provider reports it */
+  cost_usd?: number;
+  /** Tokens used by the step's sessions, across all its attempts, when the provider reports them */
+  tokens_used?: RunTokens;
   /** When a person approved running this step (approval gates) */
   approved_at?: string;
+}
+
+/** Token counts of one or more sessions */
+export interface RunTokens {
+  input: number;
+  output: number;
 }
 
 /** Persisted state of one phase */
@@ -77,6 +87,13 @@ export interface RunState {
   awaiting_approval?: RunApprovalWait;
   /** How step failures were handled by `on_failure: retry` or a handler */
   failure_recoveries?: RunFailureRecovery[];
+  /**
+   * Cost in USD of every session in the run that reported one: each attempt of
+   * each step and each on_failure handler, across resumes
+   */
+  cost_usd?: number;
+  /** Tokens used by every session in the run that reported them */
+  tokens_used?: RunTokens;
 }
 
 /** How a step failure was handled: the step ran again, or the run stopped */
@@ -89,6 +106,10 @@ export interface RunFailureRecovery {
   handler?: string;
   /** The status the handler reported */
   handler_status?: 'success' | 'warning' | 'failure';
+  /** Cost in USD of the handler's session, when the provider reports it */
+  handler_cost_usd?: number;
+  /** Tokens used by the handler's session, when the provider reports them */
+  handler_tokens_used?: RunTokens;
   /** retry: the step ran again; stop: the run stopped */
   action: 'retry' | 'stop';
   reason: string;
@@ -122,6 +143,10 @@ export interface RunStepOutcome {
   error?: string;
   reason?: string;
   duration_ms?: number;
+  /** Cost in USD of this attempt's session */
+  cost_usd?: number;
+  /** Tokens used by this attempt's session */
+  tokens_used?: RunTokens;
 }
 
 export interface RunStateStoreOptions {
@@ -143,6 +168,24 @@ function isDone(step: RunStepState): boolean {
 
 function byStartedAtDesc(a: RunState, b: RunState): number {
   return (b.started_at ?? '').localeCompare(a.started_at ?? '');
+}
+
+/** Add a session's cost and tokens to a step's or a run's totals */
+function addUsage(
+  totals: { cost_usd?: number; tokens_used?: RunTokens },
+  costUsd: number | undefined,
+  tokens: RunTokens | undefined
+): void {
+  if (costUsd !== undefined) {
+    // Rounded to a millionth of a dollar, so sums of floats stay readable
+    totals.cost_usd = Math.round(((totals.cost_usd ?? 0) + costUsd) * 1e6) / 1e6;
+  }
+  if (tokens) {
+    totals.tokens_used = {
+      input: (totals.tokens_used?.input ?? 0) + tokens.input,
+      output: (totals.tokens_used?.output ?? 0) + tokens.output,
+    };
+  }
 }
 
 /**
@@ -358,6 +401,7 @@ export class RunStateStore {
     const recoveries = this.data.failure_recoveries ?? [];
     recoveries.push({ step: `${phase}:${stepId}`, ...recovery, timestamp: this.timestamp() });
     this.data.failure_recoveries = recoveries;
+    addUsage(this.data, recovery.handler_cost_usd, recovery.handler_tokens_used);
     this.save();
   }
 
@@ -420,6 +464,9 @@ export class RunStateStore {
     step.completed_at = this.timestamp();
     if (outcome.reason) step.reason = outcome.reason;
     if (outcome.duration_ms !== undefined) step.duration_ms = outcome.duration_ms;
+    // Cost and tokens add up across attempts, and into the run's totals
+    addUsage(step, outcome.cost_usd, outcome.tokens_used);
+    addUsage(this.data, outcome.cost_usd, outcome.tokens_used);
 
     if (outcome.result === 'failure') {
       step.status = 'failed';

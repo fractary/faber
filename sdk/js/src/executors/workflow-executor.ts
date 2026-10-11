@@ -171,6 +171,8 @@ export interface WorkflowExecuteResult {
   state_path?: string;
   /** Final status recorded in the run state, when executed with run state */
   run_status?: RunStatus;
+  /** Cost in USD of the run so far, across resumes, when executed with run state and the provider reports cost */
+  cost_usd?: number;
   /** The step the run stopped before, when its status is `awaiting_approval` */
   awaiting_approval?: ApprovalRequired;
   /** Warnings about how the run was configured, such as steps that bypass permission checks */
@@ -418,6 +420,8 @@ export class WorkflowExecutor {
             error: result.error,
             reason: result.reason,
             duration_ms: result.metadata.duration_ms,
+            cost_usd: result.metadata.cost_usd,
+            tokens_used: result.metadata.tokens_used,
           });
           options.onStepComplete?.(phaseName, step, result);
 
@@ -512,6 +516,7 @@ export class WorkflowExecutor {
           run_id: runState.runId,
           state_path: runState.statePath,
           run_status: runState.state.status,
+          cost_usd: runState.state.cost_usd,
         }),
       };
     }
@@ -530,6 +535,7 @@ export class WorkflowExecutor {
         run_id: runState.runId,
         state_path: runState.statePath,
         run_status: runStatus,
+        cost_usd: runState.state.cost_usd,
       }),
     };
   }
@@ -718,6 +724,7 @@ export class WorkflowExecutor {
 
     let decision: FailureDecision & { action: 'retry' | 'stop' };
     let handlerStatus: ExecutorResult['status'] | undefined;
+    let handlerUsage: Pick<ExecutorResult['metadata'], 'cost_usd' | 'tokens_used'> = {};
     if (onFailure === 'retry') {
       decision = retryLeft
         ? { action: 'retry', reason: `on_failure is retry, ${nextRetry}` }
@@ -725,6 +732,7 @@ export class WorkflowExecutor {
     } else if (onFailure.startsWith('/')) {
       const handlerResult = await this.runFailureHandler(onFailure, failed, maxRetries);
       handlerStatus = handlerResult.status;
+      handlerUsage = handlerResult.metadata;
       options.onFailureHandler?.(phaseName, step, onFailure, handlerResult);
 
       const block = handlerResult.status === 'failure' ? null : findResponseBlock(handlerResult.output);
@@ -752,6 +760,8 @@ export class WorkflowExecutor {
     options.runState?.recordFailureRecovery(phaseName, step.id, {
       attempt,
       ...(onFailure.startsWith('/') && { handler: onFailure, handler_status: handlerStatus }),
+      ...(handlerUsage.cost_usd !== undefined && { handler_cost_usd: handlerUsage.cost_usd }),
+      ...(handlerUsage.tokens_used && { handler_tokens_used: handlerUsage.tokens_used }),
       action: decision.action,
       reason: decision.reason ?? '',
     });

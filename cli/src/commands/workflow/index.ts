@@ -923,6 +923,9 @@ export function createWorkflowExecuteCommand(): Command {
                 if (stepResult.metadata.tokens_used) {
                   console.log(chalk.gray(`    tokens: ${stepResult.metadata.tokens_used.input}→${stepResult.metadata.tokens_used.output}`));
                 }
+                if (stepResult.metadata.cost_usd !== undefined) {
+                  console.log(chalk.gray(`    cost: $${stepResult.metadata.cost_usd.toFixed(4)}`));
+                }
                 if (stepResult.error) {
                   console.log(chalk.red(`    error: ${stepResult.error}`));
                 }
@@ -959,6 +962,9 @@ export function createWorkflowExecuteCommand(): Command {
             console.log(chalk.gray(`  Skipped (completed earlier in this run): ${result.steps_already_completed}`));
           }
           console.log(chalk.gray(`  Run: ${result.run_id} [${result.run_status}]`));
+          if (result.cost_usd !== undefined) {
+            console.log(chalk.gray(`  Cost: $${result.cost_usd.toFixed(2)} (the run so far, across resumes)`));
+          }
           if (waiting) {
             console.log(chalk.yellow(`\nWaiting for approval of ${waiting.phase}:${waiting.step_id}: ${waiting.reason}`));
             console.log(chalk.cyan(`To approve and continue: fractary-faber workflow-execute ${planPath} --resume ${result.run_id} --approve ${waiting.step_id}`));
@@ -994,6 +1000,9 @@ function printRunState(state: RunState, verbose?: boolean): void {
   console.log(`  Current Step: ${state.current_step_id || state.current_phase || 'N/A'}`);
   console.log(`  Started: ${state.started_at || 'N/A'}`);
   console.log(`  Updated: ${state.updated_at || 'N/A'}`);
+  if (state.cost_usd !== undefined) {
+    console.log(`  Cost: $${state.cost_usd.toFixed(2)}`);
+  }
   if (state.error) {
     console.log(chalk.red(`  Error: ${state.error}`));
   }

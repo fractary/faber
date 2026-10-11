@@ -284,6 +284,8 @@ fractary-faber workflow-execute <plan-path> [options]
 
 Each execution is a run with its own ID, `{plan_id}-run-{timestamp}`. The run's state is saved next to the plan, in `state-{timestamp}.json`, after every step starts and finishes, in the same format the `fractary-faber-workflow-run` skill writes. A run that crashed, failed, or ran only some phases can be resumed with `--resume`: completed steps are skipped and the interrupted or failed step runs again. The run ends `completed`, `failed`, or `paused` (when a phase or step filter left steps unrun); inspect it with `run-inspect --run-id <run-id>` or check it with `runs verify-complete <run-id>`.
 
+**Cost.** The state records the cost in USD (`cost_usd`) and the tokens (`tokens_used`) of every session whose provider reports them. Agent SDK sessions report both, failed ones included. Each step's totals cover all of its attempts, each `failure_recoveries` entry records its handler's session, and the run's totals cover every session across resumes. The command prints each step's cost and the run's total.
+
 **Approval gates.** Before a step that needs a person's approval, the run stops, is saved as `awaiting_approval`, and the command exits with code `3`. A step needs approval when:
 - it is listed in the workflow's `autonomy.require_approval_for`;
 - it is the first step to run in a phase with `require_approval: true`;
