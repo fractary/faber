@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Eval harness** (#272, B1): `fractary-faber eval run <suite>` runs every task of an eval suite k times and prints the results table: passes and pass^k per task, mean cost and time, cost per verified success, and invariant violations
+  - A task is a frozen past work item (`task.yaml`): the repository before the change, the work item as it was, and a hidden answer key from the accepted change. `fractary-faber eval check <suite>` confirms each answer key fails before the change and passes with it
+  - Each trial runs in a fresh clone with a local bare `origin`, and a `gh` shim that serves the frozen work item and refuses merges. GitHub tokens are removed, the plan is built offline, and Release never runs
+  - Invariants: no PR merge, the production branch untouched, within budget, no step after a failed validator, and no crash. `eval run` exits 2 when a trial breaks one
+  - The SDK exports it as `@fractary/faber/evals`. `evals/README.md` documents the task format, and `evals/fixtures/` is a suite that runs without an API key
 - **Run cost in CLI runs** (#272, B1a): `workflow-execute` records the cost in USD and the tokens of every session whose provider reports them, as the first slice of the eval harness's cost per verified success
   - Agent SDK steps report `total_cost_usd` and usage, for failed sessions too, which used to drop their tokens
   - The run state adds them up per step across attempts (`cost_usd`, `tokens_used`), per on_failure handler (`handler_cost_usd`, `handler_tokens_used`) and per run across resumes

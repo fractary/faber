@@ -55,6 +55,7 @@ All commands accept these options:
 | [`repo`](#repo) | Repository operations |
 | [`logs`](#logs) | Log management |
 | [`changelog`](#changelog) | Machine-readable changelog management |
+| [`eval`](#eval) | Run eval suites: frozen work items in clean trials, graded against hidden answer keys |
 
 ---
 
@@ -1298,6 +1299,48 @@ fractary-faber changelog read <run-id> [--json]
 
 ---
 
+## Eval
+
+Run eval suites ([#272](https://github.com/fractary/faber/issues/272)). A task is a frozen past work item: the repository before the change, the work item as it was, and a hidden answer key from the change a person accepted. The task format and the trial sandbox are described in [`evals/README.md`](../../evals/README.md).
+
+### eval check
+
+Check each task without running a workflow: its answer key must fail on the repository before the change, and pass with the task's `solution` patch applied.
+
+```bash
+fractary-faber eval check <suite-dir> [--task <ids>] [--json]
+```
+
+Exits 1 when a task is invalid.
+
+### eval run
+
+Run every task k times, each trial in a clean workspace, and print the results table:
+- passes and pass^k per task;
+- mean cost and time per trial;
+- cost per verified success;
+- invariant violations.
+
+```bash
+fractary-faber eval run <suite-dir> [options]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--trials <k>` | Trials per task | The suite's `trials`, or 3 |
+| `--task <ids>` | Run only these tasks (comma-separated) | |
+| `--output <dir>` | Where to write `results.md`, `results.json` and each trial's run state, gh log and grade | `evals/results/<suite>-<timestamp>` |
+| `--keep-workspaces` | Keep the trial workspaces | |
+| `--json` | Output as JSON | |
+
+Each trial:
+- clones the repository at the commit before the change, with a local bare repository as `origin`;
+- puts a `gh` shim first on `PATH`, which serves the frozen work item and refuses merges, and removes `GH_TOKEN` and `GITHUB_TOKEN`;
+- runs the task's phases with the same executor as `workflow-execute`. Release never runs, so a workflow with an enabled Release phase ends `paused`;
+- is graded by copying the answer key in and running its commands.
+
+Exits 2 when a trial broke an invariant: it tried to merge, moved the production branch, went over budget, or ran a step after a failed validator. Agent steps need an Anthropic API key, as in `workflow-execute`.
+
 ## Configuration
 
 The CLI reads configuration from `.fractary/config.yaml` in your project root.
@@ -1336,6 +1379,7 @@ fractary-faber auth setup
 |------|---------|
 | 0 | Success |
 | 1 | General error |
+| 2 | `eval run`: a trial broke an invariant |
 | 5 | Not found (e.g., log entry) |
 
 ## JSON Output

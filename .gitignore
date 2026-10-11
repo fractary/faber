@@ -5,6 +5,9 @@ node_modules/
 # dist/
 *.tsbuildinfo
 
+# Eval results (fractary-faber eval run)
+evals/results/
+
 # SDK-specific
 sdk/js/dist/
 sdk/js/node_modules/

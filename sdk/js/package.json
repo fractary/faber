@@ -38,6 +38,10 @@
       "types": "./dist/storage/index.d.ts",
       "default": "./dist/storage/index.js"
     },
+    "./evals": {
+      "types": "./dist/evals/index.d.ts",
+      "default": "./dist/evals/index.js"
+    },
     "./agents": {
       "types": "./dist/agents/fractary-faber-index.d.ts",
       "default": "./dist/agents/fractary-faber-index.js"

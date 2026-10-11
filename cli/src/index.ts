@@ -24,6 +24,7 @@ import { createPlanCommand } from './commands/plan/index.js';
 import { createAuthCommand } from './commands/auth/index.js';
 import { createConfigCommand } from './commands/config.js';
 import { createRunsCommand } from './commands/runs.js';
+import { createEvalCommand } from './commands/eval.js';
 
 // Force unbuffered output to prevent buffering issues in terminals
 if (process.stdout.isTTY) {
@@ -72,6 +73,7 @@ export function createFaberCLI(): Command {
   program.addCommand(createRepoCommand());
   program.addCommand(createLogsCommand());
   program.addCommand(createChangelogCommand());
+  program.addCommand(createEvalCommand());        // eval run/check
 
   // Help command
   program.addCommand(
