@@ -1,0 +1,38 @@
+{
+  "id": "fixture-noop",
+  "description": "Eval fixture: reads the work item and changes nothing, so the answer key fails.",
+  "phases": {
+    "frame": {
+      "enabled": true,
+      "steps": [
+        {
+          "id": "frame-read-work-item",
+          "name": "Read the work item",
+          "prompt": "!gh issue view 1 --json title,body | grep -q greet"
+        }
+      ]
+    },
+    "architect": {
+      "enabled": false,
+      "steps": []
+    },
+    "build": {
+      "enabled": true,
+      "steps": [
+        {
+          "id": "build-implement",
+          "name": "Implement",
+          "prompt": "!true"
+        }
+      ]
+    },
+    "evaluate": {
+      "enabled": false,
+      "steps": []
+    },
+    "release": {
+      "enabled": false,
+      "steps": []
+    }
+  }
+}

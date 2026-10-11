@@ -1,0 +1,9 @@
+diff --git a/greet.sh b/greet.sh
+index c33e54f..f6a3c1a 100644
+--- a/greet.sh
++++ b/greet.sh
+@@ -1,3 +1,3 @@
+ #!/bin/sh
+ # Print a greeting for the name given as the first argument.
+-# Not implemented yet: see the work item.
++echo "Hello, $1!"

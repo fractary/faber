@@ -37,5 +37,8 @@ export * from './changelog/index.js';
 // Executors module
 export * from './executors/index.js';
 
+// Evals module (eval harness)
+export * from './evals/index.js';
+
 // Auth module
 export * from './auth/index.js';

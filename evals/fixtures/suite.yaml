@@ -1,0 +1,6 @@
+# Fixture suite for the eval harness: its workflows are shell steps that stand
+# in for an agent, so `fractary-faber eval run evals/fixtures` needs no API key.
+name: fixtures
+trials: 2
+defaults:
+  budget_usd: 1

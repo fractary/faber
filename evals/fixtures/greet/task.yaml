@@ -1,0 +1,16 @@
+# The fixture workflow makes the change, so every trial passes.
+repo:
+  dir: ../repos/greet
+work_item:
+  number: 1
+  title: Add a greet command
+  body: |
+    greet.sh should print "Hello, <name>!" for the name it is given.
+  labels: [enhancement]
+workflow: fixture-solve
+answer_key:
+  files:
+    tests/test_greet.sh: answer-key/test_greet.sh
+  commands:
+    - sh tests/test_greet.sh
+solution: solution.patch

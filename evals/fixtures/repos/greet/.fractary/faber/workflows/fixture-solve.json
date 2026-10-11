@@ -1,0 +1,55 @@
+{
+  "id": "fixture-solve",
+  "description": "Eval fixture: shell steps stand in for an agent and make the change the work item asks for.",
+  "phases": {
+    "frame": {
+      "enabled": true,
+      "steps": [
+        {
+          "id": "frame-read-work-item",
+          "name": "Read the work item",
+          "prompt": "!gh issue view 1 --json title,body | grep -q greet"
+        }
+      ]
+    },
+    "architect": {
+      "enabled": false,
+      "steps": []
+    },
+    "build": {
+      "enabled": true,
+      "steps": [
+        {
+          "id": "build-implement",
+          "name": "Implement",
+          "prompt": "!sh .fixture/solve.sh"
+        },
+        {
+          "id": "build-commit",
+          "name": "Commit and push the work branch",
+          "prompt": "!git add greet.sh && git commit -q -m 'Implement greet' && git push -q origin HEAD"
+        }
+      ]
+    },
+    "evaluate": {
+      "enabled": true,
+      "steps": [
+        {
+          "id": "evaluate-report",
+          "name": "Report on the work item",
+          "prompt": "!gh issue comment 1 --body 'greet.sh prints the greeting'"
+        }
+      ]
+    },
+    "release": {
+      "enabled": true,
+      "steps": [
+        {
+          "id": "release-merge",
+          "name": "Merge",
+          "prompt": "!gh pr merge 1 --squash"
+        }
+      ]
+    }
+  }
+}
