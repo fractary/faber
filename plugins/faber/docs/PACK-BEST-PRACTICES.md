@@ -112,7 +112,7 @@ Field reference: [WORKFLOW-STEP-REFERENCE.md](./WORKFLOW-STEP-REFERENCE.md).
 | Practice | Status |
 |---|---|
 | CI runs the pack's tests on every PR. | **Required** |
-| Eval fixtures or recorded snapshots exist for the pack's main workflow. | **Planned**: B1 |
+| An eval suite of past work items exists for the pack's main workflow, run with `fractary-faber eval run` ([evals/README.md](https://github.com/fractary/faber/blob/main/evals/README.md)). | **Planned**: the harness shipped with B1 ([#272]); faber-code's pilot suite is B2 |
 | A change to a skill, prompt or model ships with an eval comparison. | **Planned**: B4 |
 
 ## 11. Conformance checklist
@@ -159,6 +159,7 @@ Copy this into a "FABER conformance" section of the pack README. Link this guide
   - approval gates and the pause before release;
   - failure handlers;
   - runtime defaults, such as `permission_mode`.
+- **2026-10-11.** The eval harness exists: `fractary-faber eval run` runs a suite of frozen work items in clean trials and reports pass^k and cost per verified success ([#272]). Section 10's eval suite stays planned until the faber-code pilot (B2).
 
 [spec]: https://github.com/fractary/faber/blob/main/docs/specs/harness-hardening-plan.md
 [#235]: https://github.com/fractary/faber/issues/235
@@ -171,4 +172,5 @@ Copy this into a "FABER conformance" section of the pack README. Link this guide
 [#249]: https://github.com/fractary/faber/issues/249
 [#262]: https://github.com/fractary/faber/issues/262
 [#266]: https://github.com/fractary/faber/issues/266
+[#272]: https://github.com/fractary/faber/issues/272
 [fractary/faber-cloud#53]: https://github.com/fractary/faber-cloud/pull/53
