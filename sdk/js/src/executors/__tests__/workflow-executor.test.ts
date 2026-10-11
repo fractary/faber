@@ -865,6 +865,21 @@ describe('WorkflowExecutor permission modes', () => {
   const modes = (fake: FakeExecutor): Record<string, string | undefined> =>
     Object.fromEntries(fake.calls.map((c) => [c.stepId, c.runtimeConfig?.permissionMode]));
 
+  it('passes the run\'s plugins and settings file to every step, whatever the workflow sets', async () => {
+    workflow.defaults = { permission_mode: 'default' };
+    const fake = new FakeExecutor();
+    await makeExecutor(fake).execute(workflow, {
+      workId: '42',
+      workingDirectory: planDir,
+      plugins: ['/packs/faber-code'],
+      settings: '/suite/trial-settings.json',
+    });
+
+    expect(fake.calls.map((c) => c.runtimeConfig?.plugins)).toEqual(Array(fake.calls.length).fill(['/packs/faber-code']));
+    expect(fake.calls.map((c) => c.runtimeConfig?.settings)).toEqual(Array(fake.calls.length).fill('/suite/trial-settings.json'));
+    expect(fake.calls[0].runtimeConfig?.permissionMode).toBe('default');
+  });
+
   it('leaves the permission mode to the executor default when nothing sets it', async () => {
     const fake = new FakeExecutor();
     const result = await makeExecutor(fake).execute(workflow, { workId: '42', workingDirectory: planDir });

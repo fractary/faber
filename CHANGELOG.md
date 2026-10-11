@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Evals run the pack under test** (B2): a suite's `plugins` are loaded into every agent session of a trial, through the Agent SDK's `plugins` option. CLI sessions read only the project's Claude settings, so a pack installed for the user was never loaded, and an old commit of a repository rarely enables the pack in its project settings
+  - A task's `plugin@marketplace:workflow` reference resolves first from a listed directory named `<plugin>`, so the workflow and its skills come from the same copy of the pack. `WorkflowResolver` takes these directories as `pluginDirs`, and `WorkflowExecutor` takes the plugins and settings file as `plugins` and `settings`
+  - A suite's `settings` file is applied to every session on top of the repository's settings (the Agent SDK's `settings`, like Claude Code's `--settings`), so trials get the permissions a developer's checkout would have. A CLI run has no one to answer a permission prompt
+  - `setup` commands run in the trial's repository before the run, such as `npm ci`, and before `eval check` grades. A trial whose setup fails could not start, and is not graded
+  - The results name the commit of each plugin, and whether it had uncommitted changes, so a baseline records which version of the pack it measured
 - **Eval harness** (#272, B1): `fractary-faber eval run <suite>` runs every task of an eval suite k times and prints the results table: passes and pass^k per task, mean cost and time, cost per verified success, and invariant violations
   - A task is a frozen past work item (`task.yaml`): the repository before the change, the work item as it was, and a hidden answer key from the accepted change. `fractary-faber eval check <suite>` confirms each answer key fails before the change and passes with it
   - Each trial runs in a fresh clone with a local bare `origin`, and a `gh` shim that serves the frozen work item and refuses merges. GitHub tokens are removed, the plan is built offline, and Release never runs

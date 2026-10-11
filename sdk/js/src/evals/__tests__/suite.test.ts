@@ -73,6 +73,77 @@ describe('loadEvalSuite', () => {
     });
   });
 
+  it('adds a task\'s plugins and setup to the suite\'s, each path relative to the file that lists it', () => {
+    fs.mkdirSync(path.join(dir, 'packs', 'faber-code'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 't1', 'extra'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'trial-settings.json'), '{ "permissions": { "allow": ["Bash(npm:*)"] } }');
+    fs.writeFileSync(path.join(dir, 't1', 'settings.json'), '{}');
+    fs.writeFileSync(path.join(dir, 'suite.yaml'), [
+      'defaults:',
+      '  workflow: faber-code@fractary-faber-code:default',
+      '  plugins: [packs/faber-code]',
+      '  setup: [npm ci]',
+      '  settings: trial-settings.json',
+    ].join('\n'));
+    writeTask('t1', [
+      'repo: { dir: extra }',
+      'work_item: { number: 7, title: Fix it }',
+      'plugins: [extra]',
+      'setup: [npm run build]',
+      'settings: settings.json',
+      'answer_key: { commands: [npm test] }',
+    ].join('\n'));
+    writeTask('t2', [
+      'repo: { dir: ../t1/extra }',
+      'work_item: { number: 8, title: Fix that }',
+      'answer_key: { commands: [npm test] }',
+    ].join('\n'));
+
+    const [t1, t2] = loadEvalSuite(dir).tasks;
+    expect(t1.plugins).toEqual([path.join(dir, 'packs', 'faber-code'), path.join(dir, 't1', 'extra')]);
+    expect(t1.setup).toEqual(['npm ci', 'npm run build']);
+    // A task's settings file replaces the suite's
+    expect(t1.settings).toBe(path.join(dir, 't1', 'settings.json'));
+    expect(t2).toMatchObject({
+      plugins: [path.join(dir, 'packs', 'faber-code')],
+      setup: ['npm ci'],
+      settings: path.join(dir, 'trial-settings.json'),
+    });
+  });
+
+  it('rejects a settings file that is missing or not a JSON object', () => {
+    fs.writeFileSync(path.join(dir, 'suite.yaml'), 'defaults:\n  workflow: app\n  settings: missing.json\n');
+    writeTask('t1', 'repo: { dir: . }\nwork_item: { number: 1, title: T }\nsettings: list.json\nanswer_key: { commands: [echo ok] }\n');
+    fs.writeFileSync(path.join(dir, 't1', 'list.json'), '["Bash(*)"]');
+
+    let error: unknown;
+    try {
+      loadEvalSuite(dir);
+    } catch (e) {
+      error = e;
+    }
+    const problems = (error as EvalSuiteError).problems.join('\n');
+    expect(problems).toContain(`defaults.settings: ${path.join(dir, 'missing.json')} does not exist`);
+    expect(problems).toContain(`settings: ${path.join(dir, 't1', 'list.json')} must hold a JSON object`);
+  });
+
+  it('reports a plugin directory that does not exist once, not for every task', () => {
+    fs.writeFileSync(path.join(dir, 'suite.yaml'), 'defaults:\n  workflow: app\n  plugins: [missing-pack]\n');
+    for (const id of ['t1', 't2']) {
+      writeTask(id, 'repo: { dir: . }\nwork_item: { number: 1, title: T }\nanswer_key: { commands: [echo ok] }\n');
+    }
+
+    let error: unknown;
+    try {
+      loadEvalSuite(dir);
+    } catch (e) {
+      error = e;
+    }
+    expect((error as EvalSuiteError).problems).toEqual([
+      `${path.join(dir, 'suite.yaml')}: defaults.plugins: ${path.join(dir, 'missing-pack')} is not a directory`,
+    ]);
+  });
+
   it('reports every problem in every task at once', () => {
     writeTask('bad', [
       'repo: { git: https://example.com/r.git }',

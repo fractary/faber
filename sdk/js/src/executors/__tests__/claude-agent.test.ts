@@ -65,6 +65,36 @@ describe('ClaudeAgentExecutor permission mode', () => {
   });
 });
 
+describe('ClaudeAgentExecutor plugins', () => {
+  it('loads the run\'s plugins into the session as local plugins', async () => {
+    const executor = new RecordingAgentExecutor();
+    await executor.execute('Do it', context({ plugins: ['/packs/faber-code', '/packs/extra'] }), { provider: 'claude-agent' });
+
+    expect(executor.sessions[0].plugins).toEqual([
+      { type: 'local', path: '/packs/faber-code' },
+      { type: 'local', path: '/packs/extra' },
+    ]);
+  });
+
+  it('leaves plugins to the project\'s settings when the run sets none', async () => {
+    const executor = new RecordingAgentExecutor();
+    await executor.execute('Do it', context({}), { provider: 'claude-agent' });
+    await executor.execute('Do it', context({ plugins: [] }), { provider: 'claude-agent' });
+
+    expect('plugins' in executor.sessions[0]).toBe(false);
+    expect('plugins' in executor.sessions[1]).toBe(false);
+  });
+
+  it('applies the run\'s settings file to the session, and none when the run sets none', async () => {
+    const executor = new RecordingAgentExecutor();
+    await executor.execute('Do it', context({ settings: '/suite/trial-settings.json' }), { provider: 'claude-agent' });
+    await executor.execute('Do it', context({}), { provider: 'claude-agent' });
+
+    expect(executor.sessions[0].settings).toBe('/suite/trial-settings.json');
+    expect('settings' in executor.sessions[1]).toBe(false);
+  });
+});
+
 /** Executor with a fake Agent SDK whose session ends with the given result message */
 class ResultAgentExecutor extends ClaudeAgentExecutor {
   constructor(private readonly resultMessage: Record<string, unknown>) {

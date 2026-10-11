@@ -19,7 +19,7 @@ import { execFileSync, spawnSync } from 'child_process';
 import type { ResolvedWorkflow } from '../workflow/resolver.js';
 import { FABER_RUNS_DIR } from '../paths.js';
 import { installGhShim } from './gh-shim.js';
-import type { EvalCheckResult, EvalGrade, EvalTask } from './types.js';
+import type { EvalCheckResult, EvalGrade, EvalPluginVersion, EvalTask } from './types.js';
 
 /** A prepared trial directory */
 export interface EvalTrialWorkspace {
@@ -41,6 +41,8 @@ export interface EvalTrialWorkspace {
 const GIT_IDENTITY = ['-c', 'user.name=FABER eval', '-c', 'user.email=eval@faber.invalid'];
 /** Most of a command's output kept for the report */
 const OUTPUT_TAIL = 2000;
+/** Longest a setup command, or an answer-key command by default, may run */
+const COMMAND_TIMEOUT_SECONDS = 600;
 
 function git(cwd: string, args: string[]): string {
   try {
@@ -195,6 +197,38 @@ export async function withTrialEnv<T>(ws: EvalTrialWorkspace, fn: () => Promise<
   }
 }
 
+/** Run a shell command in the trial's repository, with the trial's environment */
+function runCommand(command: string, ws: EvalTrialWorkspace, timeoutSeconds: number): EvalCheckResult {
+  const result = spawnSync('bash', ['-c', command], {
+    cwd: ws.repoDir,
+    env: trialEnv(ws),
+    encoding: 'utf-8',
+    timeout: timeoutSeconds * 1000,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}${result.error ? `\n${result.error.message}` : ''}`;
+  return {
+    command,
+    // A command killed by the timeout has no exit code
+    exit_code: result.status ?? 124,
+    output: output.length > OUTPUT_TAIL ? output.slice(-OUTPUT_TAIL) : output,
+  };
+}
+
+/**
+ * Run the task's setup commands in the trial's repository, in order, such as
+ * installing its dependencies. Each may take up to 600 seconds.
+ * @throws Error naming the first command that failed, with the end of its output
+ */
+export function runSetup(task: EvalTask, ws: EvalTrialWorkspace): void {
+  for (const command of task.setup) {
+    const result = runCommand(command, ws, COMMAND_TIMEOUT_SECONDS);
+    if (result.exit_code !== 0) {
+      throw new Error(`setup command \`${command}\` exited ${result.exit_code}: ${result.output.trim().slice(-500)}`);
+    }
+  }
+}
+
 /**
  * Grade the working tree against the task's answer key: copy its files in,
  * then run its commands. The trial passes when every command exits 0.
@@ -205,25 +239,17 @@ export function gradeTrial(task: EvalTask, ws: EvalTrialWorkspace): EvalGrade {
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(source, destination);
   }
-  const timeoutMs = (task.answer_key.timeout_seconds ?? 600) * 1000;
-  const env = trialEnv(ws);
-  const checks: EvalCheckResult[] = task.answer_key.commands.map((command) => {
-    const result = spawnSync('bash', ['-c', command], {
-      cwd: ws.repoDir,
-      env,
-      encoding: 'utf-8',
-      timeout: timeoutMs,
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    const output = `${result.stdout ?? ''}${result.stderr ?? ''}${result.error ? `\n${result.error.message}` : ''}`;
-    return {
-      command,
-      // A command killed by the timeout has no exit code
-      exit_code: result.status ?? 124,
-      output: output.length > OUTPUT_TAIL ? output.slice(-OUTPUT_TAIL) : output,
-    };
-  });
+  const timeoutSeconds = task.answer_key.timeout_seconds ?? COMMAND_TIMEOUT_SECONDS;
+  const checks = task.answer_key.commands.map((command) => runCommand(command, ws, timeoutSeconds));
   return { passed: checks.every((check) => check.exit_code === 0), checks };
+}
+
+/** Which version of a plugin a run loads: the commit of its repository, and whether it has uncommitted changes */
+export function pluginVersion(dir: string): EvalPluginVersion {
+  const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' });
+  if (head.status !== 0) return { path: dir };
+  const status = spawnSync('git', ['status', '--porcelain', '--', '.'], { cwd: dir, encoding: 'utf-8' });
+  return { path: dir, commit: head.stdout.trim(), ...(status.stdout.trim().length > 0 && { modified: true }) };
 }
 
 /** Apply a patch to the trial's working tree, for checking a task's answer key */

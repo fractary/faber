@@ -204,6 +204,12 @@ export class ClaudeAgentExecutor implements Executor {
           // MCP servers from step config
           mcpServers: runtimeConfig.mcp as Record<string, { command: string; args?: string[] }> | undefined,
 
+          // Plugins and a settings file the run applies to every session, on top of the project's
+          ...(runtimeConfig.plugins && runtimeConfig.plugins.length > 0 && {
+            plugins: runtimeConfig.plugins.map((dir) => ({ type: 'local' as const, path: dir })),
+          }),
+          ...(runtimeConfig.settings && { settings: runtimeConfig.settings }),
+
           // A CLI run has no one to answer a permission prompt, so a tool call
           // that needs permission is denied unless allowedTools or the project's
           // settings allow it. bypassPermissions is an explicit opt-in that the

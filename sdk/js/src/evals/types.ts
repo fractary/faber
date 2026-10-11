@@ -47,12 +47,18 @@ export interface EvalTask {
   /** Branch that counts as production: an eval must never change it (default main) */
   production_branch: string;
   work_item: EvalWorkItem;
-  /** Workflow ID, resolved from the trial's repository */
+  /** Workflow ID, resolved from the trial's plugins first, then from its repository */
   workflow: string;
   /** Phases to run; Release never runs in an eval */
   phases: EvalPhase[];
   /** Step IDs removed from the resolved workflow, such as delivery steps that reach external systems */
   skip_steps: string[];
+  /** Absolute paths of Claude Code plugins loaded into every agent session, such as the pack under test */
+  plugins: string[];
+  /** Absolute path of a Claude settings file applied to every agent session, such as the permissions trials get */
+  settings?: string;
+  /** Commands run in the repository before the run, such as installing dependencies */
+  setup: string[];
   answer_key: EvalAnswerKey;
   /** Spend limit per trial, in USD, checked as an invariant */
   budget_usd?: number;
@@ -142,6 +148,16 @@ export interface EvalSuiteSummary {
   /** Total cost divided by passing trials; undefined when nothing passed or no cost was reported */
   cost_per_verified_success_usd?: number;
   invariant_violations: number;
+  /** The plugins the trials loaded, such as the pack under test, and which version of each */
+  plugins?: EvalPluginVersion[];
+}
+
+/** A plugin directory and the commit of the repository it is in, when it is in one */
+export interface EvalPluginVersion {
+  path: string;
+  commit?: string;
+  /** The directory has changes that are not committed, so the commit alone does not identify it */
+  modified?: boolean;
 }
 
 /** Result of checking one task with `eval check` */

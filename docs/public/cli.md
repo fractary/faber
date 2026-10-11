@@ -1336,10 +1336,15 @@ fractary-faber eval run <suite-dir> [options]
 Each trial:
 - clones the repository at the commit before the change, with a local bare repository as `origin`;
 - puts a `gh` shim first on `PATH`, which serves the frozen work item and refuses merges, and removes `GH_TOKEN` and `GITHUB_TOKEN`;
+- runs the task's `setup` commands, such as installing dependencies;
+- loads the suite's `plugins`, such as the pack under test, into every agent session, and resolves the task's workflow from them first;
+- applies the suite's `settings` file, such as the permissions trials get, to every agent session;
 - runs the task's phases with the same executor as `workflow-execute`. Release never runs, so a workflow with an enabled Release phase ends `paused`;
 - is graded by copying the answer key in and running its commands.
 
-Exits 2 when a trial broke an invariant: it tried to merge, moved the production branch, went over budget, or ran a step after a failed validator. Agent steps need an Anthropic API key, as in `workflow-execute`.
+The results name the commit of each plugin, so they record which version of the pack they measured.
+
+Exits 2 when a trial broke an invariant: it tried to merge, moved the production branch, went over budget, or ran a step after a failed validator. Agent steps need an Anthropic API key and the `@anthropic-ai/claude-agent-sdk` package, which the CLI does not install, as in `workflow-execute`.
 
 ## Configuration
 

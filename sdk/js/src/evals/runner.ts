@@ -23,7 +23,9 @@ import {
   branchCommit,
   cacheTaskRepo,
   gradeTrial,
+  pluginVersion,
   prepareTrial,
+  runSetup,
   withoutSteps,
   withTrialEnv,
   writeTrialPlan,
@@ -91,8 +93,13 @@ async function runTrial(
 
   try {
     ws = prepareTrial(task, trialDir, cachedRepo);
-    const resolved = await new WorkflowResolver({ ...options.resolverOptions, projectRoot: ws.repoDir })
-      .resolveWorkflow(task.workflow);
+    runSetup(task, ws);
+    // The workflow comes from the same plugins the sessions load, when one of them has it
+    const resolved = await new WorkflowResolver({
+      ...options.resolverOptions,
+      pluginDirs: [...task.plugins, ...(options.resolverOptions?.pluginDirs ?? [])],
+      projectRoot: ws.repoDir,
+    }).resolveWorkflow(task.workflow);
     const filtered = withoutSteps(resolved, task.skip_steps);
     if (filtered.unknown.length > 0) {
       options.onWarning?.(`${task.id}: skip_steps names steps the workflow does not have: ${filtered.unknown.join(', ')}`);
@@ -130,6 +137,8 @@ async function runTrial(
           planPath: plan.planPath,
           branch: trialWs.branch,
           runState: state,
+          plugins: task.plugins,
+          settings: task.settings,
           onWarning: options.onWarning,
         },
       ),
@@ -139,7 +148,8 @@ async function runTrial(
   }
 
   let grade: EvalGrade = { passed: false, checks: [] };
-  if (ws) {
+  // A trial that could not start has nothing to grade
+  if (ws && workflow) {
     try {
       grade = gradeTrial(task, ws);
     } catch (error) {
@@ -230,7 +240,12 @@ export async function runEvalSuite(suite: EvalSuite, options: EvalRunOptions = {
     if (!options.keepWorkspaces) fs.rmSync(workDir, { recursive: true, force: true });
   }
 
-  const summary = summarizeTrials(suite.name, trialsPerTask, trials);
+  // Record which copy of each plugin ran, so results name the pack version they measured
+  const plugins = [...new Set(suite.tasks.flatMap((task) => task.plugins))].map(pluginVersion);
+  const summary = {
+    ...summarizeTrials(suite.name, trialsPerTask, trials),
+    ...(plugins.length > 0 && { plugins }),
+  };
   const files = options.outputDir ? writeResults(options.outputDir, summary, trials) : undefined;
   return { summary, trials, ...(files && { files }), ...(options.keepWorkspaces && { workDir }) };
 }
@@ -247,11 +262,15 @@ export function checkEvalSuite(suite: EvalSuite, options: { workDir?: string } =
     return suite.tasks.map((task) => {
       try {
         const cachedRepo = cacheTaskRepo(task, cacheDir);
-        const before = gradeTrial(task, prepareTrial(task, path.join(workDir, task.id, 'before'), cachedRepo));
+        const beforeWs = prepareTrial(task, path.join(workDir, task.id, 'before'), cachedRepo);
+        runSetup(task, beforeWs);
+        const before = gradeTrial(task, beforeWs);
         const check: EvalTaskCheck = { task_id: task.id, fails_before: !before.passed, before };
         if (task.solution) {
           const ws = prepareTrial(task, path.join(workDir, task.id, 'after'), cachedRepo);
+          // Set up after applying the change, which may add dependencies
           applyPatch(ws, task.solution);
+          runSetup(task, ws);
           const after = gradeTrial(task, ws);
           check.after = after;
           check.passes_after = after.passed;

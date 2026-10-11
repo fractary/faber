@@ -258,6 +258,20 @@ export interface StepRuntimeConfig {
 
   /** Agent SDK permission mode for the step's session (default `acceptEdits`) */
   permissionMode?: PermissionMode;
+
+  /**
+   * Claude Code plugin directories loaded into the step's session (Agent SDK
+   * `plugins`), such as the pack an eval runs. Set for a whole run, never by
+   * a workflow.
+   */
+  plugins?: string[];
+
+  /**
+   * A Claude settings file applied to the step's session on top of the
+   * project's settings (Agent SDK `settings`), such as the permissions an eval
+   * grants. Set for a whole run, never by a workflow.
+   */
+  settings?: string;
 }
 
 /**
@@ -413,7 +427,7 @@ export interface PhaseRuntimeDefaults extends RuntimeDefaults {
  * @param step - Step-level runtime config (from workflow step definition)
  * @param phaseDefaults - Phase-level defaults (from workflow.phase_defaults[phase])
  * @param workflowDefaults - Workflow-level defaults (from workflow.defaults)
- * @param cliOverrides - CLI-provided overrides (from --model, --harness flags)
+ * @param cliOverrides - Run-level overrides (from --model, --harness flags), and the run's plugins and settings
  * @returns Fully resolved runtime config
  */
 export function resolveRuntimeConfig(
@@ -472,5 +486,7 @@ export function resolveRuntimeConfig(
       workflowDefaults?.permission_mode ??
       cliOverrides?.permissionMode ??
       undefined,
+    plugins: cliOverrides?.plugins,
+    settings: cliOverrides?.settings,
   };
 }

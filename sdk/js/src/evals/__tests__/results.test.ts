@@ -66,6 +66,22 @@ describe('renderResultsMarkdown', () => {
     expect(markdown).toContain('- a trial 2: production_branch_untouched: the run moved main');
     expect(markdown).toContain('- a trial 2 (run failed): `npm test` exited 1');
   });
+
+  it('names the version of each plugin the trials loaded', () => {
+    const trials = [trial('a', 1, true, 1)];
+    const markdown = renderResultsMarkdown({
+      ...summarizeTrials('pilot', 1, trials),
+      plugins: [
+        { path: '/src/faber-code/plugins/faber-code', commit: 'fe71efd0123456789abcdef0123456789abcdef0' },
+        { path: '/src/extra', commit: '0123456789abcdef0123456789abcdef01234567', modified: true },
+        { path: '/tmp/pack' },
+      ],
+    }, trials);
+
+    expect(markdown).toContain('- **Plugin:** `/src/faber-code/plugins/faber-code` at fe71efd01234\n');
+    expect(markdown).toContain('- **Plugin:** `/src/extra` at 0123456789ab, with uncommitted changes');
+    expect(markdown).toContain('- **Plugin:** `/tmp/pack`, not in a git repository');
+  });
 });
 
 describe('task checks', () => {

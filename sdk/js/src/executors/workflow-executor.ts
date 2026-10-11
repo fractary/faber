@@ -90,6 +90,16 @@ export interface WorkflowExecuteOptions {
   cliHarness?: HarnessType;
   /** CLI-level model override (applies to all steps) */
   cliModel?: string;
+  /**
+   * Claude Code plugin directories to load into every agent session, on top
+   * of the plugins the project's settings enable, such as the pack an eval runs
+   */
+  plugins?: string[];
+  /**
+   * A Claude settings file applied to every agent session on top of the
+   * project's settings, such as the permissions an eval's trials get
+   */
+  settings?: string;
 
   /**
    * Persistent run state. When set, progress is saved after every step
@@ -252,9 +262,10 @@ export class WorkflowExecutor {
     runState?.begin();
 
     // Build CLI overrides for runtime config resolution
+    const plugins = options.plugins && options.plugins.length > 0 ? options.plugins : undefined;
     const cliOverrides: Partial<StepRuntimeConfig> | undefined =
-      (options.cliHarness || options.cliModel)
-        ? { harness: options.cliHarness, model: options.cliModel }
+      (options.cliHarness || options.cliModel || plugins || options.settings)
+        ? { harness: options.cliHarness, model: options.cliModel, plugins, settings: options.settings }
         : undefined;
 
     // Permission modes: an unknown mode stops the run before any step runs,
