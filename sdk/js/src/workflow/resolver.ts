@@ -345,6 +345,13 @@ export interface WorkflowResolverOptions {
    * @deprecated Prefer bundled workflow references resolved via __dirname.
    */
   marketplaceRoot?: string;
+  /**
+   * Plugin directories that `plugin@marketplace:workflow` references resolve
+   * from first: a directory named `<plugin>`, with its workflows in
+   * `.fractary/faber/workflows/`. An eval passes the plugins it loads into
+   * its sessions, so the workflow and the skills come from the same copy.
+   */
+  pluginDirs?: string[];
   /** Project root directory (default: process.cwd()) */
   projectRoot?: string;
 }
@@ -564,6 +571,7 @@ function mergeResultHandling(layers: Array<StepResultHandling | undefined>): Ste
 export class WorkflowResolver {
   private bundledWorkflowsPath: string;
   private marketplaceRoot: string;
+  private pluginDirs: string[];
   private projectRoot: string;
   private workflowCache: Map<string, WorkflowFileConfig> = new Map();
 
@@ -572,6 +580,7 @@ export class WorkflowResolver {
     // marketplaceRoot kept for legacy Claude marketplace plugin@marketplace:workflow refs.
     // Left as empty string when not configured so callers can check truthiness.
     this.marketplaceRoot = options.marketplaceRoot || process.env['CLAUDE_MARKETPLACE_ROOT'] || '';
+    this.pluginDirs = options.pluginDirs ?? [];
     this.projectRoot = options.projectRoot || process.cwd();
   }
 
@@ -609,6 +618,7 @@ export class WorkflowResolver {
    * Collect all candidate root directories for a cross-package workflow reference.
    * Returns them in priority order so the caller can check workflow existence at each.
    * Priorities:
+   *   0. Plugin directories named `<plugin>` in `pluginDirs`
    *   1. npm require resolution  (@fractary/faber-cloud in node_modules)
    *   2. Sibling in same node_modules/@fractary/ directory
    *   3. Legacy Claude marketplace path (if marketplaceRoot is set)
@@ -618,6 +628,11 @@ export class WorkflowResolver {
    */
   private resolveExternalPackageRoots(plugin: string, marketplace: string): string[] {
     const roots: string[] = [];
+
+    // 0. Plugin directories given to the resolver, such as the pack an eval runs
+    for (const dir of this.pluginDirs) {
+      if (path.basename(path.resolve(dir)) === plugin) roots.push(path.resolve(dir));
+    }
 
     // 1. npm: resolve @fractary/<plugin> package main, then walk up to package root
     try {

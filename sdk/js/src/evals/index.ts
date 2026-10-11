@@ -20,8 +20,10 @@ export {
   trialEnv,
   withTrialEnv,
   gradeTrial,
+  runSetup,
   applyPatch,
   branchCommit,
+  pluginVersion,
 } from './workspace.js';
 export type { EvalTrialWorkspace } from './workspace.js';
 export { EVAL_PHASES } from './types.js';
@@ -39,5 +41,6 @@ export type {
   EvalTrialResult,
   EvalTaskSummary,
   EvalSuiteSummary,
+  EvalPluginVersion,
   EvalTaskCheck,
 } from './types.js';

@@ -82,6 +82,8 @@ export function renderResultsMarkdown(summary: EvalSuiteSummary, results: EvalTr
     `- **Total cost:** ${usd(summary.total_cost_usd)}`,
     `- **Cost per verified success:** ${usd(summary.cost_per_verified_success_usd)}`,
     `- **Invariant violations:** ${summary.invariant_violations}`,
+    ...(summary.plugins ?? []).map((p) =>
+      `- **Plugin:** \`${p.path}\`${p.commit ? ` at ${p.commit.slice(0, 12)}${p.modified ? ', with uncommitted changes' : ''}` : ', not in a git repository'}`),
   ];
 
   const broken = results.flatMap((r) => violations(r.invariants).map((v) => `- ${r.task_id} trial ${r.trial}: ${v.id}${v.detail ? `: ${v.detail}` : ''}`));

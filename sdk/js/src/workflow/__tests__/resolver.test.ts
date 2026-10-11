@@ -763,6 +763,33 @@ describe('WorkflowResolver', () => {
         expect(resolved.id).toBe('monorepo-wf');
         expect(resolved.description).toBe('Monorepo workflow');
       });
+
+      it('should resolve explicit format from a plugin directory named <plugin> before an installed copy', async () => {
+        createExplicitWorkflow('fractary-faber-code', 'faber-code', 'default', {
+          id: 'default',
+          description: 'Installed copy',
+        });
+        // The copy under test, such as an eval's pack, in a checkout of its own
+        const pluginDir = path.join(testDir, 'checkout', 'plugins', 'faber-code');
+        fs.mkdirSync(path.join(pluginDir, '.fractary/faber/workflows'), { recursive: true });
+        fs.writeFileSync(
+          path.join(pluginDir, '.fractary/faber/workflows', 'default.json'),
+          JSON.stringify({ id: 'default', description: 'Copy under test', phases: { build: { enabled: true } } })
+        );
+
+        const fromPluginDirs = new WorkflowResolver({
+          marketplaceRoot,
+          projectRoot,
+          pluginDirs: [path.join(testDir, 'checkout', 'plugins', 'faber-cloud'), pluginDir],
+        });
+
+        expect((await fromPluginDirs.resolveWorkflow('faber-code@fractary-faber-code:default')).description).toBe(
+          'Copy under test'
+        );
+        expect((await resolver.resolveWorkflow('faber-code@fractary-faber-code:default')).description).toBe(
+          'Installed copy'
+        );
+      });
     });
 
     describe('Project-local Format', () => {

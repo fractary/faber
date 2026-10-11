@@ -25,6 +25,12 @@ import { createAuthCommand } from './commands/auth/index.js';
 import { createConfigCommand } from './commands/config.js';
 import { createRunsCommand } from './commands/runs.js';
 import { createEvalCommand } from './commands/eval.js';
+import { setAgentSdkLoader } from '@fractary/faber';
+
+// Agent steps import the Claude Agent SDK from the CLI's own dependencies.
+// npm can install it where @fractary/faber does not see it: the Agent SDK
+// needs zod 4, and @fractary/faber uses zod 3.
+setAgentSdkLoader(() => import('@anthropic-ai/claude-agent-sdk'));
 
 // Force unbuffered output to prevent buffering issues in terminals
 if (process.stdout.isTTY) {

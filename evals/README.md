@@ -25,11 +25,16 @@ fractary-faber eval run <suite-dir>       # run every task k times and print the
 ```yaml
 name: faber-code-pilot
 trials: 3                       # per task (default 3)
-defaults:                       # any task field below
-  workflow: app
+defaults:                       # for every task
+  workflow: faber-code@fractary-faber-code:default
+  plugins: [../../plugins/faber-code]   # the pack under test; relative to this file
+  settings: trial-settings.json         # Claude settings for every session, such as permissions
+  setup: [npm ci]
   budget_usd: 10
   skip_steps: [frame-codex-sync, build-create-pr]
 ```
+
+`defaults` can set `workflow`, `phases`, `skip_steps`, `plugins`, `settings`, `setup`, `budget_usd` and `production_branch`. A task's `skip_steps`, `plugins` and `setup` are added to the suite's; its other values replace the suite's.
 
 ## A task
 
@@ -51,10 +56,13 @@ work_item:                      # the issue as it was when work started
   comments:
     - author: alice
       body: ...
-workflow: app                   # resolved from the trial's repository
+workflow: app                   # resolved from the plugins, then the trial's repository
 phases: [frame, architect, build, evaluate]   # the default; Release never runs
-skip_steps: []                  # added to the suite's skip_steps
-budget_usd: 10                  # an invariant, checked after the trial
+skip_steps: []                  # steps removed from the workflow
+plugins: []                     # plugin directories, relative to this file
+settings: trial-settings.json   # a Claude settings file, relative to this file
+setup: [npm ci]                 # commands run in the repository before the run
+budget_usd: 10                  # the trial's spending cap
 answer_key:
   files:                        # repository path: file in the task directory
     tests/coupons.test.ts: answer-key/coupons.test.ts
@@ -72,7 +80,11 @@ A good task comes from a closed work item whose merged change added tests that f
 Each trial runs in its own directory:
 - **Repository:** a fresh clone at the commit before the change, on a work branch (`feat/<number>`). Its `origin` is a local bare repository, so pushes stay local.
 - **GitHub:** a `gh` shim, first on `PATH`, serves the frozen work item. It keeps comments posted during the run, so later steps read them as they would on GitHub. It records pull request calls, and refuses merges and API calls. `GH_TOKEN` and `GITHUB_TOKEN` are removed from the environment.
+- **Setup:** the `setup` commands run in the repository, in order, such as installing its dependencies. If one fails, the trial could not start. `eval check` runs them too, after applying the solution.
+- **Plugins:** every agent session loads the `plugins`, on top of the plugins the repository's `.claude/settings.json` enables. Sessions read only the project's settings, so a pack installed for your user is not loaded unless it is listed. A `plugin@marketplace:workflow` reference resolves first from a listed directory named `<plugin>`, so the workflow and its skills come from the same copy of the pack.
+- **Settings:** every agent session applies the `settings` file on top of the repository's settings, as Claude Code's `--settings` does. Use it to grant the permissions a developer's checkout would have, such as `Bash(npm:*)` and `Bash(git:*)`: a CLI run has no one to answer a permission prompt, so anything not allowed is denied.
 - **Plan:** written offline from the resolved workflow, without the `skip_steps` steps. `workflow-plan` would call GitHub and the Anthropic API.
+- **Budget:** `budget_usd` caps what the trial's sessions spend. Each session gets what is left as its own limit, and no step, retry or failure handler starts once it is spent; the run then stops failed, and the trial is still graded.
 - **Run:** the task's phases run with `workflow-execute`'s executor, and the run state records every session's cost. Release never runs, so a workflow with an enabled Release phase ends `paused`.
 - **Grade:** the answer key's files are copied into the working tree, then its commands run. The trial passes when every command exits 0 and the run did not crash. Grading is independent of the workflow's own validators.
 
@@ -101,14 +113,14 @@ Every trial must hold these, whatever its grade:
 | `run_ended` | The run crashed, or the trial could not start |
 | `no_pr_merge` | A step tried `gh pr merge` |
 | `production_branch_untouched` | The production branch moved, appeared or disappeared on the trial's remote |
-| `within_budget` | The run's cost is over `budget_usd`. Not checked without a budget or a reported cost |
+| `within_budget` | The run's cost is over `budget_usd`: a session stops only after it exceeds its limit, so the last one can go over. Not checked without a budget or a reported cost |
 | `failed_validator_not_ignored` | A step ran after a validator failed |
 
 `eval run` exits 2 when any trial broke one.
 
 ## Results
 
-`eval run` prints the results table and writes `results.md`, `results.json` and each trial's run state, gh log and grade to `--output` (default `evals/results/<suite>-<timestamp>/`):
+`eval run` prints the results table and writes `results.md`, `results.json` and each trial's run state, gh log and grade to `--output` (default `evals/results/<suite>-<timestamp>/`). The results name the commit of each plugin, and whether it had uncommitted changes, so they record which version of the pack they measured.
 
 | Measure | Meaning |
 |---|---|
