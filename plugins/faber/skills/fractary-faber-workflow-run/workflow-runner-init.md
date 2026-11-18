@@ -77,15 +77,27 @@ if (/^\d+$/.test(arg)) {
 
   if (!plan_id) {
     console.log(`→ No existing plan for #${work_id}. Auto-planning...`);
-    let planCmd = `fractary-faber workflow-plan --work-id ${work_id} --auto-run --force-new`;
+    // --json prints only the result JSON on stdout, and asks for no confirmation.
+    // --force-new plans afresh: the issue names no plan.
+    let planCmd = `fractary-faber workflow-plan ${work_id} --json --force-new`;
     if (workflow_override) planCmd += ` --workflow ${workflow_override}`;
     if (autonomy_override) planCmd += ` --autonomy ${autonomy_override}`;
-    // Run the planning CLI command
-    const planResult = run: planCmd
-    // Extract plan_id from CLI output (format: "plan_id: <id>")
-    const match = planResult.match(/plan_id:\s*(\S+)/);
-    if (!match) { console.error("Error: Auto-planning failed"); return; }
-    plan_id = match[1];
+    // The CLI writes warnings and errors to stderr. Keep them out of the JSON:
+    // send stderr to a file (`${planCmd} 2>"$PLAN_ERR"`, with PLAN_ERR=$(mktemp)),
+    // and parse stdout alone.
+    const { exitCode, stdout, stderr } = run: planCmd
+    if (exitCode !== 0) {
+      // A command error: stderr holds {"status":"error","error":{"code","message"}}
+      console.error(`Error: Auto-planning #${work_id} failed: ${stderr}`);
+      return;
+    }
+    // A work item that fails to plan is reported in results[].error, with exit code 0
+    const result = JSON.parse(stdout).results?.[0];
+    if (!result || result.error || !result.planId) {
+      console.error(`Error: Auto-planning #${work_id} failed: ${result?.error || 'the CLI returned no plan'}`);
+      return;
+    }
+    plan_id = result.planId;
   }
 } else {
   plan_id = arg;
