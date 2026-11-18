@@ -29,7 +29,14 @@ interface SetupOptions {
   repo?: string;
   configPath?: string;
   showManifest?: boolean;
-  noSave?: boolean;
+  save?: boolean; // false with --no-save (Commander sets `save`, not `noSave`)
+}
+
+/**
+ * Whether setup saves the private key and configuration: yes unless --no-save was passed
+ */
+export function shouldSaveCredentials(options: SetupOptions): boolean {
+  return options.save !== false;
 }
 
 /**
@@ -176,9 +183,10 @@ async function runSetup(options: SetupOptions): Promise<void> {
   console.log(`  Organization: ${chalk.cyan(org)}`);
   console.log(`  Repository: ${chalk.cyan(repo)}\n`);
 
-  // Step 2: Check if already configured
+  // Step 2: Check if already configured (--no-save replaces nothing)
+  const save = shouldSaveCredentials(options);
   const configPath = options.configPath || getConfigPath();
-  const existingConfig = await checkExistingConfig();
+  const existingConfig = save && await checkExistingConfig();
 
   if (existingConfig) {
     console.log(
@@ -203,24 +211,29 @@ async function runSetup(options: SetupOptions): Promise<void> {
     console.log();
   }
 
-  // Ask user if they want to create new or configure existing app
-  const rl0 = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+  // Ask user if they want to create new or configure existing app.
+  // Configuring an existing app only saves configuration, so --no-save skips it.
+  if (save) {
+    const rl0 = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
 
-  console.log(chalk.bold('Choose setup method:'));
-  console.log('  1. Create a new GitHub App (guided)');
-  console.log('  2. Configure an existing GitHub App (manual)\n');
+    console.log(chalk.bold('Choose setup method:'));
+    console.log('  1. Create a new GitHub App (guided)');
+    console.log('  2. Configure an existing GitHub App (manual)\n');
 
-  const method = (await rl0.question('Enter 1 or 2: ')).trim();
-  rl0.close();
-  console.log();
+    const method = (await rl0.question('Enter 1 or 2: ')).trim();
+    rl0.close();
+    console.log();
 
-  if (method === '2') {
-    // Manual configuration for existing app
-    await manualAppConfiguration(configPath, org, repo);
-    return;
+    if (method === '2') {
+      // Manual configuration for existing app
+      await manualAppConfiguration(configPath, org, repo);
+      return;
+    }
+  } else {
+    console.log(chalk.gray('--no-save: creating a new GitHub App. Nothing will be saved.\n'));
   }
 
   // Step 3: Generate manifest
@@ -484,7 +497,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   console.log(chalk.green(`✓ Installation ID: ${chalk.cyan(installationId)}\n`));
 
   // Step 8: Save private key
-  if (!options.noSave) {
+  if (save) {
     console.log(chalk.gray(`Saving private key to ~/.github/faber-${org}.pem...`));
 
     let keyPath: string;
@@ -535,7 +548,8 @@ github:
 
     console.log(chalk.green(`✓ Configuration saved to ${configPath}\n`));
   } else {
-    // Display credentials without saving
+    // Display credentials without saving. The private key is not shown either,
+    // so it never lands in terminal scrollback or captured logs.
     console.log(chalk.bold('\n📋 App Credentials:\n'));
     console.log(
       JSON.stringify(
@@ -543,23 +557,28 @@ github:
           app_id: conversionResponse.id,
           installation_id: installationId,
           app_slug: conversionResponse.slug,
-          private_key: '[PEM key not shown]',
+          private_key: '[not saved or shown]',
         },
         null,
         2
       )
     );
+    console.log();
+    console.log(chalk.yellow(`Nothing was saved (--no-save): ${configPath} is unchanged, and the private key from this setup is not kept.`));
+    console.log();
   }
 
   // Step 10: Success message
   console.log(chalk.bold('━'.repeat(60)));
-  console.log(chalk.bold.green('✨ Setup Complete!'));
+  console.log(chalk.bold.green(save ? '✨ Setup Complete!' : '✨ GitHub App Created'));
   console.log(chalk.bold('━'.repeat(60)));
   console.log();
-  console.log('Test your configuration:');
-  console.log(chalk.cyan('  fractary-faber work issue fetch 1'));
-  console.log();
-  console.log('View your app:');
+  if (save) {
+    console.log('Test your configuration:');
+    console.log(chalk.cyan('  fractary-faber work issue fetch 1'));
+    console.log();
+  }
+  console.log(save ? 'View your app:' : 'To use the app, generate a private key on its settings page:');
   console.log(
     chalk.cyan(
       `  https://github.com/organizations/${org}/settings/apps/${conversionResponse.slug}`
