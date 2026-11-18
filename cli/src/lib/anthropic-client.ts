@@ -21,6 +21,15 @@ import type { LoadedFaberConfig } from '../types/config.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Plan ID for a work item: {org}-{project}-{work-id}.
+ * Timestamp is omitted from plan-id since run-ids already contain timestamps.
+ * This keeps plan directories human-readable and scoped to the work item.
+ */
+function formatPlanId(organization: string, project: string, issueNumber: number): string {
+  return `${slugify(organization)}-${slugify(project)}-${issueNumber}`;
+}
+
 interface GeneratePlanInput {
   workflow: string;
   issueTitle: string;
@@ -157,9 +166,6 @@ export class AnthropicClient {
     // Extract repo info
     const { organization, project } = await this.extractRepoInfo();
 
-    // Generate plan ID: {org}-{project}-{work-id}
-    // Timestamp is omitted from plan-id since run-ids already contain timestamps.
-    // This keeps plan directories human-readable and scoped to the work item.
     const now = new Date();
     const year = now.getFullYear().toString();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -168,7 +174,7 @@ export class AnthropicClient {
     const minute = String(now.getMinutes()).padStart(2, '0');
     const second = String(now.getSeconds()).padStart(2, '0');
     const subproject = `issue-${input.issueNumber}`;
-    const planId = `${slugify(organization)}-${slugify(project)}-${input.issueNumber}`;
+    const planId = formatPlanId(organization, project, input.issueNumber);
 
     // Build the plan deterministically — no LLM call needed
     const plan: WorkflowPlan = {
@@ -240,6 +246,14 @@ export class AnthropicClient {
     this.validatePlan(plan);
 
     return plan;
+  }
+
+  /**
+   * Get the ID of the plan that generatePlan writes for a work item.
+   */
+  async getPlanId(issueNumber: number): Promise<string> {
+    const { organization, project } = await this.extractRepoInfo();
+    return formatPlanId(organization, project, issueNumber);
   }
 
   /**

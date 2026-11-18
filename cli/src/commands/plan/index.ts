@@ -19,6 +19,7 @@ import {
 } from '../../utils/validation.js';
 import type { LoadedFaberConfig } from '../../types/config.js';
 import { getRunDir, getPlanPath, getActiveRunIdPath } from '@fractary/faber';
+import { hasExistingPlan } from './existing-plan.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -511,28 +512,24 @@ async function planSingleIssue(
     }
   }
 
-  // Check for existing plan (skip if found, unless --force-new)
+  // Reuse this work item's plan if it already has one (unless --force-new).
+  // Only the work item's own plan counts: the runs directory also holds
+  // the plans of other work items when run history is committed.
   if (!options.forceNew) {
-    const runsDir = path.join(worktreePath, '.fractary', 'faber', 'runs');
-    try {
-      const entries = await fs.readdir(runsDir);
-      for (const entry of entries) {
-        const planFile = path.join(runsDir, entry, 'plan.json');
-        try {
-          await fs.access(planFile);
-          // Found existing plan
-          if (outputFormat === 'text') {
-            console.log(chalk.yellow(`  ⚠️  Plan already exists: ${entry} — skipping (use --force-new to regenerate)`));
-          }
-          return {
-            issue,
-            planId: entry,
-            branch,
-            worktree: worktreePath,
-          };
-        } catch { /* no plan.json in this entry */ }
+    const existingPlanId = await anthropicClient.getPlanId(issue.number);
+    validatePlanId(existingPlanId);
+    const existingPlanPath = getPlanPath(existingPlanId, worktreePath);
+    if (await hasExistingPlan(existingPlanPath, issue.number.toString())) {
+      if (outputFormat === 'text') {
+        console.log(chalk.yellow(`  ⚠️  Plan already exists: ${existingPlanId} — skipping (use --force-new to regenerate)`));
       }
-    } catch { /* runs dir doesn't exist — proceed with planning */ }
+      return {
+        issue,
+        planId: existingPlanId,
+        branch,
+        worktree: worktreePath,
+      };
+    }
   }
 
   // Generate deterministic plan from resolved workflow

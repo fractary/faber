@@ -69,6 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **workflow-plan reuses only the work item's own plan** (#278): the existing-plan check took any `plan.json` under `.fractary/faber/runs/` as the plan of the work item being planned. In a project that commits its run history, every new work item was skipped and reported as planned with another item's plan ID, and got no plan or "Workflow Plan Created" comment. This began when worktrees became opt-in (#192), since plans are then read from the project's own runs directory
+  - The check reads only the path the work item's plan is written to, `runs/{org}-{project}-{work-id}/plan.json`, and reuses the plan there when its source or items name the work item. The plan ID comes from `AnthropicClient.getPlanId`, which `generatePlan` uses as well
+  - A plan at that path that names another work item, or cannot be read, stops planning the item with an error that suggests `--force-new`, instead of being written over
 - **CLI runs can run agent steps** (#276): `@fractary/faber-cli` depends on `@anthropic-ai/claude-agent-sdk`, which every agent step needs. A published install failed every step with `Cannot find package '@anthropic-ai/claude-agent-sdk'`
   - The CLI hands `setAgentSdkLoader` a loader that imports the Agent SDK from the CLI's own dependencies. npm can install it where `@fractary/faber` cannot import it: the Agent SDK needs zod 4, and `@fractary/faber` uses zod 3. In this repository, it lands in `cli/node_modules`
   - When `@fractary/faber` is used as a library without the Agent SDK, the step fails with a message that names the package to install. The old check never matched Node's "Cannot find package" error
