@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Component | Version | Change |
 |-----------|---------|--------|
-| faber plugin | 5.3.0 | Minor |
-| Marketplace | 5.3.0 | Minor |
+| faber plugin | 5.3.1 | Patch |
+| Marketplace | 5.3.1 | Patch |
 
 ### Added
 
