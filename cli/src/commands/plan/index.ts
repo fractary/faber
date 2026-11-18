@@ -29,7 +29,7 @@ interface PlanOptions {
   workflow?: string;
   autonomy?: string;
   worktree?: boolean;
-  noBranch?: boolean;
+  branch?: boolean; // false with --no-branch (Commander sets `branch`, not `noBranch`)
   skipConfirm?: boolean;
   forceNew?: boolean;
   output?: string;
@@ -435,6 +435,13 @@ function shouldCreateWorktree(options: PlanOptions, config: LoadedFaberConfig): 
 }
 
 /**
+ * Whether to create the work item's branch: yes unless --no-branch was passed
+ */
+export function shouldCreateBranch(options: PlanOptions): boolean {
+  return options.branch !== false;
+}
+
+/**
  * Plan a single issue
  */
 async function planSingleIssue(
@@ -451,7 +458,7 @@ async function planSingleIssue(
   const createWorktree = shouldCreateWorktree(options, config);
 
   // Create branch without checking it out (so it won't conflict with worktree creation)
-  if (!options.noBranch) {
+  if (shouldCreateBranch(options)) {
     if (outputFormat === 'text') {
       console.log(chalk.gray(`  → Creating branch: ${branch}...`));
       process.stdout.write(''); // Force flush
